@@ -1,0 +1,39 @@
+If you want to suggest a fix or improvement, please post a patch to this
+file, and discuss the change in ovirt devel mailing list.
+
+
+Must
+
+- Implement io operations in a separate process, so inaccessible storage
+  cannot cause the while process to get stuck.
+
+- Support Range and Content-Range headers so uploading and downloading
+  partial content is possible
+
+- Break into small modues, eliminating globals. Access global state (such
+  as tickets/sessions) using functions.
+
+- Configuration file - simple ini file should be fine, check what is
+  conf.d system suggested by Alon.
+
+- Packaging
+
+- CI scripts
+
+Maybe
+
+- Scale/stress tests
+
+- Use autoconf for default settings (e.g /var/run/vdsm/vdsm-imaged.sock)
+
+- Use server supporting multiple sockets, or implement such listener,
+  passing connected sockets to actual http server (similar to
+  protocoldetector in vdsm).
+
+- Eliminate polling for shutdown - easily solved if we support multiple
+  sockets, just add a pipe or eventfd for signaling shutdown.
+
+- Daemonizing support for system without systemd.
+  Check exaples in ovirt-engine source:
+  packaging/pythonlib/ovirt_engine/service.py
+  packaging/services/ovirt-fence-kdump-listener/ovirt-fence-kdump-listener.py

@@ -1,0 +1,83 @@
+vdsm-imaged daemon
+==================
+
+Overview
+--------
+
+vdsm-imaged provides direct access to oVirt disks using HTTPS protocol.
+Together with ovirt-image-proxy, it allows uploading a disk image
+directly into an oVirt disk, or downloading an oVirt disk.
+
+The goal is to keep vdsm-imaged simple as possible. We use a single
+protocol (HTTP) for everything, and avoid dependencies on Vdsm.
+
+This daemon provides these serices:
+
+- images service    read and write data to/from images. This service is
+                    available via HTTPS on port 54322. This service is
+                    accessed by ovirt-image-proxy or directly by
+                    clients.
+
+- sessions service  manage sessions authorizing images service
+                    operations. Available localy via HTTP over unix
+                    domain socket. Vdsm will access this when starting
+                    and stopping sessions.
+
+- progress service  report progress for ongoing images operations.
+                    Available localy via HTTP over unix domain socket.
+                    Vdsm will access this to report progress to engine.
+
+
+Image session flow (interactive)
+--------------------------------
+
+In this flow, client is Engine UI via a browser.
+
+- Client starts an image session using oVirt REST API.
+- Engine creates access token for ovirt-image-proxy and session token
+  for vdsm-imgaged.
+- Engine ask Vdsm to start an image session with the session token
+- Vdsm prepares an image, and add the session token to vdsm-imaged.
+- Engine returns signed access token and session token to client,
+  including ovirt-image-proxy connection details.
+- Client performs authenticate with ovirt-image-proxy using the signed
+  access token.
+- Client perform image operations with ovirt-image-proxy, using the
+  session token.
+- ovirt-image-proxy relay image operations to vdsm-imaged with the
+  session token.
+- When client is done, it ends the session using engine REST API.
+- Engine ends the vdsm image session.
+- Vdsm deletes session from vdsm-imaged.
+
+
+Image session flow (non-interactive)
+------------------------------------
+
+This flow is possible only if client has access to the host network.
+This may be relevant for automating data center image oprations.
+
+- Client starts an image session using oVirt REST API.
+- Engine creates session token for vdsm-imgaged.
+- Engine ask Vdsm to start an image session with the session token
+- Vdsm prepares an image, and add the session token to vdsm-imaged.
+- Engine returns session token to client
+- Client perform image operations with vdsm-imaged, using the session
+  token.
+- When client is done, it ends the session using engine REST API.
+- Engine ends the vdsm image session.
+- Vdsm deletes session from vdsm-imaged.
+
+Sessions are ephemeral; A client needs to request Engine to renew the
+session from time to time, otherwise a session will expire and the
+ongoing image operaions will be aborted.
+
+Session tokens are not persisted. In case of vdsm-imaged crash or
+reboot, Engine will provide a new session token and possibly point
+client to another host to continue the transfer session.
+
+
+vdsm-image API
+--------------
+
+Write me
