@@ -28,6 +28,8 @@ Maybe
 - Implement io operations in a separate process, so inaccessible storage
   cannot cause the while process to get stuck.
 
+- Tune directio.BLOCKSIZE - current value was copied from vdsm
+
 - Scale/stress tests
 
 - Use autoconf for default settings (e.g /var/run/vdsm/vdsm-imaged.sock)

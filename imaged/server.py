@@ -27,6 +27,7 @@ from webob.exc import (
     HTTPForbidden
 )
 
+from . import directio
 from . import uhttp
 
 image_server = None
@@ -99,7 +100,7 @@ class Config(object):
     host = ""
     port = 54322
     poll_interval = 1.0
-    buffer_size = 64 * 1024
+    block_size = 1024 * 1024
     socket = "/var/run/vdsm/imaged.sock"
 
     @property
@@ -226,24 +227,12 @@ class Images(object):
         size = self.request.content_length
         ticket = get_ticket(ticket_id, "put", size)
         with register_request(ticket, request_id, self):
-            self._copy_to_image(ticket["path"], size)
+            # TODO: cancel copy if ticket expired or revoked
+            directio.copy_to_image(ticket["path"],
+                                   self.request.body_file_raw,
+                                   size,
+                                   blocksize=self.config.block_size)
         return response()
-
-    def _copy_to_image(self, path, size):
-        # TODO: Use dd for writing
-        body_file = self.request.body_file
-        with open(path, "r+b") as out:
-            bufsize = self.config.buffer_size
-            bytes_written = 0
-            while bytes_written < size:
-                bytes_to_read = min(size - bytes_written, bufsize)
-                block = body_file.read(bytes_to_read)
-                if self.canceled:
-                    raise HTTPForbidden("Ticket was revoked during copy")
-                out.write(block)
-                if self.canceled:
-                    raise HTTPForbidden("Ticket was revoked during copy")
-                bytes_written += len(block)
 
 
 class Tickets(object):
