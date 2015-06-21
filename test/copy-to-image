@@ -1,0 +1,35 @@
+#!/usr/bin/python
+# vdsm-imaged - vdsm image daemon
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+"""
+Test script for copying data from stdin to an image.
+
+Usage:
+    copy-to-image path megabytes
+
+Note: path can be a file or a block device with enough room to write the
+written data.
+
+Examples:
+
+    # Timing 1GiB copy to file
+    time test/copy-to-image /var/tmp/image 1024 < /dev/zero
+"""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from imaged import directio
+
+MB = 1024 * 1024
+
+path = sys.argv[1]
+size = int(sys.argv[2]) * MB
+
+directio.copy_to_image(path, sys.stdin, size)

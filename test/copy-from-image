@@ -1,0 +1,35 @@
+#!/usr/bin/python
+# vdsm-imaged - vdsm image daemon
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+"""
+Test script for copying data from image to stdout
+
+Usage:
+    copy-from-image path megabytes
+
+Note: path can be an existing file or block device containing the
+requested data.
+
+Examples:
+
+    # Timing 1GiB copy from file
+    time test/copy-from-image /var/tmp/image 1024 > /dev/null
+"""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from imaged import directio
+
+MB = 1024 * 1024
+
+path = sys.argv[1]
+size = int(sys.argv[2]) * MB
+
+directio.copy_from_image(path, sys.stdout, size)
