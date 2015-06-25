@@ -4,11 +4,15 @@ file, and discuss the change in ovirt devel mailing list.
 
 Must
 
-- Implement io operations in a separate process, so inaccessible storage
-  cannot cause the while process to get stuck.
+- CI scripts and job (patch to jenkins project)
 
 - Support Range and Content-Range headers so uploading and downloading
   partial content is possible
+
+- Make request id optional - if a client provides it, it will be able to get
+  progress per request. If not, only progress by session token.
+
+- Use directio for writing/reading images
 
 - Break into small modues, eliminating globals. Access global state (such
   as tickets/sessions) using functions.
@@ -18,9 +22,11 @@ Must
 
 - Packaging
 
-- CI scripts
 
 Maybe
+
+- Implement io operations in a separate process, so inaccessible storage
+  cannot cause the while process to get stuck.
 
 - Scale/stress tests
 
