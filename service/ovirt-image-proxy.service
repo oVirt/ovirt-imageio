@@ -1,0 +1,15 @@
+[Unit]
+Description=oVirt Image Upload Proxy
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/sysconfig/ovirt-ha-broker
+ExecStart=/usr/bin/ovirt-image-proxy
+# TODO synchronous reload operation?
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGTERM
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+

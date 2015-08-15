@@ -1,0 +1,5 @@
+0.1.0-1
+
+# The version, in the form of 'a.b.c-release', must be on the first line.
+# If the release ends in '.git', the version.py script used by the build
+# system will query git for the short hash and append it to the string.

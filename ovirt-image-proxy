@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+#
+# ovirt-image-proxy - oVirt image upload proxy
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+import argparse
+import logging.config
+import sys
+
+import ovirt_image_proxy.config as config
+import ovirt_image_proxy.constants as constants
+from ovirt_image_proxy import image_proxy
+
+
+def parse_argv():
+    parser = argparse.ArgumentParser(description='oVirt Image Upload Proxy')
+    parser.add_argument('--config_file', action='store', metavar='file',
+                        help='path to alternate configuration file'
+                             ' (default: ' + constants.CONFIG_FILE + '')
+    parser.add_argument('--log_config_file', action='store', metavar='file',
+                        help='path to alternate logging configuration file'
+                             ' (default: ' + constants.LOG_CONF_FILE + '')
+    parser.add_argument('--pdb', action='store_true',
+                        help='enable debugging with pdb')
+    parser.add_argument('--pydevd', action='store', metavar='IP[:port]',
+                        help='enable debugging with pydevd using IP[:port]')
+    parser.add_argument('--stdout', action='store', metavar='level',
+                        help='log to stdout in addition to the log file,'
+                             ' optionally specifying a log level'
+                             ' (debug, info, warning, error, critical)',
+                        nargs='?', const='debug')
+    return parser.parse_args()
+
+
+def initialize_logging(stdout, log_config_file):
+    conf = log_config_file if log_config_file else constants.LOG_CONF_FILE
+    try:
+        logging.config.fileConfig(conf, disable_existing_loggers=False)
+        if stdout:
+            handler = logging.StreamHandler()
+            handler.setLevel(logging.getLevelName(stdout.upper()))
+            handler.setFormatter(logging.Formatter(
+                "(%(threadName)-10s) %(levelname)s %(name)s:%(message)s"))
+            logging.getLogger('').addHandler(handler)
+    except Exception as e:
+        logging.basicConfig(filename='/dev/stdout', filemode='w+',
+                            level=logging.DEBUG)
+        logging.warn("Could not initialize logging from %s: %s",
+                     conf, str(e))
+
+
+if __name__ == '__main__':
+    args = parse_argv()
+
+    if args.pdb:
+        import pdb
+        pdb.set_trace()
+
+    if args.pydevd:
+        if ':' in args.pydevd:
+            ip, port = args.pydevd.split(':')
+        else:
+            ip, port = args.pydevd, 21000
+        import pydevd
+        pydevd.settrace(ip, port=int(port),
+                        stdoutToServer=True,
+                        stderrToServer=True)
+
+    initialize_logging(args.stdout, args.log_config_file)
+    config.load(args.config_file)
+    status = image_proxy.main(args, config)
+    sys.exit(status)

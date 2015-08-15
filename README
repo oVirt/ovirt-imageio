@@ -1,0 +1,95 @@
+ovirt-image-proxy
+=================
+
+The oVirt Image Proxy provides a proxy server allowing clients to
+perform I/O with VM disk images and ISOs located within the oVirt
+virtualization environment.
+
+
+Installation
+============
+
+The image proxy can be installed on most hosts that have a working
+Python 2 environment with the needed dependencies.  To install the
+rpm package:
+
+  sudo yum install ovirt-image-proxy
+  engine-setup
+
+This will install all necessary dependencies and launch the setup,
+which is a module run by the oVirt engine setup program.  The prompts
+during setup depend on other installed packages; if ovirt-engine is
+on the host you may be prompted with additional questions.  On a
+separate host, you will be prompted to enter the address of your
+engine; this allows the image proxy to fetch the engine's public key
+and register itself with the engine.
+
+To install from source, install the dependencies listed in the rpm
+spec file and then:
+
+  make install
+
+Afterward you will need to manually register the proxy with your
+engine and edit $DESTDIR/etc/ovirt-image-proxy/config.ini to add
+your engine's network address.
+
+
+Development
+===========
+
+Patches are welcome!
+
+During development you may want to build/install the proxy.  There are
+a few ways to go about this:
+
+  `ovirt-image-proxy [options]` - run the proxy in-place, with debug
+   options and alternate paths to configuration files, if desired.
+
+  `python setup.py install` - Build/install the lib files and main
+   script, but not the service/log/etc files.
+
+  `make install` - Build/install everything (with DESTDIR specified
+   if packaging); this uses python-setuptools for some of the work.
+
+  `rpmbuild [options]` - Build an rpm; this uses make for the building
+   and installation.
+
+When using an editor with code completion, it may be useful to have run
+`make generated-files` to create any files with constants that depend
+on the environment.
+
+When submitting changes, please first make sure to apply the git commit
+template (`git config commit.template commit-template.txt`).
+
+Please send any patches to:
+
+  gerrit.ovirt.org/ovirt-image-proxy
+
+
+Packaging
+=========
+
+Multiple packaging options are available:
+  make dist  ## compile and create a distribution tarball
+  make rpm   ## compile and create an rpm
+
+
+Getting Help
+============
+
+Please send mail to one of the following lists for help.
+
+ - For discussion of proxy usage and general help:
+   http://lists.ovirt.org/mailman/listinfo/users
+
+ - For technical discussion about the project and its code:
+   http://lists.ovirt.org/mailman/listinfo/devel
+
+
+Licensing
+=========
+
+The oVirt Image Proxy is provided under the terms of the Apache License,
+Version 2.0.  Please see the LICENSE file for complete license terms.
+
+-- End of readme
