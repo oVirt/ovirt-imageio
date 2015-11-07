@@ -66,7 +66,7 @@ def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
             if not buf:
                 raise Exception("Partial content")
             dst.write(buf)
-            os.fdatasync(dst.fileno())
+        os.fsync(dst.fileno())
 
 
 def _open(path, mode="r"):
