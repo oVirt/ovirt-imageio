@@ -86,7 +86,18 @@ def _open(path, mode="r"):
 
 @contextmanager
 def aligned_buffer(size):
-    buf = mmap.mmap(-1, size, mmap.MAP_PRIVATE)
+    """
+    Return buffer aligned to 512 bytes, required for doing direct io using
+    mmap().
+
+    Note: we use shared map to make direct io safe if fork is invoked in
+    another thread concurrently with the direct io.
+
+    Using private maps with direct io can cause data corruption and undefind
+    behavior in the parent or the child processes. This restriction does not
+    apply to memory buffer created with MAP_SHARED. See open(2) for more info.
+    """
+    buf = mmap.mmap(-1, size, mmap.MAP_SHARED)
     with closing(buf):
         yield buf
 
