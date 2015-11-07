@@ -20,8 +20,7 @@ def copy_from_image(path, dst, size, blocksize=BLOCKSIZE):
     """
     Copy size bytes from path to dst fileobject.
     """
-    fd = os.open(path, os.O_RDONLY | os.O_DIRECT)
-    with os.fdopen(fd, "rb", 0) as src:
+    with _open(path, "r") as src:
         todo = size
         with aligned_buffer(blocksize) as block:
             # socket._fileobject returned from socket.socket.makefile() write()
@@ -36,7 +35,7 @@ def copy_from_image(path, dst, size, blocksize=BLOCKSIZE):
                 dst.write(buf)
                 dst.flush()
         if todo:
-            disable_directio(fd)
+            disable_directio(src.fileno())
             buf = src.read(todo)
             if not buf:
                 raise Exception("Partial content")
@@ -48,8 +47,7 @@ def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
     """
     Copy size bytes from src fileobject to path.
     """
-    fd = os.open(path, os.O_WRONLY | os.O_DIRECT)
-    with os.fdopen(fd, "wb", 0) as dst:
+    with _open(path, "w") as dst:
         todo = size
         with aligned_buffer(blocksize) as block:
             while todo >= blocksize:
@@ -63,12 +61,27 @@ def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
                 block[:] = buf
                 dst.write(block)
         if todo:
-            disable_directio(fd)
+            disable_directio(dst.fileno())
             buf = src.read(todo)
             if not buf:
                 raise Exception("Partial content")
             dst.write(buf)
-            os.fdatasync(fd)
+            os.fdatasync(dst.fileno())
+
+
+def _open(path, mode="r"):
+    if mode == "r":
+        flags = os.O_RDONLY
+    elif mode == "w":
+        flags = os.O_WRONLY
+    else:
+        raise ValueError("Unsupported mode %r", mode)
+    fd = os.open(path, flags | os.O_DIRECT)
+    try:
+        return os.fdopen(fd, mode + "b", 0)
+    except Exception:
+        os.close(fd)
+        raise
 
 
 @contextmanager
