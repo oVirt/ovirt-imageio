@@ -6,12 +6,18 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from distutils.core import setup
+from distutils.core import setup, Extension
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
     author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
     description="vdsm image daemon",
+    ext_modules=[
+        Extension(
+            name="imaged._directio",
+            sources=["imaged/_directio.c"]
+        )
+    ],
     license="GNU GPLv2+",
     name="vdsm-imaged",
     platforms=["Linux"],

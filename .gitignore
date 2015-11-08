@@ -2,6 +2,7 @@ MANIFEST
 build
 dist
 *.pyc
+*.so
 
 # PyCharm, IntelliJ IDEA-specific files
 *.idea
