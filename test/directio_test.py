@@ -6,83 +6,94 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from contextlib import contextmanager, closing
-import socket
-import threading
-
+import cStringIO
+import pytest
 from imaged import directio
 
 
-def test_copy_from_image(tmpdir):
-    data = "a" * directio.BLOCKSIZE * 10
-    assert copy_from_image(tmpdir, data) == data
+def test_copy_from_image_full_blocks(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    assert copy_from_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_from_image_extra(tmpdir):
-    data = "a" * directio.BLOCKSIZE + "b" * 42
-    assert copy_from_image(tmpdir, data) == data
+def test_copy_from_image_full_blocks_and_partial_block(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
+    assert copy_from_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_from_image_partial(tmpdir):
+def test_copy_to_image_full_block_and_partial_and_then_some(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
+    assert copy_from_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_partial_block(tmpdir):
+    data = "a" * 512 * 3
+    assert copy_from_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_partial_block_and_then_some(tmpdir):
+    data = "a" * 512 * 3 + "b" * 42
+    assert copy_from_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_some_bytes(tmpdir):
     data = "a" * 42
-    assert copy_from_image(tmpdir, data) == data
+    assert copy_from_image(tmpdir, data, len(data)) == data
 
 
-def copy_from_image(tmpdir, data):
+def test_copy_from_aligned_image_partial(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    size = len(data) - 500
+    assert copy_from_image(tmpdir, data, size) == data[:size]
+
+
+def copy_from_image(tmpdir, data, size):
     src = tmpdir.join("src")
     src.write(data)
-    received = [""]
-    with sockfiles() as (rfile, wfile):
-        def reader():
-            received[0] = rfile.read(len(data))
-        t = threading.Thread(target=reader)
-        t.daemon = True
-        t.start()
-        directio.copy_from_image(str(src), wfile, len(data))
-        t.join()
-    return received[0]
+    dst = cStringIO.StringIO()
+    directio.copy_from_image(str(src), dst, size)
+    return dst.getvalue()
 
 
-def test_copy_to_image(tmpdir):
-    data = "a" * directio.BLOCKSIZE * 10
-    assert copy_to_image(tmpdir, data) == data
+def test_copy_to_image_full_blocks(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    assert copy_to_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_to_image_extra(tmpdir):
-    data = "a" * directio.BLOCKSIZE + "b" * 42
-    assert copy_to_image(tmpdir, data) == data
+def test_copy_to_image_full_blocks_and_partial_block(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
+    assert copy_to_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_to_image_partial(tmpdir):
+def test_copy_to_image_full_block_and_partial_and_then_some(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
+    assert copy_to_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_partial_block(tmpdir):
+    data = "a" * 512 * 3
+    assert copy_to_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_partial_block_and_then_some(tmpdir):
+    data = "a" * 512 * 3 + "b" * 42
+    assert copy_to_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_some_bytes(tmpdir):
     data = "a" * 42
-    assert copy_to_image(tmpdir, data) == data
+    assert copy_to_image(tmpdir, data, len(data)) == data
 
 
-def copy_to_image(tmpdir, data):
+def test_copy_to_aligned_image_partial(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    size = len(data) - 500
+    assert copy_to_image(tmpdir, data, size) == data[:size]
+
+
+def copy_to_image(tmpdir, data, size):
     dst = tmpdir.join("dst")
-    with open(str(dst), "w") as f:
-        f.truncate(len(data))
-    with sockfiles() as (rfile, wfile):
-        def writer():
-            wfile.write(data)
-            wfile.flush()
-        t = threading.Thread(target=writer)
-        t.daemon = True
-        t.start()
-        directio.copy_to_image(str(dst), rfile, len(data))
-        t.join()
+    dst.write("")
+    src = cStringIO.StringIO(data)
+    directio.copy_to_image(str(dst), src, size)
     return dst.read()
-
-
-@contextmanager
-def sockfiles():
-    # socketpair returns raw platform sockets, which cannot be wrapped by
-    # ssl.wrap_socket. It must be wrapped in socket.socket() to use ssl.
-    pair = socket.socketpair()
-    sock1 = socket.socket(_sock=pair[0])
-    sock2 = socket.socket(_sock=pair[1])
-    with closing(sock1), closing(sock2):
-        rfile = sock1.makefile("rb")
-        wfile = sock2.makefile("wb")
-        with closing(rfile), closing(wfile):
-            yield rfile, wfile

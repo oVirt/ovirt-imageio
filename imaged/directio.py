@@ -8,8 +8,11 @@
 
 from contextlib import contextmanager, closing
 import fcntl
+import io
 import mmap
 import os
+
+from . import util
 
 # This value is used by vdsm when copying image data using dd. Smaller values
 # save memory, and larger values minimize syscall and python calls overhead.
@@ -20,68 +23,43 @@ def copy_from_image(path, dst, size, blocksize=BLOCKSIZE):
     """
     Copy size bytes from path to dst fileobject.
     """
-    with _open(path, "r") as src:
+    with io.FileIO(path, "r") as src, aligned_buffer(blocksize) as buf:
+        enable_directio(src.fileno())
         todo = size
-        with aligned_buffer(blocksize) as block:
-            # socket._fileobject returned from socket.socket.makefile() write()
-            # cannot handle mmap object, unlike the platform underlying file
-            # object, so wrap it with a buffer.
-            buf = buffer(block)
-            while todo >= blocksize:
-                n = src.readinto(block)
-                if n == 0:
-                    raise Exception("Partial content")
-                todo -= n
-                dst.write(buf)
-                dst.flush()
-        if todo:
-            disable_directio(src.fileno())
-            buf = src.read(todo)
-            if not buf:
+        while todo:
+            count = util.uninterruptible(src.readinto, buf)
+            if count == 0:
                 raise Exception("Partial content")
-            dst.write(buf)
-            dst.flush()
+            count = min(count, todo)
+            dst.write(buffer(buf, 0, count))
+            todo -= count
 
 
 def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
     """
     Copy size bytes from src fileobject to path.
+
+    socket._fileobject returned from socket.socket.makefile() does not
+    implement readinto(), so we must read unaligned chunks and copy into the
+    aligned buffer.
     """
-    with _open(path, "w") as dst:
+    with io.FileIO(path, "r+") as dst, aligned_buffer(blocksize) as buf:
+        enable_directio(dst.fileno())
         todo = size
-        with aligned_buffer(blocksize) as block:
-            while todo >= blocksize:
-                # socket._fileobject returned from socket.socket.makefile()
-                # does not implement readinto(mmap), so we must copy the data
-                # into the mmap.
-                buf = src.read(blocksize)
-                if not buf:
-                    raise Exception("Partial content")
-                todo -= len(buf)
-                block[:] = buf
-                dst.write(block)
-        if todo:
-            disable_directio(dst.fileno())
-            buf = src.read(todo)
-            if not buf:
+        while todo:
+            count = min(todo, blocksize)
+            chunk = src.read(count)
+            if len(chunk) < count:
                 raise Exception("Partial content")
-            dst.write(buf)
+            buf[:count] = chunk
+            if count % 512:
+                disable_directio(dst.fileno())
+            towrite = count
+            while towrite:
+                offset = count - towrite
+                towrite -= util.uninterruptible(dst.write, buffer(buf, offset, count))
+            todo -= count
         os.fsync(dst.fileno())
-
-
-def _open(path, mode="r"):
-    if mode == "r":
-        flags = os.O_RDONLY
-    elif mode == "w":
-        flags = os.O_WRONLY
-    else:
-        raise ValueError("Unsupported mode %r", mode)
-    fd = os.open(path, flags | os.O_DIRECT)
-    try:
-        return os.fdopen(fd, mode + "b", 0)
-    except Exception:
-        os.close(fd)
-        raise
 
 
 @contextmanager
@@ -100,6 +78,11 @@ def aligned_buffer(size):
     buf = mmap.mmap(-1, size, mmap.MAP_SHARED)
     with closing(buf):
         yield buf
+
+
+def enable_directio(fd):
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_DIRECT)
 
 
 def disable_directio(fd):
