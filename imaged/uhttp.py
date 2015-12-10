@@ -13,6 +13,10 @@ import socket
 import ssl
 from wsgiref import simple_server
 
+PUT = "PUT"
+DELETE = "DELETE"
+PATCH = "PATCH"
+GET = "GET"
 
 class UnsupportedError(Exception):
     pass
