@@ -18,6 +18,7 @@ DELETE = "DELETE"
 PATCH = "PATCH"
 GET = "GET"
 
+
 class UnsupportedError(Exception):
     pass
 
