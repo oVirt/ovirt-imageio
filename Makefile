@@ -50,8 +50,13 @@ build: generated-files
 
 .PHONY: install
 install: build
+ifdef DESTDIR
 	/usr/bin/env python setup.py install --skip-build --root $(DESTDIR)
 	## TODO install conf/log/service here, in rpm, or have setup.py do it?
+else
+	# ERROR: DESTDIR is not defined! Please refer to installation notes.
+endif
+
 
 
 .PHONY: check
