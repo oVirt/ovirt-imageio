@@ -16,6 +16,7 @@ setup(
     name="vdsm-imaged",
     platforms=["Linux"],
     packages=["imaged"],
+    scripts=["vdsm-imaged"],
     url="https://github.com/ovirt/vdsm-imaged",
     version="0.1",
 )
