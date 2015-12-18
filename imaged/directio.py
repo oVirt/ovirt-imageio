@@ -13,6 +13,7 @@ import mmap
 import os
 
 from . import util
+from . import errors
 
 # This value is used by vdsm when copying image data using dd. Smaller values
 # save memory, and larger values minimize syscall and python calls overhead.
@@ -27,9 +28,11 @@ def copy_from_image(path, dst, size, blocksize=BLOCKSIZE):
         enable_directio(src.fileno())
         todo = size
         while todo:
+            if src.tell() % 512:
+                raise errors.PartialContent(size, size - todo)
             count = util.uninterruptible(src.readinto, buf)
             if count == 0:
-                raise Exception("Partial content")
+                raise errors.PartialContent(size, size - todo)
             count = min(count, todo)
             dst.write(buffer(buf, 0, count))
             todo -= count
@@ -50,7 +53,7 @@ def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
             count = min(todo, blocksize)
             chunk = src.read(count)
             if len(chunk) < count:
-                raise Exception("Partial content")
+                raise errors.PartialContent(size, size - todo + len(chunk))
             buf[:count] = chunk
             if count % 512:
                 disable_directio(dst.fileno())

@@ -9,6 +9,7 @@
 import cStringIO
 import pytest
 from imaged import directio
+from imaged import errors
 
 
 def test_copy_from_image_full_blocks(tmpdir):
@@ -16,14 +17,38 @@ def test_copy_from_image_full_blocks(tmpdir):
     assert copy_from_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_from_image_full_blocks_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
 def test_copy_from_image_full_blocks_and_partial_block(tmpdir):
     data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
     assert copy_from_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_to_image_full_block_and_partial_and_then_some(tmpdir):
+def test_copy_from_image_full_blocks_and_partial_block_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
+def test_copy_to_image_full_block_and_partial_and_some(tmpdir):
     data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
     assert copy_from_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_full_block_and_partial_and_some_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
 
 
 def test_copy_to_image_partial_block(tmpdir):
@@ -31,14 +56,38 @@ def test_copy_to_image_partial_block(tmpdir):
     assert copy_from_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_to_image_partial_block_partial_content(tmpdir):
+    data = "a" * 512 * 3
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
 def test_copy_to_image_partial_block_and_then_some(tmpdir):
     data = "a" * 512 * 3 + "b" * 42
     assert copy_from_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_to_image_partial_block_and_then_some_partial_content(tmpdir):
+    data = "a" * 512 * 3 + "b" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
 def test_copy_to_image_some_bytes(tmpdir):
     data = "a" * 42
     assert copy_from_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_some_bytes_partial_content(tmpdir):
+    data = "a" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_from_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
 
 
 def test_copy_from_aligned_image_partial(tmpdir):
@@ -60,14 +109,37 @@ def test_copy_to_image_full_blocks(tmpdir):
     assert copy_to_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_to_image_full_blocks_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
 def test_copy_to_image_full_blocks_and_partial_block(tmpdir):
     data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
     assert copy_to_image(tmpdir, data, len(data)) == data
 
 
-def test_copy_to_image_full_block_and_partial_and_then_some(tmpdir):
+def test_copy_to_image_full_blocks_and_partial_block_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
+def test_copy_to_image_full_block_and_partial_and_some(tmpdir):
     data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
     assert copy_to_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_full_block_and_partial_and_some_partial_content(tmpdir):
+    data = "a" * directio.BLOCKSIZE * 2 + "b" * 512 * 3 + "c" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
 
 
 def test_copy_to_image_partial_block(tmpdir):
@@ -75,14 +147,38 @@ def test_copy_to_image_partial_block(tmpdir):
     assert copy_to_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_to_image_partial_block_partial_content(tmpdir):
+    data = "a" * 512 * 3
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
 def test_copy_to_image_partial_block_and_then_some(tmpdir):
     data = "a" * 512 * 3 + "b" * 42
     assert copy_to_image(tmpdir, data, len(data)) == data
 
 
+def test_copy_to_image_partial_block_and_then_some_partial_content(tmpdir):
+    data = "a" * 512 * 3 + "b" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
+
+
 def test_copy_to_image_some_bytes(tmpdir):
     data = "a" * 42
     assert copy_to_image(tmpdir, data, len(data)) == data
+
+
+def test_copy_to_image_some_bytes_partial_content(tmpdir):
+    data = "a" * 42
+    with pytest.raises(errors.PartialContent) as e:
+        copy_to_image(tmpdir, data[:-1], len(data))
+    assert e.value.requested == len(data)
+    assert e.value.available == len(data) - 1
 
 
 def test_copy_to_aligned_image_partial(tmpdir):
