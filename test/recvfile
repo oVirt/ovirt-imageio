@@ -26,11 +26,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from imaged import directio
-
-MB = 1024 * 1024
+from imaged import util
+from test import tool
 
 path = sys.argv[1]
-size = int(sys.argv[2]) * MB
+size = int(sys.argv[2]) * tool.MB
 
 op = directio.Receive(path, sys.stdin, size)
-op.run()
+t = util.start_thread(op.run)
+tool.progress(op)
+t.join()

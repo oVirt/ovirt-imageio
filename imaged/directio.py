@@ -33,6 +33,10 @@ class Operation(object):
         self._todo = size
 
     @property
+    def size(self):
+        return self._size
+
+    @property
     def done(self):
         return self._size - self._todo
 
@@ -52,10 +56,10 @@ class Send(Operation):
             enable_directio(src.fileno())
             while self._todo:
                 if src.tell() % BLOCKSIZE:
-                    raise errors.PartialContent(self._size, self.done)
+                    raise errors.PartialContent(self.size, self.done)
                 count = util.uninterruptible(src.readinto, buf)
                 if count == 0:
-                    raise errors.PartialContent(self._size, self.done)
+                    raise errors.PartialContent(self.size, self.done)
                 count = min(count, self._todo)
                 self._dst.write(buffer(buf, 0, count))
                 self._todo -= count
@@ -78,7 +82,7 @@ class Receive(Operation):
                 count = min(self._todo, self._buffersize)
                 chunk = self._src.read(count)
                 if len(chunk) < count:
-                    raise errors.PartialContent(self._size,
+                    raise errors.PartialContent(self.size,
                                                 self.done + len(chunk))
                 buf[:count] = chunk
                 if count % BLOCKSIZE:

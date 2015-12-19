@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 import errno
+import os
 import threading
 
 
@@ -26,3 +27,7 @@ def start_thread(func, args=(), kwargs=None, name=None, daemon=True):
     t.daemon = daemon
     t.start()
     return t
+
+
+def monotonic_time():
+    return os.times()[4]

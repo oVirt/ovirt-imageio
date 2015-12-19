@@ -80,3 +80,10 @@ def test_start_thread_non_daemon():
     t = util.start_thread(lambda: None, daemon=False)
     t.join()
     assert not t.daemon
+
+
+def test_monotonic_time():
+    t1 = util.monotonic_time()
+    time.sleep(0.01)
+    t2 = util.monotonic_time()
+    assert t1 <= t2
