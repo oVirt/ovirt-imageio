@@ -2,3 +2,12 @@ MANIFEST
 build
 dist
 *.pyc
+
+# PyCharm, IntelliJ IDEA-specific files
+*.idea
+*.iml
+
+# Editor backups
+*.bak
+*.*~
+.*.*.sw?
