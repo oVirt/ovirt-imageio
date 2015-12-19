@@ -31,15 +31,15 @@ class param(str):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_copy_from_image(tmpdir, data):
-    assert copy_from_image(tmpdir, data, len(data)) == data
+def test_send(tmpdir, data):
+    assert send(tmpdir, data, len(data)) == data
 
 
 @pytest.mark.parametrize(
     "size", [511, 513, len(BLOCK) + 511, len(BLOCK) + 513])
-def test_copy_from_image_partial(tmpdir, size):
+def test_send_partial(tmpdir, size):
     data = BLOCK * 2
-    assert copy_from_image(tmpdir, data, size) == data[:size]
+    assert send(tmpdir, data, size) == data[:size]
 
 
 @pytest.mark.parametrize("data", [
@@ -50,18 +50,19 @@ def test_copy_from_image_partial(tmpdir, size):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_copy_from_image_partial_content(tmpdir, data):
+def test_send_partial_content(tmpdir, data):
     with pytest.raises(errors.PartialContent) as e:
-        copy_from_image(tmpdir, data[:-1], len(data))
+        send(tmpdir, data[:-1], len(data))
     assert e.value.requested == len(data)
     assert e.value.available == len(data) - 1
 
 
-def copy_from_image(tmpdir, data, size):
+def send(tmpdir, data, size):
     src = tmpdir.join("src")
     src.write(data)
     dst = cStringIO.StringIO()
-    directio.copy_from_image(str(src), dst, size)
+    op = directio.Send(str(src), dst, size)
+    op.run()
     return dst.getvalue()
 
 
@@ -73,15 +74,15 @@ def copy_from_image(tmpdir, data, size):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_copy_to_image(tmpdir, data):
-    assert copy_to_image(tmpdir, data, len(data)) == data
+def test_receive(tmpdir, data):
+    assert receive(tmpdir, data, len(data)) == data
 
 
 @pytest.mark.parametrize(
     "size", [511, 513, len(BLOCK) + 511, len(BLOCK) + 513])
-def test_copy_to_image_partial(tmpdir, size):
+def test_receive_partial(tmpdir, size):
     data = BLOCK * 2
-    assert copy_to_image(tmpdir, data, size) == data[:size]
+    assert receive(tmpdir, data, size) == data[:size]
 
 
 @pytest.mark.parametrize("data", [
@@ -92,16 +93,17 @@ def test_copy_to_image_partial(tmpdir, size):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_copy_to_image_partial_content(tmpdir, data):
+def test_receive_partial_content(tmpdir, data):
     with pytest.raises(errors.PartialContent) as e:
-        copy_to_image(tmpdir, data[:-1], len(data))
+        receive(tmpdir, data[:-1], len(data))
     assert e.value.requested == len(data)
     assert e.value.available == len(data) - 1
 
 
-def copy_to_image(tmpdir, data, size):
+def receive(tmpdir, data, size):
     dst = tmpdir.join("dst")
     dst.write("")
     src = cStringIO.StringIO(data)
-    directio.copy_to_image(str(dst), src, size)
+    op = directio.Receive(str(dst), src, size)
+    op.run()
     return dst.read()

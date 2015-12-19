@@ -20,49 +20,72 @@ from . import errors
 BLOCKSIZE = 1024 * 1024
 
 
-def copy_from_image(path, dst, size, blocksize=BLOCKSIZE):
-    """
-    Copy size bytes from path to dst fileobject.
-    """
-    with io.FileIO(path, "r") as src, aligned_buffer(blocksize) as buf:
-        enable_directio(src.fileno())
-        todo = size
-        while todo:
-            if src.tell() % 512:
-                raise errors.PartialContent(size, size - todo)
-            count = util.uninterruptible(src.readinto, buf)
-            if count == 0:
-                raise errors.PartialContent(size, size - todo)
-            count = min(count, todo)
-            dst.write(buffer(buf, 0, count))
-            todo -= count
+class Operation(object):
+
+    def __init__(self, path, size, blocksize=BLOCKSIZE):
+        self._path = path
+        self._size = size
+        self._blocksize = blocksize
+        self._todo = size
+
+    @property
+    def done(self):
+        return self._size - self._todo
 
 
-def copy_to_image(path, src, size, blocksize=BLOCKSIZE):
+class Send(Operation):
     """
-    Copy size bytes from src fileobject to path.
+    Send data from path to file object using directio.
+    """
 
-    socket._fileobject returned from socket.socket.makefile() does not
-    implement readinto(), so we must read unaligned chunks and copy into the
-    aligned buffer.
+    def __init__(self, path, dst, size, blocksize=BLOCKSIZE):
+        super(Send, self).__init__(path, size, blocksize=blocksize)
+        self._dst = dst
+
+    def run(self):
+        with io.FileIO(self._path, "r") as src, \
+                aligned_buffer(self._blocksize) as buf:
+            enable_directio(src.fileno())
+            while self._todo:
+                if src.tell() % 512:
+                    raise errors.PartialContent(self._size, self.done)
+                count = util.uninterruptible(src.readinto, buf)
+                if count == 0:
+                    raise errors.PartialContent(self._size, self.done)
+                count = min(count, self._todo)
+                self._dst.write(buffer(buf, 0, count))
+                self._todo -= count
+
+
+class Receive(Operation):
     """
-    with io.FileIO(path, "r+") as dst, aligned_buffer(blocksize) as buf:
-        enable_directio(dst.fileno())
-        todo = size
-        while todo:
-            count = min(todo, blocksize)
-            chunk = src.read(count)
-            if len(chunk) < count:
-                raise errors.PartialContent(size, size - todo + len(chunk))
-            buf[:count] = chunk
-            if count % 512:
-                disable_directio(dst.fileno())
-            towrite = count
-            while towrite:
-                offset = count - towrite
-                towrite -= util.uninterruptible(dst.write, buffer(buf, offset, count))
-            todo -= count
-        os.fsync(dst.fileno())
+    Receive data from file object to path using directio.
+    """
+
+    def __init__(self, path, src, size, blocksize=BLOCKSIZE):
+        super(Receive, self).__init__(path, size, blocksize=blocksize)
+        self._src = src
+
+    def run(self):
+        with io.FileIO(self._path, "r+") as dst, \
+                aligned_buffer(self._blocksize) as buf:
+            enable_directio(dst.fileno())
+            while self._todo:
+                count = min(self._todo, self._blocksize)
+                chunk = self._src.read(count)
+                if len(chunk) < count:
+                    raise errors.PartialContent(self._size,
+                                                self.done + len(chunk))
+                buf[:count] = chunk
+                if count % 512:
+                    disable_directio(dst.fileno())
+                towrite = count
+                while towrite:
+                    offset = count - towrite
+                    wbuf = buffer(buf, offset, count)
+                    towrite -= util.uninterruptible(dst.write, wbuf)
+                self._todo -= count
+            os.fsync(dst.fileno())
 
 
 @contextmanager

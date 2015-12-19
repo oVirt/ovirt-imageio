@@ -212,7 +212,6 @@ class Images(object):
     def __init__(self, config, request):
         self.config = config
         self.request = request
-        self.canceled = False
 
     def put(self, ticket_id):
         if not ticket_id:
@@ -224,10 +223,11 @@ class Images(object):
         ticket = get_ticket(ticket_id, "put", size)
         with register_request(ticket, request_id, self):
             # TODO: cancel copy if ticket expired or revoked
-            directio.copy_to_image(ticket["path"],
-                                   self.request.body_file_raw,
-                                   size,
-                                   blocksize=self.config.block_size)
+            op = directio.Receive(ticket["path"],
+                                  self.request.body_file_raw,
+                                  size,
+                                  blocksize=self.config.block_size)
+            op.run()
         return response()
 
 

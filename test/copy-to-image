@@ -32,4 +32,5 @@ MB = 1024 * 1024
 path = sys.argv[1]
 size = int(sys.argv[2]) * MB
 
-directio.copy_to_image(path, sys.stdin, size)
+op = directio.Receive(path, sys.stdin, size)
+op.run()

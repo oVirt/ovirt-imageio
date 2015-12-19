@@ -12,18 +12,8 @@ Must
 - Make request id optional - if a client provides it, it will be able to get
   progress per request. If not, only progress by session token.
 
-- Progress reporting and cancelation
-
-  Pass request to copy functions. Will update request progress, and query
-  request.canceled:
-
-    copy_to_image(path, src, size, self)
-
-    # from /progress request thread
-    request.progress
-
-    # from /session request thread
-    request.cancel()
+- Support cancellation
+  Revoking ticket should cancel ongoing operations using it
 
 - Break into small modues, eliminating globals. Access global state (such
   as tickets/sessions) using functions.
