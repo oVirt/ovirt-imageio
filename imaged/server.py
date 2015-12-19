@@ -64,7 +64,6 @@ def start(config):
     image_server.set_app(image_app)
 
     ticket_server = uhttp.UnixWSGIServer(config.socket, UnixWSGIRequestHandler)
-    secure_server(config, ticket_server)
     ticket_app = Application(config, [(r"/tickets/(.*)", Tickets)])
     ticket_server.set_app(ticket_app)
 

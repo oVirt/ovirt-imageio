@@ -188,8 +188,7 @@ def http_request(config, method, uri, body=None, headers=None):
 
 
 def unix_request(config, method, uri, body=None, headers=None):
-    con = uhttp.UnixHTTPSConnection(config.socket, config.key_file,
-                                    config.cert_file)
+    con = uhttp.UnixHTTPConnection(config.socket)
     with closing(con):
         con.request(method, uri, body=body, headers=headers or {})
         return response(con)
