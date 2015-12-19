@@ -10,7 +10,7 @@
 Test script for copying data from image to stdout
 
 Usage:
-    copy-from-image path megabytes
+    sendfile path megabytes
 
 Note: path can be an existing file or block device containing the
 requested data.
@@ -18,7 +18,7 @@ requested data.
 Examples:
 
     # Timing 1GiB copy from file
-    time test/copy-from-image /var/tmp/image 1024 > /dev/null
+    time test/sendfile /var/tmp/image 1024 > /dev/null
 """
 
 import os

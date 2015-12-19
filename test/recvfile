@@ -10,7 +10,7 @@
 Test script for copying data from stdin to an image.
 
 Usage:
-    copy-to-image path megabytes
+    recvfile path megabytes
 
 Note: path can be a file or a block device with enough room to write the
 written data.
@@ -18,7 +18,7 @@ written data.
 Examples:
 
     # Timing 1GiB copy to file
-    time test/copy-to-image /var/tmp/image 1024 < /dev/zero
+    time test/recvfile /var/tmp/image 1024 < /dev/zero
 """
 
 import os

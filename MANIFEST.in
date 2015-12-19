@@ -1,8 +1,8 @@
 include README COPYING MANIFEST TODO
 include vdsm-imaged
 include test/*.py
-include test/copy-from-image
-include test/copy-to-image
+include test/recvfile
+include test/sendfile
 include test/pki/certs/*.pem
 include test/pki/keys/*.pem
 include *.ini
