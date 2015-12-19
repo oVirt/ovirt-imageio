@@ -12,11 +12,19 @@ from pprint import pprint
 import httplib
 import json
 import os
+import ssl
 import time
 import uuid
 
 from imaged import uhttp
 from imaged import server
+
+# Disable client certificate verification introduced in Python > 2.7.9. We
+# trust our certificates.
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass  # Older Python, not required
 
 
 def setup_function(f):
