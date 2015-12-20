@@ -4,6 +4,10 @@ dist
 *.pyc
 *.so
 
+# pytest-coverage
+.coverage
+htmlcov
+
 # PyCharm, IntelliJ IDEA-specific files
 *.idea
 *.iml
