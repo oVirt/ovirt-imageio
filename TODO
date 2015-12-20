@@ -6,6 +6,8 @@ Must
 
 - CI scripts and job (patch to jenkins project)
 
+- travis integration - nicer than ovirt ci, but run only on ubuntu
+
 - Support Range and Content-Range headers so uploading and downloading
   partial content is possible
 
@@ -22,12 +24,15 @@ Must
   conf.d system suggested by Alon.
 
 - Packaging
+  Based on setup.py, hopefully without keeping a spec in the project
 
+- progress/stats api
+  Report stats for all or specific request
 
 Maybe
 
 - Implement io operations in a separate process, so inaccessible storage
-  cannot cause the while process to get stuck.
+  cannot cause the process to get stuck.
 
 - Tune directio.BLOCKSIZE - current value was copied from vdsm
 
