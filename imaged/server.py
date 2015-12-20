@@ -14,7 +14,6 @@ import os
 import re
 import signal
 import ssl
-import threading
 import time
 
 import webob
@@ -29,6 +28,7 @@ from webob.exc import (
 
 from . import directio
 from . import uhttp
+from . import util
 
 image_server = None
 ticket_server = None
@@ -85,12 +85,9 @@ def secure_server(config, server):
 
 
 def start_server(config, server, name):
-    def run():
-        server.serve_forever(poll_interval=config.poll_interval)
-
-    t = threading.Thread(target=run, name=name)
-    t.daemon = True
-    t.start()
+    util.start_thread(server.serve_forever,
+                      kwargs={"poll_interval": config.poll_interval},
+                      name=name)
 
 
 class Config(object):

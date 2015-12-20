@@ -8,16 +8,16 @@
 
 from __future__ import print_function
 from contextlib import contextmanager, closing
-from wsgiref import util
 import os
 import pprint
 import ssl
 import tempfile
-import threading
+import wsgiref.util
 
 import pytest
 
 from imaged import uhttp
+from imaged import util
 
 SOCKET = "/tmp/vdsm-uhttp-test.sock"
 PKI_DIR = os.path.dirname(__file__)
@@ -93,7 +93,7 @@ def sendfile(env, start_response):
         ("content-type", "text/plain"),
         ("content-length", str(os.path.getsize(path)))
     ])
-    return util.FileWrapper(open(path, "rb"))
+    return wsgiref.util.FileWrapper(open(path, "rb"))
 
 
 def log_response(resp):
@@ -129,13 +129,7 @@ def make_server(app, use_ssl):
     if use_ssl:
         server.socket = ssl.wrap_socket(server.socket, certfile=CERT_FILE,
                                         keyfile=KEY_FILE, server_side=True)
-
-    def run():
-        server.serve_forever(poll_interval=0.1)
-
-    t = threading.Thread(target=run)
-    t.daemon = True
-    t.start()
+    util.start_thread(server.serve_forever, kwargs={"poll_interval": 0.1})
     try:
         yield server
     finally:
