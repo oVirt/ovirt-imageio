@@ -11,7 +11,6 @@ from contextlib import contextmanager, closing
 import os
 import pprint
 import ssl
-import tempfile
 import wsgiref.util
 
 import pytest
@@ -52,21 +51,20 @@ def test_put(use_ssl):
             assert resp.read() == "it works"
 
 
-def test_file(use_ssl):
+def test_file(tmpdir, use_ssl):
     data = "x" * 1048576
-    with tempfile.NamedTemporaryFile(prefix="vdsm-utthp-test-file") as tmp:
-        tmp.write(data)
-        tmp.flush()
-        with make_server(sendfile, use_ssl):
-            with make_connection(use_ssl) as con:
-                con.request("GET", tmp.name)
-                resp = con.getresponse()
-                log_response(resp)
-                assert resp.status == 200
-                assert resp.getheader("content-type") == "text/plain"
-                content_length = int(resp.getheader("content-length"))
-                assert content_length == os.path.getsize(tmp.name)
-                assert resp.read(content_length) == data
+    tmp = tmpdir.join("data")
+    tmp.write(data)
+    with make_server(sendfile, use_ssl):
+        with make_connection(use_ssl) as con:
+            con.request("GET", str(tmp))
+            resp = con.getresponse()
+            log_response(resp)
+            assert resp.status == 200
+            assert resp.getheader("content-type") == "text/plain"
+            content_length = int(resp.getheader("content-length"))
+            assert content_length == os.path.getsize(str(tmp))
+            assert resp.read(content_length) == data
 
 
 def test_connection_set_tunnel(use_ssl):
