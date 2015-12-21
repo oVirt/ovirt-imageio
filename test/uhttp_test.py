@@ -69,6 +69,23 @@ def test_file(use_ssl):
                 assert resp.read(content_length) == data
 
 
+def test_connection_set_tunnel(use_ssl):
+    with make_connection(use_ssl) as con:
+        with pytest.raises(uhttp.UnsupportedError):
+            con.set_tunnel("127.0.0.1")
+
+
+def test_server_bind_error(tmpdir):
+    # Make server_bind fail with EPERM
+    tmpdir.chmod(0o600)
+    try:
+        sock = str(tmpdir.join('sock'))
+        with pytest.raises(OSError):
+            uhttp.UnixWSGIServer(sock, RequestHandler)
+    finally:
+        tmpdir.chmod(0o755)
+
+
 def get(env, start_response):
     pprint.pprint(env)
     start_response("200 OK", [("content-type", "text/plain")])
