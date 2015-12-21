@@ -18,7 +18,6 @@ import pytest
 from imaged import uhttp
 from imaged import util
 
-SOCKET = "/tmp/vdsm-uhttp-test.sock"
 PKI_DIR = os.path.dirname(__file__)
 KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")
 CERT_FILE = os.path.join(PKI_DIR, "pki/certs/vdsmcert.pem")
@@ -29,9 +28,10 @@ def use_ssl(request):
     return request.param
 
 
-def test_get(use_ssl):
-    with make_server(get, use_ssl):
-        with make_connection(use_ssl) as con:
+def test_get(tmpdir, use_ssl):
+    sock = str(tmpdir.join("sock"))
+    with make_server(sock, get, use_ssl):
+        with make_connection(sock, use_ssl) as con:
             con.request("GET", "/")
             resp = con.getresponse()
             log_response(resp)
@@ -40,9 +40,10 @@ def test_get(use_ssl):
             assert resp.read() == "it works"
 
 
-def test_put(use_ssl):
-    with make_server(echo, use_ssl):
-        with make_connection(use_ssl) as con:
+def test_put(tmpdir, use_ssl):
+    sock = str(tmpdir.join("sock"))
+    with make_server(sock, echo, use_ssl):
+        with make_connection(sock, use_ssl) as con:
             con.request("PUT", "/", body="it works")
             resp = con.getresponse()
             log_response(resp)
@@ -55,8 +56,9 @@ def test_file(tmpdir, use_ssl):
     data = "x" * 1048576
     tmp = tmpdir.join("data")
     tmp.write(data)
-    with make_server(sendfile, use_ssl):
-        with make_connection(use_ssl) as con:
+    sock = str(tmpdir.join("sock"))
+    with make_server(sock, sendfile, use_ssl):
+        with make_connection(sock, use_ssl) as con:
             con.request("GET", str(tmp))
             resp = con.getresponse()
             log_response(resp)
@@ -68,7 +70,7 @@ def test_file(tmpdir, use_ssl):
 
 
 def test_connection_set_tunnel(use_ssl):
-    with make_connection(use_ssl) as con:
+    with make_connection(None, use_ssl) as con:
         with pytest.raises(uhttp.UnsupportedError):
             con.set_tunnel("127.0.0.1")
 
@@ -127,19 +129,19 @@ class RequestHandler(uhttp.UnixWSGIRequestHandler):
 
 
 @contextmanager
-def make_connection(use_ssl):
+def make_connection(sock, use_ssl):
     if use_ssl:
-        con = uhttp.UnixHTTPSConnection(SOCKET, key_file=KEY_FILE,
+        con = uhttp.UnixHTTPSConnection(sock, key_file=KEY_FILE,
                                         cert_file=CERT_FILE, timeout=2)
     else:
-        con = uhttp.UnixHTTPConnection(SOCKET, timeout=2)
+        con = uhttp.UnixHTTPConnection(sock, timeout=2)
     with closing(con):
         yield con
 
 
 @contextmanager
-def make_server(app, use_ssl):
-    server = uhttp.UnixWSGIServer(SOCKET, RequestHandler)
+def make_server(sock, app, use_ssl):
+    server = uhttp.UnixWSGIServer(sock, RequestHandler)
     server.set_app(app)
     if use_ssl:
         server.socket = ssl.wrap_socket(server.socket, certfile=CERT_FILE,
