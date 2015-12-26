@@ -19,6 +19,10 @@ from . import errors
 # save memory, and larger values minimize syscall and python calls overhead.
 BUFFERSIZE = 1024 * 1024
 
+# Typical logical block size of the underlying storage, which should be
+# sufficient for doing direct I/O.
+BLOCKSIZE = 512
+
 
 class Operation(object):
 
@@ -47,7 +51,7 @@ class Send(Operation):
                 aligned_buffer(self._buffersize) as buf:
             enable_directio(src.fileno())
             while self._todo:
-                if src.tell() % 512:
+                if src.tell() % BLOCKSIZE:
                     raise errors.PartialContent(self._size, self.done)
                 count = util.uninterruptible(src.readinto, buf)
                 if count == 0:
@@ -77,7 +81,7 @@ class Receive(Operation):
                     raise errors.PartialContent(self._size,
                                                 self.done + len(chunk))
                 buf[:count] = chunk
-                if count % 512:
+                if count % BLOCKSIZE:
                     disable_directio(dst.fileno())
                 towrite = count
                 while towrite:
@@ -91,8 +95,7 @@ class Receive(Operation):
 @contextmanager
 def aligned_buffer(size):
     """
-    Return buffer aligned to 512 bytes, required for doing direct io using
-    mmap().
+    Return buffer aligned to page size, which work for doing direct I/O.
 
     Note: we use shared map to make direct io safe if fork is invoked in
     another thread concurrently with the direct io.

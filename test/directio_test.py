@@ -13,7 +13,7 @@ from imaged import errors
 
 
 BUFFER = "a" * directio.BUFFERSIZE
-PARTIAL = "b" * 512
+PARTIAL = "b" * directio.BLOCKSIZE
 BYTES = "c" * 42
 
 
