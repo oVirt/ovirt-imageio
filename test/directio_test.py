@@ -12,7 +12,7 @@ from imaged import directio
 from imaged import errors
 
 
-BLOCK = "a" * directio.BLOCKSIZE
+BUFFER = "a" * directio.BUFFERSIZE
 PARTIAL = "b" * 512
 BYTES = "c" * 42
 
@@ -24,9 +24,9 @@ class param(str):
 
 
 @pytest.mark.parametrize("data", [
-    param(BLOCK * 2),
-    param(BLOCK + PARTIAL * 2),
-    param(BLOCK + PARTIAL + BYTES),
+    param(BUFFER * 2),
+    param(BUFFER + PARTIAL * 2),
+    param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
     param(BYTES),
@@ -36,16 +36,16 @@ def test_send(tmpdir, data):
 
 
 @pytest.mark.parametrize(
-    "size", [511, 513, len(BLOCK) + 511, len(BLOCK) + 513])
+    "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
 def test_send_partial(tmpdir, size):
-    data = BLOCK * 2
+    data = BUFFER * 2
     assert send(tmpdir, data, size) == data[:size]
 
 
 @pytest.mark.parametrize("data", [
-    param(BLOCK * 2),
-    param(BLOCK + PARTIAL * 2),
-    param(BLOCK + PARTIAL + BYTES),
+    param(BUFFER * 2),
+    param(BUFFER + PARTIAL * 2),
+    param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
     param(BYTES),
@@ -67,9 +67,9 @@ def send(tmpdir, data, size):
 
 
 @pytest.mark.parametrize("data", [
-    param(BLOCK * 2),
-    param(BLOCK + PARTIAL * 2),
-    param(BLOCK + PARTIAL + BYTES),
+    param(BUFFER * 2),
+    param(BUFFER + PARTIAL * 2),
+    param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
     param(BYTES),
@@ -79,16 +79,16 @@ def test_receive(tmpdir, data):
 
 
 @pytest.mark.parametrize(
-    "size", [511, 513, len(BLOCK) + 511, len(BLOCK) + 513])
+    "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
 def test_receive_partial(tmpdir, size):
-    data = BLOCK * 2
+    data = BUFFER * 2
     assert receive(tmpdir, data, size) == data[:size]
 
 
 @pytest.mark.parametrize("data", [
-    param(BLOCK * 2),
-    param(BLOCK + PARTIAL * 2),
-    param(BLOCK + PARTIAL + BYTES),
+    param(BUFFER * 2),
+    param(BUFFER + PARTIAL * 2),
+    param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
     param(BYTES),

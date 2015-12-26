@@ -17,15 +17,15 @@ from . import errors
 
 # This value is used by vdsm when copying image data using dd. Smaller values
 # save memory, and larger values minimize syscall and python calls overhead.
-BLOCKSIZE = 1024 * 1024
+BUFFERSIZE = 1024 * 1024
 
 
 class Operation(object):
 
-    def __init__(self, path, size, blocksize=BLOCKSIZE):
+    def __init__(self, path, size, buffersize=BUFFERSIZE):
         self._path = path
         self._size = size
-        self._blocksize = blocksize
+        self._buffersize = buffersize
         self._todo = size
 
     @property
@@ -38,13 +38,13 @@ class Send(Operation):
     Send data from path to file object using directio.
     """
 
-    def __init__(self, path, dst, size, blocksize=BLOCKSIZE):
-        super(Send, self).__init__(path, size, blocksize=blocksize)
+    def __init__(self, path, dst, size, buffersize=BUFFERSIZE):
+        super(Send, self).__init__(path, size, buffersize=buffersize)
         self._dst = dst
 
     def run(self):
         with io.FileIO(self._path, "r") as src, \
-                aligned_buffer(self._blocksize) as buf:
+                aligned_buffer(self._buffersize) as buf:
             enable_directio(src.fileno())
             while self._todo:
                 if src.tell() % 512:
@@ -62,16 +62,16 @@ class Receive(Operation):
     Receive data from file object to path using directio.
     """
 
-    def __init__(self, path, src, size, blocksize=BLOCKSIZE):
-        super(Receive, self).__init__(path, size, blocksize=blocksize)
+    def __init__(self, path, src, size, buffersize=BUFFERSIZE):
+        super(Receive, self).__init__(path, size, buffersize=buffersize)
         self._src = src
 
     def run(self):
         with io.FileIO(self._path, "r+") as dst, \
-                aligned_buffer(self._blocksize) as buf:
+                aligned_buffer(self._buffersize) as buf:
             enable_directio(dst.fileno())
             while self._todo:
-                count = min(self._todo, self._blocksize)
+                count = min(self._todo, self._buffersize)
                 chunk = self._src.read(count)
                 if len(chunk) < count:
                     raise errors.PartialContent(self._size,

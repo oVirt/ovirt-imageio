@@ -96,7 +96,7 @@ class Config(object):
     host = ""
     port = 54322
     poll_interval = 1.0
-    block_size = 1024 * 1024
+    buffer_size = 1024 * 1024
     socket = "/var/run/vdsm/imaged.sock"
 
     @property
@@ -226,7 +226,7 @@ class Images(object):
             op = directio.Receive(ticket["path"],
                                   self.request.body_file_raw,
                                   size,
-                                  blocksize=self.config.block_size)
+                                  buffersize=self.config.buffer_size)
             op.run()
         return response()
 
