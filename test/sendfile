@@ -9,12 +9,6 @@
 """
 Test script for copying data from image to stdout
 
-Usage:
-    sendfile path megabytes
-
-Note: path can be an existing file or block device containing the
-requested data.
-
 Examples:
 
     # Timing 1GiB copy from file
@@ -23,16 +17,25 @@ Examples:
 
 import os
 import sys
+import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from imaged import directio
 from imaged import util
 from test import tool
 
-path = sys.argv[1]
-size = int(sys.argv[2]) * tool.MB
+parser = argparse.ArgumentParser(description='Send image data to stdout')
+parser.add_argument("-o", "--offset", dest="offset", type=int,
+                    help="offset in image (in bytes)")
+parser.add_argument("-b", "--buffer-size", dest="buffersize", type=int,
+                    help="copy buffer size (in bytes)")
+parser.add_argument("path", help="path to existing image")
+parser.add_argument("size", type=int, help="amount of data to copy (in MiB)")
+parser.set_defaults(offset=0, buffersize=directio.BUFFERSIZE)
+args = parser.parse_args()
 
-op = directio.Send(path, sys.stdout, size)
+op = directio.Send(args.path, sys.stdout, args.size * tool.MB,
+                   offset=args.offset, buffersize=args.buffersize)
 t = util.start_thread(op.run)
 tool.progress(op)
 t.join()
