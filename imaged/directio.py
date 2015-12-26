@@ -26,9 +26,10 @@ BLOCKSIZE = 512
 
 class Operation(object):
 
-    def __init__(self, path, size, buffersize=BUFFERSIZE):
+    def __init__(self, path, size, offset=0, buffersize=BUFFERSIZE):
         self._path = path
         self._size = size
+        self._offset = offset
         self._buffersize = buffersize
         self._todo = size
 
@@ -46,23 +47,35 @@ class Send(Operation):
     Send data from path to file object using directio.
     """
 
-    def __init__(self, path, dst, size, buffersize=BUFFERSIZE):
-        super(Send, self).__init__(path, size, buffersize=buffersize)
+    def __init__(self, path, dst, size, offset=0, buffersize=BUFFERSIZE):
+        super(Send, self).__init__(path, size, offset=offset,
+                                   buffersize=buffersize)
         self._dst = dst
 
     def run(self):
         with io.FileIO(self._path, "r") as src, \
                 aligned_buffer(self._buffersize) as buf:
             enable_directio(src.fileno())
+            if self._offset:
+                skip = self._seek_to_first_block(src)
+                self._send_chunk(src, buf, skip)
             while self._todo:
-                if src.tell() % BLOCKSIZE:
-                    raise errors.PartialContent(self.size, self.done)
-                count = util.uninterruptible(src.readinto, buf)
-                if count == 0:
-                    raise errors.PartialContent(self.size, self.done)
-                count = min(count, self._todo)
-                self._dst.write(buffer(buf, 0, count))
-                self._todo -= count
+                self._send_chunk(src, buf)
+
+    def _seek_to_first_block(self, src):
+        skip = self._offset % BLOCKSIZE
+        src.seek(self._offset - skip)
+        return skip
+
+    def _send_chunk(self, src, buf, skip=0):
+        if src.tell() % BLOCKSIZE:
+            raise errors.PartialContent(self.size, self.done)
+        count = util.uninterruptible(src.readinto, buf)
+        if count == 0:
+            raise errors.PartialContent(self.size, self.done)
+        size = min(count - skip, self._todo)
+        self._dst.write(buffer(buf, skip, size))
+        self._todo -= size
 
 
 class Receive(Operation):
@@ -70,8 +83,9 @@ class Receive(Operation):
     Receive data from file object to path using directio.
     """
 
-    def __init__(self, path, src, size, buffersize=BUFFERSIZE):
-        super(Receive, self).__init__(path, size, buffersize=buffersize)
+    def __init__(self, path, src, size, offset=0, buffersize=BUFFERSIZE):
+        super(Receive, self).__init__(path, size, offset=offset,
+                                      buffersize=buffersize)
         self._src = src
 
     def run(self):

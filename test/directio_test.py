@@ -8,13 +8,19 @@
 
 import cStringIO
 import pytest
+import string
 from imaged import directio
 from imaged import errors
 
 
-BUFFER = "a" * directio.BUFFERSIZE
-PARTIAL = "b" * directio.BLOCKSIZE
-BYTES = "c" * 42
+def fill(s, size):
+    count, rest = divmod(size, len(s))
+    return s * count + s[:rest]
+
+
+BUFFER = fill(string.uppercase, directio.BUFFERSIZE)
+PARTIAL = fill(string.lowercase, directio.BLOCKSIZE)
+BYTES = fill(string.digits, 42)
 
 
 class param(str):
@@ -23,45 +29,50 @@ class param(str):
         return self[:10]
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     param(BUFFER * 2),
     param(BUFFER + PARTIAL * 2),
     param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
-    param(BYTES),
 ])
-def test_send(tmpdir, data):
-    assert send(tmpdir, data, len(data)) == data
+def test_send(tmpdir, data, offset):
+    size = len(data) - offset
+    expected = data[offset:]
+    assert send(tmpdir, data, size, offset=offset) == expected
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize(
     "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
-def test_send_partial(tmpdir, size):
+def test_send_partial(tmpdir, size, offset):
     data = BUFFER * 2
-    assert send(tmpdir, data, size) == data[:size]
+    expected = data[offset:offset + size]
+    assert send(tmpdir, data, size, offset=offset) == expected
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     param(BUFFER * 2),
     param(BUFFER + PARTIAL * 2),
     param(BUFFER + PARTIAL + BYTES),
     param(PARTIAL * 2),
     param(PARTIAL + BYTES),
-    param(BYTES),
 ])
-def test_send_partial_content(tmpdir, data):
+def test_send_partial_content(tmpdir, data, offset):
+    size = len(data) - offset
     with pytest.raises(errors.PartialContent) as e:
-        send(tmpdir, data[:-1], len(data))
-    assert e.value.requested == len(data)
-    assert e.value.available == len(data) - 1
+        send(tmpdir, data[:-1], size, offset=offset)
+    assert e.value.requested == size
+    assert e.value.available == size - 1
 
 
-def send(tmpdir, data, size):
+def send(tmpdir, data, size, offset=0):
     src = tmpdir.join("src")
     src.write(data)
     dst = cStringIO.StringIO()
-    op = directio.Send(str(src), dst, size)
+    op = directio.Send(str(src), dst, size, offset=offset)
     op.run()
     return dst.getvalue()
 
@@ -100,10 +111,10 @@ def test_receive_partial_content(tmpdir, data):
     assert e.value.available == len(data) - 1
 
 
-def receive(tmpdir, data, size):
+def receive(tmpdir, data, size, offset=0):
     dst = tmpdir.join("dst")
     dst.write("")
     src = cStringIO.StringIO(data)
-    op = directio.Receive(str(dst), src, size)
+    op = directio.Receive(str(dst), src, size, offset=offset)
     op.run()
     return dst.read()
