@@ -118,3 +118,13 @@ def receive(tmpdir, data, size, offset=0):
     op = directio.Receive(str(dst), src, size, offset=offset)
     op.run()
     return dst.read()
+
+
+@pytest.mark.parametrize("size,rounded", [
+    (0, 0),
+    (1, 512),
+    (512, 512),
+    (513, 1024),
+])
+def test_round_up(size, rounded):
+    assert directio.round_up(size) == rounded

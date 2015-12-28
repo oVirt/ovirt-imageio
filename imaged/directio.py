@@ -30,7 +30,7 @@ class Operation(object):
         self._path = path
         self._size = size
         self._offset = offset
-        self._buffersize = buffersize
+        self._buffersize = min(round_up(size), buffersize)
         self._todo = size
 
     @property
@@ -108,6 +108,11 @@ class Receive(Operation):
                     towrite -= util.uninterruptible(dst.write, wbuf)
                 self._todo -= count
             os.fsync(dst.fileno())
+
+
+def round_up(n, size=BLOCKSIZE):
+    n = n + size - 1
+    return n - (n % size)
 
 
 @contextmanager
