@@ -1,0 +1,78 @@
+#!/usr/bin/python
+# vdsm-imaged - vdsm image daemon
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+import argparse
+import os
+import sys
+import time
+
+from imaged import directio
+from imaged import util
+
+MB = 1024 * 1024
+
+
+def send(args):
+    op = directio.Send(args.path, sys.stdout, args.size * MB,
+                       offset=args.offset, buffersize=args.buffersize)
+    run(op)
+
+
+def recv(args):
+    op = directio.Receive(args.path, sys.stdin, args.size * MB,
+                       offset=args.offset, buffersize=args.buffersize)
+    run(op)
+
+
+def run(op):
+    t = util.start_thread(op.run)
+    progress(op)
+    t.join()
+
+
+def progress(op, stream=sys.stderr):
+    start = util.monotonic_time()
+
+    while op.done < op.size:
+        time.sleep(0.1)
+        elapsed = util.monotonic_time() - start
+        progress = float(op.done) / op.size * 100
+        rate = op.done / elapsed / MB
+        stream.write("[ %6.02f%% ] %5.02f MiB/s %5.02fs\r" %
+                     (progress, rate, elapsed))
+        stream.flush()
+
+    stream.write("[   done  ]\n")
+
+
+def add_arguments(parser):
+    parser.add_argument("path", help="path to existing image")
+    parser.add_argument("size", type=int, help="amount of data to copy (in MiB)")
+    parser.add_argument("-o", "--offset", dest="offset", type=int,
+                        help="offset in image (in bytes)")
+    parser.add_argument("-b", "--buffer-size", dest="buffersize", type=int,
+                        help="copy buffer size (in bytes)")
+    parser.set_defaults(offset=0, buffersize=directio.BUFFERSIZE)
+
+
+parser = argparse.ArgumentParser(description='imaged benchmark tool')
+subparsers = parser.add_subparsers(title="commands")
+
+send_parser = subparsers.add_parser("send",
+                                    help="send image data to stdout")
+send_parser.set_defaults(command=send)
+add_arguments(send_parser)
+
+recv_parser = subparsers.add_parser("recv",
+                                    help="receive image data from stdin")
+recv_parser.set_defaults(command=recv)
+add_arguments(recv_parser)
+
+args = parser.parse_args()
+args.command(args)
