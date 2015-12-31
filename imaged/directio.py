@@ -91,23 +91,36 @@ class Receive(Operation):
     def run(self):
         with io.FileIO(self._path, "r+") as dst, \
                 aligned_buffer(self._buffersize) as buf:
+            if self._offset:
+                remaining = self._seek_before_first_block(dst)
+                if remaining:
+                    self._receive_chunk(dst, buf, remaining)
             enable_directio(dst.fileno())
-            while self._todo:
-                count = min(self._todo, self._buffersize)
-                chunk = self._src.read(count)
-                if len(chunk) < count:
-                    raise errors.PartialContent(self.size,
-                                                self.done + len(chunk))
-                buf[:count] = chunk
-                if count % BLOCKSIZE:
-                    disable_directio(dst.fileno())
-                towrite = count
-                while towrite:
-                    offset = count - towrite
-                    wbuf = buffer(buf, offset, count)
-                    towrite -= util.uninterruptible(dst.write, wbuf)
-                self._todo -= count
+            while self._todo >= self._buffersize:
+                self._receive_chunk(dst, buf, self._buffersize)
+            disable_directio(dst.fileno())
+            self._receive_chunk(dst, buf, self._todo)
             os.fsync(dst.fileno())
+
+    def _seek_before_first_block(self, dst):
+        dst.seek(self._offset)
+        reminder = self._offset % BLOCKSIZE
+        if reminder:
+            return min(self._todo, BLOCKSIZE - reminder)
+        return 0
+
+    def _receive_chunk(self, dst, buf, count):
+        chunk = self._src.read(count)
+        if len(chunk) < count:
+            raise errors.PartialContent(self.size, self.done + len(chunk))
+        buf[:count] = chunk
+        towrite = count
+        while towrite:
+            offset = count - towrite
+            size = count - offset
+            wbuf = buffer(buf, offset, size)
+            towrite -= util.uninterruptible(dst.write, wbuf)
+        self._todo -= count
 
 
 def round_up(n, size=BLOCKSIZE):

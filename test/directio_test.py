@@ -77,6 +77,7 @@ def send(tmpdir, data, size, offset=0):
     return dst.getvalue()
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     param(BUFFER * 2),
     param(BUFFER + PARTIAL * 2),
@@ -85,17 +86,19 @@ def send(tmpdir, data, size, offset=0):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_receive(tmpdir, data):
-    assert receive(tmpdir, data, len(data)) == data
+def test_receive(tmpdir, data, offset):
+    assert receive(tmpdir, data, len(data), offset=offset) == data
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize(
     "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
-def test_receive_partial(tmpdir, size):
+def test_receive_partial(tmpdir, size, offset):
     data = BUFFER * 2
-    assert receive(tmpdir, data, size) == data[:size]
+    assert receive(tmpdir, data, size, offset=offset) == data[:size]
 
 
+@pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     param(BUFFER * 2),
     param(BUFFER + PARTIAL * 2),
@@ -104,20 +107,22 @@ def test_receive_partial(tmpdir, size):
     param(PARTIAL + BYTES),
     param(BYTES),
 ])
-def test_receive_partial_content(tmpdir, data):
+def test_receive_partial_content(tmpdir, data, offset):
     with pytest.raises(errors.PartialContent) as e:
-        receive(tmpdir, data[:-1], len(data))
+        receive(tmpdir, data[:-1], len(data), offset=offset)
     assert e.value.requested == len(data)
     assert e.value.available == len(data) - 1
 
 
 def receive(tmpdir, data, size, offset=0):
     dst = tmpdir.join("dst")
-    dst.write("")
+    dst.write("x" * offset)
     src = cStringIO.StringIO(data)
     op = directio.Receive(str(dst), src, size, offset=offset)
     op.run()
-    return dst.read()
+    with open(str(dst), "rb") as f:
+        f.seek(offset)
+        return f.read()
 
 
 @pytest.mark.parametrize("size,rounded", [
