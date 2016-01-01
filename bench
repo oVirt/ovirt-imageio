@@ -31,8 +31,8 @@ def recv(args):
 
 
 def run(op):
-    t = util.start_thread(op.run)
-    progress(op)
+    t = util.start_thread(progress, args=(op,))
+    op.run()
     t.join()
 
 
