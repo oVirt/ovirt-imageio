@@ -16,6 +16,8 @@ import ssl
 import time
 import uuid
 
+import pytest
+
 from imaged import uhttp
 from imaged import server
 
@@ -27,147 +29,125 @@ except AttributeError:
     pass  # Older Python, not required
 
 
-def setup_function(f):
-    server.tickets.clear()
-
-
-def test_tickets_no_resource():
-    config = Config()
-    with run_imaged(config):
-        res = unix_request(config, "GET", "/no/such/resource")
-    assert res.status == 404
-
-
-def test_tickets_no_method():
-    config = Config()
-    with run_imaged(config):
-        res = unix_request(config, "POST", "/tickets/")
-    assert res.status == 405
-
-
-def test_tickets_get():
-    config = Config()
-    ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    with run_imaged(config):
-        res = unix_request(config, "GET", "/tickets/%(uuid)s" % ticket)
-    assert res.status == 200
-    assert json.loads(res.read()) == ticket
-
-
-def test_tickets_get_not_found():
-    config = Config()
-    with run_imaged(config):
-        res = unix_request(config, "GET", "/tickets/%s" % uuid.uuid4())
-    assert res.status == 404
-
-
-def test_tickets_put():
-    config = Config()
-    ticket = create_ticket()
-    body = json.dumps(ticket)
-    with run_imaged(config):
-        res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
-    assert res.status == 200
-    assert server.tickets[ticket["uuid"]] == ticket
-
-
-def test_tickets_put_invalid_json():
-    config = Config()
-    with run_imaged(config):
-        res = unix_request(config, "PUT", "/tickets/", "invalid json")
-    assert res.status == 400
-
-
-def test_tickets_extend():
-    config = Config()
-    ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    patch = {"expires": ticket["expires"] + 300}
-    body = json.dumps(patch)
-    with run_imaged(config):
-        res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
-    assert res.status == 200
-    assert ticket["expires"] == patch["expires"]
-
-
-def test_tickets_delete_one():
-    config = Config()
-    ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    with run_imaged(config):
-        res = unix_request(config, "DELETE", "/tickets/%(uuid)s" % ticket)
-    assert res.status == 204
-    assert ticket["uuid"] not in server.tickets
-
-
-def test_tickets_delete_one_not_found():
-    config = Config()
-    with run_imaged(config):
-        res = unix_request(config, "DELETE", "/tickets/%s" % uuid.uuid4())
-    assert res.status == 404
-
-
-def test_tickets_delete_all():
-    # Example usage: move host to maintenance
-    config = Config()
-    for i in range(5):
-        ticket = create_ticket(path="/var/run/vdsm/storage/foo%s" % i)
-        server.tickets[ticket["uuid"]] = ticket
-    with run_imaged(config):
-        res = unix_request(config, "DELETE", "/tickets/")
-    assert res.status == 204
-    assert server.tickets == {}
-
-
-def test_images_no_resource():
-    config = Config()
-    with run_imaged(config):
-        res = http_request(config, "PUT", "/no/such/resource")
-    assert res.status == 404
-
-
-def test_images_no_method():
-    config = Config()
-    with run_imaged(config):
-        res = http_request(config, "POST", "/images/")
-    assert res.status == 405
-
-
-def test_images_upload_no_request_id(tmpdir):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    config = Config()
-    with run_imaged(config):
-        res = upload(config, ticket["uuid"], "", str(payload))
-    assert res.status == 400
-
-
-def test_images_upload_no_ticket_id(tmpdir):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    request_id = str(uuid.uuid4())
-    config = Config()
-    with run_imaged(config):
-        res = upload(config, "", request_id, str(payload))
-    assert res.status == 400
-
-
-def test_images_upload_no_ticket(tmpdir):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    ticket_id = str(uuid.uuid4())
-    request_id = str(uuid.uuid4())
-    config = Config()
-    with run_imaged(config):
-        res = upload(config, ticket_id, request_id, str(payload))
-    assert res.status == 403
-
-
 class Config(server.Config):
     host = "127.0.0.1"
     socket = "/tmp/vdsm-imaged.sock"
     pki_dir = os.path.join(os.path.dirname(__file__), "pki")
     poll_interval = 0.1
+
+
+@pytest.fixture(scope="session")
+def config(request):
+    config = Config()
+    server.start(config)
+    request.addfinalizer(server.stop)
+    return config
+
+
+def setup_function(f):
+    server.tickets.clear()
+
+
+def test_tickets_no_resource(config):
+    res = unix_request(config, "GET", "/no/such/resource")
+    assert res.status == 404
+
+
+def test_tickets_no_method(config):
+    res = unix_request(config, "POST", "/tickets/")
+    assert res.status == 405
+
+
+def test_tickets_get(config):
+    ticket = create_ticket()
+    server.tickets[ticket["uuid"]] = ticket
+    res = unix_request(config, "GET", "/tickets/%(uuid)s" % ticket)
+    assert res.status == 200
+    assert json.loads(res.read()) == ticket
+
+
+def test_tickets_get_not_found(config):
+    res = unix_request(config, "GET", "/tickets/%s" % uuid.uuid4())
+    assert res.status == 404
+
+
+def test_tickets_put(config):
+    ticket = create_ticket()
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 200
+    assert server.tickets[ticket["uuid"]] == ticket
+
+
+def test_tickets_put_invalid_json(config):
+    res = unix_request(config, "PUT", "/tickets/", "invalid json")
+    assert res.status == 400
+
+
+def test_tickets_extend(config):
+    ticket = create_ticket()
+    server.tickets[ticket["uuid"]] = ticket
+    patch = {"expires": ticket["expires"] + 300}
+    body = json.dumps(patch)
+    res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 200
+    assert ticket["expires"] == patch["expires"]
+
+
+def test_tickets_delete_one(config):
+    ticket = create_ticket()
+    server.tickets[ticket["uuid"]] = ticket
+    res = unix_request(config, "DELETE", "/tickets/%(uuid)s" % ticket)
+    assert res.status == 204
+    assert ticket["uuid"] not in server.tickets
+
+
+def test_tickets_delete_one_not_found(config):
+    res = unix_request(config, "DELETE", "/tickets/%s" % uuid.uuid4())
+    assert res.status == 404
+
+
+def test_tickets_delete_all(config):
+    # Example usage: move host to maintenance
+    for i in range(5):
+        ticket = create_ticket(path="/var/run/vdsm/storage/foo%s" % i)
+        server.tickets[ticket["uuid"]] = ticket
+    res = unix_request(config, "DELETE", "/tickets/")
+    assert res.status == 204
+    assert server.tickets == {}
+
+
+def test_images_no_resource(config):
+    res = http_request(config, "PUT", "/no/such/resource")
+    assert res.status == 404
+
+
+def test_images_no_method(config):
+    res = http_request(config, "POST", "/images/")
+    assert res.status == 405
+
+
+def test_images_upload_no_request_id(tmpdir, config):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    ticket = create_ticket()
+    server.tickets[ticket["uuid"]] = ticket
+    res = upload(config, ticket["uuid"], "", str(payload))
+    assert res.status == 400
+
+
+def test_images_upload_no_ticket_id(tmpdir, config):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    request_id = str(uuid.uuid4())
+    res = upload(config, "", request_id, str(payload))
+    assert res.status == 400
+
+
+def test_images_upload_no_ticket(tmpdir, config):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    ticket_id = str(uuid.uuid4())
+    request_id = str(uuid.uuid4())
+    res = upload(config, ticket_id, request_id, str(payload))
+    assert res.status == 403
 
 
 def create_ticket(ops=("get", "put"), timeout=300, size=2**64,
@@ -225,12 +205,3 @@ def create_volume(repo, domain, image, volume, data=''):
     volume = repo.mkdir(domain).mkdir("images").mkdir(image).join(volume)
     volume.write(data)
     return volume
-
-
-@contextmanager
-def run_imaged(config):
-    server.start(config)
-    try:
-        yield
-    finally:
-        server.stop()
