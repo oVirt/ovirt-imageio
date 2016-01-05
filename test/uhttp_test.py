@@ -12,6 +12,7 @@ import os
 import pprint
 import ssl
 import wsgiref.util
+import tempfile
 
 import pytest
 
@@ -23,54 +24,59 @@ KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")
 CERT_FILE = os.path.join(PKI_DIR, "pki/certs/vdsmcert.pem")
 
 
-@pytest.fixture(params=[False, True])
-def use_ssl(request):
-    return request.param
+@pytest.fixture(scope="session", params=[False, True])
+def uhttpserver(request):
+    tmp = tempfile.NamedTemporaryFile()
+    server = uhttp.UnixWSGIServer(tmp.name, RequestHandler)
+    if request.param:
+        server.socket = ssl.wrap_socket(server.socket, certfile=CERT_FILE,
+                                        keyfile=KEY_FILE, server_side=True)
+    util.start_thread(server.serve_forever, kwargs={"poll_interval": 0.1})
+    request.addfinalizer(server.shutdown)
+    request.addfinalizer(tmp.close)
+    return server
 
 
-def test_get(tmpdir, use_ssl):
-    sock = str(tmpdir.join("sock"))
-    with make_server(sock, get, use_ssl):
-        with make_connection(sock, use_ssl) as con:
-            con.request("GET", "/")
-            resp = con.getresponse()
-            log_response(resp)
-            assert resp.status == 200
-            assert resp.getheader("content-type") == "text/plain"
-            assert resp.read() == "it works"
+def test_get(uhttpserver):
+    uhttpserver.set_app(get)
+    with make_connection(uhttpserver) as con:
+        con.request("GET", "/")
+        resp = con.getresponse()
+        log_response(resp)
+        assert resp.status == 200
+        assert resp.getheader("content-type") == "text/plain"
+        assert resp.read() == "it works"
 
 
-def test_put(tmpdir, use_ssl):
-    sock = str(tmpdir.join("sock"))
-    with make_server(sock, echo, use_ssl):
-        with make_connection(sock, use_ssl) as con:
-            con.request("PUT", "/", body="it works")
-            resp = con.getresponse()
-            log_response(resp)
-            assert resp.status == 200
-            assert resp.getheader("content-type") == "text/plain"
-            assert resp.read() == "it works"
+def test_put(uhttpserver):
+    uhttpserver.set_app(echo)
+    with make_connection(uhttpserver) as con:
+        con.request("PUT", "/", body="it works")
+        resp = con.getresponse()
+        log_response(resp)
+        assert resp.status == 200
+        assert resp.getheader("content-type") == "text/plain"
+        assert resp.read() == "it works"
 
 
-def test_file(tmpdir, use_ssl):
+def test_file(tmpdir, uhttpserver):
     data = "x" * 1048576
     tmp = tmpdir.join("data")
     tmp.write(data)
-    sock = str(tmpdir.join("sock"))
-    with make_server(sock, sendfile, use_ssl):
-        with make_connection(sock, use_ssl) as con:
-            con.request("GET", str(tmp))
-            resp = con.getresponse()
-            log_response(resp)
-            assert resp.status == 200
-            assert resp.getheader("content-type") == "text/plain"
-            content_length = int(resp.getheader("content-length"))
-            assert content_length == os.path.getsize(str(tmp))
-            assert resp.read(content_length) == data
+    uhttpserver.set_app(sendfile)
+    with make_connection(uhttpserver) as con:
+        con.request("GET", str(tmp))
+        resp = con.getresponse()
+        log_response(resp)
+        assert resp.status == 200
+        assert resp.getheader("content-type") == "text/plain"
+        content_length = int(resp.getheader("content-length"))
+        assert content_length == os.path.getsize(str(tmp))
+        assert resp.read(content_length) == data
 
 
-def test_connection_set_tunnel(use_ssl):
-    with make_connection(None, use_ssl) as con:
+def test_connection_set_tunnel(uhttpserver):
+    with make_connection(uhttpserver) as con:
         with pytest.raises(uhttp.UnsupportedError):
             con.set_tunnel("127.0.0.1")
 
@@ -129,25 +135,13 @@ class RequestHandler(uhttp.UnixWSGIRequestHandler):
 
 
 @contextmanager
-def make_connection(sock, use_ssl):
-    if use_ssl:
-        con = uhttp.UnixHTTPSConnection(sock, key_file=KEY_FILE,
-                                        cert_file=CERT_FILE, timeout=2)
+def make_connection(server):
+    if hasattr(server.socket, 'ssl_version'):
+        con = uhttp.UnixHTTPSConnection(server.server_address,
+                                        key_file=KEY_FILE,
+                                        cert_file=CERT_FILE,
+                                        timeout=2)
     else:
-        con = uhttp.UnixHTTPConnection(sock, timeout=2)
+        con = uhttp.UnixHTTPConnection(server.server_address, timeout=2)
     with closing(con):
         yield con
-
-
-@contextmanager
-def make_server(sock, app, use_ssl):
-    server = uhttp.UnixWSGIServer(sock, RequestHandler)
-    server.set_app(app)
-    if use_ssl:
-        server.socket = ssl.wrap_socket(server.socket, certfile=CERT_FILE,
-                                        keyfile=KEY_FILE, server_side=True)
-    util.start_thread(server.serve_forever, kwargs={"poll_interval": 0.1})
-    try:
-        yield server
-    finally:
-        server.shutdown()
