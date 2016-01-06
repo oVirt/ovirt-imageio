@@ -188,22 +188,6 @@ def get_ticket(ticket_id, op, size):
     return ticket
 
 
-@contextmanager
-def register_request(ticket, request_id, request):
-    """
-    Context manager registring a request with a ticket, so requests can be
-    canceled when a ticket is revoked or expired.
-    """
-    requests = ticket.setdefault("requests", {})
-    if request_id in requests:
-        raise HTTPForbidden("Request id %r exists" % request_id)
-    requests[request_id] = request
-    try:
-        yield
-    finally:
-        del requests[request_id]
-
-
 class Images(object):
     """
     Request handler for the /images/ resource.
@@ -225,14 +209,13 @@ class Images(object):
             offset = self.content_range.start
         except KeyError:
             offset = 0
-        with register_request(ticket, request_id, self):
-            # TODO: cancel copy if ticket expired or revoked
-            op = directio.Receive(ticket["path"],
-                                  self.request.body_file_raw,
-                                  size,
-                                  offset=offset,
-                                  buffersize=self.config.buffer_size)
-            op.run()
+        # TODO: cancel copy if ticket expired or revoked
+        op = directio.Receive(ticket["path"],
+                              self.request.body_file_raw,
+                              size,
+                              offset=offset,
+                              buffersize=self.config.buffer_size)
+        op.run()
         return response()
 
     @property
