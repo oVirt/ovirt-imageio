@@ -150,6 +150,25 @@ def test_images_upload_no_ticket(tmpdir, config):
     assert res.status == 403
 
 
+def test_images_upload(tmpdir, config):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write("-------|after")
+    ticket = create_ticket(path=str(image))
+    server.tickets[ticket["uuid"]] = ticket
+    res = upload(config, ticket["uuid"], request_id, str(payload))
+    assert image.read() == "content|after"
+    assert res.status == 200
+
+
+class Config(server.Config):
+    host = "127.0.0.1"
+    socket = "/tmp/vdsm-imaged.sock"
+    pki_dir = os.path.join(os.path.dirname(__file__), "pki")
+    poll_interval = 0.1
+
+
 def create_ticket(ops=("get", "put"), timeout=300, size=2**64,
                   path="/var/run/vdsm/storage/foo"):
     return {

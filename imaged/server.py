@@ -179,7 +179,7 @@ def get_ticket(ticket_id, op, size):
         ticket = tickets[ticket_id]
     except KeyError:
         raise HTTPForbidden("No such ticket %r" % ticket_id)
-    if ticket["expires"] >= time.time():
+    if ticket["expires"] <= time.time():
         raise HTTPForbidden("Ticket %r expired" % ticket_id)
     if op not in ticket["ops"]:
         raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
