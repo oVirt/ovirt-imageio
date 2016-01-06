@@ -200,9 +200,6 @@ class Images(object):
     def put(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
-        request_id = self.request.params.get("id")
-        if not request_id:
-            raise HTTPBadRequest("Request id is required")
         size = self.request.content_length
         ticket = get_ticket(ticket_id, "put", size)
         try:

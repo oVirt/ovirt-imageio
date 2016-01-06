@@ -10,9 +10,6 @@ Must
 
 - Support GET with Range header
 
-- Make request id optional - if a client provides it, it will be able to get
-  progress per request. If not, only progress by session token.
-
 - Support cancellation
   Revoking ticket should cancel ongoing operations using it
 

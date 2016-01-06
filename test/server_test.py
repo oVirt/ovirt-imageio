@@ -127,14 +127,6 @@ def test_images_no_method(config):
     assert res.status == 405
 
 
-def test_images_upload_no_request_id(tmpdir, config):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    res = upload(config, ticket["uuid"], "", str(payload))
-    assert res.status == 400
-
-
 def test_images_upload_no_ticket_id(tmpdir, config):
     payload = create_tempfile(tmpdir, "payload", "content")
     request_id = str(uuid.uuid4())
