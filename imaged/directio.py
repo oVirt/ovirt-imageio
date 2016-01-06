@@ -41,6 +41,12 @@ class Operation(object):
     def done(self):
         return self._size - self._todo
 
+    def __repr__(self):
+        return ("<{self.__class__.__name__} path={self._path!r} "
+                "size={self.size} offset={self._offset} "
+                "buffersize={self._buffersize} done={self.done} "
+                "at 0x{id}>").format(self=self, id=id(self))
+
 
 class Send(Operation):
     """

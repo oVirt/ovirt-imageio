@@ -125,6 +125,20 @@ def receive(tmpdir, data, size, offset=0):
         return f.read()
 
 
+def test_send_repr():
+    op = directio.Send("/path", None, 200, offset=24)
+    rep = repr(op)
+    assert "Send" in rep
+    assert "path='/path' size=200 offset=24 buffersize=512 done=0" in rep
+
+
+def test_recv_repr():
+    op = directio.Receive("/path", None, 100, offset=42)
+    rep = repr(op)
+    assert "Receive" in rep
+    assert "path='/path' size=100 offset=42 buffersize=512 done=0" in rep
+
+
 @pytest.mark.parametrize("size,rounded", [
     (0, 0),
     (1, 512),
