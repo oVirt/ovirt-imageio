@@ -8,8 +8,7 @@ Must
 
 - travis integration - nicer than ovirt ci, but run only on ubuntu
 
-- Support Range and Content-Range headers so uploading and downloading
-  partial content is possible
+- Support GET with Range header
 
 - Make request id optional - if a client provides it, it will be able to get
   progress per request. If not, only progress by session token.
@@ -28,6 +27,7 @@ Must
 
 - progress/stats api
   Report stats for all or specific request
+
 
 Maybe
 

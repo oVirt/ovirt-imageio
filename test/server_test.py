@@ -162,6 +162,43 @@ def test_images_upload(tmpdir, config):
     assert res.status == 200
 
 
+@pytest.mark.parametrize("content_range,before,after", [
+    ("bytes 7-13/20", "before|-------|after", "before|content|after"),
+    ("bytes */20", "-------|after", "content|after"),
+    ("bytes */*", "-------|after", "content|after"),
+])
+def test_images_upload_with_range(tmpdir, config, content_range, before, after):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write(before)
+    ticket = create_ticket(path=str(image))
+    server.tickets[ticket["uuid"]] = ticket
+    res = upload(config, ticket["uuid"], request_id, str(payload),
+                 content_range=content_range)
+    assert image.read() == after
+    assert res.status == 200
+
+
+@pytest.mark.parametrize("content_range", [
+    "",
+    "   ",
+    "7-13/20",
+    "bytes invalid-invalid/*",
+    "bytes 7-13/invalid",
+    "bytes 7-13",
+    "bytes 13-7/20",
+])
+def test_images_upload_invalid_range(tmpdir, config, content_range):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    request_id = str(uuid.uuid4())
+    ticket = create_ticket()
+    server.tickets[ticket["uuid"]] = ticket
+    res = upload(config, ticket["uuid"], request_id, str(payload),
+                 content_range=content_range)
+    assert res.status == 400
+
+
 class Config(server.Config):
     host = "127.0.0.1"
     socket = "/tmp/vdsm-imaged.sock"
@@ -180,10 +217,13 @@ def create_ticket(ops=("get", "put"), timeout=300, size=2**64,
     }
 
 
-def upload(config, ticket_uuid, request_uuid, filename):
+def upload(config, ticket_uuid, request_uuid, filename, content_range=None):
     uri = "/images/%s?id=%s" % (ticket_uuid, request_uuid)
+    headers = {}
+    if content_range is not None:
+        headers["content-range"] = content_range
     with open(filename) as f:
-        return http_request(config, "PUT", uri, f)
+        return http_request(config, "PUT", uri, f, headers=headers)
 
 
 def http_request(config, method, uri, body=None, headers=None):
