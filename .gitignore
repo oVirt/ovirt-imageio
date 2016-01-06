@@ -2,7 +2,6 @@ MANIFEST
 build
 dist
 *.pyc
-*.so
 
 # pytest-coverage
 .coverage
