@@ -1,15 +1,16 @@
-vdsm-imaged daemon
-==================
+vdsm-imaged
+===========
 
 Overview
 --------
 
-vdsm-imaged provides direct access to oVirt disks using HTTPS protocol.
-Together with ovirt-image-proxy, it allows uploading a disk image
-directly into an oVirt disk, or downloading an oVirt disk.
+vdsm-imaged provides direct access to oVirt disks using HTTPS
+protocol.  Together with ovirt-image-proxy, it allows uploading a disk
+image directly into an oVirt disk, downloading an oVirt disk, or
+performing random I/O.
 
-The goal is to keep vdsm-imaged simple as possible. We use a single
-protocol (HTTP) for everything, and avoid dependencies on Vdsm.
+The goal is to keep vdsm-imaged simple as possible. We use a
+single protocol (HTTP) for everything, and avoid dependencies on Vdsm.
 
 This daemon provides these serices:
 
@@ -20,12 +21,13 @@ This daemon provides these serices:
 
 - tickets service   manage tickets authorizing images service
                     operations. Available localy via HTTP over unix
-                    domain socket. Vdsm will access this when starting
-                    and stopping sessions.
+                    domain socket. Vdsm is using this service to add,
+                    remove, and extend tickets per ovirt-engine
+                    request.
 
 - progress service  report progress for ongoing images operations.
                     Available localy via HTTP over unix domain socket.
-                    Vdsm will access this to report progress to engine.
+                    Vdsm will access this to report progress to Engine.
 
 
 Image session flow (interactive)
@@ -45,8 +47,8 @@ In this flow, client is Engine UI via a browser.
   access token.
 - Client perform image operations with ovirt-image-proxy, using the
   session token.
-- ovirt-image-proxy relay image operations to vdsm-imaged with the
-  session token.
+- ovirt-image-proxy relay image operations to vdsm-imaged with
+  the session token.
 - When client is done, it ends the session using engine REST API.
 - Engine ask vdsm to revoke the ticket.
 - Vdsm deletes session from vdsm-imaged.
@@ -64,8 +66,8 @@ This may be relevant for automating data center image oprations.
 - Engine ask Vdsm to prepare image.
 - Engine ask Vdsm to add a ticket for accessing image.
 - Engine returns session token to client
-- Client perform image operations with vdsm-imaged, using the session
-  token.
+- Client perform image operations with vdsm-imaged, using the
+  session token.
 - When client is done, it ends the session using engine REST API.
 - Engine ask vdsm to revoke the ticket.
 - Vdsm deletes session from vdsm-imaged.
@@ -75,12 +77,12 @@ Tickets are ephemeral; A client needs to request Engine to renew the
 ticket from time to time, otherwise a ticket will expire and the
 ongoing image operaions will be aborted.
 
-Tickets are not persisted. In case of vdsm-imaged crash or reboot,
-Engine will provide a new ticket and possibly point client to another
-host to continue the operation.
+Tickets are not persisted. In case of vdsm-imaged crash or
+reboot, Engine will provide a new ticket and possibly point client to
+another host to continue the operation.
 
 
-vdsm-image API
---------------
+vdsm-imaged API
+---------------
 
 Write me
