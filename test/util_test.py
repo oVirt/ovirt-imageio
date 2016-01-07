@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from imaged import util
+from ovirt_image_daemon import util
 
 
 def test_uninterruptible_interrupt():

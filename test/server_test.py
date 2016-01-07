@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,8 +18,8 @@ import uuid
 
 import pytest
 
-from imaged import uhttp
-from imaged import server
+from ovirt_image_daemon import uhttp
+from ovirt_image_daemon import server
 
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.
@@ -31,7 +31,7 @@ except AttributeError:
 
 class Config(server.Config):
     host = "127.0.0.1"
-    socket = "/tmp/vdsm-imaged.sock"
+    socket = "/tmp/ovirt-image-daemon.sock"
     pki_dir = os.path.join(os.path.dirname(__file__), "pki")
     poll_interval = 0.1
 
@@ -189,13 +189,6 @@ def test_images_upload_invalid_range(tmpdir, config, content_range):
     res = upload(config, ticket["uuid"], request_id, str(payload),
                  content_range=content_range)
     assert res.status == 400
-
-
-class Config(server.Config):
-    host = "127.0.0.1"
-    socket = "/tmp/vdsm-imaged.sock"
-    pki_dir = os.path.join(os.path.dirname(__file__), "pki")
-    poll_interval = 0.1
 
 
 def create_ticket(ops=("get", "put"), timeout=300, size=2**64,

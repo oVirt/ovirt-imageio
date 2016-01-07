@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -16,8 +16,8 @@ import tempfile
 
 import pytest
 
-from imaged import uhttp
-from imaged import util
+from ovirt_image_daemon import uhttp
+from ovirt_image_daemon import util
 
 PKI_DIR = os.path.dirname(__file__)
 KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")

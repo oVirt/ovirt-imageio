@@ -1,5 +1,5 @@
 include README COPYING MANIFEST TODO
-include vdsm-imaged
+include ovirt-image-daemon
 include bench
 include test/*.py
 include test/pki/certs/*.pem

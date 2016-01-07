@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -12,8 +12,8 @@ import os
 import sys
 import time
 
-from imaged import directio
-from imaged import util
+from ovirt_imaged_daemon import directio
+from ovirt_imaged_daemon import util
 
 MB = 1024 * 1024
 
@@ -61,7 +61,8 @@ def add_arguments(parser):
     parser.set_defaults(offset=0, buffersize=directio.BUFFERSIZE)
 
 
-parser = argparse.ArgumentParser(description='imaged benchmark tool')
+parser = argparse.ArgumentParser(
+    description="oVirt image daemon benchmark tool")
 subparsers = parser.add_subparsers(title="commands")
 
 send_parser = subparsers.add_parser("send",

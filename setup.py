@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -11,12 +11,12 @@ from distutils.core import setup
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
     author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
-    description="vdsm image daemon",
+    description="oVirt image daemon",
     license="GNU GPLv2+",
-    name="vdsm-imaged",
+    name="ovirt-image-daemon",
     platforms=["Linux"],
-    packages=["imaged"],
-    scripts=["vdsm-imaged"],
+    packages=["ovirt_image_daemon"],
+    scripts=["ovirt-image-daemon"],
     url="https://github.com/ovirt/vdsm-imaged",
     version="0.1",
 )

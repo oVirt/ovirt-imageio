@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-image-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify

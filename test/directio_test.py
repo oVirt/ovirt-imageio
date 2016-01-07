@@ -1,4 +1,4 @@
-# vdsm-imaged - vdsm image daemon
+# ovirt-imaged-daemon
 # Copyright (C) 2015 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -9,8 +9,8 @@
 import cStringIO
 import pytest
 import string
-from imaged import directio
-from imaged import errors
+from ovirt_image_daemon import directio
+from ovirt_image_daemon import errors
 
 
 def fill(s, size):
