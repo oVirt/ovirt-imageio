@@ -15,8 +15,6 @@ from webob import exc
 
 # TODO instance of config, rather than global
 import config
-# TODO try using this for expiration?
-#import monotonic
 import server
 import ticket
 import util
@@ -282,8 +280,6 @@ def _decode_ovirt_token(payload):
     with open(signer_cert, 'r') as f:
         signer_cert_data = f.read()
     ticketDecoder = ticket.TicketDecoder(ca_cert, None, signer_cert_data)
-    #np = '\n'.join([payload[i:i+64] for i in xrange(0, len(payload), 64)])
-    #formatted = "-----BEGIN CMS-----\n" + np + "-----END CMS-----\n"
 
     try:
         logging.info(payload)
@@ -302,8 +298,6 @@ def _encode_ovirt_token(payload, lifetime_seconds):
     :param payload: Content to encode
     :return: Signed token
     """
-    # TODO is this function even needed?
-    # TODO write a utility to encode a suitable CMS token for test/debug/cmdline use
     cert = config.signing_cert
     key = config.signing_key
     ticketEncoder = ticket.TicketEncoder(cert, key, lifetime_seconds)
@@ -314,62 +308,3 @@ def _encode_ovirt_token(payload, lifetime_seconds):
         raise ValueError("Unable to create proxy ticket")
 
     return t
-    #prefix = "-----BEGIN CMS-----\n"
-    #suffix = "-----END CMS-----\n"
-    #return stdout[len(prefix):-len(suffix)].replace('\n', '')
-
-
-def _verify_cms_token(payload):
-    """
-    Verifies a CMS token for the caller, returning the payload.
-
-    :param payload: token to verify
-    :return: verified payload
-    :raise ValueError: token is invalid or error verifying token
-    """
-    opts = []
-    if not config.verify_proxy_token:
-        opts += ['-nointern', '-nosigs', '-noverify']
-        logging.warning("Not verifying ticket signature!")
-
-    # TODO download cert from engine
-    signer_cert = config.engine_cert
-    np = '\n'.join([payload[i:i+64] for i in xrange(0, len(payload), 64)])
-    formatted = "-----BEGIN CMS-----\n" + np + "-----END CMS-----\n"
-    try:
-        (returncode, stdout, stderr) = util.shell_exec(
-            ['openssl', 'cms', '-verify', '-certfile', signer_cert,
-             '-CAfile', signer_cert, '-inform', 'PEM'] + opts,
-            formatted, True)
-    except subprocess.CalledProcessError as e:
-        logging.error("Failed to verify proxy ticket: %s", str(e))
-        # TODO return distinct errors for bad ticket vs system error
-        raise ValueError("Unable to verify proxy ticket")
-
-    return stdout
-
-
-def _create_cms_token(payload):
-    """
-    Creates a CMS token with the given payload.  This will probably be
-    used only by standalone tools, not in the main daemon code.
-
-    :param payload: Content to encode
-    :return: Signed token
-    """
-    # TODO is this function even needed?
-    # TODO write a utility to encode a suitable CMS token for test/debug/cmdline use
-    cert = config.signing_cert
-    key = config.signing_key
-    try:
-        (returncode, stdout, stderr) = util.shell_exec(
-            ['openssl', 'cms', '-sign', '-signer', cert, '-inkey', key,
-            '-outform', 'PEM', '-nocerts', '-nodetach', '-noattr'],
-            payload, True)
-    except subprocess.CalledProcessError as e:
-        logging.error("Failed to create proxy ticket: %s", str(e))
-        raise ValueError("Unable to create proxy ticket")
-
-    prefix = "-----BEGIN CMS-----\n"
-    suffix = "-----END CMS-----\n"
-    return stdout[len(prefix):-len(suffix)].replace('\n', '')
