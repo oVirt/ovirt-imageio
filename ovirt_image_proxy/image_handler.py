@@ -87,20 +87,18 @@ class ImageHandler(object):
                     "Requested resource must match transfer token"
             )
 
-        request_id = uuid.uuid4()
         uri = session.get_session_attribute(request,
                                             session.SESSION_IMAGED_HOST_URI)
         if uri.startswith('http://'):
             uri = uri[7:]
         if uri.startswith('https://'):
             uri = uri[8:]
-        imaged_url = "{}://{}:{}/images/{}?id={}".format(
+        imaged_url = "{}://{}:{}/images/{}".format(
                 'https' if self.config.imaged_ssl else 'http',
                 uri,
                 self.config.imaged_port,
                 session.get_session_attribute(request,
-                                              session.SESSION_TRANSFER_TICKET),
-                request_id)
+                                              session.SESSION_TRANSFER_TICKET))
 
         # TODO SSL (incl cert verification option)
         verify=False
