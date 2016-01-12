@@ -199,6 +199,64 @@ def test_images_get_imaged_404_notfound(proxy_server, signed_ticket):
     assert res.status == 404
 
 
+def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
+    body = "hello"
+    request_headers = {
+        "Authorization": signed_ticket,
+        "Accept-Ranges": "bytes",
+        "Content-Range": "bytes 2-6/10",
+    }
+    path = "/images/" + AUTH_TICKET_ID
+
+    with requests_mock.Mocker() as m:
+        m.put(IMAGED_URI + path,
+              status_code=200,
+              text=None)
+        res = http_request(proxy_server, "PUT", path, body=body,
+                           headers=request_headers)
+        assert m.called
+    assert res.status == 200
+
+
+def test_images_put_imaged_401_unauthorized(proxy_server, signed_ticket):
+    # i.e. imaged doesn't have a valid ticket for this request
+    body = "hello"
+    request_headers = {
+        "Authorization": signed_ticket,
+        "Accept-Ranges": "bytes",
+        "Content-Range": "bytes 2-6/10",
+    }
+    path = "/images/" + AUTH_TICKET_ID
+
+    with requests_mock.Mocker() as m:
+        m.put(IMAGED_URI + path,
+              status_code=401,
+              text="Unauthorized")
+        res = http_request(proxy_server, "PUT", path, body=body,
+                           headers=request_headers)
+        assert m.called
+    assert res.status == 401
+
+
+def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
+    # i.e. imaged can't find this resource
+    body = "hello"
+    request_headers = {
+        "Authorization": signed_ticket,
+        "Accept-Ranges": "bytes",
+        "Content-Range": "bytes 2-6/10",
+    }
+    path = "/images/" + AUTH_TICKET_ID
+
+    with requests_mock.Mocker() as m:
+        m.put(IMAGED_URI + path,
+              status_code=404,
+              text="Not found")
+        res = http_request(proxy_server, "PUT", path, headers=request_headers)
+        assert m.called
+    assert res.status == 404
+
+
 def http_request(proxy_server, method, uri, body=None, headers=None):
     if proxy_server.use_ssl:
         con = httplib.HTTPSConnection(proxy_server.host,
