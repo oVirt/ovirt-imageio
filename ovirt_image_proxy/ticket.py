@@ -1,7 +1,10 @@
 """
 ticket.py - oVirt ticket management
 
-File copied from ovirt-engine tree for use in image proxy.
+File copied from ovirt-engine tree for use in the image proxy.
+
+DO NOT MODIFY!  Keeping the copy here the same as in engine
+will make sync'ing any changes much easier.
 """
 
 import base64
