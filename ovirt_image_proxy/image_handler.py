@@ -135,8 +135,9 @@ class ImageHandler(object):
                       resource_id, max_transfer_bytes)
 
         logging.debug("Connecting to vdsm-imaged at %s", imaged_url)
-        for k in sorted(headers):
-            logging.debug("Outgoing header %s: %s", k, headers[k])
+        logging.debug("Outgoing headers to vdsm-imaged:\n" +
+                      '\n'.join(('  {}: {}'.format(k, headers[k])
+                                 for k in sorted(headers))))
 
         try:
             # TODO Pool requests, keep the session somewhere?
@@ -164,6 +165,11 @@ class ImageHandler(object):
             s = "Failed communicating with vdsm-imaged: " + e.__doc__
             logging.error(s, exc_info=True)
             raise exc.HTTPInternalServerError(s)
+
+        logging.debug("Incoming headers from vdsm-imaged:\n" +
+                      '\n'.join(('  {}: {}'
+                                  .format(k, imaged_resp.headers.get(k))
+                                 for k in sorted(imaged_resp.headers))))
 
         if (imaged_resp.status_code != httplib.OK
                 and imaged_resp.status_code != httplib.PARTIAL_CONTENT
