@@ -178,9 +178,16 @@ def _create_update_session(authorization, session_id=None):
     }
     session.update(ticket_vars)
 
+    def trim(s, max):
+        if type(s) == str and len(s) > max:
+            return s[:(max/2)] + '...' + s[len(s)-(max/2):]
+        else:
+            return s
+
     logging.info("%s session: %s",
         'Updated' if session_id else 'Established',
-        ', '.join("{}: '{}'".format(k, session[k]) for k in sorted(session.keys())))
+        ', '.join("{}: '{}'".format(k, trim(session[k], 120))
+                  for k in sorted(session.keys())))
 
     with session_rlock:
         if session_id:
@@ -276,13 +283,11 @@ def _decode_ovirt_token(payload):
         ca_cert = None
         logging.warning("Not verifying certificate!")
 
-    logging.info(signer_cert)
     with open(signer_cert, 'r') as f:
         signer_cert_data = f.read()
     ticketDecoder = ticket.TicketDecoder(ca_cert, None, signer_cert_data)
 
     try:
-        logging.info(payload)
         payload = ticketDecoder.decode(payload)
     except Exception as e:
         logging.error("Failed to verify proxy ticket: %s", str(e))
