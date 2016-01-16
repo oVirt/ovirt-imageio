@@ -179,7 +179,7 @@ def get_ticket(ticket_id, op, size):
         ticket = tickets[ticket_id]
     except KeyError:
         raise HTTPForbidden("No such ticket %r" % ticket_id)
-    if ticket["expires"] <= time.time():
+    if ticket["expires"] <= util.monotonic_time():
         raise HTTPForbidden("Ticket %r expired" % ticket_id)
     if op not in ticket["ops"]:
         raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
@@ -252,6 +252,11 @@ class Tickets(object):
             ticket = self.request.json
         except ValueError as e:
             raise HTTPBadRequest("Invalid ticket: %s" % e)
+        try:
+            timeout = ticket["timeout"]
+        except KeyError:
+            raise HTTPBadRequest("Missing timeout key")
+        ticket["expires"] = int(util.monotonic_time()) + timeout
         tickets[ticket_id] = ticket
         return response()
 
@@ -264,10 +269,10 @@ class Tickets(object):
         except ValueError as e:
             raise HTTPBadRequest("Invalid patch: %s" % e)
         try:
-            new_expires = patch["expires"]
+            timeout = patch["timeout"]
         except KeyError:
-            raise HTTPBadRequest("Missing expires key")
-        tickets[ticket_id]["expires"] = new_expires
+            raise HTTPBadRequest("Missing timeout key")
+        tickets[ticket_id]["expires"] = int(util.monotonic_time()) + timeout
         return response()
 
     def delete(self, ticket_id):

@@ -13,13 +13,13 @@ import httplib
 import json
 import os
 import ssl
-import time
 import uuid
 
 import pytest
 
 from ovirt_image_daemon import uhttp
 from ovirt_image_daemon import server
+from ovirt_image_daemon import util
 
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.
@@ -60,7 +60,7 @@ def test_tickets_no_method(config):
 
 def test_tickets_get(config):
     ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
+    add_ticket(ticket)
     res = unix_request(config, "GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
     assert json.loads(res.read()) == ticket
@@ -71,11 +71,13 @@ def test_tickets_get_not_found(config):
     assert res.status == 404
 
 
-def test_tickets_put(config):
+def test_tickets_put(config, monkeypatch):
+    monkeypatch.setattr(util, "monotonic_time", lambda: 123456789)
     ticket = create_ticket()
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 200
+    ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
     assert server.tickets[ticket["uuid"]] == ticket
 
 
@@ -84,19 +86,34 @@ def test_tickets_put_invalid_json(config):
     assert res.status == 400
 
 
-def test_tickets_extend(config):
+def test_tickets_extend(config, monkeypatch):
+    now = 123456789
+    monkeypatch.setattr(util, "monotonic_time", lambda: now)
     ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
-    patch = {"expires": ticket["expires"] + 300}
+    add_ticket(ticket)
+    patch = {"timeout": 300}
     body = json.dumps(patch)
+    new_ticket = ticket.copy()
+    now += 240
+    new_ticket["expires"] = now + patch["timeout"]
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 200
-    assert ticket["expires"] == patch["expires"]
+    assert ticket == new_ticket
+
+
+def test_tickets_extend_no_timeout(config):
+    ticket = create_ticket()
+    add_ticket(ticket)
+    prev_ticket = ticket.copy()
+    body = json.dumps({"not-a-timeout": 300})
+    res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+    assert ticket == prev_ticket
 
 
 def test_tickets_delete_one(config):
     ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
+    add_ticket(ticket)
     res = unix_request(config, "DELETE", "/tickets/%(uuid)s" % ticket)
     assert res.status == 204
     assert ticket["uuid"] not in server.tickets
@@ -111,7 +128,7 @@ def test_tickets_delete_all(config):
     # Example usage: move host to maintenance
     for i in range(5):
         ticket = create_ticket(path="/var/run/vdsm/storage/foo%s" % i)
-        server.tickets[ticket["uuid"]] = ticket
+        add_ticket(ticket)
     res = unix_request(config, "DELETE", "/tickets/")
     assert res.status == 204
     assert server.tickets == {}
@@ -148,7 +165,7 @@ def test_images_upload(tmpdir, config):
     image = tmpdir.join("image")
     image.write("-------|after")
     ticket = create_ticket(path=str(image))
-    server.tickets[ticket["uuid"]] = ticket
+    add_ticket(ticket)
     res = upload(config, ticket["uuid"], request_id, str(payload))
     assert image.read() == "content|after"
     assert res.status == 200
@@ -165,7 +182,7 @@ def test_images_upload_with_range(tmpdir, config, content_range, before, after):
     image = tmpdir.join("image")
     image.write(before)
     ticket = create_ticket(path=str(image))
-    server.tickets[ticket["uuid"]] = ticket
+    add_ticket(ticket)
     res = upload(config, ticket["uuid"], request_id, str(payload),
                  content_range=content_range)
     assert image.read() == after
@@ -185,7 +202,7 @@ def test_images_upload_invalid_range(tmpdir, config, content_range):
     payload = create_tempfile(tmpdir, "payload", "content")
     request_id = str(uuid.uuid4())
     ticket = create_ticket()
-    server.tickets[ticket["uuid"]] = ticket
+    add_ticket(ticket)
     res = upload(config, ticket["uuid"], request_id, str(payload),
                  content_range=content_range)
     assert res.status == 400
@@ -195,7 +212,7 @@ def create_ticket(ops=("get", "put"), timeout=300, size=2**64,
                   path="/var/run/vdsm/storage/foo"):
     return {
         "uuid": str(uuid.uuid4()),
-        "expires": int(time.time()) + timeout,
+        "timeout": timeout,
         "ops": list(ops),
         "size": size,
         "path": path,
@@ -249,3 +266,9 @@ def create_volume(repo, domain, image, volume, data=''):
     volume = repo.mkdir(domain).mkdir("images").mkdir(image).join(volume)
     volume.write(data)
     return volume
+
+
+# TODO: move into tickets.py
+def add_ticket(ticket):
+    ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
+    server.tickets[ticket["uuid"]] = ticket
