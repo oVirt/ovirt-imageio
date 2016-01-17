@@ -130,6 +130,13 @@ def test_tickets_extend_invalid_timeout(config):
     assert ticket == prev_ticket
 
 
+def test_tickets_extend_not_found(config):
+    ticket_id = str(uuid.uuid4())
+    body = json.dumps({"timeout": 300})
+    res = unix_request(config, "PATCH", "/tickets/%s" % ticket_id, body)
+    assert res.status == 404
+
+
 def test_tickets_delete_one(config):
     ticket = create_ticket()
     add_ticket(ticket)

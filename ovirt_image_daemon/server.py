@@ -279,7 +279,11 @@ class Tickets(object):
             timeout = int(timeout)
         except ValueError as e:
             raise HTTPBadRequest("Invalid timeout value: %s" % e)
-        tickets[ticket_id]["expires"] = int(util.monotonic_time()) + timeout
+        try:
+            ticket = tickets[ticket_id]
+        except KeyError:
+            raise HTTPNotFound("No such ticket: %s" % ticket_id)
+        ticket["expires"] = int(util.monotonic_time()) + timeout
         return response()
 
     def delete(self, ticket_id):
