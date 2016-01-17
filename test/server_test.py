@@ -7,7 +7,7 @@
 # (at your option) any later version.
 
 from __future__ import print_function
-from contextlib import contextmanager, closing
+from contextlib import closing
 from pprint import pprint
 import httplib
 import json
@@ -171,12 +171,12 @@ def test_images_upload(tmpdir, config):
     assert res.status == 200
 
 
-@pytest.mark.parametrize("content_range,before,after", [
+@pytest.mark.parametrize("crange,before,after", [
     ("bytes 7-13/20", "before|-------|after", "before|content|after"),
     ("bytes */20", "-------|after", "content|after"),
     ("bytes */*", "-------|after", "content|after"),
 ])
-def test_images_upload_with_range(tmpdir, config, content_range, before, after):
+def test_images_upload_with_range(tmpdir, config, crange, before, after):
     payload = create_tempfile(tmpdir, "payload", "content")
     request_id = str(uuid.uuid4())
     image = tmpdir.join("image")
@@ -184,7 +184,7 @@ def test_images_upload_with_range(tmpdir, config, content_range, before, after):
     ticket = create_ticket(path=str(image))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], request_id, str(payload),
-                 content_range=content_range)
+                 content_range=crange)
     assert image.read() == after
     assert res.status == 200
 
