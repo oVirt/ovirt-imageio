@@ -81,9 +81,29 @@ def test_tickets_put(config, monkeypatch):
     assert server.tickets[ticket["uuid"]] == ticket
 
 
-def test_tickets_put_invalid_json(config):
-    res = unix_request(config, "PUT", "/tickets/", "invalid json")
+def test_tickets_put_no_ticket_id(config):
+    ticket = create_ticket()
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/", body)
     assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
+
+
+def test_tickets_put_invalid_json(config):
+    ticket = create_ticket()
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket,
+                       "invalid json")
+    assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
+
+
+def test_tickets_put_no_timeout(config):
+    ticket = create_ticket()
+    del ticket["timeout"]
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
 
 
 def test_tickets_put_invalid_timeout(config):
@@ -108,6 +128,26 @@ def test_tickets_extend(config, monkeypatch):
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 200
     assert ticket == new_ticket
+
+
+def test_tickets_extend_no_ticket_id(config):
+    ticket = create_ticket()
+    add_ticket(ticket)
+    prev_ticket = ticket.copy()
+    body = json.dumps({"timeout": 300})
+    res = unix_request(config, "PATCH", "/tickets/", body)
+    assert res.status == 400
+    assert ticket == prev_ticket
+
+
+def test_tickets_extend_invalid_json(config):
+    ticket = create_ticket()
+    add_ticket(ticket)
+    prev_ticket = ticket.copy()
+    res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket,
+                       "{invalid}")
+    assert res.status == 400
+    assert ticket == prev_ticket
 
 
 def test_tickets_extend_no_timeout(config):
