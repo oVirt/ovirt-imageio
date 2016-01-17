@@ -255,6 +255,10 @@ class Tickets(object):
             timeout = ticket["timeout"]
         except KeyError:
             raise HTTPBadRequest("Missing timeout key")
+        try:
+            timeout = int(timeout)
+        except ValueError as e:
+            raise HTTPBadRequest("Invalid timeout value: %s" % e)
         ticket["expires"] = int(util.monotonic_time()) + timeout
         tickets[ticket_id] = ticket
         return response()
@@ -271,6 +275,10 @@ class Tickets(object):
             timeout = patch["timeout"]
         except KeyError:
             raise HTTPBadRequest("Missing timeout key")
+        try:
+            timeout = int(timeout)
+        except ValueError as e:
+            raise HTTPBadRequest("Invalid timeout value: %s" % e)
         tickets[ticket_id]["expires"] = int(util.monotonic_time()) + timeout
         return response()
 
