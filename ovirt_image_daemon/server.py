@@ -288,7 +288,6 @@ class Tickets(object):
 
     def delete(self, ticket_id):
         # TODO: cancel requests using deleted tickets
-        ticket_id = self.request.path_info_peek()
         if ticket_id:
             try:
                 del tickets[ticket_id]
