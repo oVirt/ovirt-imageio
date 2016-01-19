@@ -199,12 +199,9 @@ class Images(object):
     def put(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
+        offset = self.offset()
         size = self.request.content_length
-        ticket = get_ticket(ticket_id, "put", size)
-        try:
-            offset = self.content_range.start
-        except KeyError:
-            offset = 0
+        ticket = get_ticket(ticket_id, "put", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         op = directio.Receive(ticket["path"],
                               self.request.body_file_raw,
@@ -214,13 +211,15 @@ class Images(object):
         op.run()
         return response()
 
-    @property
-    def content_range(self):
-        header = self.request.headers["content-range"]
+    def offset(self):
+        try:
+            header = self.request.headers["content-range"]
+        except KeyError:
+            return 0
         content_range = webob.byterange.ContentRange.parse(header)
         if content_range is None:
             raise HTTPBadRequest("Invalid content-range: %r" % header)
-        return content_range
+        return content_range.start or 0
 
 
 class Tickets(object):

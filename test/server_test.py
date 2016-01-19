@@ -255,6 +255,60 @@ def test_images_upload_with_range(tmpdir, config, crange, before, after):
     assert res.status == 200
 
 
+def test_images_upload_max_size(tmpdir, config):
+    image_size = 100
+    payload = create_tempfile(tmpdir, "payload", "b" * image_size)
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write("")
+    ticket = create_ticket(path=str(image), size=image_size)
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], request_id, str(payload))
+    assert res.status == 200
+    assert image.read() == payload.read()
+
+
+def test_images_upload_too_big(tmpdir, config):
+    image_size = 100
+    payload = create_tempfile(tmpdir, "payload", "b" * (image_size + 1))
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write("")
+    ticket = create_ticket(path=str(image), size=image_size)
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], request_id, str(payload))
+    assert res.status == 403
+    assert image.read() == ""
+
+
+def test_images_upload_last_byte(tmpdir, config):
+    image_size = 100
+    payload = create_tempfile(tmpdir, "payload", "b")
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write("a" * image_size)
+    ticket = create_ticket(path=str(image), size=image_size)
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], request_id, str(payload),
+                 content_range="bytes 99-100/*")
+    assert res.status == 200
+    assert image.read() == "a" * 99 + "b"
+
+
+def test_images_upload_after_last_byte(tmpdir, config):
+    image_size = 100
+    payload = create_tempfile(tmpdir, "payload", "b")
+    request_id = str(uuid.uuid4())
+    image = tmpdir.join("image")
+    image.write("a" * image_size)
+    ticket = create_ticket(path=str(image), size=image_size)
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], request_id, str(payload),
+                 content_range="bytes 100-101/*")
+    assert res.status == 403
+    assert image.read() == "a" * image_size
+
+
 @pytest.mark.parametrize("content_range", [
     "",
     "   ",
