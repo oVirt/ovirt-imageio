@@ -225,8 +225,7 @@ def test_images_upload_no_ticket(tmpdir, config):
 
 def test_images_upload(tmpdir, config):
     payload = create_tempfile(tmpdir, "payload", "content")
-    image = tmpdir.join("image")
-    image.write("-------|after")
+    image = create_tempfile(tmpdir, "image", "-------|after")
     ticket = create_ticket(path=str(image))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload))
@@ -241,8 +240,7 @@ def test_images_upload(tmpdir, config):
 ])
 def test_images_upload_with_range(tmpdir, config, crange, before, after):
     payload = create_tempfile(tmpdir, "payload", "content")
-    image = tmpdir.join("image")
-    image.write(before)
+    image = create_tempfile(tmpdir, "image", before)
     ticket = create_ticket(path=str(image))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload),
@@ -254,8 +252,7 @@ def test_images_upload_with_range(tmpdir, config, crange, before, after):
 def test_images_upload_max_size(tmpdir, config):
     image_size = 100
     payload = create_tempfile(tmpdir, "payload", "b" * image_size)
-    image = tmpdir.join("image")
-    image.write("")
+    image = create_tempfile(tmpdir, "image", "")
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload))
@@ -266,8 +263,7 @@ def test_images_upload_max_size(tmpdir, config):
 def test_images_upload_too_big(tmpdir, config):
     image_size = 100
     payload = create_tempfile(tmpdir, "payload", "b" * (image_size + 1))
-    image = tmpdir.join("image")
-    image.write("")
+    image = create_tempfile(tmpdir, "image", "")
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload))
@@ -278,8 +274,7 @@ def test_images_upload_too_big(tmpdir, config):
 def test_images_upload_last_byte(tmpdir, config):
     image_size = 100
     payload = create_tempfile(tmpdir, "payload", "b")
-    image = tmpdir.join("image")
-    image.write("a" * image_size)
+    image = create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload),
@@ -291,8 +286,7 @@ def test_images_upload_last_byte(tmpdir, config):
 def test_images_upload_after_last_byte(tmpdir, config):
     image_size = 100
     payload = create_tempfile(tmpdir, "payload", "b")
-    image = tmpdir.join("image")
-    image.write("a" * image_size)
+    image = create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], str(payload),
