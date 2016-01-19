@@ -202,6 +202,8 @@ class ImageHandler(object):
                 )
             response.body_file = CappedStream(RequestStreamAdapter(
                     imaged_resp.iter_content(4096, False)), max_transfer_bytes)
+            response.headers['Content-Length'] = \
+                    imaged_resp.headers.get('Content-Length', '')
             logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
                           resource_id, max_transfer_bytes)
 
