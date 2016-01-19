@@ -369,16 +369,6 @@ def create_tempfile(tmpdir, name, data=''):
     return file
 
 
-def create_repo(tmpdir):
-    return tmpdir.mkdir("storage")
-
-
-def create_volume(repo, domain, image, volume, data=''):
-    volume = repo.mkdir(domain).mkdir("images").mkdir(image).join(volume)
-    volume.write(data)
-    return volume
-
-
 # TODO: move into tickets.py
 def add_ticket(ticket):
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
