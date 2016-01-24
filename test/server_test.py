@@ -211,34 +211,27 @@ def test_images_no_method(config):
 
 
 def test_images_upload_no_ticket_id(tmpdir, config):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    res = upload(config, "", str(payload))
+    res = upload(config, "", "content")
     assert res.status == 400
 
 
 def test_images_upload_no_ticket(tmpdir, config):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    ticket_id = str(uuid.uuid4())
-    res = upload(config, ticket_id, str(payload))
+    res = upload(config, str(uuid.uuid4()), "content")
     assert res.status == 403
 
 
 def test_images_upload_forbidden(tmpdir, config):
-    payload = create_tempfile(tmpdir, "payload", "content")
-    image = create_tempfile(tmpdir, "image", "-------")
-    ticket = create_ticket(path=str(image), ops=("read",))
+    ticket = create_ticket(path="/no/such/image", ops=("read",))
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload))
+    res = upload(config, ticket["uuid"], "content")
     assert res.status == 403
-    assert image.read() == "-------"
 
 
 def test_images_upload(tmpdir, config):
-    payload = create_tempfile(tmpdir, "payload", "content")
     image = create_tempfile(tmpdir, "image", "-------|after")
     ticket = create_ticket(path=str(image))
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload))
+    res = upload(config, ticket["uuid"], "content")
     assert image.read() == "content|after"
     assert res.status == 200
 
@@ -249,11 +242,10 @@ def test_images_upload(tmpdir, config):
     ("bytes */*", "-------|after", "content|after"),
 ])
 def test_images_upload_with_range(tmpdir, config, crange, before, after):
-    payload = create_tempfile(tmpdir, "payload", "content")
     image = create_tempfile(tmpdir, "image", before)
     ticket = create_ticket(path=str(image))
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload),
+    res = upload(config, ticket["uuid"], "content",
                  content_range=crange)
     assert image.read() == after
     assert res.status == 200
@@ -261,33 +253,31 @@ def test_images_upload_with_range(tmpdir, config, crange, before, after):
 
 def test_images_upload_max_size(tmpdir, config):
     image_size = 100
-    payload = create_tempfile(tmpdir, "payload", "b" * image_size)
+    content = "b" * image_size
     image = create_tempfile(tmpdir, "image", "")
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload))
+    res = upload(config, ticket["uuid"], content)
     assert res.status == 200
-    assert image.read() == payload.read()
+    assert image.read() == content
 
 
 def test_images_upload_too_big(tmpdir, config):
     image_size = 100
-    payload = create_tempfile(tmpdir, "payload", "b" * (image_size + 1))
     image = create_tempfile(tmpdir, "image", "")
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload))
+    res = upload(config, ticket["uuid"], "b" * (image_size + 1))
     assert res.status == 403
     assert image.read() == ""
 
 
 def test_images_upload_last_byte(tmpdir, config):
     image_size = 100
-    payload = create_tempfile(tmpdir, "payload", "b")
     image = create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload),
+    res = upload(config, ticket["uuid"], "b",
                  content_range="bytes 99-100/*")
     assert res.status == 200
     assert image.read() == "a" * 99 + "b"
@@ -295,11 +285,10 @@ def test_images_upload_last_byte(tmpdir, config):
 
 def test_images_upload_after_last_byte(tmpdir, config):
     image_size = 100
-    payload = create_tempfile(tmpdir, "payload", "b")
     image = create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = create_ticket(path=str(image), size=image_size)
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload),
+    res = upload(config, ticket["uuid"], "b",
                  content_range="bytes 100-101/*")
     assert res.status == 403
     assert image.read() == "a" * image_size
@@ -315,10 +304,9 @@ def test_images_upload_after_last_byte(tmpdir, config):
     "bytes 13-7/20",
 ])
 def test_images_upload_invalid_range(tmpdir, config, content_range):
-    payload = create_tempfile(tmpdir, "payload", "content")
     ticket = create_ticket()
     add_ticket(ticket)
-    res = upload(config, ticket["uuid"], str(payload),
+    res = upload(config, ticket["uuid"], "content",
                  content_range=content_range)
     assert res.status == 400
 
@@ -334,13 +322,12 @@ def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
     }
 
 
-def upload(config, ticket_uuid, filename, content_range=None):
+def upload(config, ticket_uuid, body, content_range=None):
     uri = "/images/" + ticket_uuid
     headers = {}
     if content_range is not None:
         headers["content-range"] = content_range
-    with open(filename) as f:
-        return http_request(config, "PUT", uri, f, headers=headers)
+    return http_request(config, "PUT", uri, body=body, headers=headers)
 
 
 def http_request(config, method, uri, body=None, headers=None):
