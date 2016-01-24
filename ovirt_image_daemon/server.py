@@ -96,7 +96,7 @@ class Config(object):
     port = 54322
     poll_interval = 1.0
     buffer_size = 1024 * 1024
-    socket = "/var/run/vdsm/imaged.sock"
+    socket = "/var/run/vdsm/ovirt-image-daemon.sock"
 
     @property
     def key_file(self):
