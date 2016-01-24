@@ -201,7 +201,7 @@ class Images(object):
             raise HTTPBadRequest("Ticket id is required")
         offset = self.offset()
         size = self.request.content_length
-        ticket = get_ticket(ticket_id, "put", offset + size)
+        ticket = get_ticket(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         op = directio.Receive(ticket["path"],
                               self.request.body_file_raw,

@@ -223,6 +223,16 @@ def test_images_upload_no_ticket(tmpdir, config):
     assert res.status == 403
 
 
+def test_images_upload_forbidden(tmpdir, config):
+    payload = create_tempfile(tmpdir, "payload", "content")
+    image = create_tempfile(tmpdir, "image", "-------")
+    ticket = create_ticket(path=str(image), ops=("read",))
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], str(payload))
+    assert res.status == 403
+    assert image.read() == "-------"
+
+
 def test_images_upload(tmpdir, config):
     payload = create_tempfile(tmpdir, "payload", "content")
     image = create_tempfile(tmpdir, "image", "-------|after")
@@ -313,7 +323,7 @@ def test_images_upload_invalid_range(tmpdir, config, content_range):
     assert res.status == 400
 
 
-def create_ticket(ops=("get", "put"), timeout=300, size=2**64,
+def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
                   path="/var/run/vdsm/storage/foo"):
     return {
         "uuid": str(uuid.uuid4()),
