@@ -9,6 +9,6 @@
 # (at your option) any later version.
 
 import sys
-from imaged import server
+from ovirt_image_daemon import server
 
 server.main(sys.argv)
