@@ -26,7 +26,7 @@ This daemon provides these serices:
                     request.
 
 - progress service  report progress for ongoing images operations.
-                    Available localy via HTTP over unix domain socket.
+                    Available locally via HTTP over unix domain socket.
                     Vdsm will access this to report progress to Engine.
 
 
@@ -59,7 +59,7 @@ Image session flow (non-interactive)
 ------------------------------------
 
 This flow is possible only if client has access to the host network.
-This may be relevant for automating data center image oprations.
+This may be relevant for automating data center image operations.
 
 - Client starts an image session using oVirt REST API.
 - Engine creates session token for vdsm-imgaged.
@@ -75,7 +75,7 @@ This may be relevant for automating data center image oprations.
 
 Tickets are ephemeral; A client needs to request Engine to renew the
 ticket from time to time, otherwise a ticket will expire and the
-ongoing image operaions will be aborted.
+ongoing image operations will be aborted.
 
 Tickets are not persisted. In case of ovirt-image-daemon crash or
 reboot, Engine will provide a new ticket and possibly point client to
