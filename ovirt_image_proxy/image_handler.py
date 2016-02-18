@@ -8,7 +8,6 @@ import requests
 from webob import exc
 
 from http_helper import (
-    parse_content_range,
     requiresession,
     success_codes as http_success_codes,
 )
@@ -52,18 +51,11 @@ class ImageHandler(object):
         response.headers['Content-Range'] = \
             imaged_response.headers.get('Content-Range', '')
 
-        try:
-            max_transfer_bytes = \
-                parse_content_range(response.headers['Content-Range'])[3]
-        except ValueError as e:
-            raise exc.HTTPBadGateway(
-                "Invalid response from vdsm-imaged: " + e.message
-            )
+        max_transfer_bytes = int(imaged_response.headers.get('Content-Length'))
         response.body_file = CappedStream(RequestStreamAdapter(
             imaged_response.iter_content(4096, False)),
             max_transfer_bytes)
-        response.headers['Content-Length'] = \
-            imaged_response.headers.get('Content-Length', '')
+        response.headers['Content-Length'] = str(max_transfer_bytes)
         logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
                       resource_id, max_transfer_bytes)
 
@@ -99,12 +91,8 @@ class ImageHandler(object):
 
         headers = self.get_default_headers(resource_id)
         headers['Content-Range'] = request.headers['Content-Range']
-        try:
-            max_transfer_bytes = \
-                parse_content_range(request.headers['Content-Range'])[3]
-        except ValueError as e:
-            raise exc.HTTPBadRequest("Invalid request: " + e.message)
-        headers['Content-Length'] = max_transfer_bytes
+        headers['Content-Length'] = request.headers['Content-Length']
+        max_transfer_bytes = int(headers['Content-Length'])
 
         # The Requests documentation states that streaming uploads are
         # supported if data is a "file-like" object.  It looks for an

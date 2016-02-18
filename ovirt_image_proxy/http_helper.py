@@ -94,19 +94,3 @@ def requiresession(func):
         session.update_session_activity(request)
         return ret
     return wrapper
-
-
-def parse_content_range(content_range):
-    """
-    Parse a Content-Range header eg "bytes 0-15/100"
-
-    :raise ValueError: header could not be parsed
-    :return: tuple of (int start, int end, int total or str '*', int count)
-    """
-    m = cr_regex.match(content_range)
-    if m is None:
-        raise ValueError("Invalid content range")
-    else:
-        r = m.groups()
-        r = (int(r[0]), int(r[1]), r[2] if r[2] == '*' else int(r[2]))
-        return r + (r[1] - r[0] + 1,)
