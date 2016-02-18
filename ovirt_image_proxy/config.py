@@ -42,14 +42,16 @@ allowed_skew_seconds = 0
 imaged_connection_timeout_sec = 10
 imaged_read_timeout_sec = 30
 
-
 # Derived configuration values
 key_file = None
+cert_file = None
+
+
 def _set_key_file():
     global key_file
     key_file = os.path.join(pki_dir, 'keys', 'vdsmkey.pem')
 
-cert_file = None
+
 def _set_cert_file():
     global cert_file
     cert_file = os.path.join(pki_dir, 'keys', 'vdsmcert.pem')
@@ -84,8 +86,8 @@ def load(config_file=None):
 
     except ConfigParser.Error as e:
         e.message = (
-                "Error reading config file {}: {}"
-                .format(constants.CONFIG_FILE, e.message)
+            "Error reading config file {}: {}"
+            .format(constants.CONFIG_FILE, e.message)
         )
         raise
 

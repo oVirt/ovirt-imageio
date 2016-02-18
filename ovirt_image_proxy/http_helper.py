@@ -76,8 +76,10 @@ def requiresession(func):
     a failed HTTP response if one could not be established.
 
     :param func: HTTP method to wrap
-    :return: webob response object, either failure (if session could not be initialized) or HTTP method return value
-    :raise webob.exc.HTTPException: Error creating session or running HTTP method
+    :return: webob response object, either failure (if session could not be
+             initialized) or HTTP method return value
+    :raise webob.exc.HTTPException: Error creating session or running HTTP
+                                    method
     """
     @wraps(func)
     def wrapper(self, request):

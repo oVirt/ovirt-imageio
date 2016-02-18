@@ -6,6 +6,7 @@ import sys
 
 from ovirt_image_proxy import ticket
 
+
 def main():
     if len(sys.argv) == 5 and sys.argv[1] == 'encode':
         encodeTicket(*sys.argv[2:])
@@ -24,9 +25,11 @@ Examples:
   {n} decode /tmp/engine_cert.pem /tmp/engine_cert.pem
 
 Note that the engine cert can be retrieved with:
-  wget http://localhost:8080/ovirt-engine/services/pki-resource?resource=engine-certificate&format=X509-PEM-CA
+  wget http://localhost:8080/ovirt-engine/services/\\
+       pki-resource?resource=engine-certificate&format=X509-PEM-CA
 CA cert:
-  wget http://localhost:8080/ovirt-engine/services/pki-resource?resource=ca-certificate&format=X509-PEM-CA
+  wget http://localhost:8080/ovirt-engine/services/\\
+       pki-resource?resource=ca-certificate&format=X509-PEM-CA
 '''.format(n=sys.argv[0]))
         sys.exit(1)
 

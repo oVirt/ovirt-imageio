@@ -1,5 +1,3 @@
-import subprocess
-
 def to_bool(string):
     first = str(string).lower()[:1]
     if first in ('t', 'y', '1'):

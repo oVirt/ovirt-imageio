@@ -50,7 +50,7 @@ class Server:
             self._secure_server(config, server)
         server.set_app(Application(config,
                                    [(r"/images/(.*)", images),
-                                   (r"/downloads/(.*)", downloads)]))
+                                    (r"/downloads/(.*)", downloads)]))
         self._start_server(config, server, "image.server")
         self._image_server = server
 
@@ -110,7 +110,7 @@ class Application(object):
     def dispatch(self, request):
         if request.method not in ('GET', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS', 'HEAD'):
             raise exc.HTTPMethodNotAllowed("Invalid method %r" %
-                                       request.method)
+                                           request.method)
         path = request.path_info
         for route, handler_class in self.routes:
             match = route.match(path)

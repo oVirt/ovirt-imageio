@@ -11,6 +11,7 @@ import sys
 
 _regex = re.compile(r"^(\d+\.\d+\.\d+)-(.+)$")
 
+
 def get_version():
     with open('VERSION') as f:
         v = f.readline().rstrip()
@@ -25,14 +26,15 @@ def get_version():
             gitrev = subprocess.check_output('git rev-parse --short HEAD'.split())
         except subprocess.CalledProcessError as e:
             raise subprocess.CalledProcessError(
-                    "Error getting git revision: " + e)
+                "Error getting git revision: " + e)
         release += gitrev.strip()
 
     return version, release
 
+
 def main(args):
     parser = argparse.ArgumentParser(
-            description='Display Image Upload version')
+        description='Display Image Upload version')
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--full', action='store_true', help='show full version.release')
     group.add_argument('--version', action='store_true', help='show major.minor version')

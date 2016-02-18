@@ -13,6 +13,7 @@ mappings = {
     'transfer-ticket': (str, 'uuid transfer ticket'),
 }
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate JSON tokens to send to the image proxy.",
@@ -37,7 +38,7 @@ def main():
               for k, v
               in vars(args).iteritems()
               if v is not None and k not in ('int', 'str', 'encode')))
-    d.update(dict((k, v)      for k, v in (s.split('=') for s in (args.str if args.str else []))))
+    d.update(dict((k, v) for k, v in (s.split('=') for s in (args.str if args.str else []))))
     d.update(dict((k, int(v)) for k, v in (s.split('=') for s in (args.int if args.str else []))))
 
     print json.dumps(d)

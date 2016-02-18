@@ -173,8 +173,9 @@ def _create_update_session(authorization, session_id=None):
     ticket_vars = _decode_proxy_ticket(authorization)
 
     sid = session_id if session_id else str(uuid.uuid4())
-    session = {SESSION_ID: sid,
-               SESSION_PROXY_TICKET: authorization,
+    session = {
+        SESSION_ID: sid,
+        SESSION_PROXY_TICKET: authorization,
     }
     session.update(ticket_vars)
 
@@ -185,9 +186,9 @@ def _create_update_session(authorization, session_id=None):
             return s
 
     logging.info("%s session: %s",
-        'Updated' if session_id else 'Established',
-        ', '.join("{}: '{}'".format(k, trim(session[k], 120))
-                  for k in sorted(session.keys())))
+                 'Updated' if session_id else 'Established',
+                 ', '.join("{}: '{}'".format(k, trim(session[k], 120))
+                           for k in sorted(session.keys())))
 
     with session_rlock:
         if session_id:
@@ -294,6 +295,7 @@ def _decode_ovirt_token(payload):
         raise ValueError("Unable to verify proxy ticket")
 
     return payload
+
 
 def _encode_ovirt_token(payload, lifetime_seconds):
     """

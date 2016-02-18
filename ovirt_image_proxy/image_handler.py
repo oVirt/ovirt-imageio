@@ -63,18 +63,18 @@ class ImageHandler(object):
             imaged_response.iter_content(4096, False)),
             max_transfer_bytes)
         response.headers['Content-Length'] = \
-                imaged_response.headers.get('Content-Length', '')
+            imaged_response.headers.get('Content-Length', '')
         logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
                       resource_id, max_transfer_bytes)
 
         return response
 
     @requiresession
-    def put(self, request):  #ticket_id):
+    def put(self, request):
         return self.send_data(request)
 
     @requiresession
-    def patch(self, request):  #ticket_id):
+    def patch(self, request):
         return self.send_data(request)
 
     def send_data(self, request):
@@ -90,8 +90,8 @@ class ImageHandler(object):
         # Note that webob request.headers is case-insensitive.
         if 'Content-Range' not in request.headers:
             raise exc.HTTPBadRequest(
-                    "Content-Range header required for {} requests"
-                    .format(request.method)
+                "Content-Range header required for {} requests"
+                .format(request.method)
             )
 
         resource_id = self.get_resource_id(request)
@@ -101,7 +101,7 @@ class ImageHandler(object):
         headers['Content-Range'] = request.headers['Content-Range']
         try:
             max_transfer_bytes = \
-                    parse_content_range(request.headers['Content-Range'])[3]
+                parse_content_range(request.headers['Content-Range'])[3]
         except ValueError as e:
             raise exc.HTTPBadRequest("Invalid request: " + e.message)
         headers['Content-Length'] = max_transfer_bytes
@@ -113,9 +113,9 @@ class ImageHandler(object):
         body = CappedStream(request.body_file, max_transfer_bytes)
         stream = False
         logging.debug("Resource %s: transferring %d bytes to vdsm-imaged",
-                  resource_id, max_transfer_bytes)
+                      resource_id, max_transfer_bytes)
         imaged_response = self.make_imaged_request(
-                request.method, imaged_url, headers, body, stream)
+            request.method, imaged_url, headers, body, stream)
 
         response = server.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
@@ -133,12 +133,12 @@ class ImageHandler(object):
             uuid.UUID(resource_id)
         except ValueError:
             raise exc.HTTPBadRequest(
-                    "Invalid format for requested resource or no resource specified"
+                "Invalid format for requested resource or no resource specified"
             )
         if (resource_id != session.get_session_attribute(
                 request, session.SESSION_TRANSFER_TICKET)):
             raise exc.HTTPBadRequest(
-                    "Requested resource must match transfer token"
+                "Requested resource must match transfer token"
             )
         return resource_id
 
@@ -150,11 +150,11 @@ class ImageHandler(object):
         if uri.startswith('https://'):
             uri = uri[8:]
         return "{}://{}:{}/images/{}".format(
-                'https' if self.config.imaged_ssl else 'http',
-                uri,
-                self.config.imaged_port,
-                session.get_session_attribute(request,
-                                              session.SESSION_TRANSFER_TICKET))
+            'https' if self.config.imaged_ssl else 'http',
+            uri,
+            self.config.imaged_port,
+            session.get_session_attribute(request,
+                                          session.SESSION_TRANSFER_TICKET))
 
     def get_default_headers(self, resource_id):
         return {
@@ -165,10 +165,10 @@ class ImageHandler(object):
 
     def make_imaged_request(self, method, imaged_url, headers, body, stream):
         # TODO SSL (incl cert verification option)
-        verify=False
-        cert=None
-        timeout=(self.config.imaged_connection_timeout_sec,
-                 self.config.imaged_read_timeout_sec)
+        verify = False
+        cert = None
+        timeout = (self.config.imaged_connection_timeout_sec,
+                   self.config.imaged_read_timeout_sec)
 
         logging.debug("Connecting to vdsm-imaged at %s", imaged_url)
         logging.debug("Outgoing headers to vdsm-imaged:\n" +
@@ -180,13 +180,13 @@ class ImageHandler(object):
             # TODO Otherwise, we can use request.prepare()
             imaged_session = requests.Session()
             imaged_req = requests.Request(
-                    method, imaged_url, headers=headers, data=body)
-            imaged_req.body_file=body
+                method, imaged_url, headers=headers, data=body)
+            imaged_req.body_file = body
             # TODO log the request to vdsm
             imaged_prepped = imaged_session.prepare_request(imaged_req)
             imaged_resp = imaged_session.send(
-                    imaged_prepped, verify=verify, cert=cert,
-                    timeout=timeout, stream=stream)
+                imaged_prepped, verify=verify, cert=cert,
+                timeout=timeout, stream=stream)
         except requests.Timeout:
             s = "Timed out connecting to vdsm-imaged"
             raise exc.HTTPGatewayTimeout(s)
@@ -204,7 +204,7 @@ class ImageHandler(object):
 
         logging.debug("Incoming headers from vdsm-imaged:\n" +
                       '\n'.join(('  {}: {}'
-                                  .format(k, imaged_resp.headers.get(k))
+                                 .format(k, imaged_resp.headers.get(k))
                                  for k in sorted(imaged_resp.headers))))
 
         if imaged_resp.status_code not in http_success_codes:
@@ -216,9 +216,9 @@ class ImageHandler(object):
                 "Failed response from vdsm-imaged: {}".format(s))
 
         logging.debug(
-                "Successful request to vdsm-imaged: HTTP %d %s",
-                imaged_resp.status_code,
-                httplib.responses[imaged_resp.status_code]
+            "Successful request to vdsm-imaged: HTTP %d %s",
+            imaged_resp.status_code,
+            httplib.responses[imaged_resp.status_code]
         )
         return imaged_resp
 
