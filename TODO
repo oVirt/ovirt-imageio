@@ -6,14 +6,14 @@ Must
 
 - CI scripts and job (patch to jenkins project)
 
-- travis integration - nicer than ovirt ci, but run only on ubuntu
+- travis integration - nicer than ovirt ci, but runs only on ubuntu
 
 - Support GET with Range header
 
 - Support cancellation
   Revoking ticket should cancel ongoing operations using it
 
-- Break into small modues, eliminating globals. Access global state (such
+- Break into small modules, eliminating globals. Access global state (such
   as tickets/sessions) using functions.
 
 - Configuration file - simple ini file should be fine, check what is
@@ -45,6 +45,6 @@ Maybe
   sockets, just add a pipe or eventfd for signaling shutdown.
 
 - Daemonizing support for system without systemd.
-  Check exaples in ovirt-engine source:
+  Check examples in ovirt-engine source:
   packaging/pythonlib/ovirt_engine/service.py
   packaging/services/ovirt-fence-kdump-listener/ovirt-fence-kdump-listener.py
