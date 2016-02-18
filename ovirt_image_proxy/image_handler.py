@@ -33,43 +33,96 @@ class ImageHandler(object):
 
     @requiresession
     def get(self, request):
-        return self.handleImageDataRequest(request)
+        resource_id = self.get_resource_id(request)
+        imaged_url = self.get_imaged_url(request)
+
+        headers = self.get_default_headers(resource_id)
+        # Note that webob request.headers is case-insensitive.
+        if 'Range' in request.headers:
+            headers['Range'] = request.headers['Range']
+
+        body = ""
+        stream = True  # Don't let Requests read entire body into memory
+
+        imaged_response = self.make_imaged_request(
+            request.method, imaged_url, headers, body, stream)
+
+        response = server.response(imaged_response.status_code)
+        response.headers['Cache-Control'] = 'no-cache, no-store'
+        response.headers['Content-Range'] = \
+            imaged_response.headers.get('Content-Range', '')
+
+        try:
+            max_transfer_bytes = \
+                parse_content_range(response.headers['Content-Range'])[3]
+        except ValueError as e:
+            raise exc.HTTPBadGateway(
+                "Invalid response from vdsm-imaged: " + e.message
+            )
+        response.body_file = CappedStream(RequestStreamAdapter(
+            imaged_response.iter_content(4096, False)),
+            max_transfer_bytes)
+        response.headers['Content-Length'] = \
+                imaged_response.headers.get('Content-Length', '')
+        logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
+                      resource_id, max_transfer_bytes)
+
+        return response
 
     @requiresession
     def put(self, request):  #ticket_id):
-        return self.handleImageDataRequest(request)
+        return self.send_data(request)
 
     @requiresession
     def patch(self, request):  #ticket_id):
-        return self.handleImageDataRequest(request)
+        return self.send_data(request)
 
-    # TODO this method is a bit long, can we refactor?
-    def handleImageDataRequest(self, request):
-        """ Handles a request to PUT or GET data to/from vdsm-imaged
+    def send_data(self, request):
+        """ Handles sending data to ovirt-image-daemon for PUT or PATCH.
         :param request: http request object
         :type request: webob.Request
         :return: http response object
         :rtype: webob.Response
         """
-        # Validate the request
-        if request.method not in ('GET', 'PUT', 'PATCH'):
-            raise exc.HTTPBadRequest("Method not supported")
-
         # For now we require range headers; we could lift this restriction
         # later.  If so, be sure to add conditions to request.headers access
         # below.
         # Note that webob request.headers is case-insensitive.
-        if request.method == 'GET' and 'Range' not in request.headers:
-            raise exc.HTTPBadRequest(
-                    "Range header required for GET requests"
-            )
-        elif (request.method in ('PUT', 'PATCH') and
-                'Content-Range' not in request.headers):
+        if 'Content-Range' not in request.headers:
             raise exc.HTTPBadRequest(
                     "Content-Range header required for {} requests"
                     .format(request.method)
             )
 
+        resource_id = self.get_resource_id(request)
+        imaged_url = self.get_imaged_url(request)
+
+        headers = self.get_default_headers(resource_id)
+        headers['Content-Range'] = request.headers['Content-Range']
+        try:
+            max_transfer_bytes = \
+                    parse_content_range(request.headers['Content-Range'])[3]
+        except ValueError as e:
+            raise exc.HTTPBadRequest("Invalid request: " + e.message)
+        headers['Content-Length'] = max_transfer_bytes
+
+        # The Requests documentation states that streaming uploads are
+        # supported if data is a "file-like" object.  It looks for an
+        # __iter__ attribute, then passes data along to HTTPConnection
+        # .request(), where we find that all we need is a read() method.
+        body = CappedStream(request.body_file, max_transfer_bytes)
+        stream = False
+        logging.debug("Resource %s: transferring %d bytes to vdsm-imaged",
+                  resource_id, max_transfer_bytes)
+        imaged_response = self.make_imaged_request(
+                request.method, imaged_url, headers, body, stream)
+
+        response = server.response(imaged_response.status_code)
+        response.headers['Cache-Control'] = 'no-cache, no-store'
+
+        return response
+
+    def get_resource_id(self, request):
         resource_id = request.path_info_pop()
         if request.path_info:
             # No extra url path allowed!
@@ -87,53 +140,35 @@ class ImageHandler(object):
             raise exc.HTTPBadRequest(
                     "Requested resource must match transfer token"
             )
+        return resource_id
 
+    def get_imaged_url(self, request):
         uri = session.get_session_attribute(request,
                                             session.SESSION_IMAGED_HOST_URI)
         if uri.startswith('http://'):
             uri = uri[7:]
         if uri.startswith('https://'):
             uri = uri[8:]
-        imaged_url = "{}://{}:{}/images/{}".format(
+        return "{}://{}:{}/images/{}".format(
                 'https' if self.config.imaged_ssl else 'http',
                 uri,
                 self.config.imaged_port,
                 session.get_session_attribute(request,
                                               session.SESSION_TRANSFER_TICKET))
 
+    def get_default_headers(self, resource_id):
+        return {
+            # accept-charset is only needed if you have query params
+            'Cache-Control': 'no-cache',
+            'X-AuthToken': resource_id,
+        }
+
+    def make_imaged_request(self, method, imaged_url, headers, body, stream):
         # TODO SSL (incl cert verification option)
         verify=False
         cert=None
         timeout=(self.config.imaged_connection_timeout_sec,
                  self.config.imaged_read_timeout_sec)
-
-        headers = {}
-        # accept-charset is only needed if you have query params
-        headers['Cache-Control'] = 'no-cache'
-        headers['X-AuthToken'] = resource_id
-
-        if request.method == 'GET':
-            headers['Range'] = request.headers['Range']
-            body = ""
-            stream = True  # Don't let Requests read entire body into memory
-
-        else:  # PUT, PATCH
-            headers['Content-Range'] = request.headers['Content-Range']
-            try:
-                max_transfer_bytes = \
-                        parse_content_range(request.headers['Content-Range'])[3]
-            except ValueError as e:
-                raise exc.HTTPBadRequest("Invalid request: " + e.message)
-            headers['Content-Length'] = max_transfer_bytes
-
-            # The Requests documentation states that streaming uploads are
-            # supported if data is a "file-like" object.  It looks for an
-            # __iter__ attribute, then passes data along to HTTPConnection
-            # .request(), where we find that all we need is a read() method.
-            body = CappedStream(request.body_file, max_transfer_bytes)
-            stream = False
-            logging.debug("Resource %s: transferring %d bytes to vdsm-imaged",
-                      resource_id, max_transfer_bytes)
 
         logging.debug("Connecting to vdsm-imaged at %s", imaged_url)
         logging.debug("Outgoing headers to vdsm-imaged:\n" +
@@ -145,7 +180,7 @@ class ImageHandler(object):
             # TODO Otherwise, we can use request.prepare()
             imaged_session = requests.Session()
             imaged_req = requests.Request(
-                    request.method, imaged_url, headers=headers, data=body)
+                    method, imaged_url, headers=headers, data=body)
             imaged_req.body_file=body
             # TODO log the request to vdsm
             imaged_prepped = imaged_session.prepare_request(imaged_req)
@@ -174,39 +209,18 @@ class ImageHandler(object):
 
         if imaged_resp.status_code not in http_success_codes:
             # Don't read the whole body, in case something went really wrong...
-            s = imaged_resp.iter_content(256, False).next()
+            s = next(imaged_resp.iter_content(256, False), "(empty)")
             logging.error("Failed: %s", s)
             # TODO why isn't the exception logged somewhere?
             raise exc.status_map[imaged_resp.status_code](
-                    "Failed response from vdsm-imaged: {}".format(s))
+                "Failed response from vdsm-imaged: {}".format(s))
 
         logging.debug(
                 "Successful request to vdsm-imaged: HTTP %d %s",
                 imaged_resp.status_code,
                 httplib.responses[imaged_resp.status_code]
         )
-
-        response = server.response(imaged_resp.status_code)
-        response.headers['Cache-Control'] = 'no-cache, no-store'
-
-        if request.method == 'GET':
-            response.headers['Content-Range'] = \
-                    imaged_resp.headers.get('Content-Range', '')
-            try:
-                max_transfer_bytes = \
-                    parse_content_range(response.headers['Content-Range'])[3]
-            except ValueError as e:
-                raise exc.HTTPBadGateway(
-                        "Invalid response from vdsm-imaged: " + e.message
-                )
-            response.body_file = CappedStream(RequestStreamAdapter(
-                    imaged_resp.iter_content(4096, False)), max_transfer_bytes)
-            response.headers['Content-Length'] = \
-                    imaged_resp.headers.get('Content-Length', '')
-            logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
-                          resource_id, max_transfer_bytes)
-
-        return response
+        return imaged_resp
 
 
 class CappedStream(object):
