@@ -10,6 +10,7 @@ from webob import exc
 from http_helper import (
     parse_content_range,
     requiresession,
+    success_codes as http_success_codes,
 )
 import session
 import server
@@ -171,9 +172,7 @@ class ImageHandler(object):
                                   .format(k, imaged_resp.headers.get(k))
                                  for k in sorted(imaged_resp.headers))))
 
-        if (imaged_resp.status_code != httplib.OK
-                and imaged_resp.status_code != httplib.PARTIAL_CONTENT
-                and imaged_resp.status_code != httplib.NO_CONTENT):
+        if imaged_resp.status_code not in http_success_codes:
             # Don't read the whole body, in case something went really wrong...
             s = imaged_resp.iter_content(256, False).next()
             logging.error("Failed: %s", s)

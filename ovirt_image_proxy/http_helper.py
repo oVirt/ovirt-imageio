@@ -1,4 +1,4 @@
-
+import httplib
 from functools import wraps
 import logging
 import re
@@ -9,6 +9,12 @@ import session
 
 # Content-range (eg "bytes 0-1023/4096" or "bytes 0-15/*")
 cr_regex = re.compile(r"bytes (\d+)-(\d+)/((?:\d+)|(?:\*))", re.IGNORECASE)
+
+success_codes = (
+    httplib.OK,
+    httplib.PARTIAL_CONTENT,
+    httplib.NO_CONTENT,
+)
 
 
 def httplog(func):
