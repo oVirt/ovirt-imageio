@@ -45,13 +45,13 @@ generated-files: $(GENERATED)
 
 .PHONY: build
 build: generated-files
-	/usr/bin/env python setup.py build
+	python setup.py build
 
 
 .PHONY: install
 install: build
 ifdef DESTDIR
-	/usr/bin/env python setup.py install --skip-build --root $(DESTDIR)
+	python setup.py install --skip-build --root $(DESTDIR)
 	## TODO install conf/log/service here, in rpm, or have setup.py do it?
 else
 	# ERROR: DESTDIR is not defined! Please refer to installation notes.
@@ -62,12 +62,12 @@ endif
 .PHONY: check
 check: build
 	## TODO or does it depend on install?
-	/usr/bin/env python setup.py test
+	python setup.py test
 
 
 .PHONY: clean
 clean:
-	/usr/bin/env python setup.py clean
+	python setup.py clean
 	rm -f version.py?
 	rm -f $(PACKAGE_NAME)-*.tar.gz
 	rm -f $(PACKAGE_NAME)-*.rpm
