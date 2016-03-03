@@ -1,16 +1,17 @@
 # ovirt-image-daemon
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from ovirt_image_common import web
+
 from wsgiref import simple_server
 import SocketServer
 import json
 import os
-import re
 import signal
 import ssl
 import time
@@ -28,6 +29,7 @@ from webob.exc import (
 from . import directio
 from . import uhttp
 from . import util
+
 
 image_server = None
 ticket_server = None
@@ -59,11 +61,11 @@ def start(config):
     image_server = ThreadedWSGIServer((config.host, config.port),
                                       WSGIRequestHandler)
     secure_server(config, image_server)
-    image_app = Application(config, [(r"/images/(.*)", Images)])
+    image_app = web.Application(config, [(r"/images/(.*)", Images)])
     image_server.set_app(image_app)
 
     ticket_server = uhttp.UnixWSGIServer(config.socket, UnixWSGIRequestHandler)
-    ticket_app = Application(config, [(r"/tickets/(.*)", Tickets)])
+    ticket_app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
     ticket_server.set_app(ticket_app)
 
     start_server(config, image_server, "image.server")
@@ -107,20 +109,6 @@ class Config(object):
         return os.path.join(self.pki_dir, "certs", "vdsmcert.pem")
 
 
-def error_response(e):
-    """
-    Return WSGI application for sending error response using JSON format.
-    """
-    payload = {
-        "code": e.code,
-        "title": e.title,
-        "explanation": e.explanation
-    }
-    if e.detail:
-        payload["detail"] = e.detail
-    return response(status=e.code, payload=payload)
-
-
 def response(status=200, payload=None):
     """
     Return WSGI application for sending response in JSON format.
@@ -128,46 +116,6 @@ def response(status=200, payload=None):
     body = json.dumps(payload) if payload else ""
     return webob.Response(status=status, body=body,
                           content_type="application/json")
-
-
-class Application(object):
-    """
-    WSGI application dispatching requests based on path and method to request
-    handlers.
-    """
-
-    def __init__(self, config, routes):
-        self.config = config
-        self.routes = [(re.compile(pattern), cls) for pattern, cls in routes]
-
-    def __call__(self, env, start_response):
-        request = webob.Request(env)
-        try:
-            resp = self.dispatch(request)
-        except HTTPException as e:
-            resp = error_response(e)
-        return resp(env, start_response)
-
-    def dispatch(self, request):
-        method_name = request.method.lower()
-        if method_name.startswith("_"):
-            raise HTTPMethodNotAllowed("Invalid method %r" %
-                                       request.method)
-        path = request.path_info
-        for route, handler_class in self.routes:
-            match = route.match(path)
-            if match:
-                handler = handler_class(self.config, request)
-                try:
-                    method = getattr(handler, method_name)
-                except AttributeError:
-                    raise HTTPMethodNotAllowed(
-                        "Method %r not defined for %r" %
-                        (request.method, path))
-                else:
-                    request.path_info_pop()
-                    return method(*match.groups())
-        raise HTTPNotFound("No handler for %r" % path)
 
 
 def get_ticket(ticket_id, op, size):

@@ -1,0 +1,81 @@
+# ovirt-image-daemon
+# Copyright (C) 2015-2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+import httplib
+import re
+import webob
+import json
+
+from webob.exc import (
+    HTTPException,
+    HTTPMethodNotAllowed,
+    HTTPNotFound,
+)
+
+
+class Application(object):
+    """
+    WSGI application dispatching requests based on path and method to request
+    handlers.
+    """
+
+    def __init__(self, config, routes):
+        self.config = config
+        self.routes = [(re.compile(pattern), cls) for pattern, cls in routes]
+
+    def __call__(self, env, start_response):
+        request = webob.Request(env)
+        try:
+            resp = self.dispatch(request)
+        except HTTPException as e:
+            resp = error_response(e)
+        return resp(env, start_response)
+
+    def dispatch(self, request):
+        method_name = request.method.lower()
+        if method_name.startswith("_"):
+            raise HTTPMethodNotAllowed("Invalid method %r" %
+                                       request.method)
+        path = request.path_info
+        for route, handler_class in self.routes:
+            match = route.match(path)
+            if match:
+                handler = handler_class(self.config, request)
+                try:
+                    method = getattr(handler, method_name)
+                except AttributeError:
+                    raise HTTPMethodNotAllowed(
+                        "Method %r not defined for %r" %
+                        (request.method, path))
+                else:
+                    request.path_info_pop()
+                    return method(*match.groups())
+        raise HTTPNotFound("No handler for %r" % path)
+
+
+def error_response(e):
+    """
+    Return WSGI application for sending error response using JSON format.
+    """
+    payload = {
+        "code": e.code,
+        "title": e.title,
+        "explanation": e.explanation
+    }
+    if e.detail:
+        payload["detail"] = e.detail
+    return response(status=e.code, payload=payload)
+
+
+def response(status=httplib.OK, payload=None):
+    """
+    Return WSGI application for sending response in JSON format.
+    """
+    body = json.dumps(payload) if payload else ""
+    return webob.Response(status=status, body=body,
+                          content_type="application/json")
