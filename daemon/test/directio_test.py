@@ -23,20 +23,18 @@ PARTIAL = fill(string.lowercase, directio.BLOCKSIZE)
 BYTES = fill(string.digits, 42)
 
 
-class param(str):
-    """ Prevent pytest from showing the value in the test name """
-    def __str__(self):
-        return self[:10]
+def head(str):
+    return str[:10]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    param(BUFFER * 2),
-    param(BUFFER + PARTIAL * 2),
-    param(BUFFER + PARTIAL + BYTES),
-    param(PARTIAL * 2),
-    param(PARTIAL + BYTES),
-])
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+], ids=head)
 def test_send(tmpdir, data, offset):
     size = len(data) - offset
     expected = data[offset:]
@@ -54,12 +52,12 @@ def test_send_partial(tmpdir, size, offset):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    param(BUFFER * 2),
-    param(BUFFER + PARTIAL * 2),
-    param(BUFFER + PARTIAL + BYTES),
-    param(PARTIAL * 2),
-    param(PARTIAL + BYTES),
-])
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+], ids=head)
 def test_send_partial_content(tmpdir, data, offset):
     size = len(data) - offset
     with pytest.raises(errors.PartialContent) as e:
@@ -79,13 +77,13 @@ def send(tmpdir, data, size, offset=0):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    param(BUFFER * 2),
-    param(BUFFER + PARTIAL * 2),
-    param(BUFFER + PARTIAL + BYTES),
-    param(PARTIAL * 2),
-    param(PARTIAL + BYTES),
-    param(BYTES),
-])
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+    BYTES,
+], ids=head)
 def test_receive(tmpdir, data, offset):
     assert receive(tmpdir, data, len(data), offset=offset) == data
 
@@ -100,13 +98,13 @@ def test_receive_partial(tmpdir, size, offset):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    param(BUFFER * 2),
-    param(BUFFER + PARTIAL * 2),
-    param(BUFFER + PARTIAL + BYTES),
-    param(PARTIAL * 2),
-    param(PARTIAL + BYTES),
-    param(BYTES),
-])
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+    BYTES,
+], ids=head)
 def test_receive_partial_content(tmpdir, data, offset):
     with pytest.raises(errors.PartialContent) as e:
         receive(tmpdir, data[:-1], len(data), offset=offset)
