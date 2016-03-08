@@ -19,6 +19,8 @@ from webob.exc import (
 
 
 class Application(object):
+    ALLOWED_METHODS = frozenset(['GET', 'PUT', 'PATCH', 'POST',
+                                 'DELETE', 'OPTIONS', 'HEAD'])
     """
     WSGI application dispatching requests based on path and method to request
     handlers.
@@ -37,8 +39,7 @@ class Application(object):
         return resp(env, start_response)
 
     def dispatch(self, request):
-        method_name = request.method.lower()
-        if method_name.startswith("_"):
+        if request.method not in self.ALLOWED_METHODS:
             raise HTTPMethodNotAllowed("Invalid method %r" %
                                        request.method)
         path = request.path_info
@@ -47,7 +48,7 @@ class Application(object):
             if match:
                 handler = handler_class(self.config, request)
                 try:
-                    method = getattr(handler, method_name)
+                    method = getattr(handler, request.method.lower())
                 except AttributeError:
                     raise HTTPMethodNotAllowed(
                         "Method %r not defined for %r" %

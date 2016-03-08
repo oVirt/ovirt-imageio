@@ -48,6 +48,11 @@ def setup_function(f):
     server.tickets.clear()
 
 
+def test_tickets_method_not_allowed(config):
+    res = unix_request(config, "NO_SUCH_METHO", "/tickets/")
+    assert res.status == httplib.METHOD_NOT_ALLOWED
+
+
 def test_tickets_no_resource(config):
     res = unix_request(config, "GET", "/no/such/resource")
     assert res.status == 404
