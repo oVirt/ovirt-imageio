@@ -15,6 +15,7 @@ from webob.exc import (
     HTTPException,
     HTTPMethodNotAllowed,
     HTTPNotFound,
+    HTTPInternalServerError,
 )
 
 
@@ -34,7 +35,9 @@ class Application(object):
         request = webob.Request(env)
         try:
             resp = self.dispatch(request)
-        except HTTPException as e:
+        except Exception as e:
+            if not isinstance(e, HTTPException):
+                e = HTTPInternalServerError(detail=str(e))
             resp = error_response(e)
         return resp(env, start_response)
 

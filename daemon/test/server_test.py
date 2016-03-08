@@ -86,6 +86,17 @@ def test_tickets_put(config, monkeypatch):
     assert server.tickets[ticket["uuid"]] == ticket
 
 
+def test_tickets_general_exception(config, monkeypatch):
+    def fail(x, y):
+        raise Exception("EXPECTED FAILURE")
+    monkeypatch.setattr(server.Tickets, "get", fail)
+    res = unix_request(config, "GET", "/tickets/%s" % uuid.uuid4())
+    error = json.loads(res.read())
+    assert res.status == httplib.INTERNAL_SERVER_ERROR
+    assert "application/json" in res.getheader('content-type')
+    assert "EXPECTED FAILURE" in error["detail"]
+
+
 def test_tickets_put_no_ticket_id(config):
     ticket = create_ticket()
     body = json.dumps(ticket)
@@ -354,8 +365,6 @@ def response(con):
     res = con.getresponse()
     pprint((res.status, res.reason))
     pprint(res.getheaders())
-    if res.status >= 400:
-        print(res.read())
     return res
 
 
