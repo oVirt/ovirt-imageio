@@ -31,6 +31,8 @@ import download_handler
 from http_helper import httplog
 import image_handler
 
+from ovirt_image_common import web
+
 class Server:
     _image_server = None
 
@@ -45,8 +47,8 @@ class Server:
         server = ThreadedWSGIServer((config.host, config.port), WSGIRequestHandler)
         if config.use_ssl:
             self._secure_server(config, server)
-        app = Application(config, [(r"/images/(.*)", images),
-                                   (r"/downloads/(.*)", downloads)])
+        app = web.Application(config, [(r"/images/(.*)", images),
+                                       (r"/downloads/(.*)", downloads)])
         app = wsgicors.CORS(
             app,
             headers="Cache-Control, Pragma, Authorization, Content-Type,"
@@ -86,60 +88,6 @@ def response(status=httplib.OK, message=None):
     if body and not body.endswith('\n'):
         body += '\n'
     return webob.Response(status=status, body=body, content_type='text/plain')
-
-
-class Application(object):
-    """
-    WSGI application dispatching requests based on path and method to request
-    handlers.
-    """
-
-    def __init__(self, config, routes):
-        self.config = config
-        self.routes = [(re.compile(pattern), cls) for pattern, cls in routes]
-
-    def __call__(self, env, start_response):
-        request = webob.Request(env)
-        resp = self.handle_request(request)
-        return resp(env, start_response)
-
-    @httplog
-    def handle_request(self, request):
-        try:
-            resp = self.dispatch(request)
-        except exc.HTTPException as e:
-            resp = _error_response(e.code, e.explanation)
-        return resp
-
-    def dispatch(self, request):
-        if request.method not in ('GET', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS', 'HEAD'):
-            raise exc.HTTPMethodNotAllowed("Invalid method %r" %
-                                           request.method)
-        path = request.path_info
-        for route, handler_class in self.routes:
-            match = route.match(path)
-            if match:
-                # TODO not sure about passing config here vs module-level config
-                handler = handler_class(self.config)
-                try:
-                    method = getattr(handler, request.method.lower())
-                except AttributeError:
-                    raise exc.HTTPMethodNotAllowed(
-                        "Method %r not defined for %r" %
-                        (request.method, path))
-                else:
-                    request.path_info_pop()
-                    try:
-                        resp = method(request)
-                    except exc.HTTPException as e:
-                        resp = _error_response(e.code, e.explanation)
-                    except Exception as e:
-                        # Catch anything that might have slipped through
-                        s = "Internal error: " + e.message
-                        logging.error(s, exc_info=True)
-                        resp = _error_response(httplib.INTERNAL_SERVER_ERROR, s)
-                    return resp
-        raise exc.HTTPNotFound("No handler for %r" % path)
 
 
 class ThreadedWSGIServer(SocketServer.ThreadingMixIn,

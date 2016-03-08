@@ -65,15 +65,11 @@ def requiresession(func):
                                     method
     """
     @wraps(func)
-    def wrapper(self, request):
-        session.start_session(request)
-
+    def wrapper(self, *args):
+        session.start_session(self.request)
         try:
-            ret = func(self, request)
-        except Exception as e:
-            session.update_session_activity(request)
-            raise
-
-        session.update_session_activity(request)
+            ret = func(self, *args)
+        finally:
+            session.update_session_activity(self.request)
         return ret
     return wrapper

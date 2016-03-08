@@ -14,37 +14,41 @@ from http_helper import (
 import session
 import server
 
+from ovirt_image_common import web
+
 
 class ImageHandler(object):
     """
     Request handler for the /images/ resource.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, request):
         """
         :param config: config.py
+        :param request: http request
         :return:
         """
         self.config = config
+        self.request = request
 
-    def options(self, request):
-        return server.response(httplib.OK)
+    def options(self, res_id):
+        return web.response()
 
     @requiresession
-    def get(self, request):
-        resource_id = self.get_resource_id(request)
-        imaged_url = self.get_imaged_url(request)
+    def get(self, res_id):
+        resource_id = self.get_resource_id(self.request)
+        imaged_url = self.get_imaged_url(self.request)
 
         headers = self.get_default_headers(resource_id)
         # Note that webob request.headers is case-insensitive.
-        if 'Range' in request.headers:
-            headers['Range'] = request.headers['Range']
+        if 'Range' in self.request.headers:
+            headers['Range'] = self.request.headers['Range']
 
         body = ""
         stream = True  # Don't let Requests read entire body into memory
 
         imaged_response = self.make_imaged_request(
-            request.method, imaged_url, headers, body, stream)
+            self.request.method, imaged_url, headers, body, stream)
 
         response = server.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
@@ -62,12 +66,12 @@ class ImageHandler(object):
         return response
 
     @requiresession
-    def put(self, request):
-        return self.send_data(request)
+    def put(self, res_id):
+        return self.send_data(self.request)
 
     @requiresession
-    def patch(self, request):
-        return self.send_data(request)
+    def patch(self, res_id):
+        return self.send_data(self.request)
 
     def send_data(self, request):
         """ Handles sending data to ovirt-image-daemon for PUT or PATCH.
