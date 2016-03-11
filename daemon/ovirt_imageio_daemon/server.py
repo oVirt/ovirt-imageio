@@ -169,6 +169,31 @@ class Images(object):
         op.run()
         return response()
 
+    def get(self, ticket_id):
+        # TODO: cancel copy if ticket expired or revoked
+        if not ticket_id:
+            raise HTTPBadRequest("Ticket id is required")
+        # TODO: send entire content (using ticket size) if range not specified?
+        if not self.request.range:
+            raise HTTPBadRequest("Range header is required")
+        # TODO: support partial range (e.g. bytes=0-*)
+        offset = self.request.range.start
+        size = self.request.range.end - offset
+        ticket = get_ticket(ticket_id, "read", offset + size)
+        op = directio.Send(ticket["url"].path,
+                           None,
+                           size,
+                           offset=offset,
+                           buffersize=self.config.buffer_size)
+        resp = webob.Response(
+            status=206,
+            app_iter=op,
+            content_type="application/octet-stream",
+            content_length=str(size),
+            content_range=self.request.range.content_range(size),
+        )
+        return resp
+
 
 class Tickets(object):
     """
@@ -280,6 +305,51 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
         Override to avoid slow and unneeded name lookup.
         """
         return self.client_address[0]
+
+    def handle(self):
+        """
+        Override to use fixed ServerHandler.
+
+        Copied from wsgiref/simple_server.py, using our ServerHandler.
+        """
+        self.raw_requestline = self.rfile.readline(65537)
+        if len(self.raw_requestline) > 65536:
+            self.requestline = ''
+            self.request_version = ''
+            self.command = ''
+            self.send_error(414)
+            return
+
+        if not self.parse_request():  # An error code has been sent, just exit
+            return
+
+        handler = ServerHandler(
+            self.rfile, self.wfile, self.get_stderr(), self.get_environ()
+        )
+        handler.request_handler = self      # backpointer for logging
+        handler.run(self.server.get_app())
+
+
+class ServerHandler(simple_server.ServerHandler):
+
+    def write(self, data):
+        """
+        Override to allow writing buffer object.
+
+        Copied from wsgiref/handlers.py, removing the check for StringType.
+        """
+        if not self.status:
+            raise AssertionError("write() before start_response()")
+
+        elif not self.headers_sent:
+            # Before the first output, send the stored headers
+            self.bytes_sent = len(data)    # make sure we know content-length
+            self.send_headers()
+        else:
+            self.bytes_sent += len(data)
+
+        self._write(data)
+        self._flush()
 
 
 class UnixWSGIRequestHandler(uhttp.UnixWSGIRequestHandler):

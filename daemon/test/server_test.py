@@ -397,6 +397,25 @@ def test_images_upload_invalid_range(tmpdir, config, content_range):
     assert res.status == 400
 
 
+@pytest.mark.parametrize("rng,start,end", [
+    ("bytes=0-1023", 0, 1024),
+    ("bytes=1-1023", 1, 1024),
+    ("bytes=512-1023", 512, 1024),
+    ("bytes=513-1023", 513, 1024),
+    ("bytes=0-511", 0, 512),
+    ("bytes=0-512", 0, 513),
+])
+def test_images_download(tmpdir, config, rng, start, end):
+    data = "a" * 512 + "b" * 512
+    image = create_tempfile(tmpdir, "image", data)
+    ticket = create_ticket(url="file://" + str(image), size=end)
+    add_ticket(ticket)
+    res = download(config, ticket["uuid"], rng)
+    assert res.status == 206
+    received = res.read()
+    assert received == data[start:end]
+
+
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
                   url="file:///var/run/vdsm/storage/foo"):
     return {
@@ -414,6 +433,11 @@ def upload(config, ticket_uuid, body, content_range=None):
     if content_range is not None:
         headers["content-range"] = content_range
     return http_request(config, "PUT", uri, body=body, headers=headers)
+
+
+def download(config, ticket_uuid, range):
+    uri = "/images/" + ticket_uuid
+    return http_request(config, "GET", uri, headers={"range": range})
 
 
 def http_request(config, method, uri, body=None, headers=None):

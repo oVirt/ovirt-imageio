@@ -72,15 +72,19 @@ class Send(Operation):
         self._dst = dst
 
     def run(self):
+        for chunk in self:
+            self._dst.write(chunk)
+
+    def __iter__(self):
         with io.FileIO(self._path, "r") as src, \
                 aligned_buffer(self._buffersize) as buf:
             enable_directio(src.fileno())
             try:
                 if self._offset:
                     skip = self._seek_to_first_block(src)
-                    self._send_chunk(src, buf, skip)
+                    yield self._next_chunk(src, buf, skip)
                 while self._todo:
-                    self._send_chunk(src, buf)
+                    yield self._next_chunk(src, buf)
             except EOF:
                 pass
 
@@ -89,7 +93,7 @@ class Send(Operation):
         src.seek(self._offset - skip)
         return skip
 
-    def _send_chunk(self, src, buf, skip=0):
+    def _next_chunk(self, src, buf, skip=0):
         if src.tell() % BLOCKSIZE:
             if self._size is None:
                 raise EOF
@@ -102,8 +106,8 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
-        self._dst.write(buffer(buf, skip, size))
         self._done += size
+        return buffer(buf, skip, size)
 
 
 class Receive(Operation):
