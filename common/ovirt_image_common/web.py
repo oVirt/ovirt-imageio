@@ -12,6 +12,7 @@ import webob
 import json
 
 from webob.exc import (
+    HTTPBadRequest,
     HTTPException,
     HTTPMethodNotAllowed,
     HTTPNotFound,
@@ -83,3 +84,20 @@ def response(status=httplib.OK, payload=None):
     body = json.dumps(payload) if payload else ""
     return webob.Response(status=status, body=body,
                           content_type="application/json")
+
+
+def content_range(request):
+    """
+    Helper for parsing Content-Range header in request.
+
+    WebOb support parsing of Content-Range header, but do not expose this
+    header in webob.Request.
+    """
+    try:
+        header = request.headers["content-range"]
+    except KeyError:
+        return webob.byterange.ContentRange(None, None, None)
+    content_range = webob.byterange.ContentRange.parse(header)
+    if content_range is None:
+        raise HTTPBadRequest("Invalid content-range: %r" % header)
+    return content_range

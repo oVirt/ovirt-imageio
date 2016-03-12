@@ -147,7 +147,8 @@ class Images(object):
     def put(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
-        offset = self.offset()
+        content_range = web.content_range(self.request)
+        offset = content_range.start or 0
         size = self.request.content_length
         ticket = get_ticket(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
@@ -158,16 +159,6 @@ class Images(object):
                               buffersize=self.config.buffer_size)
         op.run()
         return response()
-
-    def offset(self):
-        try:
-            header = self.request.headers["content-range"]
-        except KeyError:
-            return 0
-        content_range = webob.byterange.ContentRange.parse(header)
-        if content_range is None:
-            raise HTTPBadRequest("Invalid content-range: %r" % header)
-        return content_range.start or 0
 
 
 class Tickets(object):
