@@ -93,7 +93,6 @@ def test_images_unparseable_auth(proxy_server):
 
 @pytest.mark.parametrize(
     "method,extra_headers,body,response_body,response_headers", [
-        ["OPTIONS", {}, None, None, {}],
         ["GET", {"Range": "bytes=0-4", "Content-Length": "0"}, None,
          "hello", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"}],
         ["PUT", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"},
@@ -104,16 +103,7 @@ def test_images_unparseable_auth(proxy_server):
 def test_images_cors_compliance(proxy_server, signed_ticket,
                                 method, extra_headers, body,
                                 response_body, response_headers):
-    # Verify headers required for CORS compliance
-    request_headers = {
-        "Authorization": signed_ticket,
-        "Access-Control-Request-Headers":
-            "content-range, pragma, cache-control,"
-            + " authorization, content-type",
-        "Access-Control-Request-Method": "PUT",
-        "Host": "localhost:8081",
-        "Origin": "http://localhost:" + str(proxy_server.imaged_config.port),
-    }
+    request_headers = images_request_headers(signed_ticket)
     request_headers.update(extra_headers)
     path = "/images/" + AUTH_TICKET_ID
 
@@ -125,17 +115,35 @@ def test_images_cors_compliance(proxy_server, signed_ticket,
         res = http_request(proxy_server, method, path,
                            headers=request_headers, body=body)
 
+    allowed_headers = split_header(res.getheader("access-control-expose-headers"))
+    expected_headers = {"authorization", "content-length", "content-range", "range"}
+
     assert res.status == 200
-    assert (set(item.lower() for item
-            in res.getheader("access-control-allow-headers").split(", ")) ==
-            {"cache-control", "pragma", "authorization", "content-type",
-            "content-length", "content-range", "range"})
-    assert (set(res.getheader("access-control-allow-methods").split(", ")) ==
-            {"OPTIONS", "GET", "PUT", "PATCH"})
-    assert (set(item.lower() for item
-                in res.getheader("access-control-expose-headers")
-                .split(", ")) ==
-            {"authorization", "content-length", "content-range", "range"})
+    assert allowed_headers == expected_headers
+    assert res.getheader("access-control-allow-origin") == "*"
+
+
+def split_header(s):
+    return set(value.strip().lower() for value in s.split(","))
+
+
+def test_images_cors_options(proxy_server, signed_ticket):
+    request_headers = images_request_headers(signed_ticket)
+    path = "/images/" + AUTH_TICKET_ID
+
+    res = http_request(proxy_server, "OPTIONS", path,
+                       headers=request_headers, body=None)
+
+    allowed_headers = split_header(res.getheader("access-control-allow-headers"))
+    expected_headers = {"cache-control", "pragma", "authorization", "content-type",
+                        "content-length", "content-range", "range"}
+
+    allowed_methods = split_header(res.getheader("access-control-allow-methods"))
+    expected_methods = {"options", "get", "put", "patch"}
+
+    assert res.status == 204
+    assert allowed_headers == expected_headers
+    assert allowed_methods == expected_methods
     assert res.getheader("access-control-allow-origin") == "*"
     assert res.getheader("access-control-max-age") == "300"
 
@@ -258,6 +266,19 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
         res = http_request(proxy_server, "PUT", path, headers=request_headers)
         assert m.called
     assert res.status == 404
+
+
+def images_request_headers(signed_ticket):
+    return {
+       "Access-Control-Request-Headers": "content-range, pragma, "
+                                         "cache-control, "
+                                         "authorization, "
+                                         "content-type",
+       "Access-Control-Request-Method": "PUT",
+       "Authorization": signed_ticket,
+       "Host": "localhost:8081",
+       "Origin": "http://localhost:0000"
+    }
 
 
 def http_request(proxy_server, method, uri, body=None, headers=None):

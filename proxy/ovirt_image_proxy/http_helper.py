@@ -53,23 +53,6 @@ def httplog(func):
     return wrapper
 
 
-def addcors(func):
-    @wraps(func)
-    def wrapper(self, request):
-        ret = func(self, request)
-        ret.headers.add("Access-Control-Allow-Origin", "*")
-        ret.headers.add("Access-Control-Allow-Headers",
-                        "Cache-Control, Pragma, Authorization, Content-Type,"
-                        " Content-Length, Content-Range, Range")
-        ret.headers.add("Access-Control-Allow-Methods",
-                        "GET, PUT, PATCH, OPTIONS")
-        ret.headers.add("Access-Control-Expose-Headers",
-                        "Authorization, Content-Length, Content-Range, Range")
-        ret.headers.add("Access-Control-Max-Age", "300")
-        return ret
-    return wrapper
-
-
 def requiresession(func):
     """
     Annotation to wrap an HTTP method to ensure a session is loaded, returning

@@ -23,16 +23,13 @@ import ssl
 import threading
 from wsgiref import simple_server
 
+import wsgicors
 import webob
 from webob import exc
 
 import download_handler
-from http_helper import (
-    httplog,
-    addcors,
-)
+from http_helper import httplog
 import image_handler
-
 
 class Server:
     _image_server = None
@@ -48,9 +45,17 @@ class Server:
         server = ThreadedWSGIServer((config.host, config.port), WSGIRequestHandler)
         if config.use_ssl:
             self._secure_server(config, server)
-        server.set_app(Application(config,
-                                   [(r"/images/(.*)", images),
-                                    (r"/downloads/(.*)", downloads)]))
+        app = Application(config, [(r"/images/(.*)", images),
+                                   (r"/downloads/(.*)", downloads)])
+        app = wsgicors.CORS(
+            app,
+            headers="Cache-Control, Pragma, Authorization, Content-Type,"
+                    "Content-Length, Content-Range, Range",
+            methods="GET, PUT, PATCH, OPTIONS",
+            expose_headers="Authorization, Content-Length, "
+                           "Content-Range, Range",
+            maxage="300", origin="*")
+        server.set_app(app)
         self._start_server(config, server, "image.server")
         self._image_server = server
 
@@ -99,7 +104,6 @@ class Application(object):
         return resp(env, start_response)
 
     @httplog
-    @addcors
     def handle_request(self, request):
         try:
             resp = self.dispatch(request)
