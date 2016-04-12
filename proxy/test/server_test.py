@@ -280,6 +280,4 @@ def response(con):
     res = con.getresponse()
     pprint((res.status, res.reason))
     pprint(res.getheaders())
-    if res.status >= 400:
-        print(res.read())
     return res
