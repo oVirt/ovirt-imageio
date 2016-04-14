@@ -116,10 +116,16 @@ class Receive(Operation):
         return 0
 
     def _receive_chunk(self, dst, buf, count):
-        chunk = self._src.read(count)
-        if len(chunk) < count:
-            raise errors.PartialContent(self.size, self.done + len(chunk))
-        buf[:count] = chunk
+        buf.seek(0)
+        toread = count
+        while toread:
+            chunk = self._src.read(toread)
+            if chunk == "":
+                break
+            buf.write(chunk)
+            toread -= len(chunk)
+        if buf.tell() < count:
+            raise errors.PartialContent(self.size, self.done + buf.tell())
         towrite = count
         while towrite:
             offset = count - towrite
