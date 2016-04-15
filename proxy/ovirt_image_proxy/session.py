@@ -295,23 +295,3 @@ def _decode_ovirt_token(payload):
         raise ValueError("Unable to verify proxy ticket")
 
     return payload
-
-
-def _encode_ovirt_token(payload, lifetime_seconds):
-    """
-    Creates an ovirt token with the given payload.  This will probably
-    be used only by standalone tools, not in the main daemon code.
-
-    :param payload: Content to encode
-    :return: Signed token
-    """
-    cert = config.signing_cert
-    key = config.signing_key
-    ticketEncoder = ticket.TicketEncoder(cert, key, lifetime_seconds)
-    try:
-        t = ticketEncoder.encode(payload)
-    except Exception as e:
-        logging.error("Failed to create proxy ticket: %s", str(e))
-        raise ValueError("Unable to create proxy ticket")
-
-    return t

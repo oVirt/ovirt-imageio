@@ -53,8 +53,6 @@ def proxy_server(request):
     from ovirt_image_proxy import config
     config.load(CONFIG_FILE)
     config._set('engine_cert', os.path.join(TEST_DIR, config.engine_cert))
-    config._set('signing_cert', os.path.join(TEST_DIR, config.signing_cert))
-    config._set('signing_key', os.path.join(TEST_DIR, config.signing_key))
     config._set('use_ssl', False)
 
     server_instance = server.Server()

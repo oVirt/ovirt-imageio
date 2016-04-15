@@ -23,8 +23,6 @@ _CONFIG_SECTION = 'configuration'
 
 engine_cert = '/tmp/engine-cert.pem'
 ca_cert = ''
-signing_cert = '~/ovirt-engine/etc/pki/ovirt-engine/certs/ca.der'
-signing_key = '~/ovirt-engine/etc/pki/ovirt-engine/private/ca.pem'
 
 pki_dir = '/etc/pki/vdsm'
 host = ""
