@@ -8,4 +8,4 @@ FULL_PROG_NAME = '{0} {1} {2}'.format(
                  PACKAGE_NAME, PROGRAM_NAME, PACKAGE_VERSION)
 
 LOG_CONF_FILE = '@PROXY_CONFDIR@/logger.conf'
-CONFIG_FILE = '@PROXY_CONFDIR@/config.ini'
+CONFIG_FILE = '@PROXY_CONFDIR@/ovirt-image-proxy.conf'
