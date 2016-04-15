@@ -33,8 +33,6 @@ run_loop_seconds = 1.0
 verify_certificate = False
 json_proxy_token = False
 use_ssl = False
-imaged_ssl = True
-imaged_port = 54322
 allowed_skew_seconds = 0
 
 imaged_connection_timeout_sec = 10

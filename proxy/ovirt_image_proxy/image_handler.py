@@ -137,16 +137,9 @@ class ImageHandler(object):
     def get_imaged_url(self, request):
         uri = session.get_session_attribute(request,
                                             session.SESSION_IMAGED_HOST_URI)
-        if uri.startswith('http://'):
-            uri = uri[7:]
-        if uri.startswith('https://'):
-            uri = uri[8:]
-        return "{}://{}:{}/images/{}".format(
-            'https' if self.config.imaged_ssl else 'http',
-            uri,
-            self.config.imaged_port,
-            session.get_session_attribute(request,
-                                          session.SESSION_TRANSFER_TICKET))
+        ticket = session.get_session_attribute(request,
+                                               session.SESSION_TRANSFER_TICKET)
+        return "{}/images/{}".format(uri, ticket)
 
     def get_default_headers(self, resource_id):
         return {

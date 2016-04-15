@@ -1,1 +1,1 @@
-{"transfer-ticket": "f6fe1b31-1c90-4dc3-a4b9-7b02938c8b41", "iat": 1452291246, "exp": 2452291246, "imaged-uri": "localhost", "nbf": 1452291246}
+{"transfer-ticket": "f6fe1b31-1c90-4dc3-a4b9-7b02938c8b41", "iat": 1452291246, "exp": 2452291246, "imaged-uri": "https://localhost:54322", "nbf": 1452291246}
