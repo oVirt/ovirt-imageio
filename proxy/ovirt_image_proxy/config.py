@@ -31,7 +31,7 @@ poll_interval = 1.0
 buffer_size = 64 * 1024
 run_loop_seconds = 1.0
 verify_certificate = False
-json_proxy_token = False
+signed_proxy_ticket = True
 use_ssl = False
 allowed_skew_seconds = 0
 

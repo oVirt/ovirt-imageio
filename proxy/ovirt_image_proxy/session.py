@@ -43,7 +43,7 @@ SESSION_TRANSFER_TICKET = 'transfer-ticket'
 
 session_rlock = threading.RLock()
 _sessions = {}
-_tokenmap = {}
+_ticketmap = {}
 
 
 def get_session(session_id):
@@ -96,22 +96,22 @@ def start_session(request):
         (cause will be in e.message)
     """
     # Note that webob.headers is case-insensitive
-    token = request.headers.get(HEADER_AUTHORIZATION)
+    ticket = request.headers.get(HEADER_AUTHORIZATION)
     session_id = request.headers.get(HEADER_SESSION_ID)
 
-    if token:
+    if ticket:
         with session_rlock:
-            existing_token_session_id = _tokenmap.get(token)
+            existing_ticket_session_id = _ticketmap.get(ticket)
 
-        if existing_token_session_id:
-            # We've seen this token before and it has an associated session id
-            if session_id and existing_token_session_id != session_id:
-                raise exc.HTTPBadRequest("Session id must match authorization token")
-            session_id = existing_token_session_id
+        if existing_ticket_session_id:
+            # We've seen this ticket before and it has an associated session id
+            if session_id and existing_ticket_session_id != session_id:
+                raise exc.HTTPBadRequest("Session id must match authorization ticket")
+            session_id = existing_ticket_session_id
         else:
-            # New token; process it and create new or update existing session
+            # New ticket; process it and create new or update existing session
             try:
-                session_id = _create_update_session(token, session_id)
+                session_id = _create_update_session(ticket, session_id)
             except ValueError as e:
                 logging.error("Error starting session: " + e.message, exc_info=True)
                 raise exc.HTTPUnauthorized("Could not initialize session: " + e.message)
@@ -203,20 +203,19 @@ def _decode_proxy_ticket(ticket):
     Decodes and verifies signature of proxy ticket.  If valid, returns a dict
     of session variables retrieved from the ticket.
 
-    We could use JSON Web Tokens, but the tools aren't yet widely available.
-    Instead, use a JSON-encoded payload inside a Cryptographic Message Syntax
-    token (RFC 5652).  This detail is hidden from the caller, who just calls
-    this function with the opaque payload and receives a dict of decoded
-    values in return.
+    The ticket is a JSON payload inside an oVirt ticket created by the
+    org.ovirt.engine.core.uutils.crypto.ticket.TicketEncoder class; however,
+    this is opaque to the caller, who receives such a ticket from the engine
+    upon starting the image transfer operation and passes it to the proxy.
 
     :param ticket: payload from request Authorization header
-    :return: dict of session values from payload, if token is valid
-    :raise ValueError: token is invalid
+    :return: dict of session values from payload, if ticket is valid
+    :raise ValueError: ticket is invalid
     """
-    if not config.json_proxy_token:
-        payload = _decode_ovirt_token(ticket)
+    if config.signed_proxy_ticket:
+        payload = _decode_ovirt_ticket(ticket)
     else:
-        # For debugging, avoid having to send a signed token
+        # For debugging, avoid having to send a signed ticket
         payload = ticket
     logging.debug("Decoded ticket: %r", payload)
 
@@ -267,14 +266,14 @@ def _decode_proxy_ticket(ticket):
     return ret
 
 
-def _decode_ovirt_token(payload):
+def _decode_ovirt_ticket(payload):
     """
-    Decodes and verifies an oVirt token for the caller, returning the
+    Decodes and verifies an oVirt ticket for the caller, returning the
     payload.
 
-    :param payload: token to verify
+    :param payload: ticket to verify
     :return: verified payload
-    :raise ValueError: token is invalid or error verifying token
+    :raise ValueError: ticket is invalid or error verifying ticket
     """
     # TODO download cert from engine (store url in config)
     signer_cert = config.engine_cert

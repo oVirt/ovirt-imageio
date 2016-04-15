@@ -120,7 +120,7 @@ class ImageHandler(object):
             # No extra url path allowed!
             raise exc.HTTPBadRequest("Invalid resource path")
 
-        # The requested image resource must match the one in the token
+        # The requested image resource must match the one in the ticket
         try:
             uuid.UUID(resource_id)
         except ValueError:
@@ -130,7 +130,7 @@ class ImageHandler(object):
         if (resource_id != session.get_session_attribute(
                 request, session.SESSION_TRANSFER_TICKET)):
             raise exc.HTTPBadRequest(
-                "Requested resource must match transfer token"
+                "Requested resource must match transfer ticket"
             )
         return resource_id
 
