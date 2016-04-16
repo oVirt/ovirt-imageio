@@ -26,9 +26,10 @@ from webob.exc import (
     HTTPForbidden
 )
 
-from . import directio
+from ovirt_image_common import directio
+from ovirt_image_common import util
+
 from . import uhttp
-from . import util
 
 
 image_server = None

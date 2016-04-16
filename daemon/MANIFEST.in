@@ -1,6 +1,5 @@
 include README COPYING MANIFEST TODO
 include ovirt-image-daemon
-include bench
 include test/*.py
 include test/pki/certs/*.pem
 include test/pki/keys/*.pem

@@ -17,9 +17,9 @@ import uuid
 
 import pytest
 
+from ovirt_image_common import util
 from ovirt_image_daemon import uhttp
 from ovirt_image_daemon import server
-from ovirt_image_daemon import util
 
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.

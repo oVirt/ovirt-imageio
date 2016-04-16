@@ -12,8 +12,8 @@ import os
 import sys
 import time
 
-from ovirt_image_daemon import directio
-from ovirt_image_daemon import util
+from ovirt_image_common import directio
+from ovirt_image_common import util
 
 MB = 1024 * 1024
 

@@ -11,8 +11,8 @@ import pytest
 import string
 from collections import deque
 
-from ovirt_image_daemon import directio
-from ovirt_image_daemon import errors
+from ovirt_image_common import directio
+from ovirt_image_common import errors
 
 
 def fill(s, size):

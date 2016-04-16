@@ -16,8 +16,8 @@ import tempfile
 
 import pytest
 
+from ovirt_image_common import util
 from ovirt_image_daemon import uhttp
-from ovirt_image_daemon import util
 
 PKI_DIR = os.path.dirname(__file__)
 KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")

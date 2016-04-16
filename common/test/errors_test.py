@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from ovirt_image_daemon import errors
+from ovirt_image_common import errors
 
 
 def test_str():

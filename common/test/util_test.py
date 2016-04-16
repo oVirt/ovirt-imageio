@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from ovirt_image_daemon import util
+from ovirt_image_common import util
 
 
 def test_uninterruptible_interrupt():
