@@ -11,12 +11,12 @@ from distutils.core import setup
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
     author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
-    description="oVirt image daemon",
+    description="oVirt imageio daemon",
     license="GNU GPLv2+",
-    name="ovirt-image-daemon",
+    name="ovirt-imageio-daemon",
     platforms=["Linux"],
     packages=["ovirt_image_daemon"],
     scripts=["ovirt-image-daemon"],
-    url="https://github.com/ovirt/vdsm-imaged",
+    url="https://gerrit.ovirt.org/ovirt-imageio",
     version="0.1",
 )

@@ -14,11 +14,11 @@
 Name:       %{package_name}
 Version:    %{package_version}
 Release:    %{package_rpm_release}%{?dist}
-Summary:    oVirt Image Upload Proxy
+Summary:    oVirt imageio proxy
 
 Group:      Applications/System
-License:    ASL 2.0
-URL:        http://www.ovirt.org
+License:    GNU GPLv2+
+URL:        https://gerrit.ovirt.org/ovirt-imageio
 Source0:    http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 
 Requires:   python

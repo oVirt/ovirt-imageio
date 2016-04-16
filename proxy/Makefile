@@ -3,7 +3,7 @@
 all: build
 
 
-PACKAGE_NAME=ovirt-image-proxy
+PACKAGE_NAME=ovirt-imageio-proxy
 PROGRAM_NAME=ovirt-image-proxy
 PACKAGE_VERSION=$(shell python version.py --version)
 RPM_RELEASE=$(shell python version.py --release)$(release_suffix)

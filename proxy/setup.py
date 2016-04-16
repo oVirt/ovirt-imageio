@@ -6,16 +6,14 @@ import version as version
 full_version = '.'.join(version.get_version())
 
 setup(
-    # package_dir = {'ovirt_image_proxy': 'image-proxy'},
-    name='ovirt_image_proxy',
-    version=full_version,
-    description='oVirt Image Upload Proxy',
-    license='ASL 2.0',
-    url='http://wiki.ovirt.org/Features/Image_Upload',
-    author='Greg Padgett',
-    author_email='gpadgett@redhat.com',
+    author="Nir Soffer, Greg Padgett, Amit Aviram",
+    author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
+    description='oVirt imageio proxy',
+    license="GNU GPLv2+",
+    name='ovirt-imageio-proxy',
     packages=['ovirt_image_proxy'],
+    requires=['requests', 'webob'],  # versions?
     scripts=['ovirt-image-proxy'],
-    # TODO min versions?
-    requires=['requests', 'webob'],
+    url="https://gerrit.ovirt.org/ovirt-imageio",
+    version=full_version,
 )
