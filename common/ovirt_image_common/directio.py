@@ -31,7 +31,7 @@ class Operation(object):
         self._size = size
         self._offset = offset
         self._buffersize = min(round_up(size), buffersize)
-        self._todo = size
+        self._done = 0
 
     @property
     def size(self):
@@ -39,7 +39,13 @@ class Operation(object):
 
     @property
     def done(self):
-        return self._size - self._todo
+        return self._done
+
+    @property
+    def _todo(self):
+        if self._size is None:
+            return self._buffersize
+        return self._size - self._done
 
     def __repr__(self):
         return ("<{self.__class__.__name__} path={self._path!r} "
@@ -81,7 +87,7 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
         size = min(count - skip, self._todo)
         self._dst.write(buffer(buf, skip, size))
-        self._todo -= size
+        self._done += size
 
 
 class Receive(Operation):
@@ -132,7 +138,7 @@ class Receive(Operation):
             size = count - offset
             wbuf = buffer(buf, offset, size)
             towrite -= util.uninterruptible(dst.write, wbuf)
-        self._todo -= count
+        self._done += count
 
 
 def round_up(n, size=BLOCKSIZE):
