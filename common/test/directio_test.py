@@ -257,3 +257,37 @@ def receive_unbuffered(tmpdir, chunks, size, bufsize):
     op = directio.Receive(str(dst), src, size, buffersize=bufsize)
     op.run()
     return dst.read()
+
+
+@pytest.mark.parametrize("offset", [0, 42, 512])
+@pytest.mark.parametrize("data", [
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+], ids=head)
+def test_receive_no_size(tmpdir, data, offset):
+    dst = tmpdir.join("dst")
+    dst.write("x" * offset)
+    src = cStringIO.StringIO(data)
+    op = directio.Receive(str(dst), src, offset=offset)
+    op.run()
+    assert dst.read()[offset:] == data
+
+
+@pytest.mark.parametrize("offset", [0, 42, 512])
+@pytest.mark.parametrize("data", [
+    BUFFER * 2,
+    BUFFER + PARTIAL * 2,
+    BUFFER + PARTIAL + BYTES,
+    PARTIAL * 2,
+    PARTIAL + BYTES,
+], ids=head)
+def test_send_no_size(tmpdir, data, offset):
+    src = tmpdir.join("src")
+    src.write(data)
+    dst = cStringIO.StringIO()
+    op = directio.Send(str(src), dst, offset=offset)
+    op.run()
+    assert dst.getvalue() == data[offset:]

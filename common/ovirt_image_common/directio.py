@@ -24,13 +24,20 @@ BUFFERSIZE = 1024 * 1024
 BLOCKSIZE = 512
 
 
+class EOF(Exception):
+    """ Raised when no more data is available and size was not specifed """
+
+
 class Operation(object):
 
-    def __init__(self, path, size, offset=0, buffersize=BUFFERSIZE):
+    def __init__(self, path, size=None, offset=0, buffersize=BUFFERSIZE):
         self._path = path
         self._size = size
         self._offset = offset
-        self._buffersize = min(round_up(size), buffersize)
+        if self._size:
+            self._buffersize = min(round_up(size), buffersize)
+        else:
+            self._buffersize = buffersize
         self._done = 0
 
     @property
@@ -59,8 +66,8 @@ class Send(Operation):
     Send data from path to file object using directio.
     """
 
-    def __init__(self, path, dst, size, offset=0, buffersize=BUFFERSIZE):
-        super(Send, self).__init__(path, size, offset=offset,
+    def __init__(self, path, dst, size=None, offset=0, buffersize=BUFFERSIZE):
+        super(Send, self).__init__(path, size=size, offset=offset,
                                    buffersize=buffersize)
         self._dst = dst
 
@@ -68,11 +75,14 @@ class Send(Operation):
         with io.FileIO(self._path, "r") as src, \
                 aligned_buffer(self._buffersize) as buf:
             enable_directio(src.fileno())
-            if self._offset:
-                skip = self._seek_to_first_block(src)
-                self._send_chunk(src, buf, skip)
-            while self._todo:
-                self._send_chunk(src, buf)
+            try:
+                if self._offset:
+                    skip = self._seek_to_first_block(src)
+                    self._send_chunk(src, buf, skip)
+                while self._todo:
+                    self._send_chunk(src, buf)
+            except EOF:
+                pass
 
     def _seek_to_first_block(self, src):
         skip = self._offset % BLOCKSIZE
@@ -81,10 +91,16 @@ class Send(Operation):
 
     def _send_chunk(self, src, buf, skip=0):
         if src.tell() % BLOCKSIZE:
+            if self._size is None:
+                raise EOF
             raise errors.PartialContent(self.size, self.done)
+
         count = util.uninterruptible(src.readinto, buf)
         if count == 0:
+            if self._size is None:
+                raise EOF
             raise errors.PartialContent(self.size, self.done)
+
         size = min(count - skip, self._todo)
         self._dst.write(buffer(buf, skip, size))
         self._done += size
@@ -95,24 +111,27 @@ class Receive(Operation):
     Receive data from file object to path using directio.
     """
 
-    def __init__(self, path, src, size, offset=0, buffersize=BUFFERSIZE):
-        super(Receive, self).__init__(path, size, offset=offset,
+    def __init__(self, path, src, size=None, offset=0, buffersize=BUFFERSIZE):
+        super(Receive, self).__init__(path, size=size, offset=offset,
                                       buffersize=buffersize)
         self._src = src
 
     def run(self):
         with io.FileIO(self._path, "r+") as dst, \
                 aligned_buffer(self._buffersize) as buf:
-            if self._offset:
-                remaining = self._seek_before_first_block(dst)
-                if remaining:
-                    self._receive_chunk(dst, buf, remaining)
-            enable_directio(dst.fileno())
-            while self._todo >= self._buffersize:
-                self._receive_chunk(dst, buf, self._buffersize)
-            disable_directio(dst.fileno())
-            self._receive_chunk(dst, buf, self._todo)
-            os.fsync(dst.fileno())
+            try:
+                if self._offset:
+                    remaining = self._seek_before_first_block(dst)
+                    if remaining:
+                        self._receive_chunk(dst, buf, remaining)
+                enable_directio(dst.fileno())
+                while self._todo:
+                    count = min(self._todo, self._buffersize)
+                    self._receive_chunk(dst, buf, count)
+            except EOF:
+                pass
+            finally:
+                os.fsync(dst.fileno())
 
     def _seek_before_first_block(self, dst):
         dst.seek(self._offset)
@@ -130,15 +149,21 @@ class Receive(Operation):
                 break
             buf.write(chunk)
             toread -= len(chunk)
-        if buf.tell() < count:
-            raise errors.PartialContent(self.size, self.done + buf.tell())
-        towrite = count
+
+        towrite = buf.tell()
         while towrite:
-            offset = count - towrite
-            size = count - offset
+            offset = buf.tell() - towrite
+            size = buf.tell() - offset
             wbuf = buffer(buf, offset, size)
+            if size % BLOCKSIZE:
+                disable_directio(dst.fileno())
             towrite -= util.uninterruptible(dst.write, wbuf)
-        self._done += count
+
+        self._done += buf.tell()
+        if buf.tell() < count:
+            if self._size is None:
+                raise EOF
+            raise errors.PartialContent(self.size, self.done)
 
 
 def round_up(n, size=BLOCKSIZE):
