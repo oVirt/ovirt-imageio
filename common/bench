@@ -11,6 +11,7 @@ import argparse
 import os
 import sys
 import time
+import threading
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import util
@@ -19,46 +20,55 @@ MB = 1024 * 1024
 
 
 def send(args):
-    op = directio.Send(args.path, sys.stdout, args.size * MB,
+    op = directio.Send(args.path, sys.stdout, args.size,
                        offset=args.offset, buffersize=args.buffersize)
     run(op)
 
 
 def recv(args):
-    op = directio.Receive(args.path, sys.stdin, args.size * MB,
+    op = directio.Receive(args.path, sys.stdin, args.size,
                        offset=args.offset, buffersize=args.buffersize)
     run(op)
 
 
 def run(op):
-    t = util.start_thread(progress, args=(op,))
+    done = threading.Event()
+    t = util.start_thread(progress, args=(op, done))
     op.run()
+    done.set()
     t.join()
 
 
-def progress(op, stream=sys.stderr):
+def progress(op, done, stream=sys.stderr):
     start = util.monotonic_time()
 
-    while op.done < op.size:
-        time.sleep(0.1)
+    while not done.wait(0.1):
         elapsed = util.monotonic_time() - start
-        progress = float(op.done) / op.size * 100
+        if op.size:
+            progress = "%6.2f%%" % (float(op.done) / op.size * 100)
+        else:
+            progress = " ----- "
         rate = op.done / elapsed / MB
-        stream.write("[ %6.02f%% ] %5.02f MiB/s %5.02fs\r" %
-                     (progress, rate, elapsed))
+        stream.write("[ %s ] %5.02f MiB/s %5.02fs\r"
+                     % (progress, rate, elapsed))
         stream.flush()
 
     stream.write("[   done  ]\n")
 
 
+def megabyte(s):
+    return int(s) * MB
+
+
 def add_arguments(parser):
     parser.add_argument("path", help="path to existing image")
-    parser.add_argument("size", type=int, help="amount of data to copy (in MiB)")
+    parser.add_argument("-s", "--size", type=megabyte,
+                        help="amount of data to copy (in MiB)")
     parser.add_argument("-o", "--offset", dest="offset", type=int,
                         help="offset in image (in bytes)")
     parser.add_argument("-b", "--buffer-size", dest="buffersize", type=int,
                         help="copy buffer size (in bytes)")
-    parser.set_defaults(offset=0, buffersize=directio.BUFFERSIZE)
+    parser.set_defaults(size=None, offset=0, buffersize=directio.BUFFERSIZE)
 
 
 parser = argparse.ArgumentParser(
