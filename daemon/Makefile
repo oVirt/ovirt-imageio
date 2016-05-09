@@ -11,3 +11,8 @@ srpm:
 .PHONY: dist
 dist:
 	python setup.py sdist
+
+
+.PHONY: check
+check:
+	py.test
