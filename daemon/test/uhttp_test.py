@@ -81,6 +81,7 @@ def test_connection_set_tunnel(uhttpserver):
             con.set_tunnel("127.0.0.1")
 
 
+@pytest.mark.noci
 def test_server_bind_error(tmpdir):
     # Make server_bind fail with EPERM
     tmpdir.chmod(0o600)
