@@ -68,28 +68,20 @@ clean:
 	rm -rf $(RPM_TOPDIR)
 
 
-.PHONY: tarball
-tarball: dist
-
-
 .PHONY: dist
-dist: $(SPEC_NAME)
-	git ls-files | tar --transform='s|^|$(PACKAGE_NAME)-$(PACKAGE_VERSION)/|' \
-		--files-from /proc/self/fd/0 -czf $(TAR_NAME) $(SPEC_NAME)
+dist:
+	python setup.py sdist
 
 
 .PHONY: srpm
-srpm: tarball
-	rpmbuild --define="_topdir $(RPM_TOPDIR)" -ts $(TAR_NAME)
+srpm:
+	python setup.py bdist_rpm --requires ovirt-imageio-common --source
 
 
 .PHONY: rpm
-rpm: srpm
-	rpmbuild --define="_topdir $(RPM_TOPDIR)" --rebuild $(SRPM_NAME)
-	find $(RPM_TOPDIR)/RPMS -name '*.rpm' | xargs mv -t .
-	@echo -e "\nRPMs available:"
-	@find . -maxdepth 1 -name '*.rpm' -printf '  %P\n'
-	@echo
+rpm:
+	python setup.py bdist_rpm --requires ovirt-imageio-common
+
 
 .PHONY: check
 check:
