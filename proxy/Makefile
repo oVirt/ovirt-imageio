@@ -58,13 +58,6 @@ else
 endif
 
 
-
-.PHONY: check
-check: build
-	## TODO or does it depend on install?
-	python setup.py test
-
-
 .PHONY: clean
 clean:
 	python setup.py clean
@@ -98,3 +91,6 @@ rpm: srpm
 	@find . -maxdepth 1 -name '*.rpm' -printf '  %P\n'
 	@echo
 
+.PHONY: check
+check:
+	py.test
