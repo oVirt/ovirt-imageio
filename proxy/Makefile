@@ -1,8 +1,3 @@
-# default target
-.PHONY: all
-all: build
-
-
 PACKAGE_NAME=ovirt-imageio-proxy
 PROGRAM_NAME=ovirt-image-proxy
 PACKAGE_VERSION=$(shell python version.py --version)
@@ -19,11 +14,45 @@ SPEC_NAME=$(PACKAGE_NAME).spec
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SRPM_NAME=$(RPM_TOPDIR)/SRPMS/$(PACKAGE_NAME)-$(PACKAGE_VERSION)-$(RPM_RELEASE)$(RPM_DIST).src.rpm
 
+GENERATED = $(shell find . -name '*.in' -printf '%P\n' | sed 's/...$$//')
+
+requires = ovirt-imageio-common
 
 .SUFFIXES:
 .SUFFIXES: .in
 
-GENERATED = $(shell find . -name '*.in' -printf '%P\n' | sed 's/...$$//')
+.PHONY: all generated-files build install clean check dist srpm rpm
+
+build: $(GENERATED)
+	python setup.py build
+
+check:
+	py.test
+
+dist:
+	python setup.py sdist
+
+srpm:
+	python setup.py bdist_rpm --requires "$(requires)" --source
+
+rpm:
+	python setup.py bdist_rpm --requires "$(requires)"
+
+install:
+ifdef DESTDIR
+	python setup.py install --skip-build --root $(DESTDIR)
+	## TODO install conf/log/service here, in rpm, or have setup.py do it?
+else
+	# ERROR: DESTDIR is not defined! Please refer to installation notes.
+endif
+
+clean:
+	python setup.py clean
+	rm -f version.py?
+	rm -f $(PACKAGE_NAME)-*.tar.gz
+	rm -f $(PACKAGE_NAME)-*.rpm
+	rm -f $(GENERATED)
+	rm -rf $(RPM_TOPDIR)
 
 $(GENERATED) : % : %.in Makefile
 	@sed \
@@ -37,52 +66,3 @@ $(GENERATED) : % : %.in Makefile
 		-e 's|@PROXY_LOGDIR@|$(PROXY_LOGDIR)|g' \
 		$< > $@
 	@echo "generated $@"
-
-
-.PHONY: generated-files
-generated-files: $(GENERATED)
-
-
-.PHONY: build
-build: generated-files
-	python setup.py build
-
-
-.PHONY: install
-install: build
-ifdef DESTDIR
-	python setup.py install --skip-build --root $(DESTDIR)
-	## TODO install conf/log/service here, in rpm, or have setup.py do it?
-else
-	# ERROR: DESTDIR is not defined! Please refer to installation notes.
-endif
-
-
-.PHONY: clean
-clean:
-	python setup.py clean
-	rm -f version.py?
-	rm -f $(PACKAGE_NAME)-*.tar.gz
-	rm -f $(PACKAGE_NAME)-*.rpm
-	rm -f $(GENERATED)
-	rm -rf $(RPM_TOPDIR)
-
-
-.PHONY: dist
-dist:
-	python setup.py sdist
-
-
-.PHONY: srpm
-srpm:
-	python setup.py bdist_rpm --requires ovirt-imageio-common --source
-
-
-.PHONY: rpm
-rpm:
-	python setup.py bdist_rpm --requires ovirt-imageio-common
-
-
-.PHONY: check
-check:
-	py.test

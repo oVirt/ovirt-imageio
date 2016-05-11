@@ -1,18 +1,17 @@
-.PHONY: rpm
-rpm:
-	python setup.py bdist_rpm --requires python-webob
+requires = python-webob
 
+.PHONY: build check dist srpm rpm
 
-.PHONY: srpm
-srpm:
-	python setup.py bdist_rpm --requires python-webob --source
+build:
 
+check:
+	py.test
 
-.PHONY: dist
 dist:
 	python setup.py sdist
 
+rpm:
+	python setup.py bdist_rpm --requires "$(requires)"
 
-.PHONY: check
-check:
-	py.test
+srpm:
+	python setup.py bdist_rpm --requires "$(requires)" --source
