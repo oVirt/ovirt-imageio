@@ -8,6 +8,7 @@ import requests
 from webob import exc
 
 from http_helper import (
+    addcors,
     requiresession,
     success_codes as http_success_codes,
 )
@@ -31,10 +32,12 @@ class ImageHandler(object):
         self.config = config
         self.request = request
 
+    @addcors
     def options(self, res_id):
-        return web.response()
+        return web.response(httplib.NO_CONTENT)
 
     @requiresession
+    @addcors
     def get(self, res_id):
         resource_id = self.get_resource_id(self.request)
         imaged_url = self.get_imaged_url(self.request)
@@ -66,10 +69,12 @@ class ImageHandler(object):
         return response
 
     @requiresession
+    @addcors
     def put(self, res_id):
         return self.send_data(self.request)
 
     @requiresession
+    @addcors
     def patch(self, res_id):
         return self.send_data(self.request)
 

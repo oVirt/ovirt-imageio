@@ -23,7 +23,6 @@ import ssl
 import threading
 from wsgiref import simple_server
 
-import wsgicors
 import webob
 from webob import exc
 
@@ -49,14 +48,6 @@ class Server:
             self._secure_server(config, server)
         app = web.Application(config, [(r"/images/(.*)", images),
                                        (r"/downloads/(.*)", downloads)])
-        app = wsgicors.CORS(
-            app,
-            headers="Cache-Control, Pragma, Authorization, Content-Type,"
-                    "Content-Length, Content-Range, Range",
-            methods="GET, PUT, PATCH, OPTIONS",
-            expose_headers="Authorization, Content-Length, "
-                           "Content-Range, Range",
-            maxage="300", origin="*")
         server.set_app(app)
         self._start_server(config, server, "image.server")
         self._image_server = server
