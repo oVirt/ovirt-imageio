@@ -57,7 +57,7 @@ make %{?_smp_mflags} install DESTDIR=%{buildroot}
 install -dDm 0750 %{buildroot}%{proxy_confdir}
 install -dDm 0700 %{buildroot}%{proxy_logdir}
 
-install -Dm 0640 conf/ovirt-image-proxy.conf %{buildroot}%{proxy_confdir}
+install -Dm 0640 conf/ovirt-imageio-proxy.conf.sample %{buildroot}%{proxy_confdir}
 install -Dm 0640 conf/logger.conf %{buildroot}%{proxy_confdir}
 
 install -Dm 0644 service/ovirt-image-proxy.service %{buildroot}%{_unitdir}/ovirt-image-proxy.service

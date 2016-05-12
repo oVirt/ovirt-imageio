@@ -10,47 +10,25 @@ the strings yes/on/true/1 (ignoring case) as true and are otherwise false.
 """
 
 import logging
-import os
 import ConfigParser
 
 import constants
 import util
 
-_CONFIG_SECTION = 'configuration'
+_CONFIG_SECTION = 'proxy'
 
-
-# TODO constants.py for pathnames
-
-engine_cert = '/tmp/engine-cert.pem'
-ca_cert = ''
-
-pki_dir = '/etc/pki/vdsm'
-host = ""
-port = 8081
+port = 54323
+host = ''
+use_ssl = True
+ssl_key_file = '/path/to/ssl_key_file'
+ssl_cert_file = '/path/to/ssl_cert_file'
+engine_cert_file = '/path/to/engine_cert_file'
+verify_certificate = True
 poll_interval = 1.0
-buffer_size = 64 * 1024
-run_loop_seconds = 1.0
-verify_certificate = False
 signed_proxy_ticket = True
-use_ssl = False
 allowed_skew_seconds = 0
-
 imaged_connection_timeout_sec = 10
 imaged_read_timeout_sec = 30
-
-# Derived configuration values
-key_file = None
-cert_file = None
-
-
-def _set_key_file():
-    global key_file
-    key_file = os.path.join(pki_dir, 'keys', 'vdsmkey.pem')
-
-
-def _set_cert_file():
-    global cert_file
-    cert_file = os.path.join(pki_dir, 'keys', 'vdsmcert.pem')
 
 
 def _set(name, value):
@@ -86,8 +64,3 @@ def load(config_file=None):
             .format(constants.CONFIG_FILE, e.message)
         )
         raise
-
-    # ... then set the derived values
-    for name in globals():
-        if name.startswith('_set_'):
-            globals()[name]()

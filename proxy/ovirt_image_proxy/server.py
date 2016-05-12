@@ -58,8 +58,11 @@ class Server:
 
     def _secure_server(self, config, server):
         # TODO consider cert_reqs
-        server.socket = ssl.wrap_socket(server.socket, certfile=config.cert_file,
-                                        keyfile=config.key_file, server_side=True)
+        server.socket = ssl.wrap_socket(
+            server.socket,
+            certfile=config.ssl_cert_file,
+            keyfile=config.ssl_key_file,
+            server_side=True)
 
     def _start_server(self, config, server, name):
         def run():

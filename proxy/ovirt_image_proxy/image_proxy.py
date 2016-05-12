@@ -27,7 +27,7 @@ def main(args, config):
 
     try:
         while running:
-            time.sleep(config.run_loop_seconds)
+            time.sleep(config.poll_interval)
     finally:
         image_server.stop()
     # TODO meaningful return value from above?

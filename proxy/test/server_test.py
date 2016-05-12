@@ -28,19 +28,6 @@ except AttributeError:
     pass  # Older Python, not required
 
 
-class Config(object):
-    # Configuration for test connections to the proxy
-    # (imaged connection configuration is in CONFIG_FILE)
-    host = "127.0.0.1"
-    port = 8081
-    key_file = os.path.join(TEST_DIR, "pki/keys/vdsmkey.pem")
-    cert_file = os.path.join(TEST_DIR, "pki/certs/vdsmcert.pem")
-    use_ssl = False
-
-    def __init__(self, imaged_config):
-        self.imaged_config = imaged_config
-
-
 # TODO session scope after refactoring
 @pytest.fixture
 def proxy_server(request):
@@ -52,14 +39,18 @@ def proxy_server(request):
     # Use a custom test configuration for the server; pki paths must be updated
     from ovirt_image_proxy import config
     config.load(CONFIG_FILE)
-    config._set('engine_cert', os.path.join(TEST_DIR, config.engine_cert))
-    config._set('use_ssl', False)
+    config._set('engine_cert_file',
+                os.path.join(TEST_DIR, config.engine_cert_file))
+    config._set('ssl_key_file',
+                os.path.join(TEST_DIR, "pki/keys/vdsmkey.pem"))
+    config._set('ssl_cert_file',
+                os.path.join(TEST_DIR, "pki/certs/vdsmcert.pem"))
 
     server_instance = server.Server()
     server_instance.start(config)
     request.addfinalizer(server_instance.stop)
 
-    return Config(config)
+    return config
 
 
 @pytest.fixture
@@ -282,13 +273,13 @@ def images_request_headers(signed_ticket):
 
 def http_request(proxy_server, method, uri, body=None, headers=None):
     if proxy_server.use_ssl:
-        con = httplib.HTTPSConnection(proxy_server.host,
+        con = httplib.HTTPSConnection("localhost",
                                       proxy_server.port,
-                                      proxy_server.key_file,
-                                      proxy_server.cert_file,
+                                      proxy_server.ssl_key_file,
+                                      proxy_server.ssl_cert_file,
                                       timeout=3)
     else:
-        con = httplib.HTTPConnection(proxy_server.host,
+        con = httplib.HTTPConnection("localhost",
                                      proxy_server.port,
                                      timeout=3)
     with closing(con):

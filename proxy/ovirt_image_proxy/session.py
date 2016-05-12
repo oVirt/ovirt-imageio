@@ -276,9 +276,9 @@ def _decode_ovirt_ticket(payload):
     :raise ValueError: ticket is invalid or error verifying ticket
     """
     # TODO download cert from engine (store url in config)
-    signer_cert = config.engine_cert
+    signer_cert = config.engine_cert_file
     if config.verify_certificate:
-        ca_cert = config.ca_cert
+        ca_cert = config.engine_cert_file
     else:
         ca_cert = None
         logging.warning("Not verifying certificate!")

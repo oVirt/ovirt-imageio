@@ -1,0 +1,38 @@
+[proxy]
+# Listening port
+port = 54323
+
+# Listening addresses (empty for all)
+host =
+
+# Wrap incoming connections with SSL
+use_ssl = true
+
+# Key file for SSL connections
+ssl_key_file = /etc/pki/ovirt-engine/keys/image-proxy.key.nopass
+
+# Certificate file for SSL connections
+ssl_cert_file = /etc/pki/ovirt-engine/certs/image-proxy.cer
+
+# Certificate file used when decoding signed token
+engine_cert_file = /etc/pki/ovirt-engine/certs/engine.cer
+
+# Verify the certificate used to decode the signed token
+verify_certificate = true
+
+# Server shutdown request polling interval, in seconds
+# poll_interval = 1.0
+
+# Signed proxy ticket; false for plain-text JSON
+# signed_proxy_ticket = true
+
+# Allowed time drift between signed ticket issuer and proxy
+# host, considered when checking ticket validity
+# allowed_skew_seconds = 0
+
+# Seconds to wait while connecting to the ovirt-imageio-daemon
+# imaged_connection_timeout_sec = 10
+
+# Seconds to wait while reading from the ovirt-imageio-daemon
+# imaged_read_timeout_sec = 30
+
