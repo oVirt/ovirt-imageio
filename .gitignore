@@ -5,16 +5,13 @@ htmlcov
 # Build output
 *.pyc
 *.pyo
-conf/logger.conf
-ovirt-image-proxy.spec
-ovirt-image-proxy-*.rpm
-ovirt-image-proxy-*.tar.gz
-ovirt_image_proxy/constants.py
+proxy/conf/logger.conf
+proxy/ovirt-imageio-proxy.spec
+proxy/ovirt_image_proxy/constants.py
 tmp.repos
 MANIFEST
 build
 dist
-
 
 # PyCharm, IntelliJ IDEA-specific files
 *.idea
