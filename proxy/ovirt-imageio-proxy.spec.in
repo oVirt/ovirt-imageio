@@ -3,6 +3,8 @@
 
 %global     proxy_confdir   %{_sysconfdir}/%{package_name}
 %global     proxy_logdir    %{_localstatedir}/log/%{package_name}
+%global     engine_name     @ENGINE_NAME@
+%global     engine_data     %{_datadir}/%{engine_name}
 
 Name:       %{package_name}
 Version:    %{package_version}
@@ -22,6 +24,7 @@ Requires:   python
 Requires:   python-requests
 Requires:   python-webob
 Requires:   systemd-python
+Requires:   %{name}-setup >= %{version}-%{release}
 
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires:  python-devel
@@ -48,6 +51,9 @@ install -dDm 0700 %{buildroot}%{proxy_logdir}
 install -Dm 0640 data/ovirt-imageio-proxy.conf.sample %{buildroot}%{proxy_confdir}
 install -Dm 0640 data/logger.conf %{buildroot}%{proxy_confdir}
 install -Dm 0644 data/ovirt-imageio-proxy.service %{buildroot}%{_unitdir}/ovirt-imageio-proxy.service
+
+install -Dm 0644 setup/data/ovirt-imageio-proxy.xml.in %{buildroot}%{engine_data}/firewalld/ovirt-imageio-proxy/ovirt-imageio-proxy.xml.in
+find setup/plugins setup/ovirt_engine_setup -name '*.py' -exec install -Dm 0644 {} %{buildroot}%{engine_data}/{} \;
 
 
 %clean
@@ -82,3 +88,18 @@ make clean
 %postun
 # After upgrading, this restarts the service.
 %systemd_postun_with_restart ovirt-imageio-proxy.service
+
+
+%package setup
+Summary:    Setup plugin for oVirt imageio proxy
+Requires:   %{engine_name}-setup-plugin-ovirt-engine-common >= 4.0.0
+License:    ASL 2.0
+
+%description setup
+Setup plugin for oVirt imageio proxy
+
+%files setup
+%license setup/COPYING
+%{engine_data}/firewalld/ovirt-imageio-proxy/
+%{engine_data}/setup/ovirt_engine_setup/ovirt_imageio_proxy/
+%{engine_data}/setup/plugins/*/ovirt_imageio_proxy/

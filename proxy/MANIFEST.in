@@ -5,9 +5,11 @@ include build-aux/release-suffix
 include ovirt-imageio-proxy
 include ovirt-imageio-proxy.spec
 include setup.cfg
+include setup/COPYING
 include *.ini
 
 recursive-include data *
+recursive-include setup/data *
 recursive-include test/pki *
 recursive-include test/resources *
 

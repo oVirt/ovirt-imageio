@@ -9,10 +9,16 @@ RPM_TOPDIR?=$(PWD)/build/rpm
 SPEC_NAME=$(PACKAGE_NAME).spec
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 
+# The following must be in sync with ovirt-engine spec file definitions
+ENGINE_NAME=ovirt-engine
+ENGINE_SYSCONF_DIR=$(shell rpm --eval '%_sysconfdir')
+ENGINE_PKG_PKI_DIR=$(ENGINE_SYSCONF_DIR)/pki/$(ENGINE_NAME)
+
 GENERATED = \
 	$(SPEC_NAME) \
 	data/logger.conf \
 	ovirt_imageio_proxy/constants.py \
+	setup/ovirt_engine_setup/ovirt_imageio_proxy/config.py \
 	$(NULL)
 
 METADATA = ovirt_imageio_proxy/version.py Makefile
@@ -63,5 +69,8 @@ $(GENERATED) : % : %.in $(METADATA)
 		-e 's|@PROGRAM_NAME@|$(PROGRAM_NAME)|g' \
 		-e 's|@PROXY_CONFDIR@|$(PROXY_CONFDIR)|g' \
 		-e 's|@PROXY_LOGDIR@|$(PROXY_LOGDIR)|g' \
+		-e 's|@ENGINE_NAME@|$(ENGINE_NAME)|g' \
+		-e 's|@ENGINE_PKI@|$(ENGINE_PKG_PKI_DIR)|g' \
+		-e 's|@PROXY_CONF_FILE@|$(PROXY_CONFDIR)/ovirt-imageio-proxy.conf|g' \
 		$< > $@
 	@echo "generated $@"

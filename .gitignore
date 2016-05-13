@@ -10,6 +10,7 @@ daemon/ovirt-imageio-daemon.spec
 proxy/conf/logger.conf
 proxy/ovirt-imageio-proxy.spec
 proxy/ovirt_imageio_proxy/constants.py
+proxy/setup/ovirt_engine_setup/ovirt_imageio_proxy/config.py
 MANIFEST
 build
 dist
