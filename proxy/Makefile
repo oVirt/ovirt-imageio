@@ -16,7 +16,7 @@ SRPM_NAME=$(RPM_TOPDIR)/SRPMS/$(PACKAGE_NAME)-$(PACKAGE_VERSION)-$(RPM_RELEASE)$
 
 GENERATED = $(shell find . -name '*.in' -printf '%P\n' | sed 's/...$$//')
 
-requires = ovirt-imageio-common python-requests
+requires = ovirt-imageio-common python-requests m2crypto
 
 .SUFFIXES:
 .SUFFIXES: .in
