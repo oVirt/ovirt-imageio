@@ -47,7 +47,7 @@ install -dDm 0750 %{buildroot}%{proxy_confdir}
 install -dDm 0700 %{buildroot}%{proxy_logdir}
 install -Dm 0640 data/ovirt-imageio-proxy.conf.sample %{buildroot}%{proxy_confdir}
 install -Dm 0640 data/logger.conf %{buildroot}%{proxy_confdir}
-install -Dm 0644 data/ovirt-image-proxy.service %{buildroot}%{_unitdir}/ovirt-image-proxy.service
+install -Dm 0644 data/ovirt-imageio-proxy.service %{buildroot}%{_unitdir}/ovirt-imageio-proxy.service
 
 
 %clean
@@ -60,7 +60,7 @@ make clean
 
 %dir %{proxy_confdir}
 %config(noreplace) %{proxy_confdir}/*
-%{_unitdir}/ovirt-image-proxy.service
+%{_unitdir}/ovirt-imageio-proxy.service
 %{_bindir}/ovirt-image-proxy
 %dir %{proxy_logdir}
 %{python_sitelib}/*
@@ -71,14 +71,14 @@ make clean
 
 %post
 # After installation, synchronize service state with preset files.
-%systemd_post ovirt-image-proxy.service
+%systemd_post ovirt-imageio-proxy.service
 
 
 %preun
 # Before uninstalling, this stops and disables the service.
-%systemd_preun ovirt-image-proxy.service
+%systemd_preun ovirt-imageio-proxy.service
 
 
 %postun
 # After upgrading, this restarts the service.
-%systemd_postun_with_restart ovirt-image-proxy.service
+%systemd_postun_with_restart ovirt-imageio-proxy.service
