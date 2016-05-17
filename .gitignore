@@ -8,7 +8,6 @@ htmlcov
 proxy/conf/logger.conf
 proxy/ovirt-imageio-proxy.spec
 proxy/ovirt_image_proxy/constants.py
-tmp.repos
 MANIFEST
 build
 dist

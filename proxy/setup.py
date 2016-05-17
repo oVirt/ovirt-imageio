@@ -1,9 +1,14 @@
+# ovirt-imageio-proxy
+# Copyright (C) 2015-2016 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 
 from distutils.core import setup
 
-import version as version
-
-full_version = '.'.join(version.get_version())
+from ovirt_image_proxy import version
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
@@ -12,8 +17,8 @@ setup(
     license="GNU GPLv2+",
     name='ovirt-imageio-proxy',
     packages=['ovirt_image_proxy'],
-    requires=['requests', 'webob'],  # versions?
+    requires=['ovirt_image_common', 'requests', 'webob'],
     scripts=['ovirt-image-proxy'],
     url="https://gerrit.ovirt.org/ovirt-imageio",
-    version=full_version,
+    version=version.string,
 )

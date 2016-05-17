@@ -1,2 +1,14 @@
-include version.py
-include VERSION
+include LICENSE
+include Makefile
+include README
+include ovirt-image-proxy
+include ovirt-imageio-proxy.spec
+include setup.cfg
+include *.ini
+
+recursive-include data *
+recursive-include test/pki *
+recursive-include test/resources *
+
+global-include *.py
+global-include *.in
