@@ -1,7 +1,7 @@
-ovirt-image-proxy
-=================
+ovirt-imageio-proxy
+===================
 
-The oVirt Image Proxy provides a proxy server allowing clients to
+The oVirt ImageIO Proxy provides a proxy server allowing clients to
 perform I/O with VM disk images and ISOs located within the oVirt
 virtualization environment.
 
@@ -13,25 +13,20 @@ The image proxy can be installed on most hosts that have a working
 Python 2 environment with the needed dependencies.  To install the
 rpm package:
 
-  sudo yum install ovirt-image-proxy
+  sudo yum install ovirt-imageio-proxy
   engine-setup
 
 This will install all necessary dependencies and launch the setup,
 which is a module run by the oVirt engine setup program.  The prompts
 during setup depend on other installed packages; if ovirt-engine is
 on the host you may be prompted with additional questions.  On a
-separate host, you will be prompted to enter the address of your
-engine; this allows the image proxy to fetch the engine's public key
-and register itself with the engine.
+separate host, you will be prompted to perform manual steps for the
+PKI setup.
 
-To install from source, install the dependencies listed in the rpm
-spec file and then:
-
-  make install
-
-Afterward you will need to manually register the proxy with your
-engine and edit $DESTDIR/etc/ovirt-image-proxy/config.ini to add
-your engine's network address.
+Installation from source is not recommended.  If you want to run the
+proxy without installing the packages and runing engine-setup, it's
+best to run it in-place using the --config_file option to supply the
+runtime configuration.
 
 
 Development
@@ -51,19 +46,25 @@ a few ways to go about this:
   `make install` - Build/install everything (with DESTDIR specified
    if packaging); this uses python-setuptools for some of the work.
 
-  `rpmbuild [options]` - Build an rpm; this uses make for the building
-   and installation.
+  `make rpm` - Build the proxy and setup rpms; this uses
+   python-setuptools for some of the work.
 
 When using an editor with code completion, it may be useful to have run
 `make generated-files` to create any files with constants that depend
 on the environment.
 
-When submitting changes, please first make sure to apply the git commit
-template (`git config commit.template commit-template.txt`).
+Before submitting changes, please be sure to:
+
+ - Apply the git commit template
+   (`git config commit.template commit-template.txt`).
+
+ - Verify that unit tests pass (`make check` or `py.test`).  As of this
+   writing, running the unit tests on Fedora 23 requires the pytest and
+   python-pytest-cov packages.
 
 Please send any patches to:
 
-  gerrit.ovirt.org/ovirt-image-proxy
+  gerrit.ovirt.org/ovirt-imageio
 
 
 Packaging
@@ -89,7 +90,11 @@ Please send mail to one of the following lists for help.
 Licensing
 =========
 
-The oVirt Image Proxy is provided under the terms of the Apache License,
-Version 2.0.  Please see the LICENSE file for complete license terms.
+The oVirt ImageIO Proxy is provided under the terms of the GPLv2 License.
+The oVirt ImageIO Proxy setup plugin is provided under the terms of the
+Apache License, Version 2.0.
+
+Please see the COPYING files in the proxy and proxy/setup directories
+for complete license terms.
 
 -- End of readme

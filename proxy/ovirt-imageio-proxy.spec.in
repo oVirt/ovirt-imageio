@@ -55,7 +55,7 @@ make clean
 
 
 %files
-%license LICENSE
+%license COPYING
 %doc README
 
 %dir %{proxy_confdir}
