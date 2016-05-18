@@ -6,4 +6,5 @@ include *.in
 include *.ini
 include *.py
 
+recursive-include data *
 recursive-include test *.py *.pem

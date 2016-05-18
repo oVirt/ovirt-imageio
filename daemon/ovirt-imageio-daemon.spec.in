@@ -12,9 +12,11 @@ BuildArch: noarch
 # NOTE: keep in sync with automation/check.packages
 Requires:  ovirt-imageio-common
 Requires:  python
+Requires:  systemd-python
 
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires: python-devel
+BuildRequires: systemd
 
 %description
 Daemon to manage image data transfer on oVirt virtualization hosts.
@@ -27,6 +29,7 @@ python setup.py build
 
 %install
 python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+install -Dm 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -34,3 +37,20 @@ rm -rf $RPM_BUILD_ROOT
 %files -f INSTALLED_FILES
 %license COPYING
 %doc README
+%{_unitdir}/ovirt-imageio-daemon.service
+
+
+# For more information about the systemd macros, see:
+# https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
+
+%post
+# After installation, synchronize service state with preset files.
+%systemd_post ovirt-imageio-daemon.service
+
+%preun
+# Before uninstalling, stop and disable the service.
+%systemd_preun ovirt-imageio-daemon.service
+
+%postun
+# After upgrading, restart the service.
+%systemd_postun_with_restart ovirt-imageio-daemon.service

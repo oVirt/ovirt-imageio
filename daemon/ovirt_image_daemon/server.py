@@ -16,6 +16,7 @@ import signal
 import ssl
 import time
 
+import systemd.daemon
 import webob
 
 from webob.exc import (
@@ -43,6 +44,7 @@ def main(args):
     signal.signal(signal.SIGINT, terminate)
     signal.signal(signal.SIGTERM, terminate)
     start(config)
+    systemd.daemon.notify("READY=1")
     try:
         while running:
             time.sleep(30)

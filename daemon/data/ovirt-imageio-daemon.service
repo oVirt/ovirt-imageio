@@ -1,0 +1,16 @@
+[Unit]
+Description=oVirt ImageIO Daemon
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/ovirt-image-daemon
+KillSignal=SIGTERM
+KillMode=mixed
+Restart=always
+# The user and group should be the same as vdsm uses.
+User=vdsm
+Group=kvm
+
+[Install]
+WantedBy=multi-user.target
+
