@@ -8,6 +8,8 @@
 
 from distutils.core import setup
 
+from ovirt_image_daemon import version
+
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
     author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
@@ -18,5 +20,5 @@ setup(
     platforms=["Linux"],
     scripts=["ovirt-image-daemon"],
     url="https://gerrit.ovirt.org/ovirt-imageio",
-    version="0.1",
+    version=version.string,
 )

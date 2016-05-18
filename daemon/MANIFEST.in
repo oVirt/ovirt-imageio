@@ -1,7 +1,9 @@
 include README COPYING MANIFEST TODO
+include Makefile
+include ovirt-imageio-daemon.spec
 include ovirt-image-daemon
-include test/*.py
-include test/pki/certs/*.pem
-include test/pki/keys/*.pem
+include *.in
 include *.ini
 include *.py
+
+recursive-include test *.py *.pem
