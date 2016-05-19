@@ -14,6 +14,7 @@ import json
 import os
 import signal
 import ssl
+import urlparse
 import time
 
 import systemd.daemon
@@ -37,6 +38,7 @@ image_server = None
 ticket_server = None
 tickets = {}
 running = True
+supported_schemes = ['file']
 
 
 def main(args):
@@ -155,7 +157,7 @@ class Images(object):
         size = self.request.content_length
         ticket = get_ticket(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
-        op = directio.Receive(ticket["path"],
+        op = directio.Receive(ticket["url"].path,
                               self.request.body_file_raw,
                               size,
                               offset=offset,
@@ -180,6 +182,8 @@ class Tickets(object):
             ticket = tickets[ticket_id]
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
+        ticket = ticket.copy()
+        ticket["url"] = urlparse.urlunparse(ticket["url"])
         return response(payload=ticket)
 
     def put(self, ticket_id):
@@ -200,6 +204,19 @@ class Tickets(object):
             timeout = int(timeout)
         except ValueError as e:
             raise HTTPBadRequest("Invalid timeout value: %s" % e)
+        try:
+            url_str = ticket["url"]
+        except KeyError:
+            raise HTTPBadRequest("Missing url key in ticket")
+        try:
+            ticket["url"] = urlparse.urlparse(url_str)
+        except (ValueError, AttributeError, TypeError):
+            raise HTTPBadRequest("Invalid url string %r" % url_str)
+
+        if ticket["url"].scheme not in supported_schemes:
+            raise HTTPBadRequest("url scheme is not supported "
+                                 "for url: %s" % ticket["url"].scheme)
+
         ticket["expires"] = int(util.monotonic_time()) + timeout
         tickets[ticket_id] = ticket
         return response()

@@ -13,6 +13,7 @@ import httplib
 import json
 import os
 import ssl
+import urlparse
 import uuid
 
 import pytest
@@ -68,7 +69,10 @@ def test_tickets_get(config):
     add_ticket(ticket)
     res = unix_request(config, "GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
-    assert json.loads(res.read()) == ticket
+    server_ticket = json.loads(res.read())
+    # The server adds an expires key
+    del server_ticket["expires"]
+    assert server_ticket == ticket
 
 
 def test_tickets_get_not_found(config):
@@ -81,9 +85,20 @@ def test_tickets_put(config, monkeypatch):
     ticket = create_ticket()
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
-    assert res.status == 200
+    # Server adds expires key
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
-    assert server.tickets[ticket["uuid"]] == ticket
+    server_ticket = get_ticket(ticket["uuid"])
+    assert res.status == 200
+    assert server_ticket == ticket
+
+
+def test_tickets_put_bad_url_value(config, monkeypatch):
+    monkeypatch.setattr(util, "monotonic_time", lambda: 123456789)
+    ticket = create_ticket(url='http://[1.2.3.4:33')
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
 
 
 def test_tickets_general_exception(config, monkeypatch):
@@ -131,6 +146,24 @@ def test_tickets_put_invalid_timeout(config):
     assert ticket["uuid"] not in server.tickets
 
 
+def test_tickets_put_url_type_error(config):
+    ticket = create_ticket()
+    ticket["url"] = 1
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
+
+
+def test_tickets_put_url_scheme_not_supported(config):
+    ticket = create_ticket()
+    ticket["url"] = "notsupported:path"
+    body = json.dumps(ticket)
+    res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+    assert ticket["uuid"] not in server.tickets
+
+
 def test_tickets_extend(config, monkeypatch):
     now = 123456789
     monkeypatch.setattr(util, "monotonic_time", lambda: now)
@@ -138,52 +171,56 @@ def test_tickets_extend(config, monkeypatch):
     add_ticket(ticket)
     patch = {"timeout": 300}
     body = json.dumps(patch)
-    new_ticket = ticket.copy()
     now += 240
-    new_ticket["expires"] = now + patch["timeout"]
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    ticket["expires"] = int(now + ticket["timeout"])
+    server_ticket = get_ticket(ticket["uuid"])
     assert res.status == 200
-    assert ticket == new_ticket
+    assert server_ticket == ticket
 
 
 def test_tickets_extend_no_ticket_id(config):
     ticket = create_ticket()
     add_ticket(ticket)
-    prev_ticket = ticket.copy()
+    prev_ticket = get_ticket(ticket["uuid"])
     body = json.dumps({"timeout": 300})
     res = unix_request(config, "PATCH", "/tickets/", body)
+    cur_ticket = get_ticket(ticket["uuid"])
     assert res.status == 400
-    assert ticket == prev_ticket
+    assert cur_ticket == prev_ticket
 
 
 def test_tickets_extend_invalid_json(config):
     ticket = create_ticket()
     add_ticket(ticket)
-    prev_ticket = ticket.copy()
+    prev_ticket = get_ticket(ticket["uuid"])
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket,
                        "{invalid}")
+    cur_ticket = get_ticket(ticket["uuid"])
     assert res.status == 400
-    assert ticket == prev_ticket
+    assert cur_ticket == prev_ticket
 
 
 def test_tickets_extend_no_timeout(config):
     ticket = create_ticket()
     add_ticket(ticket)
-    prev_ticket = ticket.copy()
+    prev_ticket = get_ticket(ticket["uuid"])
     body = json.dumps({"not-a-timeout": 300})
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    cur_ticket = get_ticket(ticket["uuid"])
     assert res.status == 400
-    assert ticket == prev_ticket
+    assert cur_ticket == prev_ticket
 
 
 def test_tickets_extend_invalid_timeout(config):
     ticket = create_ticket()
     add_ticket(ticket)
-    prev_ticket = ticket.copy()
+    prev_ticket = get_ticket(ticket["uuid"])
     body = json.dumps({"timeout": "invalid"})
     res = unix_request(config, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    cur_ticket = get_ticket(ticket["uuid"])
     assert res.status == 400
-    assert ticket == prev_ticket
+    assert cur_ticket == prev_ticket
 
 
 def test_tickets_extend_not_found(config):
@@ -209,7 +246,7 @@ def test_tickets_delete_one_not_found(config):
 def test_tickets_delete_all(config):
     # Example usage: move host to maintenance
     for i in range(5):
-        ticket = create_ticket(path="/var/run/vdsm/storage/foo%s" % i)
+        ticket = create_ticket(url="file:///var/run/vdsm/storage/foo%s" % i)
         add_ticket(ticket)
     res = unix_request(config, "DELETE", "/tickets/")
     assert res.status == 204
@@ -237,7 +274,7 @@ def test_images_upload_no_ticket(tmpdir, config):
 
 
 def test_images_upload_forbidden(tmpdir, config):
-    ticket = create_ticket(path="/no/such/image", ops=("read",))
+    ticket = create_ticket(url="file:///no/such/image", ops=("read",))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "content")
     assert res.status == 403
@@ -245,7 +282,7 @@ def test_images_upload_forbidden(tmpdir, config):
 
 def test_images_upload(tmpdir, config):
     image = create_tempfile(tmpdir, "image", "-------|after")
-    ticket = create_ticket(path=str(image))
+    ticket = create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "content")
     assert image.read() == "content|after"
@@ -259,7 +296,7 @@ def test_images_upload(tmpdir, config):
 ])
 def test_images_upload_with_range(tmpdir, config, crange, before, after):
     image = create_tempfile(tmpdir, "image", before)
-    ticket = create_ticket(path=str(image))
+    ticket = create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "content",
                  content_range=crange)
@@ -271,7 +308,7 @@ def test_images_upload_max_size(tmpdir, config):
     image_size = 100
     content = "b" * image_size
     image = create_tempfile(tmpdir, "image", "")
-    ticket = create_ticket(path=str(image), size=image_size)
+    ticket = create_ticket(url="file://" + str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], content)
     assert res.status == 200
@@ -281,7 +318,7 @@ def test_images_upload_max_size(tmpdir, config):
 def test_images_upload_too_big(tmpdir, config):
     image_size = 100
     image = create_tempfile(tmpdir, "image", "")
-    ticket = create_ticket(path=str(image), size=image_size)
+    ticket = create_ticket(url="file://" + str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "b" * (image_size + 1))
     assert res.status == 403
@@ -291,7 +328,7 @@ def test_images_upload_too_big(tmpdir, config):
 def test_images_upload_last_byte(tmpdir, config):
     image_size = 100
     image = create_tempfile(tmpdir, "image", "a" * image_size)
-    ticket = create_ticket(path=str(image), size=image_size)
+    ticket = create_ticket(url="file://" + str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "b",
                  content_range="bytes 99-100/*")
@@ -302,7 +339,7 @@ def test_images_upload_last_byte(tmpdir, config):
 def test_images_upload_after_last_byte(tmpdir, config):
     image_size = 100
     image = create_tempfile(tmpdir, "image", "a" * image_size)
-    ticket = create_ticket(path=str(image), size=image_size)
+    ticket = create_ticket(url="file://" + str(image), size=image_size)
     add_ticket(ticket)
     res = upload(config, ticket["uuid"], "b",
                  content_range="bytes 100-101/*")
@@ -328,13 +365,13 @@ def test_images_upload_invalid_range(tmpdir, config, content_range):
 
 
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
-                  path="/var/run/vdsm/storage/foo"):
+                  url="file:///var/run/vdsm/storage/foo"):
     return {
         "uuid": str(uuid.uuid4()),
         "timeout": timeout,
         "ops": list(ops),
         "size": size,
-        "path": path,
+        "url": url,
     }
 
 
@@ -376,5 +413,16 @@ def create_tempfile(tmpdir, name, data=''):
 
 # TODO: move into tickets.py
 def add_ticket(ticket):
+    # Simulate adding a ticket to the server, without modifying the source
+    # ticket.
+    ticket = json.loads(json.dumps(ticket))
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
+    ticket["url"] = urlparse.urlparse(ticket["url"])
     server.tickets[ticket["uuid"]] = ticket
+
+def get_ticket(uuid):
+    # Get a copy of the current server ticket, simulating a get request
+    ticket = server.tickets[uuid]
+    ticket = json.loads(json.dumps(ticket))
+    ticket["url"] = urlparse.urlunparse(ticket["url"])
+    return ticket
