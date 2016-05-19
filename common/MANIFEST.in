@@ -1,0 +1,8 @@
+include README COPYING MANIFEST
+include bench
+include Makefile
+include ovirt-imageio-common.spec
+include *.in
+include *.ini
+
+global-include *.py

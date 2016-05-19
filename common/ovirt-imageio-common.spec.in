@@ -1,0 +1,36 @@
+Name:      @PACKAGE_NAME@
+Version:   @PACKAGE_VERSION@
+Release:   0%{?release_suffix}%{?dist}
+Summary:   oVirt imageio common library
+
+Group:     Development/Libraries
+License:   GNU GPLv2+
+Url:       https://gerrit.ovirt.org/ovirt-imageio
+Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
+BuildArch: noarch
+
+# NOTE: keep in sync with automation/check.packages
+Requires:  python
+Requires:  python-webob
+
+# NOTE: keep in sync with automation/build-artifacts.packages
+BuildRequires: python-devel
+
+%description
+Common library for use in oVirt image transfer daemon and proxy.
+
+%prep
+%setup -q
+
+%build
+python setup.py build
+
+%install
+python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files -f INSTALLED_FILES
+%license COPYING
+%doc README
