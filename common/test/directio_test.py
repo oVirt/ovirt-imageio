@@ -1,4 +1,4 @@
-# ovirt-imaged-daemon
+# ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -11,8 +11,8 @@ import pytest
 import string
 from collections import deque
 
-from ovirt_image_common import directio
-from ovirt_image_common import errors
+from ovirt_imageio_common import directio
+from ovirt_imageio_common import errors
 
 
 def fill(s, size):

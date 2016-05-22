@@ -61,7 +61,7 @@ make clean
 %dir %{proxy_confdir}
 %config(noreplace) %{proxy_confdir}/*
 %{_unitdir}/ovirt-imageio-proxy.service
-%{_bindir}/ovirt-image-proxy
+%{_bindir}/ovirt-imageio-proxy
 %dir %{proxy_logdir}
 %{python_sitelib}/*
 

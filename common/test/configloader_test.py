@@ -7,7 +7,7 @@
 # (at your option) any later version.
 
 import pytest
-from ovirt_image_common import configloader
+from ovirt_imageio_common import configloader
 
 
 @pytest.fixture

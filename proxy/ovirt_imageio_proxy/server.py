@@ -1,5 +1,5 @@
 #
-# ovirt-image-proxy - oVirt image upload proxy
+# ovirt-imageio-proxy - oVirt image upload proxy
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ import download_handler
 from http_helper import httplog
 import image_handler
 
-from ovirt_image_common import web
+from ovirt_imageio_common import web
 
 class Server:
     _image_server = None

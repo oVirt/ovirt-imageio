@@ -1,7 +1,7 @@
 include COPYING
 include Makefile
 include README
-include ovirt-image-proxy
+include ovirt-imageio-proxy
 include ovirt-imageio-proxy.spec
 include setup.cfg
 include *.ini

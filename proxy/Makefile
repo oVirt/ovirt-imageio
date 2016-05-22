@@ -1,6 +1,6 @@
 PACKAGE_NAME=ovirt-imageio-proxy
-PROGRAM_NAME=ovirt-image-proxy
-PACKAGE_VERSION=$(shell python ovirt_image_proxy/version.py --version)
+PROGRAM_NAME=ovirt-imageio-proxy
+PACKAGE_VERSION=$(shell python ovirt_imageio_proxy/version.py --version)
 
 # TODO: remove rpm dependencies
 PROXY_CONFDIR=$(shell rpm --eval '%_sysconfdir')/$(PACKAGE_NAME)
@@ -12,10 +12,10 @@ TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 GENERATED = \
 	$(SPEC_NAME) \
 	data/logger.conf \
-	ovirt_image_proxy/constants.py \
+	ovirt_imageio_proxy/constants.py \
 	$(NULL)
 
-METADATA = ovirt_image_proxy/version.py Makefile
+METADATA = ovirt_imageio_proxy/version.py Makefile
 
 .SUFFIXES:
 .SUFFIXES: .in

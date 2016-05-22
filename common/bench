@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# ovirt-imaged-daemon
+# ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -12,8 +12,8 @@ import os
 import sys
 import time
 
-from ovirt_image_common import directio
-from ovirt_image_common import util
+from ovirt_imageio_common import directio
+from ovirt_imageio_common import util
 
 MB = 1024 * 1024
 

@@ -4,7 +4,7 @@ A small utility to encode/decode oVirt tickets
 
 import sys
 
-from ovirt_image_proxy import ticket
+from ovirt_imageio_proxy import ticket
 
 
 def main():

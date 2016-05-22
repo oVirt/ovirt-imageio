@@ -3,7 +3,7 @@ Description=oVirt ImageIO Proxy
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/ovirt-image-proxy
+ExecStart=/usr/bin/ovirt-imageio-proxy
 KillSignal=SIGTERM
 KillMode=mixed
 Restart=always

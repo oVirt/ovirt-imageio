@@ -9,7 +9,7 @@ import ssl
 import pytest
 import requests_mock
 
-from ovirt_image_proxy import server
+from ovirt_imageio_proxy import server
 
 TEST_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(TEST_DIR, "resources/test_config.ini")
@@ -37,7 +37,7 @@ def proxy_server(request):
         format="(%(threadName)-10s) %(levelname)s %(name)s:%(message)s")
 
     # Use a custom test configuration for the server; pki paths must be updated
-    from ovirt_image_proxy import config
+    from ovirt_imageio_proxy import config
     config.load(CONFIG_FILE)
     config._set('engine_cert_file',
                 os.path.join(TEST_DIR, config.engine_cert_file))

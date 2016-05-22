@@ -1,4 +1,4 @@
-# ovirt-imaged-daemon
+# ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -8,7 +8,7 @@
 
 from distutils.core import setup
 
-from ovirt_image_daemon import version
+from ovirt_imageio_daemon import version
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
@@ -16,9 +16,9 @@ setup(
     description="oVirt imageio daemon",
     license="GNU GPLv2+",
     name="ovirt-imageio-daemon",
-    packages=["ovirt_image_daemon"],
+    packages=["ovirt_imageio_daemon"],
     platforms=["Linux"],
-    scripts=["ovirt-image-daemon"],
+    scripts=["ovirt-imageio-daemon"],
     url="https://gerrit.ovirt.org/ovirt-imageio",
     version=version.string,
 )

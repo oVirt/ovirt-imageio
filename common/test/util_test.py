@@ -1,4 +1,4 @@
-# ovirt-imaged-daemon
+# ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,7 @@ import time
 
 import pytest
 
-from ovirt_image_common import util
+from ovirt_imageio_common import util
 
 
 def test_uninterruptible_interrupt():

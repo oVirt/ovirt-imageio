@@ -1,6 +1,6 @@
 import os
 
-from ovirt_image_proxy import ticket
+from ovirt_imageio_proxy import ticket
 
 TEST_DIR = os.path.dirname(__file__)
 

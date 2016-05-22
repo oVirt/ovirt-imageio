@@ -1,4 +1,4 @@
-# ovirt-image-daemon
+# ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from ovirt_image_common import web
+from ovirt_imageio_common import web
 
 from wsgiref import simple_server
 import SocketServer
@@ -27,8 +27,8 @@ from webob.exc import (
     HTTPForbidden
 )
 
-from ovirt_image_common import directio
-from ovirt_image_common import util
+from ovirt_imageio_common import directio
+from ovirt_imageio_common import util
 
 from . import uhttp
 
@@ -101,7 +101,7 @@ class Config(object):
     port = 54322
     poll_interval = 1.0
     buffer_size = 1024 * 1024
-    socket = "/var/run/vdsm/ovirt-image-daemon.sock"
+    socket = "/var/run/vdsm/ovirt-imageio-daemon.sock"
 
     @property
     def key_file(self):

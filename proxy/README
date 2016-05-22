@@ -37,7 +37,7 @@ Patches are welcome!
 During development you may want to build/install the proxy.  There are
 a few ways to go about this:
 
-  `ovirt-image-proxy [options]` - run the proxy in-place, with debug
+  `ovirt-imageio-proxy [options]` - run the proxy in-place, with debug
    options and alternate paths to configuration files, if desired.
 
   `python setup.py install` - Build/install the lib files and main

@@ -35,7 +35,7 @@ Maybe
 
 - Scale/stress tests
 
-- Use autoconf for default settings (e.g /run/vdsm/ovirt-image-daemon.sock)
+- Use autoconf for default settings (e.g /run/vdsm/ovirt-imageio-daemon.sock)
 
 - Use server supporting multiple sockets, or implement such listener,
   passing connected sockets to actual http server (similar to

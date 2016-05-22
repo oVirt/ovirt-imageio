@@ -3,7 +3,7 @@ Description=oVirt ImageIO Daemon
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/ovirt-image-daemon
+ExecStart=/usr/bin/ovirt-imageio-daemon
 KillSignal=SIGTERM
 KillMode=mixed
 Restart=always

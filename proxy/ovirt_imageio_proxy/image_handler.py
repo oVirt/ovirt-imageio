@@ -15,7 +15,7 @@ from http_helper import (
 import session
 import server
 
-from ovirt_image_common import web
+from ovirt_imageio_common import web
 
 
 class ImageHandler(object):
@@ -79,7 +79,7 @@ class ImageHandler(object):
         return self.send_data(self.request)
 
     def send_data(self, request):
-        """ Handles sending data to ovirt-image-daemon for PUT or PATCH.
+        """ Handles sending data to ovirt-imageio-daemon for PUT or PATCH.
         :param request: http request object
         :type request: webob.Request
         :return: http response object

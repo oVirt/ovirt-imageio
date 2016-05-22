@@ -1,4 +1,4 @@
-# ovirt-imaged-proxy
+# ovirt-imageio-proxy
 # Copyright (C) 2016 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify

@@ -1,12 +1,12 @@
 PACKAGE_NAME=ovirt-imageio-common
-PACKAGE_VERSION=$(shell python ovirt_image_common/version.py)
+PACKAGE_VERSION=$(shell python ovirt_imageio_common/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
 
 GENERATED = $(SPEC_NAME)
-METADATA = ovirt_image_common/version.py Makefile
+METADATA = ovirt_imageio_common/version.py Makefile
 
 .PHONY: build check dist srpm rpm clean
 

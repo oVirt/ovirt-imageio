@@ -8,7 +8,7 @@
 
 from distutils.core import setup
 
-from ovirt_image_proxy import version
+from ovirt_imageio_proxy import version
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram",
@@ -16,9 +16,9 @@ setup(
     description='oVirt imageio proxy',
     license="GNU GPLv2+",
     name='ovirt-imageio-proxy',
-    packages=['ovirt_image_proxy'],
-    requires=['ovirt_image_common', 'requests', 'webob'],
-    scripts=['ovirt-image-proxy'],
+    packages=['ovirt_imageio_proxy'],
+    requires=['ovirt_imageio_common', 'requests', 'webob'],
+    scripts=['ovirt-imageio-proxy'],
     url="https://gerrit.ovirt.org/ovirt-imageio",
     version=version.string,
 )
