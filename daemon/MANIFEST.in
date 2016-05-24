@@ -1,4 +1,5 @@
 include README COPYING MANIFEST TODO
+include build-aux/release-suffix
 include Makefile
 include ovirt-imageio-daemon.spec
 include ovirt-imageio-daemon

@@ -1,6 +1,7 @@
 include COPYING
 include Makefile
 include README
+include build-aux/release-suffix
 include ovirt-imageio-proxy
 include ovirt-imageio-proxy.spec
 include setup.cfg
