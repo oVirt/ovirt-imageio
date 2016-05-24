@@ -1,0 +1,11 @@
+#!/bin/sh
+
+release_suffix=.$(date -u +%Y%m%d%H%M)
+
+commithash=$(git rev-parse --short HEAD)
+if [ $? = 0 ]; then
+    release_suffix+=.git$commithash
+fi
+
+echo $release_suffix
+

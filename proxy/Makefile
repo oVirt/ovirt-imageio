@@ -33,10 +33,14 @@ dist: $(SPEC_NAME)
 	python setup.py sdist
 
 srpm: dist
-	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" -ts dist/$(TAR_NAME)
+	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
+		--define "release_suffix $(shell build-aux/release-suffix)" \
+		-ts dist/$(TAR_NAME)
 
 rpm: srpm
-	rpmbuild --define="_topdir $(RPM_TOPDIR)" --rebuild dist/*.src.rpm
+	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
+		--define "release_suffix $(shell build-aux/release-suffix)" \
+		--rebuild dist/*.src.rpm
 	mv $(RPM_TOPDIR)/RPMS/noarch/* dist/
 
 install:
