@@ -32,7 +32,7 @@ build: $(GENERATED)
 	python setup.py build
 
 check:
-	py.test
+	tox
 
 dist: $(SPEC_NAME)
 	rm -f dist/*

@@ -13,7 +13,7 @@ METADATA = ovirt_imageio_common/version.py Makefile
 build: $(GENERATED)
 
 check:
-	py.test
+	tox
 
 dist: $(SPEC_NAME)
 	rm -f dist/*

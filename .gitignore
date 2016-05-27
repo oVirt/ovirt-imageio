@@ -1,3 +1,6 @@
+# tox
+.tox
+
 # pytest-coverage
 .coverage
 htmlcov

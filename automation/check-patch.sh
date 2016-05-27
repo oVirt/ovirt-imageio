@@ -1,7 +1,7 @@
 #!/bin/bash -xe
 
-# pytest is too old on Fedora and EL, so we must install our own
-pip install pytest pytest-cov requests-mock
+# tox too old on EL, so we must install our own
+pip install tox
 
 make
 
@@ -11,6 +11,6 @@ make
 
 for subdir in common daemon proxy; do
     pushd $subdir
-    py.test -m "not noci"
+    tox -- -m \'not noci\'
     popd
 done
