@@ -8,7 +8,7 @@
 
 Name:       %{package_name}
 Version:    %{package_version}
-Release:    0%{?release_suffix}%{?dist}
+Release:    1%{?release_suffix}%{?dist}
 Summary:    oVirt imageio proxy
 
 Group:      Applications/System
@@ -103,3 +103,7 @@ Setup plugin for oVirt imageio proxy
 %{engine_data}/firewalld/ovirt-imageio-proxy/
 %{engine_data}/setup/ovirt_engine_setup/ovirt_imageio_proxy/
 %{engine_data}/setup/plugins/*/ovirt_imageio_proxy/
+
+%changelog
+* Tue May 31 2016 Nir Soffer <nsoffer@redhat.com> 0.2.1-1
+  Initial release

@@ -1,6 +1,6 @@
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
-Release:   0%{?release_suffix}%{?dist}
+Release:   1%{?release_suffix}%{?dist}
 Summary:   oVirt imageio common library
 
 Group:     Development/Libraries
@@ -34,3 +34,7 @@ rm -rf $RPM_BUILD_ROOT
 %files -f INSTALLED_FILES
 %license COPYING
 %doc README
+
+%changelog
+* Tue May 31 2016 Nir Soffer <nsoffer@redhat.com> 0.2.1-1
+  Initial release

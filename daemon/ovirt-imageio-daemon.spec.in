@@ -1,6 +1,6 @@
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
-Release:   0%{?release_suffix}%{?dist}
+Release:   1%{?release_suffix}%{?dist}
 Summary:   oVirt imageio daemon
 
 Group:     Applications/System
@@ -54,3 +54,7 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 # After upgrading, restart the service.
 %systemd_postun_with_restart ovirt-imageio-daemon.service
+
+%changelog
+* Tue May 31 2016 Nir Soffer <nsoffer@redhat.com> 0.2.1-1
+  Initial release
