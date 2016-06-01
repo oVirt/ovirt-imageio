@@ -244,7 +244,7 @@ class Plugin(plugin.PluginBase):
         self.environment[otopicons.CoreEnv.MAIN_TRANSACTION].append(
             filetransaction.FileTransaction(
                 name=oipcons.FileLocations.OVIRT_IMAGEIO_PROXY_CONFIG,
-                content=_get_configuration(),
+                content=self._get_configuration(),
                 modifiedList=self.environment[otopicons.CoreEnv.MODIFIED_FILES]
             )
         )
