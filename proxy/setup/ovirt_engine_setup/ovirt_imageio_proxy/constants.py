@@ -81,6 +81,10 @@ class FileLocations(object):
         OVIRT_ENGINE_PKICERTSDIR,
         'engine.cer',
     )
+    OVIRT_ENGINE_PKI_ENGINE_CA_CERT = os.path.join(
+        OVIRT_ENGINE_PKIDIR,
+        'ca.pem',
+    )
 
 
 @util.export

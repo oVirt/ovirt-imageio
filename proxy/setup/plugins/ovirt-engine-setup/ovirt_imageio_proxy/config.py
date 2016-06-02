@@ -271,6 +271,9 @@ class Plugin(plugin.PluginBase):
             # Certificate file used when decoding signed token
             engine_cert_file = {engine_cert}
 
+            # CA certificate file used to verify signed token
+            engine_ca_cert_file = {ca_cert}
+
             # Verify the certificate used to decode the signed token
             verify_certificate = true
 
@@ -295,6 +298,7 @@ class Plugin(plugin.PluginBase):
             key=oipcons.FileLocations.OVIRT_ENGINE_PKI_IMAGEIO_PROXY_KEY,
             cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_IMAGEIO_PROXY_CERT,
             engine_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CERT,
+            ca_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CA_CERT,
         )
 
     @plugin.event(

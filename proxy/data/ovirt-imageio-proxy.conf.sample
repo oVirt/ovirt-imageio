@@ -17,6 +17,9 @@ ssl_cert_file = /etc/pki/ovirt-engine/certs/image-proxy.cer
 # Certificate file used when decoding signed token
 engine_cert_file = /etc/pki/ovirt-engine/certs/engine.cer
 
+# CA certificate file used to verify signed token
+engine_ca_cert_file = /etc/pki/ovirt-engine/ca.pem
+
 # Verify the certificate used to decode the signed token
 verify_certificate = true
 

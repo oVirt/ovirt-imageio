@@ -23,6 +23,7 @@ use_ssl = True
 ssl_key_file = '/path/to/ssl_key_file'
 ssl_cert_file = '/path/to/ssl_cert_file'
 engine_cert_file = '/path/to/engine_cert_file'
+engine_ca_cert_file = '/path/to/engine_ca_cert_file'
 verify_certificate = True
 poll_interval = 1.0
 signed_proxy_ticket = True

@@ -41,6 +41,8 @@ def proxy_server(request):
     config.load(CONFIG_FILE)
     config._set('engine_cert_file',
                 os.path.join(TEST_DIR, "pki/certs/public_cert.pem"))
+    config._set('engine_ca_cert_file',
+                os.path.join(TEST_DIR, "pki/certs/public_cert.pem"))
     config._set('ssl_key_file',
                 os.path.join(TEST_DIR, "pki/keys/vdsmkey.pem"))
     config._set('ssl_cert_file',
