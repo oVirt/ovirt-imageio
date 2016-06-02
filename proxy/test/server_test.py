@@ -40,7 +40,7 @@ def proxy_server(request):
     from ovirt_imageio_proxy import config
     config.load(CONFIG_FILE)
     config._set('engine_cert_file',
-                os.path.join(TEST_DIR, config.engine_cert_file))
+                os.path.join(TEST_DIR, "pki/certs/public_cert.pem"))
     config._set('ssl_key_file',
                 os.path.join(TEST_DIR, "pki/keys/vdsmkey.pem"))
     config._set('ssl_cert_file',
