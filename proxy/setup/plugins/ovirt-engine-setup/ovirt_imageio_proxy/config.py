@@ -31,6 +31,8 @@ from otopi import util
 from ovirt_engine_setup import constants as osetupcons
 from ovirt_setup_lib import hostname as osetuphostname
 from ovirt_setup_lib import dialog
+from ovirt_engine_setup.engine import constants as oenginecons
+from ovirt_engine_setup.engine import vdcoption
 from ovirt_engine_setup.engine_common import constants as oengcommcons
 from ovirt_engine_setup.ovirt_imageio_proxy import constants as oipcons
 
@@ -299,6 +301,36 @@ class Plugin(plugin.PluginBase):
             cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_IMAGEIO_PROXY_CERT,
             engine_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CERT,
             ca_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CA_CERT,
+        )
+
+    @plugin.event(
+        stage=plugin.Stages.STAGE_MISC,
+        after=(
+                oengcommcons.Stages.DB_CONNECTION_AVAILABLE,
+        ),
+        condition=lambda self: (
+                self.environment[
+                    oenginecons.CoreEnv.ENABLE
+                ] and self.environment[
+                    oenginecons.EngineDBEnv.NEW_DATABASE
+                ]
+        ),
+    )
+    def _databaseOptions(self):
+        vdcoption.VdcOption(
+            statement=self.environment[
+                oenginecons.EngineDBEnv.STATEMENT
+            ]
+        ).updateVdcOptions(
+            options=(
+                {
+                    'name': 'ImageProxyAddress',
+                    'value': '%s:%s' % (
+                        self.environment[osetupcons.ConfigEnv.FQDN],
+                        oipcons.ConfigEnv.DEFAULT_IMAGEIO_PROXY_PORT,
+                    ),
+                },
+            ),
         )
 
     @plugin.event(
