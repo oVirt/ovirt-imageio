@@ -16,18 +16,14 @@
 #
 
 import httplib
-import logging
-import re
 import SocketServer
 import ssl
 import threading
 from wsgiref import simple_server
 
 import webob
-from webob import exc
 
 import download_handler
-from http_helper import httplog
 import image_handler
 
 from ovirt_imageio_common import web
