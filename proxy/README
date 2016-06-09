@@ -1,13 +1,66 @@
 ovirt-imageio-proxy
 ===================
 
+Overview
+--------
+
 The oVirt ImageIO Proxy provides a proxy server allowing clients to
 perform I/O with VM disk images and ISOs located within the oVirt
 virtualization environment.
 
+The proxy provides the following service:
+
+- images service    read and write data to/from the imageio daemon.
+                    By default this service is available via HTTPS
+                    on port 54323.  This service is accessed by
+                    clients wishing to transfer data to/from images
+                    that do not wish to transfer directly via the
+                    daemon.
+
+
+Image Session Flow (via Engine WebAdmin)
+----------------------------------------
+
+This illustrates the role the proxy plays in a typical image upload
+operation.  The client is the Engine UI via a browser.
+
+- Client initiates an upload via the UI.
+- Engine creates an access token for ovirt-imageio-proxy and a
+  session token for ovirt-image-daemon.
+- Engine asks Vdsm to prepare the image.
+- Engine asks Vdsm to add a ticket allowing access to the image.
+- Vdsm adds the ticket to ovirt-imageio-daemon.
+- Engine returns the signed access token and ovirt-imageio-proxy
+  connection info to the client.  The access token contains the
+  session token and image ovirt-imageio-daemon connection details.
+- Client authenticates with ovirt-imageio-proxy using the signed
+  access token.
+- ovirt-imageio-proxy decodes and verifies the signed token, creates
+  a session, and stores the token contents in the session state.
+- ovirt-imageio-proxy returns the session id to the client.
+- Client performs image operations with ovirt-imageio-proxy, using
+  the ovirt-imageio-daemon session token and ovirt-imageio-proxy
+  session id.
+- ovirt-imageio-proxy relays image operations to ovirt-imageio-daemon
+  using the session token.
+- When the client is done, it asks Engine to finalize the operation.
+- Engine ask vdsm to revoke the ticket.
+- Vdsm deletes session from ovirt-imageio-daemon.
+- Engine ask vdsm to tear down the image.
+- Image verification and other necessary finalization actions
+  involving Vdsm and Engine are performed.
+
+Tickets are ephemeral; a client needs to ask Engine to renew the
+ticket from time to time, otherwise a ticket will expire and the
+ongoing image operations will be aborted.
+
+Tickets are not persisted.  In case of an ovirt-imageio-proxy crash
+or reboot, Engine will provide a new ticket and possibly point the
+client to another host to continue the operation.
+
 
 Installation
-============
+------------
 
 The image proxy can be installed on most hosts that have a working
 Python 2 environment with the needed dependencies.  To install the
@@ -46,7 +99,7 @@ setup finishes to run, run `ovirt-imageio-proxy`.
 
 
 Development
-===========
+-----------
 
 Patches are welcome!
 
@@ -87,7 +140,7 @@ Please send any patches to:
 
 
 Packaging
-=========
+---------
 
 Multiple packaging options are available:
   make dist  ## compile and create a distribution tarball
@@ -95,7 +148,7 @@ Multiple packaging options are available:
 
 
 Getting Help
-============
+------------
 
 Please send mail to one of the following lists for help.
 
@@ -107,7 +160,7 @@ Please send mail to one of the following lists for help.
 
 
 Licensing
-=========
+---------
 
 The oVirt ImageIO Proxy is provided under the terms of the GPLv2 License.
 The oVirt ImageIO Proxy setup plugin is provided under the terms of the

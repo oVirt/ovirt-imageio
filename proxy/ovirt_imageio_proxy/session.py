@@ -2,6 +2,27 @@
 General session management APIs.  Most session operations should be done in a
 context where session_rlock is acquired to prevent race conditions between
 threads.
+
+When a connection to the proxy is established, the client should send an
+Authorization header containing the signed ticket provided by the engine which
+authorizes image operations for a particular image.  Subsequent requests can
+include the session id returned by the proxy after successful authentication.
+
+The session flow is:
+- Client connects to the proxy and provides the Authorization header
+  containing the signed ticket.
+- Proxy calls start_session(), which will decode the ticket and, upon success,
+  initiate a new session.  (If The client instead provides a session id, an
+  existing session will be validated and used.)
+- Proxy stores the session id internally so that it can be used during further
+  request processing.
+- The proxy performs the requested operation, which may use or update session-
+  specific state using get_session(), set_session(), get_session_attribute(),
+  or set_session_attribute().
+- The proxy updates the session activity timestamp using 
+  update_session_activity().
+- The proxy returns the session id to the caller if the Authentication header
+  was provided via add_response_header().
 """
 
 import json
