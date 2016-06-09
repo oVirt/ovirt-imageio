@@ -61,6 +61,7 @@ clean:
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -rf build
+	rm -rf dist
 
 $(GENERATED) : % : %.in $(METADATA)
 	@sed \
