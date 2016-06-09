@@ -7,3 +7,6 @@ $(targets): $(subdirs)
 
 $(subdirs):
 	$(MAKE) -C $@ $(MAKECMDGOALS)
+
+clean: $(subdirs)
+	rm -rf exported-artifacts/
