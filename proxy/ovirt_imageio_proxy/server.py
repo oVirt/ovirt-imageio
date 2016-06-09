@@ -28,6 +28,7 @@ import image_handler
 
 from ovirt_imageio_common import web
 
+
 class Server:
     _image_server = None
 
