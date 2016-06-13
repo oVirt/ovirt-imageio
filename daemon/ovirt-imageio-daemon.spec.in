@@ -1,3 +1,5 @@
+%global    logdir @LOGDIR@
+
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
 Release:   0%{?release_suffix}%{?dist}
@@ -30,7 +32,12 @@ python setup.py build
 
 %install
 python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
-install -Dm 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
+install -D -m 0755 --directory %{buildroot}%{logdir}
+# Create a dummy log file to make rpm happy during build
+touch %{buildroot}%{logdir}/daemon.log
+install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -39,7 +46,14 @@ rm -rf $RPM_BUILD_ROOT
 %license COPYING
 %doc README
 %{_unitdir}/ovirt-imageio-daemon.service
-
+%dir %{_sysconfdir}/%{name}
+%config %{_sysconfdir}/%{name}/logger.conf
+# The log directory should belong to the daemon so it can create log files.
+# http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
+%dir %attr(755, vdsm, kvm) %{logdir}
+# The log files belongs to the package, so they will be removed with the package.
+# http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-GHOST-DIRECTIVE
+%ghost %{logdir}/daemon.log*
 
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages

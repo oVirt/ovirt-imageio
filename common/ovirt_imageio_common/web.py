@@ -7,7 +7,9 @@
 # (at your option) any later version.
 
 import httplib
+import logging
 import re
+import util
 import webob
 import json
 
@@ -18,6 +20,8 @@ from webob.exc import (
     HTTPNotFound,
     HTTPInternalServerError,
 )
+
+log = logging.getLogger("web")
 
 
 class Application(object):
@@ -34,12 +38,14 @@ class Application(object):
 
     def __call__(self, env, start_response):
         request = webob.Request(env)
+        start = util.monotonic_time()
         try:
             resp = self.dispatch(request)
         except Exception as e:
             if not isinstance(e, HTTPException):
                 e = HTTPInternalServerError(detail=str(e))
             resp = error_response(e)
+        self.log_response(request, resp, util.monotonic_time() - start)
         return resp(env, start_response)
 
     def dispatch(self, request):
@@ -61,6 +67,21 @@ class Application(object):
                     request.path_info_pop()
                     return method(*match.groups())
         raise HTTPNotFound("No handler for %r" % path)
+
+    def log_response(self, req, resp, elapsed_time):
+        if resp.status_code >= 500:
+            log_call = log.exception
+        elif resp.status_code >= 400:
+            log_call = log.warning
+        else:
+            log_call = log.info
+        log_call("%s - %s %s %d %d (%.2fs)",
+             req.client_addr,
+             req.method,
+             req.path_info,
+             resp.status_code,
+             resp.content_length,
+             elapsed_time)
 
 
 def error_response(e):

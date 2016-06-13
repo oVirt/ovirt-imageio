@@ -1,0 +1,22 @@
+[loggers]
+keys=root
+
+[handlers]
+keys=logfile
+
+[formatters]
+keys=long
+
+[logger_root]
+level=INFO
+handlers=logfile
+propagate=0
+
+[handler_logfile]
+class=logging.handlers.RotatingFileHandler
+args=('@LOGDIR@/daemon.log', 'a', 10485760, 10)
+level=DEBUG
+formatter=long
+
+[formatter_long]
+format=%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] %(message)s

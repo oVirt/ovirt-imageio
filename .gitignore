@@ -10,6 +10,7 @@ htmlcov
 *.pyo
 common/ovirt-imageio-common.spec
 daemon/ovirt-imageio-daemon.spec
+daemon/data/logger.conf
 proxy/conf/logger.conf
 proxy/ovirt-imageio-proxy.spec
 proxy/ovirt_imageio_proxy/constants.py

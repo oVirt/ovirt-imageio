@@ -5,7 +5,12 @@ RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
 
-GENERATED = $(SPEC_NAME)
+LOGDIR=/var/log/$(PACKAGE_NAME)
+
+GENERATED = \
+    $(SPEC_NAME) \
+    data/logger.conf
+
 METADATA = ovirt_imageio_daemon/version.py Makefile
 
 .PHONY: build check dist srpm rpm clean
@@ -41,5 +46,6 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
+		-e 's|@LOGDIR@|$(LOGDIR)|g' \
 		$< > $@
 	@echo "generated $@"

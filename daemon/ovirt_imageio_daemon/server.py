@@ -16,6 +16,8 @@ import signal
 import ssl
 import urlparse
 import time
+import logging
+import logging.config
 
 import systemd.daemon
 import webob
@@ -30,10 +32,13 @@ from webob.exc import (
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import util
+from ovirt_imageio_common import version
 
 from . import uhttp
 
+CONF_DIR = "/etc/ovirt-imageio-daemon"
 
+log = logging.getLogger("server")
 image_server = None
 ticket_server = None
 tickets = {}
@@ -42,20 +47,30 @@ supported_schemes = ['file']
 
 
 def main(args):
+    configure_logger()
+    log.info("Starting (version %s)", version.string)
     config = Config()
     signal.signal(signal.SIGINT, terminate)
     signal.signal(signal.SIGTERM, terminate)
     start(config)
     systemd.daemon.notify("READY=1")
+    log.info("Ready for requests")
     try:
         while running:
             time.sleep(30)
     finally:
         stop()
+    log.info("Stopped")
+
+
+def configure_logger():
+    conf = os.path.join(CONF_DIR, "logger.conf")
+    logging.config.fileConfig(conf, disable_existing_loggers=False)
 
 
 def terminate(signo, frame):
     global running
+    log.info("Received signal %d, shutting down", signo)
     running = False
 
 
@@ -63,22 +78,24 @@ def start(config):
     global image_server, ticket_server
     assert not (image_server or ticket_server)
 
+    log.debug("Starting images service on port %d", config.port)
     image_server = ThreadedWSGIServer((config.host, config.port),
                                       WSGIRequestHandler)
     secure_server(config, image_server)
     image_app = web.Application(config, [(r"/images/(.*)", Images)])
     image_server.set_app(image_app)
+    start_server(config, image_server, "image.server")
 
+    log.debug("Starting tickets service on socket %s", config.socket)
     ticket_server = uhttp.UnixWSGIServer(config.socket, UnixWSGIRequestHandler)
     ticket_app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
     ticket_server.set_app(ticket_app)
-
-    start_server(config, image_server, "image.server")
     start_server(config, ticket_server, "ticket.server")
 
 
 def stop():
     global image_server, ticket_server
+    log.debug("Stopping services")
     image_server.shutdown()
     ticket_server.shutdown()
     image_server = None
@@ -86,11 +103,14 @@ def stop():
 
 
 def secure_server(config, server):
+    log.debug("Securing server (certfile=%s, keyfile=%s)",
+              config.cert_file, config.key_file)
     server.socket = ssl.wrap_socket(server.socket, certfile=config.cert_file,
                                     keyfile=config.key_file, server_side=True)
 
 
 def start_server(config, server, name):
+    log.debug("Starting thread %s", name)
     util.start_thread(server.serve_forever,
                       kwargs={"poll_interval": config.poll_interval},
                       name=name)
@@ -144,6 +164,7 @@ class Images(object):
     """
     Request handler for the /images/ resource.
     """
+    log = logging.getLogger("images")
 
     def __init__(self, config, request):
         self.config = config
@@ -161,6 +182,8 @@ class Images(object):
         offset = content_range.start or 0
         ticket = get_ticket(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
+        self.log.info("Writing %d bytes at offset %d to %s for ticket %s",
+                      size, offset, ticket["url"].path, ticket_id)
         op = directio.Receive(ticket["url"].path,
                               self.request.body_file_raw,
                               size,
@@ -180,6 +203,8 @@ class Images(object):
         offset = self.request.range.start
         size = self.request.range.end - offset
         ticket = get_ticket(ticket_id, "read", offset + size)
+        self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
+                      size, offset, ticket["url"].path, ticket_id)
         op = directio.Send(ticket["url"].path,
                            None,
                            size,
@@ -199,6 +224,7 @@ class Tickets(object):
     """
     Request handler for the /tickets/ resource.
     """
+    log = logging.getLogger("tickets")
 
     def __init__(self, config, request):
         self.config = config
@@ -213,6 +239,7 @@ class Tickets(object):
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         ticket = ticket.copy()
         ticket["url"] = urlparse.urlunparse(ticket["url"])
+        self.log.info("Retrieving ticket %s", ticket_id)
         return response(payload=ticket)
 
     def put(self, ticket_id):
@@ -248,6 +275,9 @@ class Tickets(object):
 
         ticket["expires"] = int(util.monotonic_time()) + timeout
         tickets[ticket_id] = ticket
+
+        self.log.info("Adding ticket %s, expires in %d, image url: %s",
+                      ticket_id, ticket["expires"], ticket["url"])
         return response()
 
     def patch(self, ticket_id):
@@ -271,6 +301,8 @@ class Tickets(object):
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
         ticket["expires"] = int(util.monotonic_time()) + timeout
+        self.log.info("Extending ticket %s, new expiration in %d",
+                      ticket_id, ticket["expires"])
         return response()
 
     def delete(self, ticket_id):
@@ -282,6 +314,7 @@ class Tickets(object):
                 raise HTTPNotFound("No such ticket %r" % ticket_id)
         else:
             tickets.clear()
+        self.log.info("Deleting ticket %s", ticket_id)
         return response(status=204)
 
 
