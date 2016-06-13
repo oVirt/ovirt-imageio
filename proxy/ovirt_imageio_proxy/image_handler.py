@@ -12,6 +12,7 @@ from http_helper import (
     requiresession,
     success_codes as http_success_codes,
 )
+import config
 import session
 import server
 
@@ -154,9 +155,6 @@ class ImageHandler(object):
         }
 
     def make_imaged_request(self, method, imaged_url, headers, body, stream):
-        # TODO SSL (incl cert verification option)
-        verify = False
-        cert = None
         timeout = (self.config.imaged_connection_timeout_sec,
                    self.config.imaged_read_timeout_sec)
 
@@ -175,7 +173,7 @@ class ImageHandler(object):
             # TODO log the request to vdsm
             imaged_prepped = imaged_session.prepare_request(imaged_req)
             imaged_resp = imaged_session.send(
-                imaged_prepped, verify=verify, cert=cert,
+                imaged_prepped, verify=config.engine_ca_cert_file,
                 timeout=timeout, stream=stream)
         except requests.Timeout:
             s = "Timed out connecting to vdsm-imaged"
