@@ -18,6 +18,7 @@ def config():
             integer = 1
             real = 4.0
             boolean = False
+
         class bar:
             string = "old"
     return config
