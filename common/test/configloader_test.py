@@ -32,7 +32,7 @@ def test_empty(tmpdir, config):
     assert config.foo.string == "old"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
-    assert config.foo.boolean == False
+    assert config.foo.boolean is False
     assert config.bar.string == "old"
 
 
@@ -51,7 +51,7 @@ string = new
     assert config.foo.string == "new"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
-    assert config.foo.boolean == False
+    assert config.foo.boolean is False
     assert config.bar.string == "old"
     assert not hasattr(config, "unknown")
 
@@ -69,7 +69,7 @@ unknown = 3
     assert config.foo.string == "new"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
-    assert config.foo.boolean == False
+    assert config.foo.boolean is False
     assert config.bar.string == "old"
     assert not hasattr(config.foo, "unknown")
 
@@ -87,7 +87,7 @@ boolean = true
     assert config.foo.string == "new"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
-    assert config.foo.boolean == True
+    assert config.foo.boolean is True
     assert config.bar.string == "old"
 
 
@@ -109,7 +109,7 @@ string = new
     assert config.foo.string == "new"
     assert config.foo.integer == 2
     assert config.foo.real == 4.1
-    assert config.foo.boolean == True
+    assert config.foo.boolean is True
     assert config.bar.string == "new"
 
 
@@ -128,7 +128,7 @@ boolean = %s
     with open(conf, "w") as f:
         f.write(data)
     configloader.load(config, [conf])
-    assert config.foo.boolean == True
+    assert config.foo.boolean is True
 
 
 @pytest.mark.parametrize("value", [
@@ -146,7 +146,7 @@ boolean = %s
     with open(conf, "w") as f:
         f.write(data)
     configloader.load(config, [conf])
-    assert config.foo.boolean == False
+    assert config.foo.boolean is False
 
 
 @pytest.mark.parametrize("option", ["integer", "real", "boolean"])
