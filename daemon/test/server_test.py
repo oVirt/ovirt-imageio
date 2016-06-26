@@ -420,6 +420,7 @@ def add_ticket(ticket):
     ticket["url"] = urlparse.urlparse(ticket["url"])
     server.tickets[ticket["uuid"]] = ticket
 
+
 def get_ticket(uuid):
     # Get a copy of the current server ticket, simulating a get request
     ticket = server.tickets[uuid]
