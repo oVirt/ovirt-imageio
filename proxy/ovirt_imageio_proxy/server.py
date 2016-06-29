@@ -37,10 +37,12 @@ class Server:
 
     def start(self, config):
         images = image_handler.ImageHandler
-        # TODO create downloadhandler to broker requests to downloader thread(s)
+        # TODO create downloadhandler to broker requests to downloader
+        # thread(s)
         downloads = download_handler.DownloadHandler
 
-        server = ThreadedWSGIServer((config.host, config.port), WSGIRequestHandler)
+        server = ThreadedWSGIServer((config.host, config.port),
+                                    WSGIRequestHandler)
         if config.use_ssl:
             self._secure_server(config, server)
         app = web.Application(config, [(r"/images/(.*)", images),
