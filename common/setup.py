@@ -19,5 +19,5 @@ setup(
     packages=["ovirt_imageio_common"],
     platforms=["Linux"],
     url="https://gerrit.ovirt.org/ovirt-imageio",
-    version=version.version,
+    version=version.string,
 )
