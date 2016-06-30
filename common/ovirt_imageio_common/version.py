@@ -6,7 +6,9 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from __future__ import print_function
+
 string = "0.3.0"
 
 if __name__ == "__main__":
-    print string
+    print(string)
