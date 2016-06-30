@@ -45,22 +45,22 @@ def test_get(uhttpserver):
         log_response(resp)
         assert resp.status == 200
         assert resp.getheader("content-type") == "text/plain"
-        assert resp.read() == "it works"
+        assert resp.read() == b"it works"
 
 
 def test_put(uhttpserver):
     uhttpserver.set_app(echo)
     with make_connection(uhttpserver) as con:
-        con.request("PUT", "/", body="it works")
+        con.request("PUT", "/", body=b"it works")
         resp = con.getresponse()
         log_response(resp)
         assert resp.status == 200
         assert resp.getheader("content-type") == "text/plain"
-        assert resp.read() == "it works"
+        assert resp.read() == b"it works"
 
 
 def test_file(tmpdir, uhttpserver):
-    data = "x" * 1048576
+    data = b"x" * 1048576
     tmp = tmpdir.join("data")
     tmp.write(data)
     uhttpserver.set_app(sendfile)
@@ -96,7 +96,7 @@ def test_server_bind_error(tmpdir):
 def get(env, start_response):
     pprint.pprint(env)
     start_response("200 OK", [("content-type", "text/plain")])
-    return ["it works"]
+    return [b"it works"]
 
 
 def echo(env, start_response):

@@ -6,12 +6,15 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from __future__ import absolute_import
 import errno
-import httplib
 import os
 import socket
 import ssl
 from wsgiref import simple_server
+
+import six
+from six.moves import http_client
 
 PUT = "PUT"
 DELETE = "DELETE"
@@ -29,33 +32,40 @@ class _UnixMixin(object):
         raise UnsupportedError("Tunneling is not supported")
 
 
-class UnixHTTPConnection(_UnixMixin, httplib.HTTPConnection):
+class UnixHTTPConnection(_UnixMixin, http_client.HTTPConnection):
     """
     HTTP connection over unix domain socket.
     """
 
-    def __init__(self, path, strict=None,
-                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+    def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
         self.path = path
-        httplib.HTTPConnection.__init__(self, "localhost", strict=strict,
-                                        timeout=timeout)
+        extra = {}
+        if six.PY2:
+            extra['strict'] = True
+        http_client.HTTPConnection.__init__(self, "localhost", timeout=timeout,
+                                            **extra)
 
     def connect(self):
         self.sock = _create_unix_socket(self.timeout)
         self.sock.connect(self.path)
 
 
-class UnixHTTPSConnection(_UnixMixin, httplib.HTTPSConnection):
+class UnixHTTPSConnection(_UnixMixin, http_client.HTTPSConnection):
     """
     HTTPS connection over unix domain socket.
     """
 
     def __init__(self, path, key_file=None, cert_file=None,
-                 strict=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
         self.path = path
-        httplib.HTTPSConnection.__init__(self, "localhost", key_file=key_file,
-                                         cert_file=cert_file, strict=strict,
-                                         timeout=timeout)
+        extra = {}
+        if six.PY2:
+            extra['strict'] = True
+        http_client.HTTPSConnection.__init__(self, "localhost",
+                                             key_file=key_file,
+                                             cert_file=cert_file,
+                                             timeout=timeout,
+                                             **extra)
 
     def connect(self):
         sock = _create_unix_socket(self.timeout)

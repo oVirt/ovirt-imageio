@@ -12,6 +12,7 @@ BuildArch: noarch
 # NOTE: keep in sync with automation/check.packages
 Requires:  ovirt-imageio-common
 Requires:  python
+Requires:  python-six
 Requires:  systemd-python
 
 # NOTE: keep in sync with automation/build-artifacts.packages
