@@ -55,20 +55,20 @@ Unknown sections and options in the configuration file are ignored.
 
 """
 
-import ConfigParser
+from six.moves import configparser
 
 
 def load(config, files):
-    parser = ConfigParser.RawConfigParser()
+    parser = configparser.RawConfigParser()
     parser.read(files)
     for section_name in _public_names(config):
         section = getattr(config, section_name)
         for option in _public_names(section):
             try:
                 value = parser.get(section_name, option)
-            except ConfigParser.NoSectionError:
+            except configparser.NoSectionError:
                 break
-            except ConfigParser.NoOptionError:
+            except configparser.NoOptionError:
                 continue
             default = getattr(section, option)
             validate = _validators[type(default)]
@@ -81,7 +81,7 @@ def _public_names(obj):
 
 
 def _validate_bool(s):
-    # Use the same values ConfigParser accepts
+    # Use the same values configparser accepts
     val = s.lower()
     if val in ("true", "yes", "1", "on"):
         return True

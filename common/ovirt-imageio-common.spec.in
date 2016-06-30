@@ -11,6 +11,7 @@ BuildArch: noarch
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  python
+Requires:  python-six
 Requires:  python-webob
 
 # NOTE: keep in sync with automation/build-artifacts.packages
