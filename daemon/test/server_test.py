@@ -280,6 +280,39 @@ def test_images_upload_forbidden(tmpdir, config):
     assert res.status == 403
 
 
+def test_images_upload_content_length_missing(tmpdir, config):
+    ticket = create_ticket(url="file:///no/such/image")
+    add_ticket(ticket)
+    res = raw_http_request(config, "PUT", "/images/" + ticket["uuid"])
+    assert res.status == 400
+
+
+def test_images_upload_content_length_invalid(tmpdir, config):
+    ticket = create_ticket(url="file:///no/such/image")
+    add_ticket(ticket)
+    res = raw_http_request(config, "PUT", "/images/" + ticket["uuid"],
+                           headers={"content-length": "invalid"})
+    assert res.status == 400
+
+
+def test_images_upload_content_length_negative(tmpdir, config):
+    image = create_tempfile(tmpdir, "image", "before")
+    ticket = create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    res = raw_http_request(config, "PUT", "/images/" + ticket["uuid"],
+                           headers={"content-length": "-1"})
+    assert res.status == 400
+
+
+def test_images_upload_no_content(tmpdir, config):
+    # This is a pointless request, but valid
+    image = create_tempfile(tmpdir, "image", "before")
+    ticket = create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    res = upload(config, ticket["uuid"], "")
+    assert res.status == 200
+
+
 def test_images_upload(tmpdir, config):
     image = create_tempfile(tmpdir, "image", "-------|after")
     ticket = create_ticket(url="file://" + str(image))
@@ -388,6 +421,24 @@ def http_request(config, method, uri, body=None, headers=None):
                                   config.cert_file)
     with closing(con):
         con.request(method, uri, body=body, headers=headers or {})
+        return response(con)
+
+
+def raw_http_request(config, method, uri, body=None, headers=None):
+    """
+    Use this to send bad requests - this will send only the headers set in
+    headers, no attempt is made to create a correct request.
+    """
+    con = httplib.HTTPSConnection("127.0.0.1", config.port, config.key_file,
+                                  config.cert_file)
+    with closing(con):
+        con.putrequest(method, uri)
+        if headers:
+            for name, value in headers.items():
+                con.putheader(name, value)
+        con.endheaders()
+        if body:
+            con.send(body)
         return response(con)
 
 

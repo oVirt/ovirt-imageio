@@ -152,9 +152,13 @@ class Images(object):
     def put(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
+        size = self.request.content_length
+        if size is None:
+            raise HTTPBadRequest("Content-Length header is required")
+        if size < 0:
+            raise HTTPBadRequest("Invalid Content-Length header: %r" % size)
         content_range = web.content_range(self.request)
         offset = content_range.start or 0
-        size = self.request.content_length
         ticket = get_ticket(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         op = directio.Receive(ticket["url"].path,
