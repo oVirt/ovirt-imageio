@@ -204,19 +204,25 @@ def test_images_get_imaged_404_notfound(proxy_server, signed_ticket):
 
 def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
     body = "hello"
-    request_headers = {
+    client_headers = {
         "Authorization": signed_ticket,
         "Accept-Ranges": "bytes",
         "Content-Range": "bytes 2-6/10",
     }
     path = "/images/" + AUTH_TICKET_ID
 
+    proxy_headers = {
+        "Content-Length": str(len(body)),
+        "Content-Range": "bytes 2-6/10",
+    }
+
     with requests_mock.Mocker() as m:
         m.put(IMAGED_URI + path,
               status_code=200,
-              text=None)
+              text=None,
+              request_headers=proxy_headers)
         res = http_request(proxy_server, "PUT", path, body=body,
-                           headers=request_headers)
+                           headers=client_headers)
         assert m.called
     assert res.status == 200
 
