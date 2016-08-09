@@ -29,10 +29,29 @@ best to run it in-place using the --config_file option to supply the
 runtime configuration.
 
 
+Installation with ovirt-engine developer environment
+======================================================
+For setting up ovirt-imageio-proxy in an ovirt dev environment, run:
+
+  make
+  make install-dev ENGINE_PREFIX=<engine prefix>
+
+Example:
+
+   make install-dev ENGINE_PREFIX=/home/user/my-ovirt-engine
+
+If ovirt-imageio-proxy wasn't configured yet, run engine setup, and 
+choose "Yes" when prompted to install oVirt ImageIO proxy. After engine 
+setup finishes to run, run `ovirt-imageio-proxy`.
+
+
 Development
 ===========
 
 Patches are welcome!
+
+For setting up ovirt-imageio-proxy in an ovirt dev environment, please
+refer to the previous section.
 
 During development you may want to build/install the proxy.  There are
 a few ways to go about this:

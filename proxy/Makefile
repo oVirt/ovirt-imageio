@@ -12,7 +12,7 @@ TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 # The following must be in sync with ovirt-engine spec file definitions
 ENGINE_NAME=ovirt-engine
 ENGINE_SYSCONF_DIR=$(shell rpm --eval '%_sysconfdir')
-ENGINE_PKG_PKI_DIR=$(ENGINE_SYSCONF_DIR)/pki/$(ENGINE_NAME)
+ENGINE_PKG_PKI_DIR=$(ENGINE_PREFIX)$(ENGINE_SYSCONF_DIR)/pki/$(ENGINE_NAME)
 
 GENERATED = \
 	$(SPEC_NAME) \
@@ -26,7 +26,7 @@ METADATA = ovirt_imageio_proxy/version.py Makefile
 .SUFFIXES:
 .SUFFIXES: .in
 
-.PHONY: all generated-files build install clean check dist srpm rpm
+.PHONY: all generated-files build install install-dev clean check dist srpm rpm
 
 build: $(GENERATED)
 	python setup.py build
@@ -55,6 +55,13 @@ ifdef DESTDIR
 else
 	# ERROR: DESTDIR is not defined! Please refer to installation notes.
 endif
+
+install-dev:
+	python setup.py install
+	# TODO: Remove duplication from spec
+	install -Dm 0644 data/logger.conf /etc/ovirt-imageio-proxy
+	install -Dm 0644 setup/data/ovirt-imageio-proxy.xml.in $(ENGINE_PREFIX)/share/ovirt-engine/firewalld/ovirt-imageio-proxy/ovirt-imageio-proxy.xml.in
+	find setup/plugins setup/ovirt_engine_setup -name '*.py' -exec install -Dm 0644 {} $(ENGINE_PREFIX)/share/ovirt-engine/{} \;
 
 clean:
 	python setup.py clean --all
