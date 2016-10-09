@@ -68,11 +68,11 @@ class Plugin(plugin.PluginBase):
             'localhost'
         )
         self.environment.setdefault(
-            oipcons.EngineConfigEnv.ENGINE_FQDN,
+            oenginecons.ConfigEnv.ENGINE_FQDN,
             None
         )
         self.environment.setdefault(
-            oipcons.EngineCoreEnv.ENABLE,
+            oenginecons.CoreEnv.ENABLE,
             None
         )
 
@@ -140,7 +140,7 @@ class Plugin(plugin.PluginBase):
         osetuphostname.Hostname(
             plugin=self,
         ).getHostname(
-            envkey=oipcons.EngineConfigEnv.ENGINE_FQDN,
+            envkey=oenginecons.ConfigEnv.ENGINE_FQDN,
             whichhost=_('the engine'),
             supply_default=False,
             validate_syntax=True,

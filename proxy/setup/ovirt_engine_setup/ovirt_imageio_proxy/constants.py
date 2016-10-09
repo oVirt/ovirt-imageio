@@ -97,12 +97,10 @@ class Stages(object):
 
     REMOTE_VDC = 'setup.config.imageio-proxy.remote_vdc'
 
-    # sync with engine
-    ENGINE_CORE_ENABLE = 'osetup.engine.core.enable'
-
 
 @util.export
 class Defaults(object):
+    # pki-enroll-pkcs12.sh has it hard-coded to 2048 No need to add "sync with"
     DEFAULT_KEY_SIZE = 2048
 
 
@@ -126,26 +124,11 @@ class ConfigEnv(object):
     def IMAGEIO_PROXY_CONFIG(self):
         return 'OVESETUP_CONFIG/imageioProxyConfig'
 
-    CERTIFICATE_ENROLLMENT = 'OVESETUP_CONFIG/certificateEnrollment'
-
-    KEY_SIZE = 'OVESETUP_CONFIG/keySize'
-
-    REMOTE_ENGINE_HOST = 'OVESETUP_CONFIG/remoteEngineHost'
-
     OIP_CERTIFICATE_CHAIN = 'OVESETUP_CONFIG/oipCertificateChain'
-    REMOTE_ENGINE_CER = 'OVESETUP_CONFIG/remoteEngineCer'
 
     PKI_OIP_CSR_FILENAME = 'OVESETUP_CONFIG/pkiOIPCSRFilename'
 
     IMAGEIO_PROXY_STOP_NEEDED = 'OVESETUP_CONFIG/imageioProxyStopNeeded'
-
-
-@util.export
-@util.codegen
-@osetupattrsclass
-class EngineCoreEnv(object):
-    """Sync with ovirt-engine"""
-    ENABLE = 'OVESETUP_ENGINE_CORE/enable'
 
 
 @util.export
@@ -171,22 +154,6 @@ class RPMDistroEnv(object):
 @util.codegen
 class Displays(object):
     CERTIFICATE_REQUEST = 'OIP_CERTIFICATE_REQUEST'
-
-
-@util.export
-@util.codegen
-@osetupattrsclass
-class EngineConfigEnv(object):
-    """Sync with ovirt-engine"""
-
-    @osetupattrs(
-        answerfile=True,
-        summary=True,
-        description=_('Engine Host FQDN'),
-        postinstallfile=True,
-    )
-    def ENGINE_FQDN(self):
-        return 'OVESETUP_ENGINE_CONFIG/fqdn'
 
 
 # vim: expandtab tabstop=4 shiftwidth=4

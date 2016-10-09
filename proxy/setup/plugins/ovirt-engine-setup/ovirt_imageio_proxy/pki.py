@@ -33,6 +33,7 @@ from otopi import util
 
 from ovirt_engine_setup import constants as osetupcons
 from ovirt_engine_setup import remote_engine
+from ovirt_engine_setup.engine import constants as oenginecons
 from ovirt_engine_setup.engine_common import constants as oengcommcons
 from ovirt_engine_setup.ovirt_imageio_proxy import constants as oipcons
 
@@ -60,10 +61,6 @@ class Plugin(plugin.PluginBase):
             oipcons.ConfigEnv.PKI_OIP_CSR_FILENAME,
             None
         )
-        self.environment.setdefault(
-            oipcons.ConfigEnv.KEY_SIZE,
-            oipcons.Defaults.DEFAULT_KEY_SIZE
-        )
 
     @plugin.event(
         stage=plugin.Stages.STAGE_CUSTOMIZATION,
@@ -72,7 +69,7 @@ class Plugin(plugin.PluginBase):
         ),
         after=(
             oipcons.Stages.CONFIG_IMAGEIO_PROXY_CUSTOMIZATION,
-            oipcons.Stages.ENGINE_CORE_ENABLE,
+            oenginecons.Stages.CORE_ENABLE,
             oengcommcons.Stages.DIALOG_TITLES_S_PKI,
         ),
         condition=lambda self: (
@@ -81,7 +78,7 @@ class Plugin(plugin.PluginBase):
             ] and
             # If on same host as engine, engine setup code creates pki for us
             not self.environment[
-                oipcons.EngineCoreEnv.ENABLE
+                oenginecons.CoreEnv.ENABLE
             ]
         ),
     )
@@ -104,7 +101,7 @@ class Plugin(plugin.PluginBase):
                     osetupcons.CoreEnv.REMOTE_ENGINE
                 ],
                 engine_fqdn=self.environment[
-                    oipcons.EngineConfigEnv.ENGINE_FQDN
+                    oenginecons.ConfigEnv.ENGINE_FQDN
                 ],
                 base_name=oipcons.Const.IMAGEIO_PROXY_CERT_NAME,
                 base_touser=_('Image I/O Proxy'),
@@ -122,7 +119,7 @@ class Plugin(plugin.PluginBase):
                 OVIRT_ENGINE_PKIREQUESTSDIR,
                 engine_pki_certs_dir=oipcons.FileLocations.
                 OVIRT_ENGINE_PKICERTSDIR,
-                key_size=self.environment[oipcons.ConfigEnv.KEY_SIZE],
+                key_size=oipcons.Defaults.DEFAULT_KEY_SIZE,
                 url="http://www.ovirt.org/develop/release-management"
                     "/features/storage/image-upload/",
             )
@@ -142,7 +139,7 @@ class Plugin(plugin.PluginBase):
             tries_left > 0
         ):
             remote_engine_host = self.environment[
-                oipcons.EngineConfigEnv.ENGINE_FQDN
+                oenginecons.ConfigEnv.ENGINE_FQDN
             ]
 
             # TODO format=X509-PEM-CA ?
