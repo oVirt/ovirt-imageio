@@ -93,6 +93,7 @@ make clean
 %package setup
 Summary:    Setup plugin for oVirt imageio proxy
 Requires:   %{engine_name}-setup-plugin-ovirt-engine-common >= 4.0.0
+Requires:   python-six
 License:    ASL 2.0
 
 %description setup
