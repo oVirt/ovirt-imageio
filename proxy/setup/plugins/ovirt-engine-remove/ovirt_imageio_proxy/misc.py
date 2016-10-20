@@ -25,8 +25,9 @@ from otopi import plugin
 from otopi import util
 
 from ovirt_engine_setup import constants as osetupcons
-from ovirt_setup_lib import dialog
 from ovirt_engine_setup.ovirt_imageio_proxy import constants as oipcons
+
+from ovirt_setup_lib import dialog
 
 
 def _(m):
