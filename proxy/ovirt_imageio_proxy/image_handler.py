@@ -64,7 +64,7 @@ class ImageHandler(object):
             imaged_response.iter_content(4096, False)),
             max_transfer_bytes)
         response.headers['Content-Length'] = str(max_transfer_bytes)
-        logging.debug("Resource %s: transferring %d bytes from vdsm-imaged",
+        logging.debug("Resource %s: transferring %d bytes from host",
                       resource_id, max_transfer_bytes)
 
         return response
@@ -80,7 +80,7 @@ class ImageHandler(object):
         return self.send_data(self.request)
 
     def send_data(self, request):
-        """ Handles sending data to ovirt-imageio-daemon for PUT or PATCH.
+        """ Handles sending data to host for PUT or PATCH.
         :param request: http request object
         :type request: webob.Request
         :return: http response object
@@ -106,7 +106,7 @@ class ImageHandler(object):
 
         body = web.CappedStream(request.body_file, max_transfer_bytes)
         stream = False
-        logging.debug("Resource %s: transferring %d bytes to vdsm-imaged",
+        logging.debug("Resource %s: transferring %d bytes to host",
                       resource_id, max_transfer_bytes)
         imaged_response = self.make_imaged_request(
             request.method, imaged_url, headers, body, stream)
@@ -154,8 +154,8 @@ class ImageHandler(object):
         timeout = (self.config.imaged_connection_timeout_sec,
                    self.config.imaged_read_timeout_sec)
 
-        logging.debug("Connecting to vdsm-imaged at %s", imaged_url)
-        logging.debug("Outgoing headers to vdsm-imaged:\n" +
+        logging.debug("Connecting to host at %s", imaged_url)
+        logging.debug("Outgoing headers to host:\n" +
                       '\n'.join(('  {}: {}'.format(k, headers[k])
                                  for k in sorted(headers))))
 
@@ -172,21 +172,21 @@ class ImageHandler(object):
                 imaged_prepped, verify=config.engine_ca_cert_file,
                 timeout=timeout, stream=stream)
         except requests.Timeout:
-            s = "Timed out connecting to vdsm-imaged"
+            s = "Timed out connecting to host"
             raise exc.HTTPGatewayTimeout(s)
         except requests.URLRequired:
-            s = "Invalid host URI for vdsm-imaged"
+            s = "Invalid host URI for host"
             raise exc.HTTPBadRequest(s)
         except requests.ConnectionError as e:
-            s = "Failed communicating with vdsm-imaged: " + e.__doc__
+            s = "Failed communicating with host: " + e.__doc__
             logging.error(s, exc_info=True)
             raise exc.HTTPServiceUnavailable(s)
         except requests.RequestException as e:
-            s = "Failed communicating with vdsm-imaged: " + e.__doc__
+            s = "Failed communicating with host: " + e.__doc__
             logging.error(s, exc_info=True)
             raise exc.HTTPInternalServerError(s)
 
-        logging.debug("Incoming headers from vdsm-imaged:\n" +
+        logging.debug("Incoming headers from host:\n" +
                       '\n'.join(('  {}: {}'
                                  .format(k, imaged_resp.headers.get(k))
                                  for k in sorted(imaged_resp.headers))))
@@ -197,10 +197,10 @@ class ImageHandler(object):
             logging.error("Failed: %s", s)
             # TODO why isn't the exception logged somewhere?
             raise exc.status_map[imaged_resp.status_code](
-                "Failed response from vdsm-imaged: {}".format(s))
+                "Failed response from host: {}".format(s))
 
         logging.debug(
-            "Successful request to vdsm-imaged: HTTP %d %s",
+            "Successful request to host: HTTP %d %s",
             imaged_resp.status_code,
             httplib.responses[imaged_resp.status_code]
         )
