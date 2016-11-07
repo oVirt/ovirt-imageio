@@ -480,10 +480,39 @@ def response(con):
     return res
 
 
-def create_tempfile(tmpdir, name, data=''):
+# TODO: move to utils
+def create_tempfile(tmpdir, name, data='', size=None):
     file = tmpdir.join(name)
-    file.write(data)
+    with open(str(file), 'wb') as f:
+        if size is not None:
+            f.seek(size - 1)
+            f.write("\0")
+            f.seek(0)
+        if data:
+            f.write(data)
     return file
+
+
+def test_create_tempfile_hole(tmpdir):
+    size = 1024
+    file = create_tempfile(tmpdir, "image", size=size)
+    assert file.read() == "\0" * size
+
+
+def test_create_tempfile_data(tmpdir):
+    size = 1024
+    byte = "\xf0"
+    data = byte * size
+    file = create_tempfile(tmpdir, "image", data=data)
+    assert file.read() == byte * size
+
+
+def test_create_tempfile_data_and_size(tmpdir):
+    virtual_size = 1024
+    byte = "\xf0"
+    data = byte * 512
+    file = create_tempfile(tmpdir, "image", data=data, size=virtual_size)
+    assert file.read() == data + "\0" * (virtual_size - len(data))
 
 
 # TODO: move into tickets.py
