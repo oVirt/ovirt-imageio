@@ -416,6 +416,17 @@ def test_images_download(tmpdir, config, rng, start, end):
     assert received == data[start:end]
 
 
+def test_images_download_holes(tmpdir, config):
+    size = 1024
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = create_ticket(url="file://" + str(image), size=size)
+    add_ticket(ticket)
+    res = download(config, ticket["uuid"], "bytes=0-1023")
+    assert res.status == 206
+    received = res.read()
+    assert received == "\0" * size
+
+
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
                   url="file:///var/run/vdsm/storage/foo"):
     return {
