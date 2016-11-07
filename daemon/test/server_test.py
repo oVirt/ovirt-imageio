@@ -427,6 +427,21 @@ def test_images_download_holes(tmpdir, config):
     assert received == "\0" * size
 
 
+@pytest.mark.parametrize("rng,end", [
+    ("bytes=0-1024", 512),
+])
+def test_images_download_out_of_range(tmpdir, config, rng, end):
+    data = "a" * 512 + "b" * 512
+    image = create_tempfile(tmpdir, "image", data)
+    ticket = create_ticket(url="file://" + str(image), size=end)
+    add_ticket(ticket)
+    res = download(config, ticket["uuid"], rng)
+    assert res.status == 403
+    error = json.loads(res.read())
+    assert error["code"] == 403
+    assert error["title"] == "Forbidden"
+
+
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
                   url="file:///var/run/vdsm/storage/foo"):
     return {
