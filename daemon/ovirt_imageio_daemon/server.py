@@ -27,7 +27,6 @@ import webob
 from webob.exc import (
     HTTPBadRequest,
     HTTPNotFound,
-    HTTPForbidden
 )
 
 from ovirt_imageio_common import directio
@@ -36,13 +35,13 @@ from ovirt_imageio_common import version
 from ovirt_imageio_common import web
 
 from . import uhttp
+from . import tickets
 
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 
 log = logging.getLogger("server")
 image_server = None
 ticket_server = None
-tickets = {}
 running = True
 supported_schemes = ['file']
 
@@ -144,23 +143,6 @@ def response(status=200, payload=None):
                           content_type="application/json")
 
 
-def get_ticket(ticket_id, op, size):
-    """
-    Return a ticket for the requested operation, authorizing the operation.
-    """
-    try:
-        ticket = tickets[ticket_id]
-    except KeyError:
-        raise HTTPForbidden("No such ticket %r" % ticket_id)
-    if ticket["expires"] <= util.monotonic_time():
-        raise HTTPForbidden("Ticket %r expired" % ticket_id)
-    if op not in ticket["ops"]:
-        raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
-    if size > ticket["size"]:
-        raise HTTPForbidden("Content-Length out of allowed range")
-    return ticket
-
-
 class Images(object):
     """
     Request handler for the /images/ resource.
@@ -181,7 +163,7 @@ class Images(object):
             raise HTTPBadRequest("Invalid Content-Length header: %r" % size)
         content_range = web.content_range(self.request)
         offset = content_range.start or 0
-        ticket = get_ticket(ticket_id, "write", offset + size)
+        ticket = tickets.authorize(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info("Writing %d bytes at offset %d to %s for ticket %s",
                       size, offset, ticket["url"].path, ticket_id)
@@ -203,7 +185,7 @@ class Images(object):
         # TODO: support partial range (e.g. bytes=0-*)
         offset = self.request.range.start
         size = self.request.range.end - offset
-        ticket = get_ticket(ticket_id, "read", offset + size)
+        ticket = tickets.authorize(ticket_id, "read", offset + size)
         self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
                       size, offset, ticket["url"].path, ticket_id)
         op = directio.Send(ticket["url"].path,
@@ -235,7 +217,7 @@ class Tickets(object):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
         try:
-            ticket = tickets[ticket_id]
+            ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         ticket = ticket.copy()
@@ -275,10 +257,7 @@ class Tickets(object):
                                  "for url: %s" % ticket["url"].scheme)
 
         ticket["expires"] = int(util.monotonic_time()) + timeout
-        tickets[ticket_id] = ticket
-
-        self.log.info("Adding ticket %s, expires in %d, image url: %s",
-                      ticket_id, ticket["expires"], ticket["url"])
+        tickets.add(ticket_id, ticket)
         return response()
 
     def patch(self, ticket_id):
@@ -298,7 +277,7 @@ class Tickets(object):
         except ValueError as e:
             raise HTTPBadRequest("Invalid timeout value: %s" % e)
         try:
-            ticket = tickets[ticket_id]
+            ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
         ticket["expires"] = int(util.monotonic_time()) + timeout
@@ -310,12 +289,11 @@ class Tickets(object):
         # TODO: cancel requests using deleted tickets
         if ticket_id:
             try:
-                del tickets[ticket_id]
+                tickets.remove(ticket_id)
             except KeyError:
                 raise HTTPNotFound("No such ticket %r" % ticket_id)
         else:
             tickets.clear()
-        self.log.info("Deleting ticket %s", ticket_id)
         return response(status=204)
 
 

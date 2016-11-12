@@ -27,6 +27,7 @@ import pytest
 from ovirt_imageio_common import util
 from ovirt_imageio_daemon import uhttp
 from ovirt_imageio_daemon import server
+from ovirt_imageio_daemon import tickets
 
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
@@ -60,7 +61,7 @@ def config(request):
 
 
 def setup_function(f):
-    server.tickets.clear()
+    tickets.clear()
 
 
 def test_tickets_method_not_allowed(config):
@@ -112,7 +113,7 @@ def test_tickets_put_bad_url_value(config, monkeypatch):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_general_exception(config, monkeypatch):
@@ -131,7 +132,7 @@ def test_tickets_put_no_ticket_id(config):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/", body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_invalid_json(config):
@@ -139,7 +140,7 @@ def test_tickets_put_invalid_json(config):
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket,
                        "invalid json")
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_no_timeout(config):
@@ -148,7 +149,7 @@ def test_tickets_put_no_timeout(config):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_invalid_timeout(config):
@@ -157,7 +158,7 @@ def test_tickets_put_invalid_timeout(config):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_url_type_error(config):
@@ -166,7 +167,7 @@ def test_tickets_put_url_type_error(config):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_url_scheme_not_supported(config):
@@ -175,7 +176,7 @@ def test_tickets_put_url_scheme_not_supported(config):
     body = json.dumps(ticket)
     res = unix_request(config, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_extend(config, monkeypatch):
@@ -249,7 +250,7 @@ def test_tickets_delete_one(config):
     add_ticket(ticket)
     res = unix_request(config, "DELETE", "/tickets/%(uuid)s" % ticket)
     assert res.status == 204
-    assert ticket["uuid"] not in server.tickets
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_delete_one_not_found(config):
@@ -264,7 +265,7 @@ def test_tickets_delete_all(config):
         add_ticket(ticket)
     res = unix_request(config, "DELETE", "/tickets/")
     assert res.status == 204
-    assert server.tickets == {}
+    pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_images_no_resource(config):
@@ -562,12 +563,12 @@ def add_ticket(ticket):
     ticket = json.loads(json.dumps(ticket))
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
     ticket["url"] = urllib_parse.urlparse(ticket["url"])
-    server.tickets[ticket["uuid"]] = ticket
+    tickets.add(ticket["uuid"], ticket)
 
 
 def get_ticket(uuid):
     # Get a copy of the current server ticket, simulating a get request
-    ticket = server.tickets[uuid]
+    ticket = tickets.get(uuid)
     ticket = json.loads(json.dumps(ticket))
     ticket["url"] = urllib_parse.urlunparse(ticket["url"])
     return ticket
