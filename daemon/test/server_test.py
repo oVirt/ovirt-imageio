@@ -11,6 +11,7 @@ from contextlib import closing
 from pprint import pprint
 import httplib
 import json
+import logging
 import os
 import ssl
 import urlparse
@@ -28,6 +29,11 @@ try:
     ssl._create_default_https_context = ssl._create_unverified_context
 except AttributeError:
     pass  # Older Python, not required
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+           "%(message)s"))
 
 
 class Config(server.Config):
