@@ -362,6 +362,11 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
         handler.request_handler = self      # backpointer for logging
         handler.run(self.server.get_app())
 
+    def log_message(self, format, *args):
+        """
+        Override to avoid unwanted logging to stderr.
+        """
+
 
 class ServerHandler(simple_server.ServerHandler):
 
@@ -390,3 +395,8 @@ class UnixWSGIRequestHandler(uhttp.UnixWSGIRequestHandler):
     WSGI over unix domain socket request handler using HTTP/1.1.
     """
     protocol_version = "HTTP/1.1"
+
+    def log_message(self, format, *args):
+        """
+        Override to avoid unwanted logging to stderr.
+        """
