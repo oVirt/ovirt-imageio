@@ -43,6 +43,7 @@ install -D -m 0755 --directory %{buildroot}%{logdir}
 touch %{buildroot}%{logdir}/daemon.log
 install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
 
 %clean
@@ -54,6 +55,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_unitdir}/ovirt-imageio-daemon.service
 %dir %{_sysconfdir}/%{name}
 %config %{_sysconfdir}/%{name}/logger.conf
+%config %{_sysconfdir}/%{name}/daemon.conf
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
 %dir %attr(755, vdsm, kvm) %{logdir}

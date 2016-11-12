@@ -28,12 +28,15 @@ from webob.exc import (
     HTTPNotFound,
 )
 
+from ovirt_imageio_common import configloader
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
 from ovirt_imageio_common import web
 
+from . import config
+from . import pki
 from . import uhttp
 from . import tickets
 
@@ -49,7 +52,7 @@ supported_schemes = ['file']
 def main(args):
     configure_logger()
     log.info("Starting (version %s)", version.string)
-    config = Config()
+    configloader.load(config, [os.path.join(CONF_DIR, "daemon.conf")])
     signal.signal(signal.SIGINT, terminate)
     signal.signal(signal.SIGTERM, terminate)
     start(config)
@@ -78,16 +81,17 @@ def start(config):
     global image_server, ticket_server
     assert not (image_server or ticket_server)
 
-    log.debug("Starting images service on port %d", config.port)
-    image_server = ThreadedWSGIServer((config.host, config.port),
+    log.debug("Starting images service on port %d", config.images.port)
+    image_server = ThreadedWSGIServer((config.images.host, config.images.port),
                                       WSGIRequestHandler)
     secure_server(config, image_server)
     image_app = web.Application(config, [(r"/images/(.*)", Images)])
     image_server.set_app(image_app)
     start_server(config, image_server, "image.server")
 
-    log.debug("Starting tickets service on socket %s", config.socket)
-    ticket_server = uhttp.UnixWSGIServer(config.socket, UnixWSGIRequestHandler)
+    log.debug("Starting tickets service on socket %s", config.tickets.socket)
+    ticket_server = uhttp.UnixWSGIServer(config.tickets.socket,
+                                         UnixWSGIRequestHandler)
     ticket_app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
     ticket_server.set_app(ticket_app)
     start_server(config, ticket_server, "ticket.server")
@@ -103,38 +107,18 @@ def stop():
 
 
 def secure_server(config, server):
-    log.debug("Securing server (certfile=%s, keyfile=%s)",
-              config.cert_file, config.key_file)
-    context = ssl.server_context(config.ca_file, config.cert_file,
-                                 config.key_file)
+    key_file = pki.key_file(config)
+    cert_file = pki.cert_file(config)
+    log.debug("Securing server (certfile=%s, keyfile=%s)", cert_file, key_file)
+    context = ssl.server_context(cert_file, cert_file, key_file)
     server.socket = context.wrap_socket(server.socket, server_side=True)
 
 
 def start_server(config, server, name):
     log.debug("Starting thread %s", name)
     util.start_thread(server.serve_forever,
-                      kwargs={"poll_interval": config.poll_interval},
+                      kwargs={"poll_interval": config.daemon.poll_interval},
                       name=name)
-
-
-class Config(object):
-
-    pki_dir = "/etc/pki/vdsm"
-    host = ""
-    port = 54322
-    poll_interval = 1.0
-    buffer_size = 1024 * 1024
-    socket = "/var/run/vdsm/ovirt-imageio-daemon.sock"
-
-    @property
-    def key_file(self):
-        return os.path.join(self.pki_dir, "keys", "vdsmkey.pem")
-
-    @property
-    def cert_file(self):
-        return os.path.join(self.pki_dir, "certs", "vdsmcert.pem")
-
-    ca_file = cert_file
 
 
 def response(status=200, payload=None):
@@ -174,7 +158,7 @@ class Images(object):
                               self.request.body_file_raw,
                               size,
                               offset=offset,
-                              buffersize=self.config.buffer_size)
+                              buffersize=self.config.daemon.buffer_size)
         op.run()
         return response()
 
@@ -195,7 +179,7 @@ class Images(object):
                            None,
                            size,
                            offset=offset,
-                           buffersize=self.config.buffer_size)
+                           buffersize=self.config.daemon.buffer_size)
         resp = webob.Response(
             status=206,
             app_iter=op,
