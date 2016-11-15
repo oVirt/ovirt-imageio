@@ -9,6 +9,7 @@
 import cStringIO
 import pytest
 import string
+
 from collections import deque
 
 from ovirt_imageio_common import directio

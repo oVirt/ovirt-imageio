@@ -7,8 +7,7 @@
 # (at your option) any later version.
 
 from __future__ import print_function
-from contextlib import closing
-from pprint import pprint
+
 import httplib
 import json
 import logging
@@ -16,6 +15,9 @@ import os
 import ssl
 import urlparse
 import uuid
+
+from contextlib import closing
+from pprint import pprint
 
 import pytest
 

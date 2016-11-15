@@ -7,12 +7,15 @@
 # (at your option) any later version.
 
 from __future__ import print_function
-from contextlib import contextmanager, closing
+
 import os
 import pprint
 import ssl
-import wsgiref.util
 import tempfile
+import wsgiref.util
+
+from contextlib import closing
+from contextlib import contextmanager
 
 import pytest
 

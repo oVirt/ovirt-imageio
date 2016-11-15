@@ -6,11 +6,13 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from contextlib import contextmanager, closing
 import fcntl
 import io
 import mmap
 import os
+
+from contextlib import closing
+from contextlib import contextmanager
 
 from . import util
 from . import errors

@@ -6,18 +6,17 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from ovirt_imageio_common import web
-
-from wsgiref import simple_server
 import SocketServer
 import json
+import logging
+import logging.config
 import os
 import signal
 import ssl
-import urlparse
 import time
-import logging
-import logging.config
+import urlparse
+
+from wsgiref import simple_server
 
 import systemd.daemon
 import webob
@@ -33,6 +32,7 @@ from webob.exc import (
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
+from ovirt_imageio_common import web
 
 from . import uhttp
 

@@ -7,11 +7,11 @@
 # (at your option) any later version.
 
 import httplib
+import json
 import logging
 import re
-import util
+
 import webob
-import json
 
 from webob.exc import (
     HTTPBadRequest,
@@ -20,6 +20,8 @@ from webob.exc import (
     HTTPNotFound,
     HTTPInternalServerError,
 )
+
+from . import util
 
 log = logging.getLogger("web")
 
