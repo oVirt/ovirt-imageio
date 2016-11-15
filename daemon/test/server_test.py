@@ -9,22 +9,27 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import httplib
 import json
 import logging
 import os
 import ssl
-import urlparse
+import sys
 import uuid
 
 from contextlib import closing
 from pprint import pprint
+
+from six.moves import http_client
+from six.moves import urllib_parse
 
 import pytest
 
 from ovirt_imageio_common import util
 from ovirt_imageio_daemon import uhttp
 from ovirt_imageio_daemon import server
+
+pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
+                                reason='needs porting to python 3')
 
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.
@@ -60,7 +65,7 @@ def setup_function(f):
 
 def test_tickets_method_not_allowed(config):
     res = unix_request(config, "NO_SUCH_METHO", "/tickets/")
-    assert res.status == httplib.METHOD_NOT_ALLOWED
+    assert res.status == http_client.METHOD_NOT_ALLOWED
 
 
 def test_tickets_no_resource(config):
@@ -116,7 +121,7 @@ def test_tickets_general_exception(config, monkeypatch):
     monkeypatch.setattr(server.Tickets, "get", fail)
     res = unix_request(config, "GET", "/tickets/%s" % uuid.uuid4())
     error = json.loads(res.read())
-    assert res.status == httplib.INTERNAL_SERVER_ERROR
+    assert res.status == http_client.INTERNAL_SERVER_ERROR
     assert "application/json" in res.getheader('content-type')
     assert "EXPECTED FAILURE" in error["detail"]
 
@@ -476,8 +481,8 @@ def download(config, ticket_uuid, range):
 
 
 def http_request(config, method, uri, body=None, headers=None):
-    con = httplib.HTTPSConnection("127.0.0.1", config.port, config.key_file,
-                                  config.cert_file)
+    con = http_client.HTTPSConnection("127.0.0.1", config.port,
+                                      config.key_file, config.cert_file)
     with closing(con):
         con.request(method, uri, body=body, headers=headers or {})
         return response(con)
@@ -488,8 +493,8 @@ def raw_http_request(config, method, uri, body=None, headers=None):
     Use this to send bad requests - this will send only the headers set in
     headers, no attempt is made to create a correct request.
     """
-    con = httplib.HTTPSConnection("127.0.0.1", config.port, config.key_file,
-                                  config.cert_file)
+    con = http_client.HTTPSConnection("127.0.0.1", config.port,
+                                      config.key_file, config.cert_file)
     with closing(con):
         con.putrequest(method, uri)
         if headers:
@@ -556,7 +561,7 @@ def add_ticket(ticket):
     # ticket.
     ticket = json.loads(json.dumps(ticket))
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
-    ticket["url"] = urlparse.urlparse(ticket["url"])
+    ticket["url"] = urllib_parse.urlparse(ticket["url"])
     server.tickets[ticket["uuid"]] = ticket
 
 
@@ -564,5 +569,5 @@ def get_ticket(uuid):
     # Get a copy of the current server ticket, simulating a get request
     ticket = server.tickets[uuid]
     ticket = json.loads(json.dumps(ticket))
-    ticket["url"] = urlparse.urlunparse(ticket["url"])
+    ticket["url"] = urllib_parse.urlunparse(ticket["url"])
     return ticket

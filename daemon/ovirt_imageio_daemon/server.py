@@ -8,7 +8,6 @@
 
 from __future__ import absolute_import
 
-import SocketServer
 import json
 import logging
 import logging.config
@@ -16,9 +15,11 @@ import os
 import signal
 import ssl
 import time
-import urlparse
 
 from wsgiref import simple_server
+
+from six.moves import socketserver
+from six.moves import urllib_parse
 
 import systemd.daemon
 import webob
@@ -238,7 +239,7 @@ class Tickets(object):
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         ticket = ticket.copy()
-        ticket["url"] = urlparse.urlunparse(ticket["url"])
+        ticket["url"] = urllib_parse.urlunparse(ticket["url"])
         self.log.info("Retrieving ticket %s", ticket_id)
         return response(payload=ticket)
 
@@ -265,7 +266,7 @@ class Tickets(object):
         except KeyError:
             raise HTTPBadRequest("Missing url key in ticket")
         try:
-            ticket["url"] = urlparse.urlparse(url_str)
+            ticket["url"] = urllib_parse.urlparse(url_str)
         except (ValueError, AttributeError, TypeError):
             raise HTTPBadRequest("Invalid url string %r" % url_str)
 
@@ -318,7 +319,7 @@ class Tickets(object):
         return response(status=204)
 
 
-class ThreadedWSGIServer(SocketServer.ThreadingMixIn,
+class ThreadedWSGIServer(socketserver.ThreadingMixIn,
                          simple_server.WSGIServer):
     """
     Threaded WSGI HTTP server.

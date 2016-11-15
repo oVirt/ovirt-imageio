@@ -10,11 +10,15 @@ from __future__ import absolute_import
 
 import os
 import signal
+import sys
 import time
 
 import pytest
 
 from ovirt_imageio_common import util
+
+pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
+                                reason='needs porting to python 3')
 
 
 def test_uninterruptible_interrupt():

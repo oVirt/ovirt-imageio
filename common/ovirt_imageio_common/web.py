@@ -8,10 +8,11 @@
 
 from __future__ import absolute_import
 
-import httplib
 import json
 import logging
 import re
+
+from six.moves import http_client
 
 import webob
 
@@ -102,7 +103,7 @@ def error_response(e):
     return response(status=e.code, payload=payload)
 
 
-def response(status=httplib.OK, payload=None):
+def response(status=http_client.OK, payload=None):
     """
     Return WSGI application for sending response in JSON format.
     """

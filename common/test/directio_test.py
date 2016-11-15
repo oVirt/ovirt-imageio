@@ -8,14 +8,19 @@
 
 from __future__ import absolute_import
 
-import cStringIO
-import pytest
+import io
 import string
+import sys
 
 from collections import deque
 
+import pytest
+
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
+
+pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
+                                reason='needs porting to python 3')
 
 
 def fill(s, size):
@@ -23,8 +28,8 @@ def fill(s, size):
     return s * count + s[:rest]
 
 
-BUFFER = fill(string.uppercase, directio.BUFFERSIZE)
-PARTIAL = fill(string.lowercase, directio.BLOCKSIZE)
+BUFFER = fill(string.ascii_uppercase, directio.BUFFERSIZE)
+PARTIAL = fill(string.ascii_lowercase, directio.BLOCKSIZE)
 BYTES = fill(string.digits, 42)
 
 
@@ -74,7 +79,7 @@ def test_send_partial_content(tmpdir, data, offset):
 def send(tmpdir, data, size, offset=0):
     src = tmpdir.join("src")
     src.write(data)
-    dst = cStringIO.StringIO()
+    dst = io.BytesIO()
     op = directio.Send(str(src), dst, size, offset=offset)
     op.run()
     return dst.getvalue()
@@ -120,7 +125,7 @@ def test_receive_partial_content(tmpdir, data, offset):
 def receive(tmpdir, data, size, offset=0):
     dst = tmpdir.join("dst")
     dst.write("x" * offset)
-    src = cStringIO.StringIO(data)
+    src = io.BytesIO(data)
     op = directio.Receive(str(dst), src, size, offset=offset)
     op.run()
     with open(str(dst), "rb") as f:
@@ -273,7 +278,7 @@ def receive_unbuffered(tmpdir, chunks, size, bufsize):
 def test_receive_no_size(tmpdir, data, offset):
     dst = tmpdir.join("dst")
     dst.write("x" * offset)
-    src = cStringIO.StringIO(data)
+    src = io.BytesIO(data)
     op = directio.Receive(str(dst), src, offset=offset)
     op.run()
     assert dst.read()[offset:] == data
@@ -290,7 +295,7 @@ def test_receive_no_size(tmpdir, data, offset):
 def test_send_no_size(tmpdir, data, offset):
     src = tmpdir.join("src")
     src.write(data)
-    dst = cStringIO.StringIO()
+    dst = io.BytesIO()
     op = directio.Send(str(src), dst, offset=offset)
     op.run()
     assert dst.getvalue() == data[offset:]
