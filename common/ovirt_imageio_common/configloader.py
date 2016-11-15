@@ -55,6 +55,7 @@ Unknown sections and options in the configuration file are ignored.
 
 """
 
+from __future__ import absolute_import
 from six.moves import configparser
 
 
