@@ -1,6 +1,7 @@
 m2crypto
 python-devel
-python-requests
 python-pip
+python-requests
+python-six
 python-webob
 systemd-python
