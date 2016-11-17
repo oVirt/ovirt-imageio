@@ -78,12 +78,12 @@ class Application(object):
         else:
             log_call = log.info
         log_call("%s - %s %s %d %d (%.2fs)",
-             req.client_addr,
-             req.method,
-             req.path_info,
-             resp.status_code,
-             resp.content_length,
-             elapsed_time)
+                 req.client_addr,
+                 req.method,
+                 req.path_info,
+                 resp.status_code,
+                 resp.content_length,
+                 elapsed_time)
 
 
 def error_response(e):

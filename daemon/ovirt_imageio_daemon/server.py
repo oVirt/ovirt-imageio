@@ -22,9 +22,7 @@ import systemd.daemon
 import webob
 
 from webob.exc import (
-    HTTPException,
     HTTPBadRequest,
-    HTTPMethodNotAllowed,
     HTTPNotFound,
     HTTPForbidden
 )

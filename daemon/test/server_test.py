@@ -35,7 +35,7 @@ except AttributeError:
 logging.basicConfig(
     level=logging.DEBUG,
     format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
-           "%(message)s"))
+            "%(message)s"))
 
 
 class Config(server.Config):
