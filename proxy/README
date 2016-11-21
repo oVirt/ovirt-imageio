@@ -194,6 +194,26 @@ Please send any patches to:
   gerrit.ovirt.org/ovirt-imageio
 
 
+Organizing imports:
+
+Imports should be organized in the following order:
+
+ - Future import group
+
+ - Standard library
+
+ - "from" imports (e.g. from contextlib import closing)
+
+ - "six" imports, for supporting both python 2 and 3
+
+ - 3rd party imports
+
+ - Local imports (using from . import ...)
+
+As a general rule, only modules should be imported, never import names
+from modules. The only exception is common imports from the standard
+library (e.g. contextlib.closing).
+
 Packaging
 ---------
 
