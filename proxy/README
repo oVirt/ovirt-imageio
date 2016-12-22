@@ -83,7 +83,8 @@ runtime configuration.
 
 
 Installation with ovirt-engine developer environment
-======================================================
+----------------------------------------------------
+
 For setting up ovirt-imageio-proxy in an ovirt dev environment, run:
 
   make
