@@ -74,8 +74,10 @@ class Application(object):
         raise HTTPNotFound("No handler for %r" % path)
 
     def log_response(self, req, resp, elapsed_time):
-        if resp.status_code >= 400:
+        if resp.status_code >= 500:
             log_call = log.exception
+        elif resp.status_code >= 400:
+            log_call = log.warning
         else:
             log_call = log.info
         log_call("%s - %s %s %d %d (%.2fs)",
