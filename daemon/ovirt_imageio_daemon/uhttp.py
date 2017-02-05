@@ -11,7 +11,6 @@ from __future__ import absolute_import
 import errno
 import os
 import socket
-import ssl
 
 from wsgiref import simple_server
 
@@ -49,29 +48,6 @@ class UnixHTTPConnection(_UnixMixin, http_client.HTTPConnection):
 
     def connect(self):
         self.sock = _create_unix_socket(self.timeout)
-        self.sock.connect(self.path)
-
-
-class UnixHTTPSConnection(_UnixMixin, http_client.HTTPSConnection):
-    """
-    HTTPS connection over unix domain socket.
-    """
-
-    def __init__(self, path, key_file=None, cert_file=None,
-                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
-        self.path = path
-        extra = {}
-        if six.PY2:
-            extra['strict'] = True
-        http_client.HTTPSConnection.__init__(self, "localhost",
-                                             key_file=key_file,
-                                             cert_file=cert_file,
-                                             timeout=timeout,
-                                             **extra)
-
-    def connect(self):
-        sock = _create_unix_socket(self.timeout)
-        self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file)
         self.sock.connect(self.path)
 
 

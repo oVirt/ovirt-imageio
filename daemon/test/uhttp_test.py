@@ -11,7 +11,6 @@ from __future__ import print_function
 
 import os
 import pprint
-import ssl
 import tempfile
 import wsgiref.util
 
@@ -28,13 +27,10 @@ KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")
 CERT_FILE = os.path.join(PKI_DIR, "pki/certs/vdsmcert.pem")
 
 
-@pytest.fixture(scope="session", params=[False, True])
+@pytest.fixture(scope="session")
 def uhttpserver(request):
     tmp = tempfile.NamedTemporaryFile()
     server = uhttp.UnixWSGIServer(tmp.name, RequestHandler)
-    if request.param:
-        server.socket = ssl.wrap_socket(server.socket, certfile=CERT_FILE,
-                                        keyfile=KEY_FILE, server_side=True)
     util.start_thread(server.serve_forever, kwargs={"poll_interval": 0.1})
     request.addfinalizer(server.shutdown)
     request.addfinalizer(tmp.close)
@@ -141,12 +137,6 @@ class RequestHandler(uhttp.UnixWSGIRequestHandler):
 
 @contextmanager
 def make_connection(server):
-    if hasattr(server.socket, 'ssl_version'):
-        con = uhttp.UnixHTTPSConnection(server.server_address,
-                                        key_file=KEY_FILE,
-                                        cert_file=CERT_FILE,
-                                        timeout=2)
-    else:
-        con = uhttp.UnixHTTPConnection(server.server_address, timeout=2)
+    con = uhttp.UnixHTTPConnection(server.server_address, timeout=2)
     with closing(con):
         yield con
