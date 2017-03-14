@@ -12,12 +12,12 @@ import io
 import string
 import sys
 
-from collections import deque
-
 import pytest
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
+
+from . import ioutil
 
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
@@ -157,87 +157,6 @@ def test_round_up(size, rounded):
     assert directio.round_up(size) == rounded
 
 
-class UnbufferedStream(object):
-    """
-    Unlike regular file object, read may return any amount of bytes up to the
-    requested size. This behavior is probably the result of doing one syscall
-    per read, without any buffering.
-
-    This simulate libvirt stream behavior used to copy imaged directly from
-    libvirt.
-    https://libvirt.org/html/libvirt-libvirt-stream.html#virStreamRecv
-    """
-
-    def __init__(self, chunks):
-        self.chunks = deque(chunks)
-
-    def read(self, size):
-        if not self.chunks:
-            return ''
-        chunk = self.chunks.popleft()
-        res = chunk[:size]
-        chunk = chunk[size:]
-        if chunk:
-            self.chunks.appendleft(chunk)
-        return res
-
-
-def test_unbuffered_stream_more():
-    chunks = ["1" * 256,
-              "2" * 256,
-              "3" * 42,
-              "4" * 256]
-    s = UnbufferedStream(chunks)
-    # Chunk 1
-    b = s.read(512)
-    assert b == chunks[0]
-    # Chunk 2
-    b = s.read(512)
-    assert b == chunks[1]
-    # Chunk 3
-    b = s.read(512)
-    assert b == chunks[2]
-    # Chunk 4
-    b = s.read(512)
-    assert b == chunks[3]
-    # Empty
-    b = s.read(512)
-    assert b == ''
-    b = s.read(512)
-    assert b == ''
-
-
-def test_unbuffered_stream_less():
-    chunks = ["1" * 256,
-              "2" * 256,
-              "3" * 42,
-              "4" * 256]
-    s = UnbufferedStream(chunks)
-    # Chunk 1
-    b = s.read(128)
-    assert b == chunks[0][:128]
-    b = s.read(128)
-    assert b == chunks[0][128:]
-    # Chunk 2
-    b = s.read(128)
-    assert b == chunks[1][:128]
-    b = s.read(128)
-    assert b == chunks[1][128:]
-    # Chunk 3
-    b = s.read(128)
-    assert b == chunks[2]
-    # Chunk 4
-    b = s.read(128)
-    assert b == chunks[3][:128]
-    b = s.read(128)
-    assert b == chunks[3][128:]
-    # Empty
-    b = s.read(128)
-    assert b == ''
-    b = s.read(128)
-    assert b == ''
-
-
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
 def test_receive_unbuffered_stream(tmpdir, bufsize):
     chunks = ["1" * 1024,
@@ -261,7 +180,7 @@ def test_receive_unbuffered_stream_partial_content(tmpdir):
 def receive_unbuffered(tmpdir, chunks, size, bufsize):
     dst = tmpdir.join("dst")
     dst.write("")
-    src = UnbufferedStream(chunks)
+    src = ioutil.UnbufferedStream(chunks)
     op = directio.Receive(str(dst), src, size, buffersize=bufsize)
     op.run()
     return dst.read()
