@@ -60,7 +60,7 @@ class ImageHandler(object):
             imaged_response.headers.get('Content-Range', '')
 
         max_transfer_bytes = int(imaged_response.headers.get('Content-Length'))
-        response.body_file = CappedStream(RequestStreamAdapter(
+        response.body_file = web.CappedStream(RequestStreamAdapter(
             imaged_response.iter_content(4096, False)),
             max_transfer_bytes)
         response.headers['Content-Length'] = str(max_transfer_bytes)
@@ -104,11 +104,7 @@ class ImageHandler(object):
         headers['Content-Length'] = request.headers['Content-Length']
         max_transfer_bytes = int(headers['Content-Length'])
 
-        # The Requests documentation states that streaming uploads are
-        # supported if data is a "file-like" object.  It looks for an
-        # __iter__ attribute, then passes data along to HTTPConnection
-        # .request(), where we find that all we need is a read() method.
-        body = CappedStream(request.body_file, max_transfer_bytes)
+        body = web.CappedStream(request.body_file, max_transfer_bytes)
         stream = False
         logging.debug("Resource %s: transferring %d bytes to vdsm-imaged",
                       resource_id, max_transfer_bytes)
@@ -209,44 +205,6 @@ class ImageHandler(object):
             httplib.responses[imaged_resp.status_code]
         )
         return imaged_resp
-
-
-class CappedStream(object):
-    """
-    File-like stream wrapper limiting the amount of data transferred to avoid
-    exploits or resource exhaustion from streaming more data than specified
-    by a content-length header.  Its read() method will return EOF after
-    max_bytes.
-    """
-    def __init__(self, input_stream, max_bytes):
-        self.input_stream = input_stream
-        self.max_bytes = max_bytes
-        self.bytes_read = 0
-
-    def __iter__(self):
-        return CappedStreamIterator(self.input_stream, self.max_bytes)
-
-    def read(self, size):
-        to_read = min(size, self.max_bytes - self.bytes_read)
-        self.bytes_read += to_read
-        return self.input_stream.read(to_read)
-
-
-class CappedStreamIterator(object):
-    """ Iterator for CappedStream object. """
-    chunk_size = 4096
-
-    def __init__(self, input_stream, max_bytes):
-        self.capped_stream = CappedStream(input_stream, max_bytes)
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        output = self.capped_stream.read(self.chunk_size)
-        if not output:
-            raise StopIteration
-        return output
 
 
 class RequestStreamAdapter(object):

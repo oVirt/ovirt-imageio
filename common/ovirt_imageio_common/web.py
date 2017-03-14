@@ -127,3 +127,46 @@ def content_range(request):
     if content_range is None:
         raise HTTPBadRequest("Invalid content-range: %r" % header)
     return content_range
+
+
+class CappedStream(object):
+    """
+    Stream limiting the amount of read data.
+
+    This is a readonly file-like object limiting the amount of data read from
+    the underlying stream. This is required when using http pipelining, and
+    useful to avoid resurces exhaustion.
+
+    The read() method will return empty string once the max_bytes bytes was
+    read from the stream.
+
+    Provides __iter__() method to make requests.Request use streaming.
+    """
+
+    def __init__(self, input_stream, max_bytes, buffer_size=1024**2):
+        """
+        Initialize a CappedStream.
+
+        Arguments:
+          input_stream (reader): An object implemneting read().
+          max_bytes (int): maximum number of bytes to read from input_stream
+          buffer_size (int): maximum number of bytes read will return
+        """
+        self.input_stream = input_stream
+        self.max_bytes = max_bytes
+        self.buffer_size = buffer_size
+        self.bytes_read = 0
+
+    def __iter__(self):
+        while True:
+            chunk = self.read(self.buffer_size)
+            if not chunk:
+                return
+            yield chunk
+
+    def read(self, size=None):
+        if size is None:
+            size = self.buffer_size
+        to_read = min(size, self.max_bytes - self.bytes_read)
+        self.bytes_read += to_read
+        return self.input_stream.read(to_read)
