@@ -168,5 +168,6 @@ class CappedStream(object):
         if size is None:
             size = self.buffer_size
         to_read = min(size, self.max_bytes - self.bytes_read)
-        self.bytes_read += to_read
-        return self.input_stream.read(to_read)
+        chunk = self.input_stream.read(to_read)
+        self.bytes_read += len(chunk)
+        return chunk

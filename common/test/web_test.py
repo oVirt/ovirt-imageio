@@ -10,8 +10,6 @@ from __future__ import absolute_import
 
 import io
 
-import pytest
-
 from ovirt_imageio_common import web
 
 from . import ioutil
@@ -47,7 +45,6 @@ def test_capped_stream_read_size():
     assert capped_stream.read(123) == b"x" * 123
 
 
-@pytest.mark.xfail(reason="bytes conunting is broken")
 def test_capped_stream_short_reads():
     stream = ioutil.UnbufferedStream([b"1" * 123, b"2" * 456])
     capped_stream = web.CappedStream(stream, 1024)
