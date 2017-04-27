@@ -120,6 +120,7 @@ class ConfigEnv(object):
         summary=True,
         description=_('Configure Image I/O Proxy'),
         postinstallfile=True,
+        reconfigurable=True,
     )
     def IMAGEIO_PROXY_CONFIG(self):
         return 'OVESETUP_CONFIG/imageioProxyConfig'
