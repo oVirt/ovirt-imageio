@@ -25,6 +25,7 @@ from six.moves import urllib_parse
 import pytest
 
 from ovirt_imageio_common import util
+from ovirt_imageio_common.ssl import check_protocol
 from ovirt_imageio_daemon import uhttp
 from ovirt_imageio_daemon import server
 from ovirt_imageio_daemon import tickets
@@ -455,6 +456,12 @@ def test_images_download_out_of_range(tmpdir, config, rng, end):
     error = json.loads(res.read())
     assert error["code"] == 403
     assert error["title"] == "Forbidden"
+
+
+@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+def test_accept_protocols(config, protocol):
+    rc = check_protocol("127.0.0.1", config.port, protocol)
+    assert rc == 0
 
 
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,

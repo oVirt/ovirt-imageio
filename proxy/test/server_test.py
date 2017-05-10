@@ -9,6 +9,7 @@ import ssl
 import pytest
 import requests_mock
 
+from ovirt_imageio_common.ssl import check_protocol
 from ovirt_imageio_proxy import server
 
 TEST_DIR = os.path.dirname(__file__)
@@ -258,6 +259,12 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
         res = http_request(proxy_server, "PUT", path, headers=request_headers)
         assert m.called
     assert res.status == 404
+
+
+@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+def test_accept_protocols(proxy_server, protocol):
+    rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
+    assert rc == 0
 
 
 def images_request_headers(signed_ticket):
