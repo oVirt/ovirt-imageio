@@ -1,6 +1,6 @@
 #
 # ovirt-imageio-proxy - oVirt image upload proxy
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# Copyright (C) 2015-2017 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 
 import httplib
 import SocketServer
-import ssl
 import threading
 from wsgiref import simple_server
 
@@ -26,6 +25,7 @@ import webob
 import download_handler
 import image_handler
 
+from ovirt_imageio_common import ssl
 from ovirt_imageio_common import web
 
 
@@ -57,11 +57,10 @@ class Server:
 
     def _secure_server(self, config, server):
         # TODO consider cert_reqs
-        server.socket = ssl.wrap_socket(
-            server.socket,
-            certfile=config.ssl_cert_file,
-            keyfile=config.ssl_key_file,
-            server_side=True)
+        context = ssl.server_context(config.ssl_cert_file,
+                                     config.ssl_cert_file,
+                                     config.ssl_key_file)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
 
     def _start_server(self, config, server, name):
         def run():

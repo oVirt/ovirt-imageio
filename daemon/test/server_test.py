@@ -1,5 +1,5 @@
 # ovirt-imageio-daemon
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# Copyright (C) 2015-2017 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -456,6 +456,12 @@ def test_images_download_out_of_range(tmpdir, config, rng, end):
     error = json.loads(res.read())
     assert error["code"] == 403
     assert error["title"] == "Forbidden"
+
+
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
+def test_reject_protocols(config, protocol):
+    rc = check_protocol("127.0.0.1", config.port, protocol)
+    assert rc != 0
 
 
 @pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])

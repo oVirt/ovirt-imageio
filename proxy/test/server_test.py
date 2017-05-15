@@ -261,6 +261,12 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
     assert res.status == 404
 
 
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
+def test_reject_protocols(proxy_server, protocol):
+    rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
+    assert rc != 0
+
+
 @pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
 def test_accept_protocols(proxy_server, protocol):
     rc = check_protocol("127.0.0.1", proxy_server.port, protocol)

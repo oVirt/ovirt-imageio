@@ -1,5 +1,5 @@
 # ovirt-imageio-daemon
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# Copyright (C) 2015-2017 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@ import logging
 import logging.config
 import os
 import signal
-import ssl
 import time
 
 from wsgiref import simple_server
@@ -30,6 +29,7 @@ from webob.exc import (
 )
 
 from ovirt_imageio_common import directio
+from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
 from ovirt_imageio_common import web
@@ -105,8 +105,9 @@ def stop():
 def secure_server(config, server):
     log.debug("Securing server (certfile=%s, keyfile=%s)",
               config.cert_file, config.key_file)
-    server.socket = ssl.wrap_socket(server.socket, certfile=config.cert_file,
-                                    keyfile=config.key_file, server_side=True)
+    context = ssl.server_context(config.ca_file, config.cert_file,
+                                 config.key_file)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
 
 
 def start_server(config, server, name):
@@ -132,6 +133,8 @@ class Config(object):
     @property
     def cert_file(self):
         return os.path.join(self.pki_dir, "certs", "vdsmcert.pem")
+
+    ca_file = cert_file
 
 
 def response(status=200, payload=None):
