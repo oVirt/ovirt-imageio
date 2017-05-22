@@ -3,16 +3,15 @@ PROGRAM_NAME=ovirt-imageio-proxy
 PACKAGE_VERSION=$(shell python ovirt_imageio_proxy/version.py --version)
 
 # TODO: remove rpm dependencies
-PROXY_CONFDIR=$(shell rpm --eval '%_sysconfdir')/$(PACKAGE_NAME)
-PROXY_LOGDIR=$(shell rpm --eval '%_localstatedir')/log/$(PACKAGE_NAME)
+PROXY_CONFDIR=$(ENGINE_PREFIX)$/etc/$(PACKAGE_NAME)
+PROXY_LOGDIR=$(ENGINE_PREFIX)$/var/log/$(PACKAGE_NAME)
 RPM_TOPDIR?=$(PWD)/build/rpm
 SPEC_NAME=$(PACKAGE_NAME).spec
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 
 # The following must be in sync with ovirt-engine spec file definitions
 ENGINE_NAME=ovirt-engine
-ENGINE_SYSCONF_DIR=$(shell rpm --eval '%_sysconfdir')
-ENGINE_PKG_PKI_DIR=$(ENGINE_PREFIX)$(ENGINE_SYSCONF_DIR)/pki/$(ENGINE_NAME)
+ENGINE_PKG_PKI_DIR=$(ENGINE_PREFIX)/etc/pki/$(ENGINE_NAME)
 
 GENERATED = \
 	$(SPEC_NAME) \
@@ -57,9 +56,11 @@ else
 endif
 
 install-dev:
-	python setup.py install
+	python setup.py install --user
 	# TODO: Remove duplication from spec
-	install -Dm 0644 data/logger.conf /etc/ovirt-imageio-proxy
+	install -dDm 0750 $(PROXY_CONFDIR)
+	install -dDm 0700 $(PROXY_LOGDIR)
+	install -Dm 0644 data/logger.conf $(ENGINE_PREFIX)/etc/ovirt-imageio-proxy
 	install -Dm 0644 setup/data/ovirt-imageio-proxy.xml.in $(ENGINE_PREFIX)/share/ovirt-engine/firewalld/ovirt-imageio-proxy/ovirt-imageio-proxy.xml.in
 	find setup/plugins setup/ovirt_engine_setup -name '*.py' -exec install -Dm 0644 {} $(ENGINE_PREFIX)/share/ovirt-engine/{} \;
 
