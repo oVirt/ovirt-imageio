@@ -3,8 +3,8 @@ PROGRAM_NAME=ovirt-imageio-proxy
 PACKAGE_VERSION=$(shell python ovirt_imageio_proxy/version.py --version)
 
 # TODO: remove rpm dependencies
-PROXY_CONFDIR=$(ENGINE_PREFIX)$/etc/$(PACKAGE_NAME)
-PROXY_LOGDIR=$(ENGINE_PREFIX)$/var/log/$(PACKAGE_NAME)
+PROXY_CONFDIR=$(ENGINE_PREFIX)/etc/$(PACKAGE_NAME)
+PROXY_LOGDIR=$(ENGINE_PREFIX)/var/log/$(PACKAGE_NAME)
 RPM_TOPDIR?=$(PWD)/build/rpm
 SPEC_NAME=$(PACKAGE_NAME).spec
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -25,7 +25,7 @@ METADATA = ovirt_imageio_proxy/version.py Makefile
 .SUFFIXES:
 .SUFFIXES: .in
 
-.PHONY: all generated-files build install install-dev clean check dist srpm rpm
+.PHONY: all generated-files build install install-dev clean check dist srpm rpm $(GENERATED)
 
 build: $(GENERATED)
 	python setup.py build
@@ -55,7 +55,7 @@ else
 	# ERROR: DESTDIR is not defined! Please refer to installation notes.
 endif
 
-install-dev:
+install-dev: $(GENERATED)
 	python setup.py install --user
 	# TODO: Remove duplication from spec
 	install -dDm 0750 $(PROXY_CONFDIR)

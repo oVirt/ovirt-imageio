@@ -86,12 +86,10 @@ Installation with ovirt-engine developer environment
 ======================================================
 For setting up ovirt-imageio-proxy in an ovirt dev environment, run:
 
-  make ENGINE_PREFIX=<engine prefix>
-  make install-dev ENGINE_PREFIX=<engine prefix>
+   make install-dev ENGINE_PREFIX=<engine prefix>
 
 Example:
 
-   make ENGINE_PREFIX=/home/user/my-ovirt-engine
    make install-dev ENGINE_PREFIX=/home/user/my-ovirt-engine
 
 If ovirt-imageio-proxy wasn't configured yet, run engine setup, and 
