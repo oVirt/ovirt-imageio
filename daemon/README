@@ -12,7 +12,7 @@ performing random I/O.
 The goal is to keep ovirt-imageio-daemon simple as possible. We use a
 single protocol (HTTP) for everything, and avoid dependencies on Vdsm.
 
-This daemon provides these serices:
+This daemon provides these services:
 
 - images service    read and write data to/from images. This service is
                     available via HTTPS on port 54322. This service is
