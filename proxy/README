@@ -77,7 +77,7 @@ separate host, you will be prompted to perform manual steps for the
 PKI setup.
 
 Installation from source is not recommended.  If you want to run the
-proxy without installing the packages and runing engine-setup, it's
+proxy without installing the packages and running engine-setup, it's
 best to run it in-place using the --config_file option to supply the
 runtime configuration.
 
@@ -111,7 +111,7 @@ http://<engine_url>/ovirt-engine/services/pki-resource?resource=ca-certificate&f
 SSL keys in imageIO
 -------------------
 
-In order to securly cooperate with the webadmin and
+In order to securely cooperate with the webadmin and
 ovirt-imageio-daemon, ovirt-imageio-proxy is using SSL keys which
 are managed by the engine. some of which are created specially for
 ovirt-imageio service, and some are being used internally by the
