@@ -109,7 +109,7 @@ class Plugin(plugin.PluginBase):
                 dialog=self.dialog,
                 name='OVESETUP_CONFIG_IMAGEIO_PROXY',
                 note=_(
-                    'Configure Image I/O Proxy on this host? '
+                    'Configure Image I/O Proxy on this host '
                     '(@VALUES@) [@DEFAULT@]: '
                 ),
                 prompt=True,
