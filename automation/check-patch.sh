@@ -14,3 +14,6 @@ for subdir in common daemon proxy; do
     tox -- -m \'not noci\'
     popd
 done
+
+# TODO: use make check for all subdirs
+make check -C ova

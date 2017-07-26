@@ -1,4 +1,4 @@
-subdirs = common daemon proxy
+subdirs = common daemon proxy ova
 targets = all check dist srpm rpm
 
 .PHONY: $(targets) $(subdirs)
