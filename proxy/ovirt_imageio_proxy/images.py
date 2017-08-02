@@ -58,6 +58,10 @@ class RequestHandler(object):
         response.headers['Cache-Control'] = 'no-cache, no-store'
         response.headers['Content-Range'] = \
             imaged_response.headers.get('Content-Range', '')
+        disposition = imaged_response.headers.get('Content-Disposition')
+        if disposition is not None:
+            response.headers['Content-Disposition'] = disposition
+
 
         max_transfer_bytes = int(imaged_response.headers.get('Content-Length'))
         response.body_file = web.CappedStream(RequestStreamAdapter(
@@ -185,10 +189,11 @@ class RequestHandler(object):
             logging.error(s, exc_info=True)
             raise exc.HTTPInternalServerError(s)
 
-        logging.debug("Incoming headers from host:\n" +
-                      '\n'.join(('  {}: {}'
-                                 .format(k, imaged_resp.headers.get(k))
-                                 for k in sorted(imaged_resp.headers))))
+        print imaged_resp.headers
+        # logging.debug("Incoming headers from host:\n" +
+        #               '\n'.join(('  {}: {}'
+        #                          .format(k, imaged_resp.headers.get(k))
+        #                          for k in sorted(imaged_resp.headers))))
 
         if imaged_resp.status_code not in http_success_codes:
             # Don't read the whole body, in case something went really wrong...

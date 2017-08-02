@@ -151,6 +151,7 @@ def test_images_get_imaged_200_ok(proxy_server, signed_ticket):
     response_headers = {
         "Content-Range": "bytes 2-6/8",
         "Content-Length": "5",
+        "Content-Disposition": "attachment; filename=\xd7\x90", # this is hebrew aleph
     }
     path = "/images/" + AUTH_TICKET_ID
 
@@ -164,6 +165,7 @@ def test_images_get_imaged_200_ok(proxy_server, signed_ticket):
     assert res.status == 200
     assert res.read() == "hello"
     assert res.getheader("content-length") == "5"
+    assert res.getheader("content-disposition") == "attachment; filename=\xd7\x90"
 
 
 def test_images_get_imaged_401_unauthorized(proxy_server, signed_ticket):
