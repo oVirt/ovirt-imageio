@@ -431,6 +431,17 @@ def test_images_download(tmpdir, rng, start, end):
     assert received == data[start:end]
 
 
+def test_images_download_no_range(tmpdir):
+    size = 1024
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = create_ticket(url="file://" + str(image), size=size)
+    add_ticket(ticket)
+    res = download(ticket["uuid"])
+    assert res.status == 200
+    received = res.read()
+    assert received == "\0" * size
+
+
 def test_images_download_holes(tmpdir):
     size = 1024
     image = create_tempfile(tmpdir, "image", size=size)
@@ -488,9 +499,10 @@ def upload(ticket_uuid, body, content_range=None):
     return http_request("PUT", uri, body=body, headers=headers)
 
 
-def download(ticket_uuid, range):
+def download(ticket_uuid, range=None):
     uri = "/images/" + ticket_uuid
-    return http_request("GET", uri, headers={"range": range})
+    headers = {"range": range} if range else None
+    return http_request("GET", uri, headers=headers)
 
 
 def http_request(method, uri, body=None, headers=None):

@@ -166,12 +166,17 @@ class Images(object):
         # TODO: cancel copy if ticket expired or revoked
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
-        # TODO: send entire content (using ticket size) if range not specified?
-        if not self.request.range:
-            raise HTTPBadRequest("Range header is required")
         # TODO: support partial range (e.g. bytes=0-*)
-        offset = self.request.range.start
-        size = self.request.range.end - offset
+
+        if self.request.range:
+            offset = self.request.range.start
+            size = self.request.range.end - offset
+            status = 206
+        else:
+            offset = 0
+            size = tickets.get(ticket_id)["size"]
+            status = 200
+
         ticket = tickets.authorize(ticket_id, "read", offset + size)
         self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
                       size, offset, ticket["url"].path, ticket_id)
@@ -181,12 +186,15 @@ class Images(object):
                            offset=offset,
                            buffersize=self.config.daemon.buffer_size)
         resp = webob.Response(
-            status=206,
+            status=status,
             app_iter=op,
             content_type="application/octet-stream",
             content_length=str(size),
-            content_range=self.request.range.content_range(size),
         )
+        if self.request.range:
+            content_range = self.request.range.content_range(size)
+            resp.headers["content_range"] = str(content_range)
+
         return resp
 
 
