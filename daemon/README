@@ -30,58 +30,6 @@ This daemon provides these services:
                     Vdsm will access this to report progress to Engine.
 
 
-Image session flow (interactive)
---------------------------------
-
-In this flow, client is Engine UI via a browser.
-
-- Client starts an image session using oVirt REST API.
-- Engine creates access token for ovirt-imageio-proxy and session token
-  for vdsm-imgaged.
-- Engine ask Vdsm to prepare image.
-- Engine ask Vdsm to add a ticket for accessing image.
-- Vdsm adds ticket to ovirt-imageio-daemon.
-- Engine returns signed access token and session token to client,
-  including ovirt-imageio-proxy connection details.
-- Client performs authenticate with ovirt-imageio-proxy using the signed
-  access token.
-- Client perform image operations with ovirt-imageio-proxy, using the
-  session token.
-- ovirt-imageio-proxy relay image operations to ovirt-imageio-daemon with
-  the session token.
-- When client is done, it ends the session using engine REST API.
-- Engine ask vdsm to revoke the ticket.
-- Vdsm deletes session from ovirt-imageio-daemon.
-- Engine ask vdsm to tear down the image.
-
-
-Image session flow (non-interactive)
-------------------------------------
-
-This flow is possible only if client has access to the host network.
-This may be relevant for automating data center image operations.
-
-- Client starts an image session using oVirt REST API.
-- Engine creates session token for vdsm-imgaged.
-- Engine ask Vdsm to prepare image.
-- Engine ask Vdsm to add a ticket for accessing image.
-- Engine returns session token to client
-- Client perform image operations with ovirt-imageio-daemon, using the
-  session token.
-- When client is done, it ends the session using engine REST API.
-- Engine ask vdsm to revoke the ticket.
-- Vdsm deletes session from ovirt-imageio-daemon.
-- Engine ask vdsm to tear down the image.
-
-Tickets are ephemeral; A client needs to request Engine to renew the
-ticket from time to time, otherwise a ticket will expire and the
-ongoing image operations will be aborted.
-
-Tickets are not persisted. In case of ovirt-imageio-daemon crash or
-reboot, Engine will provide a new ticket and possibly point client to
-another host to continue the operation.
-
-
 ovirt-imageio-daemon API
 ----------------------
 
