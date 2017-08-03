@@ -59,6 +59,46 @@ or reboot, Engine will provide a new ticket and possibly point the
 client to another host to continue the operation.
 
 
+Proxy API
+---------
+
+/sessions
+~~~~~~~~~
+
+POST
+....
+
+Request:
+```
+POST /sessions HTTP/1.1
+Authorization: <signed ticket data>
+```
+
+Response:
+```
+HTTP/1.1 200 OK
+Session-Id: <session id>
+```
+
+DELETE
+......
+
+Request:
+```
+DELETE /sessions/<session id> HTTP/1.1
+Authorization: <signed ticket data>
+```
+Response:
+```
+HTTP/1.1 204 No Content
+```
+
+/images
+~~~~~~~
+
+Write me
+
+
 Installation
 ------------
 
