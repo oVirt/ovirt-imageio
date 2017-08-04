@@ -22,7 +22,6 @@ from wsgiref import simple_server
 
 import webob
 
-import download_handler
 import image_handler
 
 from ovirt_imageio_common import ssl
@@ -37,16 +36,12 @@ class Server:
 
     def start(self, config):
         images = image_handler.ImageHandler
-        # TODO create downloadhandler to broker requests to downloader
-        # thread(s)
-        downloads = download_handler.DownloadHandler
 
         server = ThreadedWSGIServer((config.host, config.port),
                                     WSGIRequestHandler)
         if config.use_ssl:
             self._secure_server(config, server)
-        app = web.Application(config, [(r"/images/(.*)", images),
-                                       (r"/downloads/(.*)", downloads)])
+        app = web.Application(config, [(r"/images/(.*)", images)])
         server.set_app(app)
         self._start_server(config, server, "image.server")
         self._image_server = server
