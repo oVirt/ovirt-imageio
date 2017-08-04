@@ -85,6 +85,49 @@ def send(tmpdir, data, size, offset=0):
     return dst.getvalue()
 
 
+@pytest.fixture
+def tmpfile(tmpdir):
+    f = tmpdir.join("tmpfile")
+    f.write(b"x" * directio.BLOCKSIZE)
+    return f
+
+
+def test_send_busy(tmpfile):
+    op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+    next(iter(op))
+    assert not op.closed
+
+
+def test_send_close_on_success(tmpfile):
+    op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+    op.run()
+    assert op.closed
+
+
+def test_send_close_on_error(tmpfile):
+    op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size() + 1)
+    with pytest.raises(errors.PartialContent):
+        op.run()
+    assert op.closed
+
+
+def test_send_close_twice(tmpfile):
+    op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+    op.run()
+    op.close()  # Should do nothing
+    assert op.closed
+
+
+def test_send_iterate_and_close(tmpfile):
+    # Used when passing operation as app_iter on GET request.
+    dst = io.BytesIO()
+    op = directio.Send(str(tmpfile), dst, tmpfile.size())
+    for chunk in op:
+        dst.write(chunk)
+    op.close()
+    assert op.closed
+
+
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     BUFFER * 2,
@@ -133,11 +176,47 @@ def receive(tmpdir, data, size, offset=0):
         return f.read()
 
 
+def test_receive_busy(tmpfile):
+    src = io.BytesIO(b"x" * directio.BLOCKSIZE)
+    op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
+    assert not op.closed
+
+
+def test_receive_close_on_success(tmpfile):
+    src = io.BytesIO(b"x" * directio.BLOCKSIZE)
+    op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
+    op.run()
+    assert op.closed
+
+
+def test_receive_close_on_error(tmpfile):
+    src = io.BytesIO(b"x" * directio.BLOCKSIZE)
+    op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE + 1)
+    with pytest.raises(errors.PartialContent):
+        op.run()
+    assert op.closed
+
+
+def test_receive_close_twice(tmpfile):
+    src = io.BytesIO(b"x" * directio.BLOCKSIZE)
+    op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
+    op.run()
+    op.close()  # should do nothing
+    assert op.closed
+
+
 def test_send_repr():
     op = directio.Send("/path", None, 200, offset=24)
     rep = repr(op)
     assert "Send" in rep
     assert "path='/path' size=200 offset=24 buffersize=512 done=0" in rep
+    assert "closed" not in rep
+
+
+def test_send_repr_closed():
+    op = directio.Send("/path", None)
+    op.close()
+    assert "closed" in repr(op)
 
 
 def test_recv_repr():
@@ -145,6 +224,13 @@ def test_recv_repr():
     rep = repr(op)
     assert "Receive" in rep
     assert "path='/path' size=100 offset=42 buffersize=512 done=0" in rep
+    assert "closed" not in rep
+
+
+def test_recv_repr_closed():
+    op = directio.Receive("/path", None)
+    op.close()
+    assert "closed" in repr(op)
 
 
 @pytest.mark.parametrize("size,rounded", [

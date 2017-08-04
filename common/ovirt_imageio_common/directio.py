@@ -43,6 +43,7 @@ class Operation(object):
         else:
             self._buffersize = buffersize
         self._done = 0
+        self._closed = False
 
     @property
     def size(self):
@@ -58,11 +59,28 @@ class Operation(object):
             return self._buffersize
         return self._size - self._done
 
+    @property
+    def closed(self):
+        return self._closed
+
+    def run(self):
+        try:
+            self._run()
+        finally:
+            self._closed = True
+
+    def close(self):
+        self._closed = True
+
     def __repr__(self):
         return ("<{self.__class__.__name__} path={self._path!r} "
                 "size={self.size} offset={self._offset} "
-                "buffersize={self._buffersize} done={self.done} "
-                "at 0x{id}>").format(self=self, id=id(self))
+                "buffersize={self._buffersize} done={self.done}{closed} "
+                "at 0x{id}>").format(
+                    self=self,
+                    id=id(self),
+                    closed=" closed" if self.closed else ""
+                )
 
 
 class Send(Operation):
@@ -75,7 +93,7 @@ class Send(Operation):
                                    buffersize=buffersize)
         self._dst = dst
 
-    def run(self):
+    def _run(self):
         for chunk in self:
             self._dst.write(chunk)
 
@@ -124,7 +142,7 @@ class Receive(Operation):
                                       buffersize=buffersize)
         self._src = src
 
-    def run(self):
+    def _run(self):
         with io.FileIO(self._path, "r+") as dst, \
                 aligned_buffer(self._buffersize) as buf:
             try:
