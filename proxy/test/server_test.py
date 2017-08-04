@@ -77,6 +77,12 @@ def test_images_no_auth(proxy_server):
     assert res.status == 401
 
 
+def test_images_no_auth_invalid_session_id_param(proxy_server):
+    res = http_request(proxy_server, "GET",
+                       "/images/missing_ticket?session_id=missing_session_id")
+    assert res.status == 401
+
+
 def test_images_unparseable_auth(proxy_server):
     headers = {"Authorization": 'test'}
     res = http_request(proxy_server, "GET", "/images/", headers=headers)
@@ -140,7 +146,7 @@ def test_images_cors_options(proxy_server, signed_ticket):
     assert res.getheader("access-control-max-age") == "300"
 
 
-def test_images_get_imaged_200_ok(proxy_server, signed_ticket):
+def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
     body = "hello"
     request_headers = {
         "Authorization": signed_ticket,
@@ -166,6 +172,37 @@ def test_images_get_imaged_200_ok(proxy_server, signed_ticket):
     assert res.read() == "hello"
     assert res.getheader("content-length") == "5"
     assert res.getheader("content-disposition") == "attachment; filename=\xd7\x90"
+
+
+def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
+    client_headers = {
+        "Authorization": signed_ticket
+    }
+    path = "/sessions/"
+
+    res = http_request(proxy_server, "POST", path, headers=client_headers)
+    session_id = res.getheader('Session-Id')
+
+    body = "hello"
+    request_headers = {
+        "Accept-Ranges": "bytes",
+    }
+    response_headers = {
+        "Content-Length": "5",
+    }
+    path = "/images/" + AUTH_TICKET_ID
+
+    with requests_mock.Mocker() as m:
+        m.get(IMAGED_URI + path,
+              status_code=200,
+              text=body,
+              headers=response_headers)
+        path += "?session_id=" + session_id
+        res = http_request(proxy_server, "GET", path, headers=request_headers)
+        assert m.called
+    assert res.status == 200
+    assert res.read() == "hello"
+    assert res.getheader("content-length") == "5"
 
 
 def test_images_get_imaged_401_unauthorized(proxy_server, signed_ticket):

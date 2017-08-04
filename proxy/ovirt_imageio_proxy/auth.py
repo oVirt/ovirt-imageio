@@ -61,6 +61,8 @@ SESSION_IMAGED_HOST_URI = 'imaged-host-uri'
 SESSION_RESOURCE_ID = 'resource-id'
 SESSION_TRANSFER_TICKET = 'transfer-ticket'
 
+PARAM_SESSION_ID = 'session_id'
+
 
 session_rlock = threading.RLock()
 _sessions = {}
@@ -118,6 +120,8 @@ def start_session(request):
     # Note that webob.headers is case-insensitive
     ticket = request.headers.get(HEADER_AUTHORIZATION)
     session_id = request.headers.get(HEADER_SESSION_ID)
+    if session_id is None:
+        session_id = request.params.get(PARAM_SESSION_ID)
 
     if ticket:
         # New ticket; process it and create new or update existing session
