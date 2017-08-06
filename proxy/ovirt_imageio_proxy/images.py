@@ -19,7 +19,7 @@ import server
 from ovirt_imageio_common import web
 
 
-class ImageHandler(object):
+class RequestHandler(object):
     """
     Request handler for the /images/ resource.
     """

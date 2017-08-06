@@ -22,10 +22,10 @@ from wsgiref import simple_server
 
 import webob
 
-import image_handler
-
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import web
+
+from . import images
 
 
 class Server:
@@ -35,13 +35,13 @@ class Server:
         pass
 
     def start(self, config):
-        images = image_handler.ImageHandler
-
         server = ThreadedWSGIServer((config.host, config.port),
                                     WSGIRequestHandler)
         if config.use_ssl:
             self._secure_server(config, server)
-        app = web.Application(config, [(r"/images/(.*)", images)])
+        app = web.Application(config, [
+            (r"/images/(.*)", images.RequestHandler),
+        ])
         server.set_app(app)
         self._start_server(config, server, "image.server")
         self._image_server = server
