@@ -12,8 +12,8 @@ from http_helper import (
     requiresession,
     success_codes as http_success_codes,
 )
+import auth
 import config
-import session
 import server
 
 from ovirt_imageio_common import web
@@ -129,18 +129,17 @@ class RequestHandler(object):
             raise exc.HTTPBadRequest(
                 "Invalid format for requested resource or no resource specified"
             )
-        if (resource_id != session.get_session_attribute(
-                request, session.SESSION_TRANSFER_TICKET)):
+        if (resource_id != auth.get_session_attribute(
+                request, auth.SESSION_TRANSFER_TICKET)):
             raise exc.HTTPBadRequest(
                 "Requested resource must match transfer ticket"
             )
         return resource_id
 
     def get_imaged_url(self, request):
-        uri = session.get_session_attribute(request,
-                                            session.SESSION_IMAGED_HOST_URI)
-        ticket = session.get_session_attribute(request,
-                                               session.SESSION_TRANSFER_TICKET)
+        uri = auth.get_session_attribute(request, auth.SESSION_IMAGED_HOST_URI)
+        ticket = auth.get_session_attribute(
+            request, auth.SESSION_TRANSFER_TICKET)
         return "{}/images/{}".format(uri, ticket)
 
     def get_default_headers(self, resource_id):

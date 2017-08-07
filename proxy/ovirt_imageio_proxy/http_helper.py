@@ -5,7 +5,7 @@ import re
 
 from webob.util import status_reasons
 
-import session
+import auth
 
 # Content-range (eg "bytes 0-1023/4096" or "bytes 0-15/*")
 cr_regex = re.compile(r"bytes (\d+)-(\d+)/((?:\d+)|(?:\*))", re.IGNORECASE)
@@ -83,10 +83,10 @@ def requiresession(func):
     """
     @wraps(func)
     def wrapper(self, *args):
-        session.start_session(self.request)
+        auth.start_session(self.request)
         try:
             ret = func(self, *args)
         finally:
-            session.update_session_activity(self.request)
+            auth.update_session_activity(self.request)
         return ret
     return wrapper
