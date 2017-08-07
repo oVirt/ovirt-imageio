@@ -48,7 +48,7 @@ TOKEN_TRANSFER_TICKET = 'transfer-ticket'
 
 # Header names
 HEADER_AUTHORIZATION = 'Authorization'
-HEADER_SESSION_ID = 'X-Session-Id'
+HEADER_SESSION_ID = 'Session-Id'
 
 # Session-only values
 SESSION_ID = 'session-id'

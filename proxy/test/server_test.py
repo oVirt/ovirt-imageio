@@ -108,7 +108,7 @@ def test_images_cors_compliance(proxy_server, signed_ticket,
                            headers=request_headers, body=body)
 
     allowed_headers = split_header(res.getheader("access-control-expose-headers"))
-    expected_headers = {"authorization", "content-length", "content-range", "range"}
+    expected_headers = {"authorization", "content-length", "content-range", "range", "session-id"}
 
     assert res.status == 200
     assert allowed_headers == expected_headers
@@ -128,10 +128,10 @@ def test_images_cors_options(proxy_server, signed_ticket):
 
     allowed_headers = split_header(res.getheader("access-control-allow-headers"))
     expected_headers = {"cache-control", "pragma", "authorization", "content-type",
-                        "content-length", "content-range", "range"}
+                        "content-length", "content-range", "range", "session-id"}
 
     allowed_methods = split_header(res.getheader("access-control-allow-methods"))
-    expected_methods = {"options", "get", "put", "patch"}
+    expected_methods = {"options", "get", "put", "patch", "post"}
 
     assert res.status == 204
     assert allowed_headers == expected_headers
@@ -277,6 +277,49 @@ def test_reject_protocols(proxy_server, protocol):
 def test_accept_protocols(proxy_server, protocol):
     rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
     assert rc == 0
+
+
+def test_sessions_post_sessionid_response(proxy_server, signed_ticket):
+    client_headers = {
+        "Authorization": signed_ticket
+    }
+    path = "/sessions/"
+
+    res = http_request(proxy_server, "POST", path, headers=client_headers)
+    assert res.status == 200
+
+    ## Get using header's Session-Id
+    client_headers = {
+        "Session-Id": res.getheader('Session-Id'),
+    }
+    path = "/images/" + AUTH_TICKET_ID
+    body = "hello"
+    response_headers = {
+        "Content-Length": str(len(body)),
+    }
+    with requests_mock.Mocker() as m:
+        m.get(IMAGED_URI + path,
+              status_code=200,
+              text=body,
+              headers=response_headers)
+        res = http_request(proxy_server, "GET", path, headers=client_headers)
+        assert m.called
+    assert res.status == 200
+
+
+def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
+    client_headers = {
+        "Authorization": signed_ticket
+    }
+    path = "/sessions/"
+
+    res = http_request(proxy_server, "POST", path, headers=client_headers)
+    session_id = res.getheader('Session-Id')
+
+    client_headers['Session-Id'] = session_id
+    res = http_request(proxy_server, "POST", path, headers=client_headers)
+
+    assert res.getheader('Session-Id') == session_id
 
 
 def images_request_headers(signed_ticket):
