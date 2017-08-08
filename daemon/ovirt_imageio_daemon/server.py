@@ -188,11 +188,16 @@ class Images(object):
                            size,
                            offset=offset,
                            buffersize=self.config.daemon.buffer_size)
+        content_disposition = "attachment"
+        if "filename" in ticket:
+            filename = ticket["filename"].encode("utf-8")
+            content_disposition += "; filename=%s" % filename
         resp = webob.Response(
             status=status,
             app_iter=op,
             content_type="application/octet-stream",
             content_length=str(size),
+            content_disposition=content_disposition,
         )
         if self.request.range:
             content_range = self.request.range.content_range(size)

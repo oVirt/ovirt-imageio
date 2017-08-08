@@ -464,6 +464,18 @@ def test_images_download_holes(tmpdir):
     assert received == "\0" * size
 
 
+def test_images_download_filename_in_ticket(tmpdir):
+    size = 1024
+    filename = u"\u05d0.raw"  # hebrew aleph
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = create_ticket(url="file://" + str(image), size=size,
+                           filename=filename)
+    add_ticket(ticket)
+    res = download(ticket["uuid"], "bytes=0-1023")
+    expected = "attachment; filename=\xd7\x90.raw"
+    assert res.getheader("Content-Disposition") == expected
+
+
 @pytest.mark.parametrize("rng,end", [
     ("bytes=0-1024", 512),
 ])
@@ -492,14 +504,17 @@ def test_accept_protocols(protocol):
 
 
 def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
-                  url="file:///var/run/vdsm/storage/foo"):
-    return {
+                  url="file:///var/run/vdsm/storage/foo", filename=None):
+    d = {
         "uuid": str(uuid.uuid4()),
         "timeout": timeout,
         "ops": list(ops),
         "size": size,
         "url": url,
     }
+    if filename is not None:
+        d["filename"] = filename
+    return d
 
 
 def upload(ticket_uuid, body, content_range=None):
