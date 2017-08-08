@@ -170,7 +170,10 @@ class Images(object):
 
         if self.request.range:
             offset = self.request.range.start
-            size = self.request.range.end - offset
+            if self.request.range.end is None:
+                size = tickets.get(ticket_id)["size"] - offset
+            else:
+                size = self.request.range.end - offset
             status = 206
         else:
             offset = 0

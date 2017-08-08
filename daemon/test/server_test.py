@@ -442,6 +442,17 @@ def test_images_download_no_range(tmpdir):
     assert received == "\0" * size
 
 
+def test_images_download_no_range_end(tmpdir):
+    size = 1024
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = create_ticket(url="file://" + str(image), size=size)
+    add_ticket(ticket)
+    res = download(ticket["uuid"], "bytes=0-")
+    assert res.status == 206
+    received = res.read()
+    assert received == "\0" * size
+
+
 def test_images_download_holes(tmpdir):
     size = 1024
     image = create_tempfile(tmpdir, "image", size=size)
