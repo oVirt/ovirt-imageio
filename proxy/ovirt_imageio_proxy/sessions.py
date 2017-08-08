@@ -1,6 +1,8 @@
 import httplib
 import server
 
+from webob.exc import HTTPNotFound
+
 from ovirt_imageio_common import web
 
 from . import auth
@@ -40,3 +42,12 @@ class RequestHandler(object):
     @addcors
     def options(self, res_id):
         return web.response(httplib.NO_CONTENT)
+
+    @addcors
+    def delete(self, res_id):
+        try:
+            auth.remove(res_id)
+        except KeyError as e:
+            raise HTTPNotFound("No such session %r" % res_id)
+        response = server.response(204)
+        return response

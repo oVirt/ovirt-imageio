@@ -131,7 +131,7 @@ def test_images_cors_options(proxy_server, signed_ticket):
                         "content-length", "content-range", "range", "session-id"}
 
     allowed_methods = split_header(res.getheader("access-control-allow-methods"))
-    expected_methods = {"options", "get", "put", "patch", "post"}
+    expected_methods = {"options", "get", "put", "patch", "post", "delete"}
 
     assert res.status == 204
     assert allowed_headers == expected_headers
@@ -320,6 +320,33 @@ def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
     res = http_request(proxy_server, "POST", path, headers=client_headers)
 
     assert res.getheader('Session-Id') == session_id
+
+
+def test_images_delete_session(proxy_server, signed_ticket):
+    client_headers = {
+        "Authorization": signed_ticket
+    }
+    path = "/sessions/"
+
+    res = http_request(proxy_server, "POST", path, headers=client_headers)
+    session_id = res.getheader('Session-Id')
+    assert session_id is not None
+
+    res = http_request(proxy_server, "DELETE", path + session_id)
+    assert res.status == 204
+
+    ## Get using header's Session-Id
+    client_headers = {
+        "Session-Id": session_id,
+    }
+    path = "/images/" + AUTH_TICKET_ID
+    res = http_request(proxy_server, "GET", path, headers=client_headers)
+    assert res.status == 401
+
+
+def test_images_delete_missing_session(proxy_server, signed_ticket):
+    res = http_request(proxy_server, "DELETE", "/sessions/missing")
+    assert res.status == 404
 
 
 def images_request_headers(signed_ticket):

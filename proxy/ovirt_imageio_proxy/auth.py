@@ -146,7 +146,10 @@ def start_session(request):
     else:
         # TODO a separate thread should periodically sweep for expired sessions
         with session_rlock:
-            remove(session_id)
+            try:
+                remove(session_id)
+            except KeyError as e:
+                logging.debug("No such session %r", session_id)
         raise exc.HTTPUnauthorized("Invalid session id or session expired")
 
     request.headers[HEADER_SESSION_ID] = session_id
@@ -161,7 +164,8 @@ def update_session_activity(request):
     :param request: webob.Request
     :return: nothing
     """
-    set_session_attribute(request, SESSION_LAST_ACTIVITY, time.time())
+    if get_session(request.headers[HEADER_SESSION_ID]):
+        set_session_attribute(request, SESSION_LAST_ACTIVITY, time.time())
 
 
 def session_is_valid(session_id):
