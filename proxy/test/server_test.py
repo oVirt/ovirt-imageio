@@ -83,6 +83,12 @@ def test_images_no_auth_invalid_session_id_param(proxy_server):
     assert res.status == 401
 
 
+def test_images_no_auth_invalid_session_id_header(proxy_server):
+    res = http_request(proxy_server, "GET","/images/missing_ticket",
+                       headers={"Session-Id ": "missing"})
+    assert res.status == 401
+
+
 def test_images_unparseable_auth(proxy_server):
     headers = {"Authorization": 'test'}
     res = http_request(proxy_server, "GET", "/images/", headers=headers)
