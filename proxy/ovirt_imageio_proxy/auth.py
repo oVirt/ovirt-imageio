@@ -64,7 +64,6 @@ SESSION_TRANSFER_TICKET = 'transfer-ticket'
 
 session_rlock = threading.RLock()
 _sessions = {}
-_ticketmap = {}
 
 
 def get_session(session_id):
@@ -121,21 +120,12 @@ def start_session(request):
     session_id = request.headers.get(HEADER_SESSION_ID)
 
     if ticket:
-        with session_rlock:
-            existing_ticket_session_id = _ticketmap.get(ticket)
-
-        if existing_ticket_session_id:
-            # We've seen this ticket before and it has an associated session id
-            if session_id and existing_ticket_session_id != session_id:
-                raise exc.HTTPBadRequest("Session id must match authorization ticket")
-            session_id = existing_ticket_session_id
-        else:
-            # New ticket; process it and create new or update existing session
-            try:
-                session_id = _create_update_session(ticket, session_id)
-            except ValueError as e:
-                logging.error("Error starting session: " + e.message, exc_info=True)
-                raise exc.HTTPUnauthorized("Could not initialize session: " + e.message)
+        # New ticket; process it and create new or update existing session
+        try:
+            session_id = _create_update_session(ticket, session_id)
+        except ValueError as e:
+            logging.error("Error starting session: " + e.message, exc_info=True)
+            raise exc.HTTPUnauthorized("Could not initialize session: " + e.message)
 
     if not session_id:
         raise exc.HTTPUnauthorized("Not authorized")
