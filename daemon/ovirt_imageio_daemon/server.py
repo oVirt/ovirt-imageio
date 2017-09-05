@@ -18,7 +18,6 @@ import time
 from wsgiref import simple_server
 
 from six.moves import socketserver
-from six.moves import urllib_parse
 
 import systemd.daemon
 import webob
@@ -30,6 +29,7 @@ from webob.exc import (
 
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import directio
+from ovirt_imageio_common import errors
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
@@ -46,7 +46,6 @@ log = logging.getLogger("server")
 image_server = None
 ticket_server = None
 running = True
-supported_schemes = ['file']
 
 
 def main(args):
@@ -153,8 +152,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info("Writing %d bytes at offset %d to %s for ticket %s",
-                      size, offset, ticket["url"].path, ticket_id)
-        op = directio.Receive(ticket["url"].path,
+                      size, offset, ticket.url.path, ticket_id)
+        op = directio.Receive(ticket.url.path,
                               self.request.body_file_raw,
                               size,
                               offset=offset,
@@ -171,26 +170,26 @@ class Images(object):
         if self.request.range:
             offset = self.request.range.start
             if self.request.range.end is None:
-                size = tickets.get(ticket_id)["size"] - offset
+                size = tickets.get(ticket_id).size - offset
             else:
                 size = self.request.range.end - offset
             status = 206
         else:
             offset = 0
-            size = tickets.get(ticket_id)["size"]
+            size = tickets.get(ticket_id).size
             status = 200
 
         ticket = tickets.authorize(ticket_id, "read", offset + size)
         self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
-                      size, offset, ticket["url"].path, ticket_id)
-        op = directio.Send(ticket["url"].path,
+                      size, offset, ticket.url.path, ticket_id)
+        op = directio.Send(ticket.url.path,
                            None,
                            size,
                            offset=offset,
                            buffersize=self.config.daemon.buffer_size)
         content_disposition = "attachment"
-        if "filename" in ticket:
-            filename = ticket["filename"].encode("utf-8")
+        if ticket.filename:
+            filename = ticket.filename.encode("utf-8")
             content_disposition += "; filename=%s" % filename
         resp = webob.Response(
             status=status,
@@ -223,10 +222,8 @@ class Tickets(object):
             ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
-        ticket = ticket.copy()
-        ticket["url"] = urllib_parse.urlunparse(ticket["url"])
         self.log.info("Retrieving ticket %s", ticket_id)
-        return response(payload=ticket)
+        return response(payload=ticket.info())
 
     def put(self, ticket_id):
         # TODO
@@ -234,36 +231,17 @@ class Tickets(object):
         # - start expire timer
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
+
         try:
-            ticket = self.request.json
+            ticket_dict = self.request.json
         except ValueError as e:
+            raise HTTPBadRequest("Ticket is not in a json format: %s" % e)
+
+        try:
+            ticket = tickets.Ticket(ticket_dict)
+        except errors.InvalidTicket as e:
             raise HTTPBadRequest("Invalid ticket: %s" % e)
-        try:
-            timeout = ticket["timeout"]
-        except KeyError:
-            raise HTTPBadRequest("Missing timeout key")
-        try:
-            timeout = int(timeout)
-        except ValueError as e:
-            raise HTTPBadRequest("Invalid timeout value: %s" % e)
-        if "size" not in ticket:
-            raise HTTPBadRequest("Missing size key in ticket")
-        if "ops" not in ticket:
-            raise HTTPBadRequest("Missing ops key in ticket")
-        try:
-            url_str = ticket["url"]
-        except KeyError:
-            raise HTTPBadRequest("Missing url key in ticket")
-        try:
-            ticket["url"] = urllib_parse.urlparse(url_str)
-        except (ValueError, AttributeError, TypeError):
-            raise HTTPBadRequest("Invalid url string %r" % url_str)
 
-        if ticket["url"].scheme not in supported_schemes:
-            raise HTTPBadRequest("url scheme is not supported "
-                                 "for url: %s" % ticket["url"].scheme)
-
-        ticket["expires"] = int(util.monotonic_time()) + timeout
         tickets.add(ticket_id, ticket)
         return response()
 
@@ -287,9 +265,7 @@ class Tickets(object):
             ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
-        ticket["expires"] = int(util.monotonic_time()) + timeout
-        self.log.info("Extending ticket %s, new expiration in %d",
-                      ticket_id, ticket["expires"])
+        ticket.extend(timeout)
         return response()
 
     def delete(self, ticket_id):

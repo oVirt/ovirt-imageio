@@ -21,7 +21,6 @@ from contextlib import closing
 from pprint import pprint
 
 from six.moves import http_client
-from six.moves import urllib_parse
 
 import pytest
 
@@ -615,17 +614,9 @@ def test_create_tempfile_data_and_size(tmpdir):
 
 # TODO: move into tickets.py
 def add_ticket(ticket):
-    # Simulate adding a ticket to the server, without modifying the source
-    # ticket.
-    ticket = json.loads(json.dumps(ticket))
-    ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
-    ticket["url"] = urllib_parse.urlparse(ticket["url"])
-    tickets.add(ticket["uuid"], ticket)
+    ticket = tickets.Ticket(ticket)
+    tickets.add(ticket.uuid, ticket)
 
 
 def get_ticket(uuid):
-    # Get a copy of the current server ticket, simulating a get request
-    ticket = tickets.get(uuid)
-    ticket = json.loads(json.dumps(ticket))
-    ticket["url"] = urllib_parse.urlunparse(ticket["url"])
-    return ticket
+    return tickets.get(uuid).info()

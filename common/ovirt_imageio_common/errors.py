@@ -22,3 +22,24 @@ class PartialContent(Error):
     def __init__(self, requested, available):
         self.requested = requested
         self.available = available
+
+
+class InvalidTicket(Error):
+    """Base class for ticket errors"""
+
+
+class MissingTicketParameter(InvalidTicket):
+    msg = "Required ticket parameter is missing: {self.parameter}"
+
+    def __init__(self, parameter):
+        self.parameter = parameter
+
+
+class InvalidTicketParameter(InvalidTicket):
+    msg = ("Invalid value for {self.parameter!r}: "
+           "{self.value!r}: {self.reason}")
+
+    def __init__(self, parameter, value, reason):
+        self.parameter = parameter
+        self.value = value
+        self.reason = reason
