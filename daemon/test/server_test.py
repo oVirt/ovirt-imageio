@@ -94,14 +94,16 @@ def test_tickets_no_method():
     assert res.status == 405
 
 
-def test_tickets_get():
+def test_tickets_get(fake_time):
     ticket = create_ticket()
     add_ticket(ticket)
+    fake_time.now += 200
     res = unix_request("GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
     server_ticket = json.loads(res.read())
     # The server adds an expires key
     del server_ticket["expires"]
+    ticket["timeout"] = 100
     assert server_ticket == ticket
 
 

@@ -29,10 +29,10 @@ class Ticket(object):
 
         timeout = _required(ticket_dict, "timeout")
         try:
-            self._timeout = int(timeout)
+            timeout = int(timeout)
         except ValueError as e:
             raise errors.InvalidTicketParameter("timeout", timeout, e)
-        self._expires = int(util.monotonic_time()) + self._timeout
+        self._expires = int(util.monotonic_time()) + timeout
 
         url_str = _required(ticket_dict, "url")
         try:
@@ -63,10 +63,6 @@ class Ticket(object):
         return self._ops
 
     @property
-    def timeout(self):
-        return self._timeout
-
-    @property
     def expires(self):
         return self._expires
 
@@ -79,7 +75,7 @@ class Ticket(object):
             "expires": self._expires,
             "ops": list(self._ops),
             "size": self._size,
-            "timeout": self._timeout,
+            "timeout": self.expires - int(util.monotonic_time()),
             "url": urllib_parse.urlunparse(self._url),
             "uuid": self._uuid,
         }
@@ -95,8 +91,7 @@ class Ticket(object):
 
     def __repr__(self):
         return ("<Ticket uuid={self._uuid!r}, size={self._size}, "
-                "ops={self._ops}, timeout={self._timeout}, "
-                "expires={self.expires}, url={self._url}, "
+                "ops={self._ops}, expires={self.expires}, url={self._url}, "
                 "filename={self._filename!r}> at {addr:#x}>"
                 ).format(self=self, addr=id(self))
 
