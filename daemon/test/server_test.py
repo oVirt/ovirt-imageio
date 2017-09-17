@@ -49,6 +49,22 @@ logging.basicConfig(
             "%(message)s"))
 
 
+class FakeTime(object):
+
+    def __init__(self):
+        self.now = 0
+
+    def monotonic_time(self):
+        return self.now
+
+
+@pytest.fixture()
+def fake_time(monkeypatch):
+    time = FakeTime()
+    monkeypatch.setattr(util, "monotonic_time", time.monotonic_time)
+    return time
+
+
 def setup_module(m):
     conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
     configloader.load(config, [conf])
@@ -94,8 +110,7 @@ def test_tickets_get_not_found():
     assert res.status == 404
 
 
-def test_tickets_put(monkeypatch):
-    monkeypatch.setattr(util, "monotonic_time", lambda: 123456789)
+def test_tickets_put(fake_time):
     ticket = create_ticket()
     body = json.dumps(ticket)
     res = unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
@@ -106,8 +121,7 @@ def test_tickets_put(monkeypatch):
     assert server_ticket == ticket
 
 
-def test_tickets_put_bad_url_value(monkeypatch):
-    monkeypatch.setattr(util, "monotonic_time", lambda: 123456789)
+def test_tickets_put_bad_url_value(fake_time):
     ticket = create_ticket(url='http://[1.2.3.4:33')
     body = json.dumps(ticket)
     res = unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
@@ -179,16 +193,14 @@ def test_tickets_put_url_scheme_not_supported():
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
-def test_tickets_extend(monkeypatch):
-    now = 123456789
-    monkeypatch.setattr(util, "monotonic_time", lambda: now)
+def test_tickets_extend(fake_time):
     ticket = create_ticket()
     add_ticket(ticket)
     patch = {"timeout": 300}
     body = json.dumps(patch)
-    now += 240
+    fake_time.now += 240
     res = unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-    ticket["expires"] = int(now + ticket["timeout"])
+    ticket["expires"] = int(fake_time.now + ticket["timeout"])
     server_ticket = get_ticket(ticket["uuid"])
     assert res.status == 200
     assert server_ticket == ticket
