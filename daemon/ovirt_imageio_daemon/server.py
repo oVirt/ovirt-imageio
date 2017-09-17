@@ -246,6 +246,10 @@ class Tickets(object):
             timeout = int(timeout)
         except ValueError as e:
             raise HTTPBadRequest("Invalid timeout value: %s" % e)
+        if "size" not in ticket:
+            raise HTTPBadRequest("Missing size key in ticket")
+        if "ops" not in ticket:
+            raise HTTPBadRequest("Missing ops key in ticket")
         try:
             url_str = ticket["url"]
         except KeyError:

@@ -143,9 +143,10 @@ def test_tickets_put_invalid_json():
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
-def test_tickets_put_no_timeout():
+@pytest.mark.parametrize("missing", ["timeout", "url", "size", "ops"])
+def test_tickets_put_mandatory_fields(missing):
     ticket = create_ticket()
-    del ticket["timeout"]
+    del ticket[missing]
     body = json.dumps(ticket)
     res = unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
