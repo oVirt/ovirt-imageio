@@ -50,6 +50,10 @@ class Operation(object):
         return self._size
 
     @property
+    def offset(self):
+        return self._offset
+
+    @property
     def done(self):
         return self._done
 

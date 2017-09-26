@@ -9,6 +9,8 @@
 import logging
 import threading
 from webob.exc import HTTPForbidden
+
+from ovirt_imageio_daemon import measure
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 
@@ -81,6 +83,20 @@ class Ticket(object):
         with self._lock:
             return any(op.active for op in self._operations)
 
+    def transferred(self):
+        """
+        The number of bytes that were transferred so far using this ticket.
+        """
+        if len(self.ops) > 1:
+            # Both read and write, cannot report meaningful value.
+            return None
+
+        with self._lock:
+            ranges = [measure.Range(op.offset, op.offset + op.done)
+                      for op in self._operations]
+        merged_ranges = measure.merge_ranges(ranges)
+        return sum(len(range) for range in merged_ranges)
+
     def info(self):
         info = {
             "active": self.active(),
@@ -93,6 +109,9 @@ class Ticket(object):
         }
         if self.filename:
             info["filename"] = self.filename
+        transferred = self.transferred()
+        if transferred is not None:
+            info["transferred"] = transferred
         return info
 
     def extend(self, timeout):
@@ -108,12 +127,14 @@ class Ticket(object):
                 "filename={self._filename!r} "
                 "ops={self._ops} "
                 "size={self._size} "
+                "transferred={transferred} "
                 "url={self._url} "
                 "uuid={self._uuid!r} "
                 "at {addr:#x}>"
                 ).format(self=self,
                          addr=id(self),
                          active=self.active(),
+                         transferred=self.transferred(),
                          )
 
 

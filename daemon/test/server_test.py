@@ -96,7 +96,7 @@ def test_tickets_no_method():
 
 
 def test_tickets_get(fake_time):
-    ticket = testutils.create_ticket()
+    ticket = testutils.create_ticket(ops=["read"])
     add_ticket(ticket)
     fake_time.now += 200
     res = unix_request("GET", "/tickets/%(uuid)s" % ticket)
@@ -105,6 +105,7 @@ def test_tickets_get(fake_time):
     # The server adds an expires key
     del server_ticket["expires"]
     ticket["active"] = False
+    ticket["transferred"] = 0
     ticket["timeout"] = 100
     assert server_ticket == ticket
 
@@ -528,16 +529,19 @@ def test_download_progress(tmpdir):
 
     # No operations
     assert not ticket.active()
+    assert ticket.transferred() == 0
 
     res = download(ticket.uuid)
 
     res.read(1024**2)
     # The server has sent some chunks
     assert ticket.active()
+    assert 0 < ticket.transferred() < size
 
     res.read()
     # The server has sent all the chunks - download completed
     assert not ticket.active()
+    assert ticket.transferred() == size
 
 
 @pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
