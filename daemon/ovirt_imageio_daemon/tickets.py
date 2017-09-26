@@ -77,8 +77,13 @@ class Ticket(object):
         with self._lock:
             self._operations.append(operation)
 
+    def active(self):
+        with self._lock:
+            return any(op.active for op in self._operations)
+
     def info(self):
         info = {
+            "active": self.active(),
             "expires": self._expires,
             "ops": list(self._ops),
             "size": self._size,
@@ -98,6 +103,7 @@ class Ticket(object):
 
     def __repr__(self):
         return ("<Ticket "
+                "active={active} "
                 "expires={self.expires} "
                 "filename={self._filename!r} "
                 "ops={self._ops} "
@@ -107,6 +113,7 @@ class Ticket(object):
                 "at {addr:#x}>"
                 ).format(self=self,
                          addr=id(self),
+                         active=self.active(),
                          )
 
 

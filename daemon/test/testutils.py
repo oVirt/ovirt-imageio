@@ -1,0 +1,25 @@
+# ovirt-imageio-daemon
+# Copyright (C) 2015-2017 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+from __future__ import absolute_import
+
+import uuid
+
+
+def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
+                  url="file:///var/run/vdsm/storage/foo", filename=None):
+    d = {
+        "uuid": str(uuid.uuid4()),
+        "timeout": timeout,
+        "ops": list(ops),
+        "size": size,
+        "url": url,
+    }
+    if filename is not None:
+        d["filename"] = filename
+    return d
