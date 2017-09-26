@@ -158,6 +158,7 @@ class Images(object):
                               size,
                               offset=offset,
                               buffersize=self.config.daemon.buffer_size)
+        ticket.add_operation(op)
         op.run()
         return response()
 
@@ -187,6 +188,7 @@ class Images(object):
                            size,
                            offset=offset,
                            buffersize=self.config.daemon.buffer_size)
+        ticket.add_operation(op)
         content_disposition = "attachment"
         if ticket.filename:
             filename = ticket.filename.encode("utf-8")

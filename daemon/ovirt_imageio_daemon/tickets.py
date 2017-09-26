@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 import logging
+import threading
 from webob.exc import HTTPForbidden
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
@@ -45,6 +46,8 @@ class Ticket(object):
                 "Unsupported url scheme: %s" % self._url.scheme)
 
         self._filename = ticket_dict.get("filename")
+        self._operations = []
+        self._lock = threading.Lock()
 
     @property
     def uuid(self):
@@ -69,6 +72,10 @@ class Ticket(object):
     @property
     def filename(self):
         return self._filename
+
+    def add_operation(self, operation):
+        with self._lock:
+            self._operations.append(operation)
 
     def info(self):
         info = {
