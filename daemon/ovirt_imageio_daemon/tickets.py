@@ -90,10 +90,17 @@ class Ticket(object):
         self._expires = expires
 
     def __repr__(self):
-        return ("<Ticket uuid={self._uuid!r}, size={self._size}, "
-                "ops={self._ops}, expires={self.expires}, url={self._url}, "
-                "filename={self._filename!r}> at {addr:#x}>"
-                ).format(self=self, addr=id(self))
+        return ("<Ticket "
+                "expires={self.expires} "
+                "filename={self._filename!r} "
+                "ops={self._ops} "
+                "size={self._size} "
+                "url={self._url} "
+                "uuid={self._uuid!r} "
+                "at {addr:#x}>"
+                ).format(self=self,
+                         addr=id(self),
+                         )
 
 
 def _required(d, key):
