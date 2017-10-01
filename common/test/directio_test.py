@@ -95,27 +95,27 @@ def tmpfile(tmpdir):
 def test_send_busy(tmpfile):
     op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
     next(iter(op))
-    assert not op.closed
+    assert op.active
 
 
 def test_send_close_on_success(tmpfile):
     op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
     op.run()
-    assert op.closed
+    assert not op.active
 
 
 def test_send_close_on_error(tmpfile):
     op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size() + 1)
     with pytest.raises(errors.PartialContent):
         op.run()
-    assert op.closed
+    assert not op.active
 
 
 def test_send_close_twice(tmpfile):
     op = directio.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
     op.run()
     op.close()  # Should do nothing
-    assert op.closed
+    assert not op.active
 
 
 def test_send_iterate_and_close(tmpfile):
@@ -125,7 +125,7 @@ def test_send_iterate_and_close(tmpfile):
     for chunk in op:
         dst.write(chunk)
     op.close()
-    assert op.closed
+    assert not op.active
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -179,14 +179,14 @@ def receive(tmpdir, data, size, offset=0):
 def test_receive_busy(tmpfile):
     src = io.BytesIO(b"x" * directio.BLOCKSIZE)
     op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
-    assert not op.closed
+    assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
     src = io.BytesIO(b"x" * directio.BLOCKSIZE)
     op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
     op.run()
-    assert op.closed
+    assert not op.active
 
 
 def test_receive_close_on_error(tmpfile):
@@ -194,7 +194,7 @@ def test_receive_close_on_error(tmpfile):
     op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE + 1)
     with pytest.raises(errors.PartialContent):
         op.run()
-    assert op.closed
+    assert not op.active
 
 
 def test_receive_close_twice(tmpfile):
@@ -202,7 +202,7 @@ def test_receive_close_twice(tmpfile):
     op = directio.Receive(str(tmpfile), src, directio.BLOCKSIZE)
     op.run()
     op.close()  # should do nothing
-    assert op.closed
+    assert not op.active
 
 
 def test_send_repr():
@@ -210,13 +210,13 @@ def test_send_repr():
     rep = repr(op)
     assert "Send" in rep
     assert "path='/path' size=200 offset=24 buffersize=512 done=0" in rep
-    assert "closed" not in rep
+    assert "active" in rep
 
 
-def test_send_repr_closed():
+def test_send_repr_active():
     op = directio.Send("/path", None)
     op.close()
-    assert "closed" in repr(op)
+    assert "active" not in repr(op)
 
 
 def test_recv_repr():
@@ -224,13 +224,13 @@ def test_recv_repr():
     rep = repr(op)
     assert "Receive" in rep
     assert "path='/path' size=100 offset=42 buffersize=512 done=0" in rep
-    assert "closed" not in rep
+    assert "active" in rep
 
 
-def test_recv_repr_closed():
+def test_recv_repr_active():
     op = directio.Receive("/path", None)
     op.close()
-    assert "closed" in repr(op)
+    assert "active" not in repr(op)
 
 
 @pytest.mark.parametrize("size,rounded", [

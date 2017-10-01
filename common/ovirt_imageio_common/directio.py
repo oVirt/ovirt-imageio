@@ -43,7 +43,7 @@ class Operation(object):
         else:
             self._buffersize = buffersize
         self._done = 0
-        self._closed = False
+        self._active = True
 
     @property
     def size(self):
@@ -60,26 +60,26 @@ class Operation(object):
         return self._size - self._done
 
     @property
-    def closed(self):
-        return self._closed
+    def active(self):
+        return self._active
 
     def run(self):
         try:
             self._run()
         finally:
-            self._closed = True
+            self._active = False
 
     def close(self):
-        self._closed = True
+        self._active = False
 
     def __repr__(self):
         return ("<{self.__class__.__name__} path={self._path!r} "
                 "size={self.size} offset={self._offset} "
-                "buffersize={self._buffersize} done={self.done}{closed} "
+                "buffersize={self._buffersize} done={self.done}{active} "
                 "at 0x{id}>").format(
                     self=self,
                     id=id(self),
-                    closed=" closed" if self.closed else ""
+                    active=" active" if self.active else ""
                 )
 
 
