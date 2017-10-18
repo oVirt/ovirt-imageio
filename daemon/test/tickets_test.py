@@ -71,3 +71,15 @@ class TestTicket(object):
         end = time.time()
         print("%dG file (%d operations) in %.6f seconds" %
               (transferred_gb, operations, end - start))
+
+    def test_repr(self):
+        ticket = Ticket(ticket_dict=testutils.create_ticket(
+            ops=["read"], filename="tmp_file"))
+        ticket_repr = repr(ticket)
+
+        info = ticket.info()
+        del info["timeout"]
+
+        for key, value in info.items():
+            pair = "%s=%r" % (key, value)
+            assert pair in ticket_repr

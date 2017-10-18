@@ -122,20 +122,22 @@ class Ticket(object):
 
     def __repr__(self):
         return ("<Ticket "
-                "active={active} "
-                "expires={self.expires} "
-                "filename={self._filename!r} "
-                "ops={self._ops} "
-                "size={self._size} "
-                "transferred={transferred} "
-                "url={self._url} "
-                "uuid={self._uuid!r} "
+                "active={active!r} "
+                "expires={self.expires!r} "
+                "filename={self.filename!r} "
+                "ops={self.ops!r} "
+                "size={self.size!r} "
+                "transferred={transferred!r} "
+                "url={url!r} "
+                "uuid={self.uuid!r} "
                 "at {addr:#x}>"
-                ).format(self=self,
-                         addr=id(self),
-                         active=self.active(),
-                         transferred=self.transferred(),
-                         )
+                ).format(
+                    active=self.active(),
+                    addr=id(self),
+                    self=self,
+                    transferred=self.transferred(),
+                    url=urllib_parse.urlunparse(self.url)
+                )
 
 
 def _required(d, key):
