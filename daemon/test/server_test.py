@@ -162,10 +162,12 @@ def test_tickets_put_invalid_json():
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
-@pytest.mark.parametrize("missing", ["timeout", "url", "size", "ops"])
+# Using "timeout" confuses pytest-timeout plugin, workaround it by using
+# "-timeout".
+@pytest.mark.parametrize("missing", ["-timeout", "url", "size", "ops"])
 def test_tickets_put_mandatory_fields(missing):
     ticket = testutils.create_ticket()
-    del ticket[missing]
+    del ticket[missing.strip("-")]
     body = json.dumps(ticket)
     res = unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
