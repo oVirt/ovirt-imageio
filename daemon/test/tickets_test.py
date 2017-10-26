@@ -59,6 +59,7 @@ class TestTicket(object):
             ticket.add_operation(FakeOperation(offset=offset, done=done))
         assert ticket.transferred() == transferred
 
+    @pytest.mark.benchmark
     @pytest.mark.parametrize("transferred_gb", [1, 8, 64, 512, 4096])
     def test_benchmark_transferred(self, transferred_gb):
         ticket = Ticket(ticket_dict=testutils.create_ticket(ops=["read"]))
