@@ -215,7 +215,7 @@ def test_tickets_extend(fake_time):
     assert server_ticket == ticket
 
 
-def test_tickets_extend_no_ticket_id():
+def test_tickets_extend_no_ticket_id(fake_time):
     ticket = testutils.create_ticket()
     add_ticket(ticket)
     prev_ticket = get_ticket(ticket["uuid"])
@@ -226,7 +226,7 @@ def test_tickets_extend_no_ticket_id():
     assert cur_ticket == prev_ticket
 
 
-def test_tickets_extend_invalid_json():
+def test_tickets_extend_invalid_json(fake_time):
     ticket = testutils.create_ticket()
     add_ticket(ticket)
     prev_ticket = get_ticket(ticket["uuid"])
@@ -237,7 +237,7 @@ def test_tickets_extend_invalid_json():
     assert cur_ticket == prev_ticket
 
 
-def test_tickets_extend_no_timeout():
+def test_tickets_extend_no_timeout(fake_time):
     ticket = testutils.create_ticket()
     add_ticket(ticket)
     prev_ticket = get_ticket(ticket["uuid"])
@@ -248,7 +248,7 @@ def test_tickets_extend_no_timeout():
     assert cur_ticket == prev_ticket
 
 
-def test_tickets_extend_invalid_timeout():
+def test_tickets_extend_invalid_timeout(fake_time):
     ticket = testutils.create_ticket()
     add_ticket(ticket)
     prev_ticket = get_ticket(ticket["uuid"])
