@@ -292,7 +292,7 @@ def test_images_put_imaged_401_unauthorized(proxy_server, signed_ticket):
     assert res.status == 401
 
 
-@pytest.mark.noci
+@pytest.mark.xfail(reason="Fails in CI, needs more work.")
 def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
     # i.e. imaged can't find this resource
     body = "hello"
