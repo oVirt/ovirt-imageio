@@ -1,7 +1,7 @@
 subdirs = common daemon proxy
 targets = all check dist srpm rpm
 
-release_suffix = $(shell ./build-aux/release-suffix)
+release_suffix := $(shell ./build-aux/release-suffix)
 
 .PHONY: $(targets) $(subdirs)
 
