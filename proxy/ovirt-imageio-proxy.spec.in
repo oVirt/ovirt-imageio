@@ -19,12 +19,12 @@ BuildArch:  noarch
 
 # NOTE: keep in sync with automation/check.packages
 Requires:   m2crypto
-Requires:   ovirt-imageio-common = %{version}-%{release}
+Requires:   ovirt-imageio-common = %{version}
 Requires:   python
 Requires:   python-requests
 Requires:   python-webob
 Requires:   systemd-python
-Requires:   %{name}-setup >= %{version}-%{release}
+Requires:   %{name}-setup >= %{version}
 
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires:  python-devel
