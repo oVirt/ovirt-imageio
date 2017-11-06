@@ -29,8 +29,7 @@ except AttributeError:
     pass  # Older Python, not required
 
 
-# TODO session scope after refactoring
-@pytest.fixture
+@pytest.fixture(scope="session")
 def proxy_server(request):
     logging.basicConfig(
         filename="/dev/stdout",
