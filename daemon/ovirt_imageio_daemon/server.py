@@ -13,6 +13,7 @@ import logging
 import logging.config
 import os
 import signal
+import sys
 import time
 
 from wsgiref import simple_server
@@ -50,19 +51,25 @@ running = True
 
 def main(args):
     configure_logger()
-    log.info("Starting (version %s)", version.string)
-    configloader.load(config, [os.path.join(CONF_DIR, "daemon.conf")])
-    signal.signal(signal.SIGINT, terminate)
-    signal.signal(signal.SIGTERM, terminate)
-    start(config)
-    systemd.daemon.notify("READY=1")
-    log.info("Ready for requests")
     try:
-        while running:
-            time.sleep(30)
-    finally:
-        stop()
-    log.info("Stopped")
+        log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
+        configloader.load(config, [os.path.join(CONF_DIR, "daemon.conf")])
+        signal.signal(signal.SIGINT, terminate)
+        signal.signal(signal.SIGTERM, terminate)
+        start(config)
+        try:
+            systemd.daemon.notify("READY=1")
+            log.info("Ready for requests")
+            while running:
+                time.sleep(30)
+        finally:
+            stop()
+        log.info("Stopped")
+    except Exception:
+        log.exception(
+            "Service failed (image_server=%s, ticket_server=%s, running=%s)",
+            image_server, ticket_server, running)
+        sys.exit(1)
 
 
 def configure_logger():
