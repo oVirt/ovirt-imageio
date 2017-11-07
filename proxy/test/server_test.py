@@ -10,10 +10,10 @@ import pytest
 import requests_mock
 
 from ovirt_imageio_common.ssl import check_protocol
+from ovirt_imageio_proxy import config
 from ovirt_imageio_proxy import server
 
 TEST_DIR = os.path.dirname(__file__)
-CONFIG_FILE = os.path.join(TEST_DIR, "resources/test_config.ini")
 SIGNED_TICKET_FILE = os.path.join(TEST_DIR, "resources/auth_ticket.out")
 
 # From resources/auth_ticket.in values
@@ -36,17 +36,7 @@ def proxy_server(request):
         level=logging.DEBUG,
         format="(%(threadName)-10s) %(levelname)s %(name)s:%(message)s")
 
-    # Use a custom test configuration for the server; pki paths must be updated
-    from ovirt_imageio_proxy import config
-    config.load(CONFIG_FILE)
-    config._set('engine_cert_file',
-                os.path.join(TEST_DIR, "pki/certs/public_cert.pem"))
-    config._set('engine_ca_cert_file',
-                os.path.join(TEST_DIR, "pki/certs/public_cert.pem"))
-    config._set('ssl_key_file',
-                os.path.join(TEST_DIR, "pki/keys/vdsmkey.pem"))
-    config._set('ssl_cert_file',
-                os.path.join(TEST_DIR, "pki/certs/vdsmcert.pem"))
+    config.load(os.path.join(TEST_DIR, "resources/test_config.ini"))
 
     server_instance = server.Server()
     server_instance.start(config)
