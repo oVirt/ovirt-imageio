@@ -28,20 +28,18 @@ try:
 except AttributeError:
     pass  # Older Python, not required
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+            "%(message)s"))
+
 
 @pytest.fixture(scope="session")
 def proxy_server(request):
-    logging.basicConfig(
-        filename="/dev/stdout",
-        level=logging.DEBUG,
-        format="(%(threadName)-10s) %(levelname)s %(name)s:%(message)s")
-
     config.load(os.path.join(TEST_DIR, "resources/test_config.ini"))
-
     server_instance = server.Server()
     server_instance.start(config)
     request.addfinalizer(server_instance.stop)
-
     return config
 
 
