@@ -26,8 +26,9 @@ from ovirt_imageio_common import ssl
 from ovirt_imageio_common import web
 
 from . import images
-from . import sessions
 from . import info
+from . import sessions
+from . import tickets
 
 
 class Server:
@@ -43,6 +44,7 @@ class Server:
             self._secure_server(config, server)
         app = web.Application(config, [
             (r"/images/(.*)", images.RequestHandler),
+            (r"/tickets/(.*)", tickets.RequestHandler),
             (r"/sessions/(.*)", sessions.RequestHandler),
             (r"/info/", info.RequestHandler),
         ])
