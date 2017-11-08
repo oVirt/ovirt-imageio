@@ -10,11 +10,6 @@ import pytest
 import requests_mock
 
 from ovirt_imageio_common.ssl import check_protocol
-from ovirt_imageio_proxy import config
-from ovirt_imageio_proxy import server
-
-TEST_DIR = os.path.dirname(__file__)
-SIGNED_TICKET_FILE = os.path.join(TEST_DIR, "resources/auth_ticket.out")
 
 # From resources/auth_ticket.in values
 AUTH_TICKET_ID = "f6fe1b31-1c90-4dc3-a4b9-7b02938c8b41"
@@ -32,21 +27,6 @@ logging.basicConfig(
     level=logging.DEBUG,
     format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
             "%(message)s"))
-
-
-@pytest.fixture(scope="session")
-def proxy_server(request):
-    config.load(os.path.join(TEST_DIR, "resources/test_config.ini"))
-    server_instance = server.Server()
-    server_instance.start(config)
-    request.addfinalizer(server_instance.stop)
-    return config
-
-
-@pytest.fixture
-def signed_ticket():
-    with open(SIGNED_TICKET_FILE, 'r') as f:
-        return f.read().rstrip()
 
 
 def test_connect(proxy_server):
