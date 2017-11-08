@@ -1,6 +1,5 @@
 import logging
 import os
-import ssl
 
 import pytest
 import requests_mock
@@ -8,13 +7,6 @@ import requests_mock
 from ovirt_imageio_common.ssl import check_protocol
 
 from . import http
-
-# Disable client certificate verification introduced in Python > 2.7.9. We
-# trust our certificates.
-try:
-    ssl._create_default_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass  # Older Python, not required
 
 logging.basicConfig(
     level=logging.DEBUG,
