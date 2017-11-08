@@ -9,11 +9,6 @@ from ovirt_imageio_common.ssl import check_protocol
 
 from . import http
 
-# From resources/auth_ticket.in values
-AUTH_TICKET_ID = "f6fe1b31-1c90-4dc3-a4b9-7b02938c8b41"
-IMAGED_URI = "https://localhost:54322"
-
-
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.
 try:
@@ -72,12 +67,12 @@ def test_images_unparseable_auth(proxy_server):
 def test_images_cors_compliance(proxy_server, signed_ticket,
                                 method, extra_headers, body,
                                 response_body, response_headers):
-    request_headers = images_request_headers(signed_ticket)
+    request_headers = images_request_headers(signed_ticket.data)
     request_headers.update(extra_headers)
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.register_uri(method, IMAGED_URI + path,
+        m.register_uri(method, signed_ticket.url + path,
                        status_code=200,
                        text=response_body,
                        headers=response_headers)
@@ -97,8 +92,8 @@ def split_header(s):
 
 
 def test_images_cors_options(proxy_server, signed_ticket):
-    request_headers = images_request_headers(signed_ticket)
-    path = "/images/" + AUTH_TICKET_ID
+    request_headers = images_request_headers(signed_ticket.data)
+    path = "/images/" + signed_ticket.id
 
     res = http.request(proxy_server, "OPTIONS", path,
                        headers=request_headers, body=None)
@@ -120,7 +115,7 @@ def test_images_cors_options(proxy_server, signed_ticket):
 def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
     body = "hello"
     request_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Content-Length": "0",
         "Range": "bytes=2-6",
@@ -130,10 +125,10 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
         "Content-Length": "5",
         "Content-Disposition": "attachment; filename=\xd7\x90", # this is hebrew aleph
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.get(IMAGED_URI + path,
+        m.get(signed_ticket.url + path,
               status_code=200,
               text=body,
               headers=response_headers)
@@ -147,7 +142,7 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
 
 def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
     client_headers = {
-        "Authorization": signed_ticket
+        "Authorization": signed_ticket.data
     }
     path = "/sessions/"
 
@@ -161,10 +156,10 @@ def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
     response_headers = {
         "Content-Length": "5",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.get(IMAGED_URI + path,
+        m.get(signed_ticket.url + path,
               status_code=200,
               text=body,
               headers=response_headers)
@@ -179,14 +174,14 @@ def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
 def test_images_get_imaged_401_unauthorized(proxy_server, signed_ticket):
     # i.e. imaged doesn't have a valid ticket for this request
     request_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Range": "bytes=0-5",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.get(IMAGED_URI + path,
+        m.get(signed_ticket.url + path,
               status_code=401,
               text="Unauthorized")
         res = http.request(proxy_server, "GET", path, headers=request_headers)
@@ -197,14 +192,14 @@ def test_images_get_imaged_401_unauthorized(proxy_server, signed_ticket):
 def test_images_get_imaged_404_notfound(proxy_server, signed_ticket):
     # i.e. imaged can't find this resource
     request_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Range": "bytes=0-5",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.get(IMAGED_URI + path,
+        m.get(signed_ticket.url + path,
               status_code=404,
               text="Not found")
         res = http.request(proxy_server, "GET", path, headers=request_headers)
@@ -215,11 +210,11 @@ def test_images_get_imaged_404_notfound(proxy_server, signed_ticket):
 def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
     body = "hello"
     client_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Content-Range": "bytes 2-6/10",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     proxy_headers = {
         "Content-Length": str(len(body)),
@@ -227,7 +222,7 @@ def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
     }
 
     with requests_mock.Mocker() as m:
-        m.put(IMAGED_URI + path,
+        m.put(signed_ticket.url + path,
               status_code=200,
               text=None,
               request_headers=proxy_headers)
@@ -241,14 +236,14 @@ def test_images_put_imaged_401_unauthorized(proxy_server, signed_ticket):
     # i.e. imaged doesn't have a valid ticket for this request
     body = "hello"
     request_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Content-Range": "bytes 2-6/10",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.put(IMAGED_URI + path,
+        m.put(signed_ticket.url + path,
               status_code=401,
               text="Unauthorized")
         res = http.request(proxy_server, "PUT", path, body=body,
@@ -262,14 +257,14 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
     # i.e. imaged can't find this resource
     body = "hello"
     request_headers = {
-        "Authorization": signed_ticket,
+        "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
         "Content-Range": "bytes 2-6/10",
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
 
     with requests_mock.Mocker() as m:
-        m.put(IMAGED_URI + path,
+        m.put(signed_ticket.url + path,
               status_code=404,
               text="Not found")
         res = http.request(proxy_server, "PUT", path, headers=request_headers)
@@ -291,7 +286,7 @@ def test_accept_protocols(proxy_server, protocol):
 
 def test_sessions_post_sessionid_response(proxy_server, signed_ticket):
     client_headers = {
-        "Authorization": signed_ticket
+        "Authorization": signed_ticket.data
     }
     path = "/sessions/"
 
@@ -302,13 +297,13 @@ def test_sessions_post_sessionid_response(proxy_server, signed_ticket):
     client_headers = {
         "Session-Id": res.getheader('Session-Id'),
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
     body = "hello"
     response_headers = {
         "Content-Length": str(len(body)),
     }
     with requests_mock.Mocker() as m:
-        m.get(IMAGED_URI + path,
+        m.get(signed_ticket.url + path,
               status_code=200,
               text=body,
               headers=response_headers)
@@ -319,7 +314,7 @@ def test_sessions_post_sessionid_response(proxy_server, signed_ticket):
 
 def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
     client_headers = {
-        "Authorization": signed_ticket
+        "Authorization": signed_ticket.data
     }
     path = "/sessions/"
 
@@ -334,7 +329,7 @@ def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
 
 def test_images_delete_session(proxy_server, signed_ticket):
     client_headers = {
-        "Authorization": signed_ticket
+        "Authorization": signed_ticket.data
     }
     path = "/sessions/"
 
@@ -349,7 +344,7 @@ def test_images_delete_session(proxy_server, signed_ticket):
     client_headers = {
         "Session-Id": session_id,
     }
-    path = "/images/" + AUTH_TICKET_ID
+    path = "/images/" + signed_ticket.id
     res = http.request(proxy_server, "GET", path, headers=client_headers)
     assert res.status == 401
 
@@ -359,14 +354,14 @@ def test_images_delete_missing_session(proxy_server, signed_ticket):
     assert res.status == 404
 
 
-def images_request_headers(signed_ticket):
+def images_request_headers(authorization):
     return {
        "Access-Control-Request-Headers": "content-range, pragma, "
                                          "cache-control, "
                                          "authorization, "
                                          "content-type",
        "Access-Control-Request-Method": "PUT",
-       "Authorization": signed_ticket,
+       "Authorization": authorization,
        "Host": "localhost:8081",
        "Origin": "http://localhost:0000"
     }
