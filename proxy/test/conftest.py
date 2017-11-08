@@ -18,12 +18,17 @@ SingedTicket = collections.namedtuple(
 
 
 @pytest.fixture(scope="session")
-def proxy_server(request):
+def proxy_server():
+    """
+    Run proxy server during the test.
+    """
     config.load(os.path.join(TEST_DIR, "resources/test_config.ini"))
     server_instance = server.Server()
     server_instance.start(config)
-    request.addfinalizer(server_instance.stop)
-    return config
+    try:
+        yield config
+    finally:
+        server_instance.stop()
 
 
 @pytest.fixture(scope="session")
