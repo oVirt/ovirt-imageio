@@ -29,6 +29,21 @@ from . import util
 log = logging.getLogger("web")
 
 
+class RequestInfo(object):
+
+    def __init__(self, r):
+        self.r = r
+        # Save request.path - modified during dispatching the request.
+        self.path = r.path
+        self.start = util.monotonic_time()
+
+    def time(self):
+        return util.monotonic_time() - self.start
+
+    def __str__(self):
+        return "[%s] %s %s" % (self.r.client_addr, self.r.method, self.path)
+
+
 class Application(object):
     ALLOWED_METHODS = frozenset(['GET', 'PUT', 'PATCH', 'POST',
                                  'DELETE', 'OPTIONS', 'HEAD'])
@@ -43,14 +58,17 @@ class Application(object):
 
     def __call__(self, env, start_response):
         request = webob.Request(env)
-        start = util.monotonic_time()
+        req = RequestInfo(request)
+        self.log_start(req)
         try:
             resp = self.dispatch(request)
         except Exception as e:
             if not isinstance(e, HTTPException):
                 e = HTTPInternalServerError(detail=str(e))
             resp = error_response(e)
-        self.log_response(request, resp, util.monotonic_time() - start)
+            self.log_error(req, resp, e)
+        else:
+            self.log_finish(req, resp)
         return resp(env, start_response)
 
     def dispatch(self, request):
@@ -73,20 +91,25 @@ class Application(object):
                     return method(*match.groups())
         raise HTTPNotFound("No handler for %r" % path)
 
-    def log_response(self, req, resp, elapsed_time):
-        if resp.status_code >= 500:
-            log_call = log.exception
-        elif resp.status_code >= 400:
-            log_call = log.warning
-        else:
-            log_call = log.info
-        log_call("%s - %s %s %d %d (%.2fs)",
-                 req.client_addr,
-                 req.method,
-                 req.path_info,
+    def log_start(self, req):
+        log.info("START %s", req)
+
+    def log_finish(self, req, resp):
+        log.info("FINISH %s: [%s] %s (%.2fs)",
+                 req,
                  resp.status_code,
                  resp.content_length,
-                 elapsed_time)
+                 req.time())
+
+    def log_error(self, req, resp, error):
+        # Show exceptions only for internal errors (bugs in proxy), and warn
+        # about anthing else (client error).
+        meth = log.exception if resp.status_code >= 500 else log.warning
+        meth("ERROR %s: [%s] %s (%.2fs)",
+             req,
+             resp.status_code,
+             error,
+             req.time())
 
 
 def error_response(e):
