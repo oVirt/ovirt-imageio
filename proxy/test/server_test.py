@@ -1,4 +1,3 @@
-import logging
 import os
 
 import pytest
@@ -7,11 +6,6 @@ import requests_mock
 from ovirt_imageio_common.ssl import check_protocol
 
 from . import http
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
-            "%(message)s"))
 
 
 def test_connect(proxy_server):

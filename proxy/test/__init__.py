@@ -6,6 +6,12 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import logging
 import sys
 
 sys.path = ["../common"] + sys.path
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+            "%(message)s"))
