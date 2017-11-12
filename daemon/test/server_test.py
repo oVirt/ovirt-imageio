@@ -500,6 +500,17 @@ def test_images_download_no_range(tmpdir):
     assert received == "\0" * size
 
 
+def test_images_download_empty(tmpdir):
+    # Stupid edge case, but it should work, returning empty file :-)
+    image = create_tempfile(tmpdir, "image")  # Empty image
+    ticket = testutils.create_ticket(url="file://" + str(image), size=0)
+    add_ticket(ticket)
+    res = download(ticket["uuid"])
+    assert res.status == 200
+    data = res.read()
+    assert data == b""
+
+
 def test_images_download_no_range_end(tmpdir):
     size = 1024
     image = create_tempfile(tmpdir, "image", size=size)
