@@ -341,6 +341,17 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
 
 class ServerHandler(simple_server.ServerHandler):
 
+    # wsgiref handers ignores the http request handler's protocol_version, and
+    # uses its own version. This results in requests returning HTTP/1.0 instead
+    # of HTTP/1.1 - see https://bugzilla.redhat.com/1512317
+    #
+    # Looking at python source we need to define here:
+    #
+    #   http_version = "1.1"
+    #
+    # Bug adding this break some tests.
+    # TODO: investigate this.
+
     def write(self, data):
         """
         Override to allow writing buffer object.

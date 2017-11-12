@@ -588,6 +588,27 @@ def test_accept_protocols(protocol):
     assert rc == 0
 
 
+# HTTP correctness
+
+@pytest.mark.xfail(reason="needs investigation")
+def test_images_response_version_success(tmpdir):
+    image = create_tempfile(tmpdir, "image", "old")
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    res = upload(ticket["uuid"], "new")
+    assert res.status == 200
+    assert res.version == 11
+
+
+@pytest.mark.xfail(reason="needs investigation")
+def test_images_response_version_error(tmpdir):
+    res = download("no-such-ticket")
+    assert res.status != 200
+    assert res.version == 11
+
+
+# Helpers
+
 def upload(ticket_uuid, body, content_range=None):
     uri = "/images/" + ticket_uuid
     headers = {}
@@ -643,7 +664,7 @@ def unix_request(method, uri, body=None, headers=None):
 
 def response(con):
     res = con.getresponse()
-    pprint((res.status, res.reason))
+    pprint((res.status, res.reason, res.version))
     pprint(res.getheaders())
     return res
 
