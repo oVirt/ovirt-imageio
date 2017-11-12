@@ -511,6 +511,39 @@ def test_images_download_empty(tmpdir):
     assert data == b""
 
 
+@pytest.mark.xfail(reason="need to check actual image size")
+def test_images_download_partial_not_satistieble(tmpdir):
+    # Image is smaller than ticket size - may happen if engine failed to detect
+    # actual image size reported by vdsm - one byte difference is enough to
+    # cause a failure.
+    # See https://bugzilla.redhat.com/1512315.
+    size = 1024
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=size + 1)
+    add_ticket(ticket)
+    unsatisfiable_range = "bytes=0-%d" % size  # Max is size - 1
+    res = download(ticket["uuid"], unsatisfiable_range)
+    assert res.status == http_client.REQUESTED_RANGE_NOT_SATISFIABLE
+
+
+@pytest.mark.xfail(reason="need to return actual image size")
+def test_images_download_partial_no_range(tmpdir):
+    # The image is smaller than the tiket size, but we don't request a range,
+    # so we should get the existing length of the image, since the ticket size
+    # is only an upper limit. Or maybe we should treat the ticket size as the
+    # expected size?
+    # This is another variant of https://bugzilla.redhat.com/1512315.
+    size = 1024
+    image = create_tempfile(tmpdir, "image", size=size)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=size + 1)
+    add_ticket(ticket)
+    res = download(ticket["uuid"])
+    assert res.status == http_client.OK
+    # Should return the available image data, not the ticket size. Reading this
+    # response will fail with IncompleteRead.
+    assert res.length == 1024
+
+
 def test_images_download_no_range_end(tmpdir):
     size = 1024
     image = create_tempfile(tmpdir, "image", size=size)
