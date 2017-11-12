@@ -607,6 +607,41 @@ def test_images_response_version_error(tmpdir):
     assert res.version == 11
 
 
+def test_keep_connection_on_success(tmpdir):
+    image = create_tempfile(tmpdir, "image")
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    uri = "/images/%(uuid)s" % ticket
+    body = "data"
+    with https_connection() as con:
+
+        # Send the first request - it should succeed...
+        con.request("PUT", uri, body=body)
+        with closing(response(con)) as r1:
+            assert r1.status == 200
+
+        # The connection should be open for the next request.
+        con.request("PUT", uri, body=body)
+        with closing(response(con)) as r2:
+            assert r2.status == 200
+
+
+def test_keep_connection_on_error(tmpdir):
+    uri = "/images/no-such-ticket"
+    body = "data"
+    with https_connection() as con:
+
+        # Send the first request - it should fail...
+        con.request("PUT", uri, body=body)
+        with closing(response(con)) as r1:
+            assert r1.status == 403
+
+        # The connection should be open for the next request.
+        con.request("PUT", uri, body=body)
+        with closing(response(con)) as r2:
+            assert r2.status == 403
+
+
 # Helpers
 
 def upload(ticket_uuid, body, content_range=None):
