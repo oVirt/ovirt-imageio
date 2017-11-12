@@ -544,6 +544,19 @@ def test_images_download_partial_no_range(tmpdir):
     assert res.length == 1024
 
 
+@pytest.mark.xfail(reason="return invalid response line")
+def test_images_download_partial_no_range_empty(tmpdir):
+    # Image is empty, no range, should return an empty file - we return invalid
+    # http response that fail on the client side with BadStatusLine: ''.
+    # See https://bugzilla.redhat.com/1512312
+    image = create_tempfile(tmpdir, "image")  # Empty image
+    ticket = testutils.create_ticket(url="file://" + str(image), size=1024)
+    add_ticket(ticket)
+    res = download(ticket["uuid"])
+    assert res.status == http_client.OK
+    assert res.length == 0
+
+
 def test_images_download_no_range_end(tmpdir):
     size = 1024
     image = create_tempfile(tmpdir, "image", size=size)
