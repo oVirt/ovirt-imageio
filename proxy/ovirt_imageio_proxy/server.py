@@ -27,6 +27,7 @@ from ovirt_imageio_common import web
 
 from . import images
 from . import sessions
+from . import info
 
 
 class Server:
@@ -43,6 +44,7 @@ class Server:
         app = web.Application(config, [
             (r"/images/(.*)", images.RequestHandler),
             (r"/sessions/(.*)", sessions.RequestHandler),
+            (r"/info/", info.RequestHandler),
         ])
         server.set_app(app)
         self._start_server(config, server, "image.server")

@@ -98,6 +98,22 @@ HTTP/1.1 204 No Content
 
 Write me
 
+/info
+~~~~~
+
+Request:
+```
+Get /info/ HTTP/1.1
+```
+Response:
+```
+HTTP/1.1 200 OK
+content-type: application/json
+
+{
+    "version": "1.2.0"
+}
+```
 
 Installation
 ------------
