@@ -215,6 +215,17 @@ def test_tickets_extend(fake_time):
     assert server_ticket == ticket
 
 
+def test_tickets_get_expired_ticket(fake_time):
+    ticket = testutils.create_ticket()
+    add_ticket(ticket)
+    # Make the ticket expire.
+    fake_time.now += 500
+    res = unix_request("GET", "/tickets/%(uuid)s" % ticket)
+    assert res.status == 200
+    server_ticket = json.loads(res.read())
+    assert server_ticket["timeout"] == -200
+
+
 def test_tickets_extend_no_ticket_id(fake_time):
     ticket = testutils.create_ticket()
     add_ticket(ticket)
