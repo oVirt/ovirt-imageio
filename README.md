@@ -53,17 +53,21 @@ the oVirt REST API or oVirt SDK.
 - Engine asks vdsm to tear down the image.
 
 
-#### Monitoring upload
+#### Pausing an upload
 
-The UI is updating the backend about sent data each time a chunk is sent
-to ovirt-imageio-proxy.
-
-Write me: how upload progress is managed by backend.
+Pausing an upload only stops the monitoring.
+The ticket remains in the daemon's cache and its timeout continues to
+decrease.
+If the client stops transferring data without pausing the transfer, the
+monitoring continues.
 
 
 #### Resuming upload
 
-Write me
+- The client asks the backend to resume the upload.
+- The backend extends the ticket if it's about to expire or has already
+  expired.
+- The client continues to send the image data to ovirt-imageio-proxy.
 
 
 ### Download image flow
@@ -96,33 +100,37 @@ the oVirt REST API or oVirt SDK.
 - Engine asks vdsm to tear down the image.
 
 
-#### Monitoring download
-
-The backend will monitor the download progress every 4 seconds. On each
-monitoring cycle:
-- backend send Host.get_image_ticket request to Vdsm, with the ticket
-  id.
-- Vdsm send ```GET``` request to ovirt-imageio-daemon to
-  ```/tickets/<ticket id>``` and return the json response.
-- backend update the operation progress and state using the ticket
-  status.
-- UI will update the progress bar using the upadated state in the
-  database.
-
-
 #### Resuming download
 
 - To resume a download send a range request (use Range header) specifying
   the start offset to download and optionaly the last byte requested.
   This is already implemented in browsers and tools like wget.
-- If the download ticket expires, the user have to restart the download.
+- If the download ticket expires, the backend extends it.
+
+
+## Monitoring upload and download
+
+- Monitoring a transfer starts when the client begins to transfer data
+  to the proxy.
+- The backend monitors the progress of a transfer periodically by
+  sending a Host.get_image_ticket request to Vdsm with the ticket id.
+- Vdsm sends a ```GET``` request with the URL ```/tickets/<ticket id>```
+  to ovirt-imageio-daemon and returns the json response.
+- The backend updates the transfer's progress and state in the DB using
+  the ticket's status.
+- The UI updates the progress bar by reading the up to date status from
+  the database.
+- When the transfer is over, the monitoring ends.
+- The following are responsible for finalizing the transfer:
+  * The client when transferring via the SDK.
+  * When uploading via the engine's UI, the UI itself.
+  * When downloading via the engine's UI, the backend compares between
+    the image size and the amount of bytes the daemon has transferred.
+    If they are equal and no transfer operations exist, the backend
+    finalizes the download itself.
 
 
 ## Tickets
-
-Tickets are ephemeral; A client needs to request Engine to renew the
-ticket from time to time, otherwise a ticket will expire and the
-ongoing image operations will be aborted.
 
 Tickets are not persisted. In case of ovirt-imageio-daemon crash or
 reboot, Engine will provide a new ticket and possibly point client to
