@@ -2,7 +2,6 @@
 
 import httplib
 import logging
-import uuid
 
 import requests
 from webob import exc
@@ -40,10 +39,9 @@ class RequestHandler(object):
     @requiresession
     @addcors
     def get(self, res_id):
-        resource_id = self.get_resource_id(self.request)
         imaged_url = self.get_imaged_url(self.request)
 
-        headers = self.get_default_headers(resource_id)
+        headers = self.get_default_headers(res_id)
         # Note that webob request.headers is case-insensitive.
         if 'Range' in self.request.headers:
             headers['Range'] = self.request.headers['Range']
@@ -69,21 +67,21 @@ class RequestHandler(object):
             max_transfer_bytes)
         response.headers['Content-Length'] = str(max_transfer_bytes)
         logging.debug("Resource %s: transferring %d bytes from host",
-                      resource_id, max_transfer_bytes)
+                      res_id, max_transfer_bytes)
 
         return response
 
     @requiresession
     @addcors
     def put(self, res_id):
-        return self.send_data(self.request)
+        return self.send_data(self.request, res_id)
 
     @requiresession
     @addcors
     def patch(self, res_id):
-        return self.send_data(self.request)
+        return self.send_data(self.request, res_id)
 
-    def send_data(self, request):
+    def send_data(self, request, res_id):
         """ Handles sending data to host for PUT or PATCH.
         :param request: http request object
         :type request: webob.Request
@@ -100,10 +98,9 @@ class RequestHandler(object):
                 .format(request.method)
             )
 
-        resource_id = self.get_resource_id(request)
         imaged_url = self.get_imaged_url(request)
 
-        headers = self.get_default_headers(resource_id)
+        headers = self.get_default_headers(res_id)
         headers['Content-Range'] = request.headers['Content-Range']
         headers['Content-Length'] = request.headers['Content-Length']
         max_transfer_bytes = int(headers['Content-Length'])
@@ -111,7 +108,7 @@ class RequestHandler(object):
         body = web.CappedStream(request.body_file, max_transfer_bytes)
         stream = False
         logging.debug("Resource %s: transferring %d bytes to host",
-                      resource_id, max_transfer_bytes)
+                      res_id, max_transfer_bytes)
         imaged_response = self.make_imaged_request(
             request.method, imaged_url, headers, body, stream)
 
@@ -119,26 +116,6 @@ class RequestHandler(object):
         response.headers['Cache-Control'] = 'no-cache, no-store'
 
         return response
-
-    def get_resource_id(self, request):
-        resource_id = request.path_info_pop()
-        if request.path_info:
-            # No extra url path allowed!
-            raise exc.HTTPBadRequest("Invalid resource path")
-
-        # The requested image resource must match the one in the ticket
-        try:
-            uuid.UUID(resource_id)
-        except ValueError:
-            raise exc.HTTPBadRequest(
-                "Invalid format for requested resource or no resource specified"
-            )
-        if (resource_id != auth.get_session_attribute(
-                request, auth.SESSION_TRANSFER_TICKET)):
-            raise exc.HTTPBadRequest(
-                "Requested resource must match transfer ticket"
-            )
-        return resource_id
 
     def get_imaged_url(self, request):
         uri = auth.get_session_attribute(request, auth.SESSION_IMAGED_HOST_URI)
