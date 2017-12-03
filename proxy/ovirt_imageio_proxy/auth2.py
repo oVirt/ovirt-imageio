@@ -101,15 +101,15 @@ class Ticket(object):
 
             now = int(time.time())
             not_before = d["nbf"]
-            expires = d["exp"]
+            self._expires = d["exp"]
 
             if not_before > now - config.allowed_skew_seconds:
                 raise FutureProxyTicket(
                     not_before, now, config.allowed_skew_seconds)
 
-            if expires <= now + config.allowed_skew_seconds:
+            if self._expires <= now + config.allowed_skew_seconds:
                 raise ExpiredProxyTicket(
-                    expires, now, config.allowed_skew_seconds)
+                    self._expires, now, config.allowed_skew_seconds)
 
             # Extract the ticket data.
 
@@ -128,10 +128,15 @@ class Ticket(object):
     def url(self):
         return self._url
 
+    @property
+    def timeout(self):
+        return self._expires - time.time()
+
     def __repr__(self):
         return ("<Ticket "
                 "id={self.id!r}, "
                 "url={self.url!r} "
+                "timeout={self.timeout!r} "
                 "at {addr:#x}>").format(self=self, addr=id(self))
 
 

@@ -3,9 +3,11 @@ from functools import wraps
 import logging
 import re
 
+from webob import exc
 from webob.util import status_reasons
 
 import auth
+import auth2
 
 # Content-range (eg "bytes 0-1023/4096" or "bytes 0-15/*")
 cr_regex = re.compile(r"bytes (\d+)-(\d+)/((?:\d+)|(?:\*))", re.IGNORECASE)
@@ -89,4 +91,39 @@ def requiresession(func):
         finally:
             auth.update_session_activity(self.request)
         return ret
+    return wrapper
+
+
+def authorize(func):
+    """
+    A decorator for a RequestHandler to ensure a ticket is installed and valid,
+    or a signed ticket is specified in the Authorization header.
+    Returning a failed HTTP response otherwise.
+
+    :param func: RequestHandler to decorate
+    :return: the decorated function
+    :raise webob.exc.HTTPException: Error validating ticket or running HTTP
+                                    method
+    """
+    @wraps(func)
+    def wrapper(self, *args):
+        ticket_id = args[0]
+        try:
+            ticket = auth2.get_ticket(ticket_id)
+        except auth2.NoSuchTicket:
+            # Trying to fetch ticket from Authorization header
+            if 'Authorization' not in self.request.headers:
+                raise exc.HTTPUnauthorized("Not authorized (Ticket doesn't exists)")
+
+            signed_ticket = self.request.headers['Authorization']
+            try:
+                auth2.add_signed_ticket(signed_ticket)
+            except auth2.Error as e:
+                raise exc.HTTPUnauthorized("Not authorized (%s)" % e)
+            ticket = auth2.get_ticket(ticket_id)
+
+        if ticket.timeout < 0:
+            raise exc.HTTPUnauthorized("Not authorized (expired ticket)")
+        self.ticket = ticket
+        return func(self, *args)
     return wrapper
