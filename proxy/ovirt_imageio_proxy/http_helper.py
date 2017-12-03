@@ -6,7 +6,6 @@ import re
 from webob import exc
 from webob.util import status_reasons
 
-import auth
 import auth2
 
 # Content-range (eg "bytes 0-1023/4096" or "bytes 0-15/*")
@@ -70,29 +69,6 @@ def addcors(func):
         ret.headers.add("Access-Control-Max-Age", "300")
         return ret
     return wrapper
-
-
-def requiresession(func):
-    """
-    Annotation to wrap an HTTP method to ensure a session is loaded, returning
-    a failed HTTP response if one could not be established.
-
-    :param func: HTTP method to wrap
-    :return: webob response object, either failure (if session could not be
-             initialized) or HTTP method return value
-    :raise webob.exc.HTTPException: Error creating session or running HTTP
-                                    method
-    """
-    @wraps(func)
-    def wrapper(self, *args):
-        auth.start_session(self.request)
-        try:
-            ret = func(self, *args)
-        finally:
-            auth.update_session_activity(self.request)
-        return ret
-    return wrapper
-
 
 def authorize(func):
     """
