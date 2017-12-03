@@ -9,7 +9,7 @@ from . import auth
 
 from . http_helper import (
     addcors,
-    requiresession,
+    authorize,
 )
 
 
@@ -26,7 +26,7 @@ class RequestHandler(object):
         self.config = config
         self.request = request
 
-    @requiresession
+    @authorize
     @addcors
     def post(self, res_id):
         """ Creates a new session and returns its ID

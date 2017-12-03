@@ -1,9 +1,8 @@
-import os
-
 import pytest
 import requests_mock
 
 from ovirt_imageio_common.ssl import check_protocol
+from ovirt_imageio_proxy import auth2
 
 from . import http
 
@@ -126,14 +125,8 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
     assert res.getheader("content-disposition") == "attachment; filename=\xd7\x90"
 
 
-def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
-    client_headers = {
-        "Authorization": signed_ticket.data
-    }
-    path = "/sessions/"
-
-    res = http.request(proxy_server, "POST", path, headers=client_headers)
-    session_id = res.getheader('Session-Id')
+def test_images_get_imaged_with_installed_ticket(proxy_server, signed_ticket):
+    auth2.add_signed_ticket(signed_ticket.data)
 
     body = "hello"
     request_headers = {
@@ -149,7 +142,6 @@ def test_images_get_imaged_with_session_id_param(proxy_server, signed_ticket):
               status_code=200,
               text=body,
               headers=response_headers)
-        path += "?session_id=" + session_id
         res = http.request(proxy_server, "GET", path, headers=request_headers)
         assert m.called
     assert res.status == 200
@@ -270,34 +262,6 @@ def test_accept_protocols(proxy_server, protocol):
     assert rc == 0
 
 
-def test_sessions_post_sessionid_response(proxy_server, signed_ticket):
-    client_headers = {
-        "Authorization": signed_ticket.data
-    }
-    path = "/sessions/"
-
-    res = http.request(proxy_server, "POST", path, headers=client_headers)
-    assert res.status == 200
-
-    ## Get using header's Session-Id
-    client_headers = {
-        "Session-Id": res.getheader('Session-Id'),
-    }
-    path = "/images/" + signed_ticket.id
-    body = "hello"
-    response_headers = {
-        "Content-Length": str(len(body)),
-    }
-    with requests_mock.Mocker() as m:
-        m.get(signed_ticket.url + path,
-              status_code=200,
-              text=body,
-              headers=response_headers)
-        res = http.request(proxy_server, "GET", path, headers=client_headers)
-        assert m.called
-    assert res.status == 200
-
-
 def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
     client_headers = {
         "Authorization": signed_ticket.data
@@ -311,28 +275,6 @@ def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
     res = http.request(proxy_server, "POST", path, headers=client_headers)
 
     assert res.getheader('Session-Id') == session_id
-
-
-def test_images_delete_session(proxy_server, signed_ticket):
-    client_headers = {
-        "Authorization": signed_ticket.data
-    }
-    path = "/sessions/"
-
-    res = http.request(proxy_server, "POST", path, headers=client_headers)
-    session_id = res.getheader('Session-Id')
-    assert session_id is not None
-
-    res = http.request(proxy_server, "DELETE", path + session_id)
-    assert res.status == 204
-
-    ## Get using header's Session-Id
-    client_headers = {
-        "Session-Id": session_id,
-    }
-    path = "/images/" + signed_ticket.id
-    res = http.request(proxy_server, "GET", path, headers=client_headers)
-    assert res.status == 401
 
 
 def test_images_delete_missing_session(proxy_server, signed_ticket):

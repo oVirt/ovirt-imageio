@@ -8,10 +8,9 @@ from webob import exc
 
 from http_helper import (
     addcors,
-    requiresession,
+    authorize,
     success_codes as http_success_codes,
 )
-import auth
 import config
 import server
 
@@ -36,10 +35,10 @@ class RequestHandler(object):
     def options(self, res_id):
         return web.response(httplib.NO_CONTENT)
 
-    @requiresession
+    @authorize
     @addcors
     def get(self, res_id):
-        imaged_url = self.get_imaged_url(self.request)
+        imaged_url = self.get_imaged_url(self.ticket)
 
         headers = self.get_default_headers(res_id)
         # Note that webob request.headers is case-insensitive.
@@ -71,12 +70,12 @@ class RequestHandler(object):
 
         return response
 
-    @requiresession
+    @authorize
     @addcors
     def put(self, res_id):
         return self.send_data(self.request, res_id)
 
-    @requiresession
+    @authorize
     @addcors
     def patch(self, res_id):
         return self.send_data(self.request, res_id)
@@ -98,7 +97,7 @@ class RequestHandler(object):
                 .format(request.method)
             )
 
-        imaged_url = self.get_imaged_url(request)
+        imaged_url = self.get_imaged_url(self.ticket)
 
         headers = self.get_default_headers(res_id)
         headers['Content-Range'] = request.headers['Content-Range']
@@ -117,11 +116,8 @@ class RequestHandler(object):
 
         return response
 
-    def get_imaged_url(self, request):
-        uri = auth.get_session_attribute(request, auth.SESSION_IMAGED_HOST_URI)
-        ticket = auth.get_session_attribute(
-            request, auth.SESSION_TRANSFER_TICKET)
-        return "{}/images/{}".format(uri, ticket)
+    def get_imaged_url(self, ticket):
+        return "{}/images/{}".format(ticket.url, ticket.id)
 
     def get_default_headers(self, resource_id):
         return {
