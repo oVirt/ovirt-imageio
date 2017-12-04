@@ -1,11 +1,14 @@
 #!/bin/sh
 
-release_suffix=.$(date -u +%Y%m%d%H%M)
-
-commithash=$(git rev-parse --short HEAD)
-if [ $? = 0 ]; then
+# Is this a release - build from tag?
+if git describe --tags --match "v[0-9]*" | grep -q '-'; then
+    # This is a master build, we want to make every build
+    # newer than all the previous builds using a timestamp,
+    # and make it easy to locate the commit from the build
+    # with the git commit hash.
+    release_suffix=.$(date -u +%Y%m%d%H%M)
+    commithash=$(git rev-parse --short HEAD)
     release_suffix+=.git$commithash
 fi
 
 echo $release_suffix
-
