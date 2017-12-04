@@ -2,7 +2,7 @@
 
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
-Release:   0%{?release_suffix}%{?dist}
+Release:   1%{?release_suffix}%{?dist}
 Summary:   oVirt imageio daemon
 
 Group:     Applications/System
