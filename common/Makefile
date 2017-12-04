@@ -21,10 +21,12 @@ dist: $(SPEC_NAME)
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
+		--define "release_suffix $(RELEASE_SUFFIX)" \
 		-ts dist/$(TAR_NAME)
 
 rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
+		--define "release_suffix $(RELEASE_SUFFIX)" \
 		--rebuild dist/*.src.rpm
 	mv $(RPM_TOPDIR)/RPMS/noarch/* dist/
 
