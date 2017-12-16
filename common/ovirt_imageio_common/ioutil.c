@@ -10,6 +10,9 @@
 
 #include <Python.h>
 
+#define GNU_SOURCE
+#include <fcntl.h>
+#include <linux/falloc.h>  /* For FALLOC_FL_* on RHEL, glibc < 2.18 */
 #include <sys/ioctl.h>  /* ioctl */
 #include <linux/fs.h>   /* BLKZEROOUT */
 
@@ -105,12 +108,79 @@ out:
     return PyBool_FromLong(res);
 }
 
+PyDoc_STRVAR(py_fallocate_doc, "\
+fallocate(fd, mode, offset, length)\n\
+Allows the caller to directly manipulate the allocated disk space for\n\
+the file referred to by fd for the byte range starting at offset and\n\
+continuing for length bytes.\n\
+\n\
+Arguments\n\
+  fd        file descriptor to operated on (int)\n\
+  mode      the operation to be performed on the given range (int)\n\
+  offset    start of range (int)\n\
+  length    length of range (int)\n\
+\n\
+Modes\n\
+  FALLOC_FL_KEEP_SIZE       file size will not be changed by the\n\
+                            operation\n\
+  FALLOC_FL_PUNCH_HOLE      deallocates space (i.e., creates a hole) in\n\
+                            the given byte range.\n\
+  FALLOC_FL_COLLAPSE_RANGE  removes a byte range from a file, without\n\
+                            leaving a hole.\n\
+  FALLOC_FL_ZERO_RANGE      zeroes space in the byte range.\n\
+\n\
+Raises\n\
+  OSError if the oprartion failed.\n\
+\n\
+See FALLOCATE(2) for more info.\n\
+");
+
+static PyObject *
+py_fallocate(PyObject *self, PyObject *args)
+{
+    int fd;
+    int mode;
+    off_t offset;
+    off_t length;
+    int err;
+
+    if (!PyArg_ParseTuple(args, "iiLL", &fd, &mode, &offset, &length))
+        return NULL;
+
+    Py_BEGIN_ALLOW_THREADS
+    err = fallocate(fd, mode, offset, length);
+    Py_END_ALLOW_THREADS
+
+    if (err != 0)
+        return PyErr_SetFromErrno(PyExc_OSError);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef module_methods[] = {
     {"blkzeroout", (PyCFunction) blkzeroout, METH_VARARGS | METH_KEYWORDS,
         blkzeroout_doc},
     {"is_zero", (PyCFunction) is_zero, METH_VARARGS, is_zero_doc},
+    {"fallocate", (PyCFunction) py_fallocate, METH_VARARGS, py_fallocate_doc},
     {NULL}  /* Sentinel */
 };
+
+static int module_init(PyObject *m)
+{
+    if (PyModule_AddIntConstant(m, "FALLOC_FL_KEEP_SIZE", FALLOC_FL_KEEP_SIZE))
+        return -1;
+
+    if (PyModule_AddIntConstant(m, "FALLOC_FL_PUNCH_HOLE", FALLOC_FL_PUNCH_HOLE))
+        return -1;
+
+    if (PyModule_AddIntConstant(m, "FALLOC_FL_COLLAPSE_RANGE", FALLOC_FL_COLLAPSE_RANGE))
+        return -1;
+
+    if (PyModule_AddIntConstant(m, "FALLOC_FL_ZERO_RANGE", FALLOC_FL_ZERO_RANGE))
+        return -1;
+
+    return 0;
+}
 
 #define MODULE_NAME "ioutil"
 #define MODULE_DOC "Low level I/O utilities"
@@ -128,7 +198,16 @@ static struct PyModuleDef moduledef = {
 PyMODINIT_FUNC
 PyInit_ioutil(void)
 {
-    return PyModule_Create(&moduledef);
+    PyObject *m;
+
+    m = PyModule_Create(&moduledef);
+    if (m == NULL)
+        return NULL;
+
+    if (module_init(m))
+        return NULL;
+
+    return m;
 }
 
 #else
@@ -136,7 +215,13 @@ PyInit_ioutil(void)
 PyMODINIT_FUNC
 initioutil(void)
 {
-    Py_InitModule3(MODULE_NAME, module_methods, MODULE_DOC);
+    PyObject *m;
+
+    m = Py_InitModule3(MODULE_NAME, module_methods, MODULE_DOC);
+    if (m == NULL)
+        return;
+
+    module_init(m);
 }
 
 #endif
