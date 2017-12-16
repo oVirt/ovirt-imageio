@@ -7,3 +7,5 @@ include *.in
 include *.ini
 
 global-include *.py
+
+prune .tox
