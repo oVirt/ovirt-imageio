@@ -5,6 +5,5 @@ make
 make rpm
 
 for dir in common daemon proxy; do \
-    cp $dir/dist/*.tar.gz exported-artifacts/; \
-    cp $dir/dist/*.rpm exported-artifacts/; \
+    cp $dir/dist/* exported-artifacts/
 done

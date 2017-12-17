@@ -11,6 +11,7 @@ htmlcov
 # Build output
 *.pyc
 *.pyo
+*.so
 *.spec
 logger.conf
 proxy/ovirt_imageio_proxy/constants.py

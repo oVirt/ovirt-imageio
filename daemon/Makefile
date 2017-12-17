@@ -33,7 +33,7 @@ rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
 		--define "release_suffix $(RELEASE_SUFFIX)" \
 		--rebuild dist/*.src.rpm
-	mv $(RPM_TOPDIR)/RPMS/noarch/* dist/
+	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
 clean:
 	python2 setup.py clean --all

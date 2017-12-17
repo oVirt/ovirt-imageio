@@ -11,6 +11,7 @@ METADATA = ovirt_imageio_common/version.py Makefile
 .PHONY: build check dist srpm rpm clean
 
 build: $(GENERATED)
+	python2 setup.py build_ext --inplace
 
 check:
 	tox
@@ -28,12 +29,13 @@ rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
 		--define "release_suffix $(RELEASE_SUFFIX)" \
 		--rebuild dist/*.src.rpm
-	mv $(RPM_TOPDIR)/RPMS/noarch/* dist/
+	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
 clean:
 	python2 setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
+	rm -f ovirt_imageio_common/*.so
 	rm -rf build
 	rm -rf dist
 
