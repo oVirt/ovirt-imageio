@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import fcntl
 import io
+import logging
 import mmap
 import os
 
@@ -26,6 +27,8 @@ BUFFERSIZE = 1024 * 1024
 # Typical logical block size of the underlying storage, which should be
 # sufficient for doing direct I/O.
 BLOCKSIZE = 512
+
+log = logging.getLogger("directio")
 
 
 class EOF(Exception):
@@ -44,6 +47,8 @@ class Operation(object):
             self._buffersize = buffersize
         self._done = 0
         self._active = True
+        self._clock = util.Clock()
+        self._clock.start("total")
 
     @property
     def size(self):
@@ -71,10 +76,13 @@ class Operation(object):
         try:
             self._run()
         finally:
-            self._active = False
+            self.close()
 
     def close(self):
-        self._active = False
+        if self._active:
+            self._active = False
+            self._clock.stop("total")
+            log.info("Operation stats: %s", self._clock)
 
     def __repr__(self):
         return ("<{self.__class__.__name__} path={self._path!r} "
@@ -99,7 +107,10 @@ class Send(Operation):
 
     def _run(self):
         for chunk in self:
+            self._clock.start("write")
             self._dst.write(chunk)
+            elapsed = self._clock.stop("write")
+            log.debug("Wrote %d bytes in %.3f seconds", len(chunk), elapsed)
 
     def __iter__(self):
         with io.FileIO(self._path, "r") as src, \
@@ -125,7 +136,10 @@ class Send(Operation):
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
+        self._clock.start("read")
         count = util.uninterruptible(src.readinto, buf)
+        elapsed = self._clock.stop("read")
+        log.debug("Read %d bytes in %.3f seconds", count, elapsed)
         if count == 0:
             if self._size is None:
                 raise EOF
@@ -161,7 +175,9 @@ class Receive(Operation):
             except EOF:
                 pass
             finally:
+                self._clock.start("sync")
                 os.fsync(dst.fileno())
+                self._clock.stop("sync")
 
     def _seek_before_first_block(self, dst):
         dst.seek(self._offset)
@@ -174,7 +190,10 @@ class Receive(Operation):
         buf.seek(0)
         toread = count
         while toread:
+            self._clock.start("read")
             chunk = self._src.read(toread)
+            elapsed = self._clock.stop("read")
+            log.debug("Read %d bytes in %.3f seconds", len(chunk), elapsed)
             if chunk == "":
                 break
             buf.write(chunk)
@@ -187,7 +206,11 @@ class Receive(Operation):
             wbuf = buffer(buf, offset, size)
             if size % BLOCKSIZE:
                 disable_directio(dst.fileno())
-            towrite -= util.uninterruptible(dst.write, wbuf)
+            self._clock.start("write")
+            written = util.uninterruptible(dst.write, wbuf)
+            elapsed = self._clock.stop("write")
+            log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+            towrite -= written
 
         self._done += buf.tell()
         if buf.tell() < count:
