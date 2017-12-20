@@ -1,5 +1,15 @@
 """
 Proxy authorization.
+
+The authorization flow is:
+- Engine adds signed image ticket to the proxy.
+- Proxy validates and stores the decoded ticket internally.
+- Engine adds the image ticket to the daemon.
+- Daemon validates and stores the decoded ticket internally.
+- Client invokes a request (GET/PUT/DELETE) to proxy on
+  '/images/<ticket-id>', proxy fetches the ticket from its
+  store, and authorizes the request if exists and valid.
+- Engine removes ticket using /tickets api when done.
 """
 
 import json
