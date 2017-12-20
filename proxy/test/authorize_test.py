@@ -4,7 +4,7 @@ import time
 
 from webob import exc
 
-from ovirt_imageio_proxy import auth2
+from ovirt_imageio_proxy import auth
 from ovirt_imageio_proxy import http_helper
 
 class Request:
@@ -25,7 +25,7 @@ class RequestHandler(object):
 
 
 def teardown_function(f):
-    auth2._store.clear()
+    auth._store.clear()
 
 
 def test_authorize_ticket_not_installed(proxy_server, signed_ticket):
@@ -46,20 +46,20 @@ def test_authorize_invalid_authorization_header(proxy_server, signed_ticket):
 
 
 def test_authorize_ticket_installed(proxy_server, signed_ticket):
-    auth2.add_signed_ticket(signed_ticket.data)
+    auth.add_signed_ticket(signed_ticket.data)
     handler = RequestHandler(Request())
     handler.decorated_method(signed_ticket.id)
-    assert handler.ticket == auth2.get_ticket(signed_ticket.id)
+    assert handler.ticket == auth.get_ticket(signed_ticket.id)
     assert handler.calls == [signed_ticket.id]
 
 
 def test_authorize_ticket_installed_invalid_authorization_header(proxy_server,
                                                                  signed_ticket):
-    auth2.add_signed_ticket(signed_ticket.data)
+    auth.add_signed_ticket(signed_ticket.data)
     request = Request({"Authorization": "invalid"})
     handler = RequestHandler(request)
     handler.decorated_method(signed_ticket.id)
-    assert handler.ticket == auth2.get_ticket(signed_ticket.id)
+    assert handler.ticket == auth.get_ticket(signed_ticket.id)
     assert handler.calls == [signed_ticket.id]
 
 
@@ -67,7 +67,7 @@ def test_authorize_authorization_header(proxy_server, signed_ticket):
     request = Request({"Authorization": signed_ticket.data})
     handler = RequestHandler(request)
     handler.decorated_method(signed_ticket.id)
-    assert handler.ticket == auth2.get_ticket(signed_ticket.id)
+    assert handler.ticket == auth.get_ticket(signed_ticket.id)
     assert handler.calls == [signed_ticket.id]
 
 
@@ -77,7 +77,7 @@ NBF = 1452291246
 
 
 def test_authorize_ticket_expired(proxy_server, signed_ticket, monkeypatch):
-    auth2.add_signed_ticket(signed_ticket.data)
+    auth.add_signed_ticket(signed_ticket.data)
     handler = RequestHandler(Request())
     monkeypatch.setattr(time, 'time', lambda: EXP+1)
     with pytest.raises(exc.HTTPUnauthorized):
@@ -85,7 +85,7 @@ def test_authorize_ticket_expired(proxy_server, signed_ticket, monkeypatch):
     assert handler.calls == []
     assert handler.ticket is None
     # Ticket expired but we don't remove it
-    auth2.get_ticket(signed_ticket.id)
+    auth.get_ticket(signed_ticket.id)
 
 
 # We are running internally add signed ticket
@@ -101,14 +101,14 @@ def test_authorize_ticket_expired__authorization_header(proxy_server,
         handler.decorated_method(signed_ticket.id)
     assert handler.calls == []
     assert handler.ticket is None
-    with pytest.raises(auth2.NoSuchTicket):
-        auth2.get_ticket(signed_ticket.id)
+    with pytest.raises(auth.NoSuchTicket):
+        auth.get_ticket(signed_ticket.id)
 
 
 def test_authorize_ticket_expired_ignore_authorization_header(proxy_server,
                                                               signed_ticket,
                                                               monkeypatch):
-    auth2.add_signed_ticket(signed_ticket.data)
+    auth.add_signed_ticket(signed_ticket.data)
     handler = RequestHandler(None)
     monkeypatch.setattr(time, 'time', lambda: EXP+1)
     with pytest.raises(exc.HTTPUnauthorized):

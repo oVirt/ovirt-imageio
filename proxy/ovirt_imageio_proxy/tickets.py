@@ -6,7 +6,7 @@ from six.moves import http_client
 from webob import exc
 from ovirt_imageio_common import web
 
-from . import auth2
+from . import auth
 
 
 class RequestHandler(object):
@@ -28,8 +28,8 @@ class RequestHandler(object):
         Verify and add a signed_ticket, allowing transfer to /images/ticket_id.
         """
         try:
-            auth2.add_signed_ticket(self.request.body)
-        except auth2.Error as e:
+            auth.add_signed_ticket(self.request.body)
+        except auth.Error as e:
             raise exc.HTTPForbidden("Error verifying signed ticket: %s" % e)
         return web.response()
 
@@ -40,7 +40,7 @@ class RequestHandler(object):
         if not ticket_id:
             raise exc.HTTPBadRequest("Missing ticket ID")
         try:
-            auth2.delete_ticket(ticket_id)
-        except auth2.NoSuchTicket as e:
+            auth.delete_ticket(ticket_id)
+        except auth.NoSuchTicket as e:
             raise exc.HTTPNotFound("Ticket not found: %s" % e)
         return web.response(http_client.NO_CONTENT)

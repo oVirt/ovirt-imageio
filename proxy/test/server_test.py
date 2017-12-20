@@ -2,7 +2,7 @@ import pytest
 import requests_mock
 
 from ovirt_imageio_common.ssl import check_protocol
-from ovirt_imageio_proxy import auth2
+from ovirt_imageio_proxy import auth
 
 from . import http
 
@@ -126,7 +126,7 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
 
 
 def test_images_get_imaged_with_installed_ticket(proxy_server, signed_ticket):
-    auth2.add_signed_ticket(signed_ticket.data)
+    auth.add_signed_ticket(signed_ticket.data)
 
     body = "hello"
     request_headers = {
