@@ -113,9 +113,8 @@ class Send(Operation):
             log.debug("Wrote %d bytes in %.3f seconds", len(chunk), elapsed)
 
     def __iter__(self):
-        with io.FileIO(self._path, "r") as src, \
+        with open(self._path, "r") as src, \
                 aligned_buffer(self._buffersize) as buf:
-            enable_directio(src.fileno())
             try:
                 if self._offset:
                     skip = self._seek_to_first_block(src)
@@ -161,14 +160,15 @@ class Receive(Operation):
         self._src = src
 
     def _run(self):
-        with io.FileIO(self._path, "r+") as dst, \
+        with open(self._path, "r+") as dst, \
                 aligned_buffer(self._buffersize) as buf:
             try:
                 if self._offset:
                     remaining = self._seek_before_first_block(dst)
                     if remaining:
+                        disable_directio(dst.fileno())
                         self._receive_chunk(dst, buf, remaining)
-                enable_directio(dst.fileno())
+                        enable_directio(dst.fileno())
                 while self._todo:
                     count = min(self._todo, self._buffersize)
                     self._receive_chunk(dst, buf, count)
@@ -217,6 +217,32 @@ class Receive(Operation):
             if self._size is None:
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
+
+
+def open(path, mode, direct=True):
+    """
+    Open a file for direct I/O.
+
+    Writing or reading from the file requires an aligned buffer. Only
+    readinto() can be used to read from the file.
+
+    If direct is False, open the file for buffered I/O. You can enable direct
+    I/O later using enable_directio().
+    """
+    if mode == "r":
+        flags = os.O_RDONLY
+    elif mode == "w":
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    elif mode == "r+":
+        flags = os.O_RDWR
+    else:
+        raise ValueError("Unsupported mode %r" % mode)
+
+    if direct:
+        flags |= os.O_DIRECT
+
+    fd = os.open(path, flags)
+    return io.FileIO(fd, mode, closefd=True)
 
 
 def round_up(n, size=BLOCKSIZE):

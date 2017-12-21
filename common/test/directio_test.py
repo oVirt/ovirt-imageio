@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import errno
 import io
 import string
 import sys
@@ -304,3 +305,82 @@ def test_send_no_size(tmpdir, data, offset):
     op = directio.Send(str(src), dst, offset=offset)
     op.run()
     assert dst.getvalue() == data[offset:]
+
+
+def test_open_write_only(tmpdir):
+    path = str(tmpdir.join("path"))
+    with directio.open(path, "w") as f, \
+            directio.aligned_buffer(512) as buf:
+        buf.write(b"x" * 512)
+        f.write(buf)
+    with io.open(path, "rb") as f:
+        assert f.read() == b"x" * 512
+
+
+def test_open_write_only_truncate(tmpdir):
+    path = str(tmpdir.join("path"))
+    with io.open(path, "wb") as f:
+        f.write(b"x" * 512)
+    with directio.open(path, "w") as f:
+        pass
+    with io.open(path, "rb") as f:
+        assert f.read() == b""
+
+
+def test_open_read_only(tmpdir):
+    path = str(tmpdir.join("path"))
+    with io.open(path, "wb") as f:
+        f.write(b"x" * 512)
+    with directio.open(path, "r") as f, \
+            directio.aligned_buffer(512) as buf:
+        f.readinto(buf)
+        assert buf[:] == b"x" * 512
+
+
+def test_open_read_write(tmpdir):
+    path = str(tmpdir.join("path"))
+    with io.open(path, "wb") as f:
+        f.write(b"a" * 512)
+    with directio.open(path, "r+") as f, \
+            directio.aligned_buffer(512) as buf:
+        f.readinto(buf)
+        buf[:] = b"b" * 512
+        f.seek(0)
+        f.write(buf)
+    with io.open(path, "rb") as f:
+        assert f.read() == b"b" * 512
+
+
+@pytest.mark.parametrize("mode", ["r", "r+"])
+def test_open_no_create(tmpdir, mode):
+    path = str(tmpdir.join("path"))
+    with pytest.raises(OSError) as e:
+        with directio.open(path, mode):
+            pass
+    assert e.value.errno == errno.ENOENT
+
+
+def test_open_no_direct_read_only(tmpdir):
+    path = str(tmpdir.join("path"))
+    with io.open(path, "wb") as f:
+        f.write(b"x" * 512)
+    with directio.open(path, "r", direct=False) as f:
+        assert f.read() == b"x" * 512
+
+
+def test_open_no_direct_read_write(tmpdir):
+    path = str(tmpdir.join("path"))
+    with io.open(path, "wb") as f:
+        f.write(b"a" * 512)
+    with directio.open(path, "r+", direct=False) as f:
+        f.write(b"b" * 512)
+        f.seek(0)
+        assert f.read() == b"b" * 512
+
+
+def test_open_no_direct_write_only(tmpdir):
+    path = str(tmpdir.join("path"))
+    with directio.open(path, "w", direct=False) as f:
+        f.write(b"x" * 512)
+    with io.open(path, "rb") as f:
+        assert f.read() == b"x" * 512
