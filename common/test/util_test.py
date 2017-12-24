@@ -93,3 +93,109 @@ def test_monotonic_time():
     time.sleep(0.01)
     t2 = util.monotonic_time()
     assert t1 <= t2
+
+
+class FakeTime(object):
+
+    def __init__(self):
+        self.value = 0
+
+    def __call__(self):
+        return self.value
+
+
+@pytest.fixture
+def fake_time(monkeypatch):
+    t = FakeTime()
+    monkeypatch.setattr(time, "time", t)
+    yield t
+
+
+# Ccorrect usage
+
+def test_clock_empty():
+    c = util.Clock()
+    assert str(c) == "<Clock()>"
+
+
+def test_clock_stop_returns_elapsed_time(fake_time):
+    c = util.Clock()
+
+    c.start("read")
+    fake_time.value += 1
+    assert c.stop("read") == 1
+
+    c.start("read")
+    fake_time.value += 2
+    assert c.stop("read") == 2
+
+
+def test_clock_measure(fake_time):
+    c = util.Clock()
+    c.start("total")
+    c.start("read")
+    fake_time.value += 1
+    c.stop("read")
+    c.start("write")
+    fake_time.value += 1
+    c.stop("write")
+    c.start("sync")
+    fake_time.value += 1
+    c.stop("sync")
+    c.stop("total")
+    assert str(c) == "<Clock(total=3.00, read=1.00, write=1.00, sync=1.00)>"
+
+
+def test_clock_measure_multiple(fake_time):
+    c = util.Clock()
+    c.start("total")
+    c.start("read")
+    fake_time.value += 1
+    c.stop("read")
+    c.start("write")
+    fake_time.value += 1
+    c.stop("write")
+    c.start("read")
+    fake_time.value += 1
+    c.stop("read")
+    c.start("write")
+    fake_time.value += 1
+    c.stop("write")
+    c.start("sync")
+    fake_time.value += 1
+    c.stop("sync")
+    c.stop("total")
+    assert str(c) == "<Clock(total=5.00, read=2.00, write=2.00, sync=1.00)>"
+
+
+def test_clock_running(fake_time):
+    c = util.Clock()
+    c.start("total")
+    fake_time.value += 3
+    c.start("read")
+    fake_time.value += 4
+    c.stop("read")
+    assert str(c) == "<Clock(total=7.00*, read=4.00)>"
+
+
+# Inccorrect usage
+
+def test_clock_start_twice():
+    c = util.Clock()
+    c.start("started")
+    with pytest.raises(RuntimeError):
+        c.start("started")
+
+
+def test_clock_stop_twice():
+    c = util.Clock()
+    c.start("stopped")
+    c.stop("stopped")
+    with pytest.raises(RuntimeError):
+        c.stop("stopped")
+
+
+def test_clock_stop_missing():
+    c = util.Clock()
+    with pytest.raises(RuntimeError):
+        c.stop("missing")
