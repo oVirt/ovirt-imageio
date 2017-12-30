@@ -15,7 +15,6 @@ import mmap
 import os
 
 from contextlib import closing
-from contextlib import contextmanager
 
 from . import util
 from . import errors
@@ -114,7 +113,7 @@ class Send(Operation):
 
     def __iter__(self):
         with open(self._path, "r") as src, \
-                aligned_buffer(self._buffersize) as buf:
+                closing(aligned_buffer(self._buffersize)) as buf:
             try:
                 if self._offset:
                     skip = self._seek_to_first_block(src)
@@ -161,7 +160,7 @@ class Receive(Operation):
 
     def _run(self):
         with open(self._path, "r+") as dst, \
-                aligned_buffer(self._buffersize) as buf:
+                closing(aligned_buffer(self._buffersize)) as buf:
             try:
                 if self._offset:
                     remaining = self._seek_before_first_block(dst)
@@ -250,7 +249,6 @@ def round_up(n, size=BLOCKSIZE):
     return n - (n % size)
 
 
-@contextmanager
 def aligned_buffer(size):
     """
     Return buffer aligned to page size, which work for doing direct I/O.
@@ -262,9 +260,7 @@ def aligned_buffer(size):
     behavior in the parent or the child processes. This restriction does not
     apply to memory buffer created with MAP_SHARED. See open(2) for more info.
     """
-    buf = mmap.mmap(-1, size, mmap.MAP_SHARED)
-    with closing(buf):
-        yield buf
+    return mmap.mmap(-1, size, mmap.MAP_SHARED)
 
 
 def enable_directio(fd):
