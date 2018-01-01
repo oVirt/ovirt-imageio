@@ -46,8 +46,6 @@ def test_images_unparseable_auth(proxy_server):
          "hello", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"}],
         ["PUT", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"},
          "hello", None, {}],
-        ["PATCH", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"},
-         "hello", None, {}],
     ])
 def test_images_cors_compliance(proxy_server, signed_ticket,
                                 method, extra_headers, body,
@@ -88,7 +86,7 @@ def test_images_cors_options(proxy_server, signed_ticket):
                         "content-length", "content-range", "range", "session-id"}
 
     allowed_methods = split_header(res.getheader("access-control-allow-methods"))
-    expected_methods = {"options", "get", "put", "patch", "post", "delete"}
+    expected_methods = {"options", "get", "put", "post", "delete"}
 
     assert res.status == 204
     assert allowed_headers == expected_headers

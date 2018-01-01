@@ -63,7 +63,7 @@ def addcors(func):
                         "Cache-Control, Pragma, Authorization, Content-Type,"
                         " Content-Length, Content-Range, Range, Session-Id")
         ret.headers.add("Access-Control-Allow-Methods",
-                        "GET, PUT, PATCH, OPTIONS, POST, DELETE")
+                        "GET, PUT, OPTIONS, POST, DELETE")
         ret.headers.add("Access-Control-Expose-Headers",
                         "Authorization, Content-Length, Content-Range, Range, Session-Id")
         ret.headers.add("Access-Control-Max-Age", "300")
