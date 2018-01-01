@@ -208,6 +208,26 @@ def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
     assert res.status == 200
 
 
+def test_images_put_imaged_without_content_range(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    body = "hello"
+    client_headers = {
+        "Accept-Ranges": "bytes",
+    }
+    path = "/images/" + signed_ticket.id
+
+    with requests_mock.Mocker() as m:
+        m.put(signed_ticket.url + path,
+              status_code=200,
+              text=None)
+        res = http.request(proxy_server, "PUT", path, body=body,
+                           headers=client_headers)
+        assert m.called
+    assert res.status == 200
+    assert res.getheader("content-length") == "0"
+
+
 def test_images_put_imaged_401_unauthorized(proxy_server, signed_ticket):
     # i.e. imaged doesn't have a valid ticket for this request
     body = "hello"

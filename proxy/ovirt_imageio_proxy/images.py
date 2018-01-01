@@ -79,23 +79,16 @@ class RequestHandler(object):
         :return: http response object
         :rtype: webob.Response
         """
-        # For now we require range headers; we could lift this restriction
-        # later.  If so, be sure to add conditions to request.headers access
-        # below.
-        # Note that webob request.headers is case-insensitive.
-        if 'Content-Range' not in self.request.headers:
-            raise exc.HTTPBadRequest(
-                "Content-Range header required for {} requests"
-                .format(self.request.method)
-            )
-
         imaged_url = self.get_imaged_url(self.ticket)
 
         headers = self.get_default_headers(res_id)
-        headers['Content-Range'] = self.request.headers['Content-Range']
+        if 'Content-Length' not in self.request.headers:
+            raise exc.HTTPBadRequest("Content-Length header is required")
         headers['Content-Length'] = self.request.headers['Content-Length']
-        max_transfer_bytes = int(headers['Content-Length'])
+        if 'Content-Range' in self.request.headers:
+            headers['Content-Range'] = self.request.headers['Content-Range']
 
+        max_transfer_bytes = int(headers['Content-Length'])
         body = web.CappedStream(self.request.body_file, max_transfer_bytes)
         stream = False
         logging.debug("Resource %s: transferring %d bytes to host",
