@@ -147,11 +147,10 @@ class RequestHandler(object):
             logging.error(s, exc_info=True)
             raise exc.HTTPInternalServerError(s)
 
-        print imaged_resp.headers
-        # logging.debug("Incoming headers from host:\n" +
-        #               '\n'.join(('  {}: {}'
-        #                          .format(k, imaged_resp.headers.get(k))
-        #                          for k in sorted(imaged_resp.headers))))
+        logging.debug("Incoming headers from host:\n" +
+                      '\n'.join(('  {}: {}'
+                                 .format(k, imaged_resp.headers.get(k))
+                                 for k in sorted(imaged_resp.headers))))
 
         if imaged_resp.status_code not in http_success_codes:
             # Don't read the whole body, in case something went really wrong...
