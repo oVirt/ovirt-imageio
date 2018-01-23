@@ -166,7 +166,10 @@ class Images(object):
                               offset=offset,
                               buffersize=self.config.daemon.buffer_size)
         ticket.add_operation(op)
-        op.run()
+        try:
+            op.run()
+        except errors.PartialContent as e:
+            raise HTTPBadRequest(str(e))
         return response()
 
     def get(self, ticket_id):
