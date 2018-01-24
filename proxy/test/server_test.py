@@ -42,7 +42,7 @@ def test_images_unparseable_auth(proxy_server):
 
 @pytest.mark.parametrize(
     "method,extra_headers,body,response_body,response_headers", [
-        ["GET", {"Range": "bytes=0-4", "Content-Length": "0"}, None,
+        ["GET", {"Range": "bytes=0-4"}, None,
          "hello", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"}],
         ["PUT", {"Content-Range": "bytes 0-4/5", "Content-Length": "5"},
          "hello", None, {}],
@@ -100,7 +100,6 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
     request_headers = {
         "Authorization": signed_ticket.data,
         "Accept-Ranges": "bytes",
-        "Content-Length": "0",
         "Range": "bytes=2-6",
     }
     response_headers = {
