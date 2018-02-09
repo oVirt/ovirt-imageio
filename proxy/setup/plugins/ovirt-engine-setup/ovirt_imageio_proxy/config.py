@@ -34,8 +34,8 @@ from ovirt_engine_setup.engine import vdcoption
 from ovirt_engine_setup.engine_common import constants as oengcommcons
 from ovirt_engine_setup.ovirt_imageio_proxy import constants as oipcons
 
-from ovirt_setup_lib import hostname as osetuphostname
 from ovirt_setup_lib import dialog
+from ovirt_setup_lib import hostname as osetuphostname
 
 
 def _(m):
