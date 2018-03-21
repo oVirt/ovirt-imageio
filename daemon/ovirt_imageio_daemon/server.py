@@ -34,6 +34,7 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
+from ovirt_imageio_common import validate
 from ovirt_imageio_common import web
 
 from . import config
@@ -215,6 +216,33 @@ class Images(object):
             resp.headers["content_range"] = str(content_range)
 
         return resp
+
+    def patch(self, ticket_id):
+        if not ticket_id:
+            raise HTTPBadRequest("Ticket id is required")
+        try:
+            msg = self.request.json
+        except ValueError as e:
+            raise HTTPBadRequest("Invalid JSON message: %s" % e)
+
+        op = validate.enum(msg, "op", ["zero"])
+        size = validate.integer(msg, "size", minval=0)
+        offset = validate.integer(msg, "offset", minval=0, default=0)
+        flush = validate.boolean(msg, "flush", default=False)
+
+        ticket = tickets.authorize(ticket_id, "write", offset + size)
+
+        self.log.info(
+            "Zeroing %d bytes at offset %d flush %s to %s for ticket %s",
+            size, offset, flush, ticket.url.path, ticket_id)
+        op = directio.Zero(ticket.url.path, size, offset=offset, flush=flush,
+                           buffersize=self.config.daemon.buffer_size)
+        ticket.add_operation(op)
+        try:
+            op.run()
+        except errors.PartialContent as e:
+            raise HTTPBadRequest(str(e))
+        return response()
 
 
 class Tickets(object):

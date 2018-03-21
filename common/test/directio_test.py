@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import io
+import os
 import string
 import sys
 
@@ -246,6 +247,16 @@ def test_round_up(size, rounded):
     assert directio.round_up(size) == rounded
 
 
+@pytest.mark.parametrize("size,rounded", [
+    (0, 0),
+    (1, 0),
+    (512, 512),
+    (513, 512),
+])
+def test_round_down(size, rounded):
+    assert directio.round_down(size) == rounded
+
+
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
 def test_receive_unbuffered_stream(tmpdir, bufsize):
     chunks = ["1" * 1024,
@@ -307,6 +318,64 @@ def test_send_no_size(tmpdir, data, offset):
     op = directio.Send(str(src), dst, offset=offset)
     op.run()
     assert dst.getvalue() == data[offset:]
+
+
+@pytest.mark.parametrize("offset,size", [
+    # Aligned offset and size
+    (0, directio.BLOCKSIZE),
+    (0, directio.BUFFERSIZE - directio.BLOCKSIZE),
+    (0, directio.BUFFERSIZE),
+    (0, directio.BUFFERSIZE + directio.BLOCKSIZE),
+    (0, directio.BUFFERSIZE * 2),
+    (directio.BLOCKSIZE, directio.BLOCKSIZE),
+    (directio.BUFFERSIZE, directio.BLOCKSIZE),
+    (directio.BUFFERSIZE * 2 - directio.BLOCKSIZE, directio.BLOCKSIZE),
+    # Unalinged size
+    (0, 42),
+    (0, directio.BLOCKSIZE + 42),
+    (0, directio.BUFFERSIZE + 42),
+    # Unaligned offset
+    (42, directio.BLOCKSIZE),
+    (directio.BLOCKSIZE + 42, directio.BLOCKSIZE),
+    (directio.BUFFERSIZE + 42, directio.BLOCKSIZE),
+    # Unaligned size and offset
+    (42, directio.BLOCKSIZE - 42),
+    (directio.BLOCKSIZE + 42, directio.BLOCKSIZE - 42),
+    (directio.BUFFERSIZE + 42, directio.BUFFERSIZE - 42),
+    (directio.BUFFERSIZE * 2 - 42, 42),
+])
+def test_zero(tmpdir, offset, size):
+    dst = tmpdir.join("src")
+    data = "x" * directio.BUFFERSIZE * 2
+    dst.write(data)
+    op = directio.Zero(str(dst), size, offset=offset)
+    op.run()
+    with io.open(str(dst), "rb") as f:
+        assert f.read(offset) == data[:offset]
+        assert f.read(size) == b"\0" * size
+        assert f.read() == data[offset + size:]
+
+
+@pytest.mark.parametrize("flush, calls", [(True, 1), (False, 0)])
+def test_zero_flush(tmpdir, monkeypatch, flush, calls):
+    # This would be much cleaner when we add backend object implementing flush.
+    fsync = os.fsync
+    fsync_calls = [0]
+
+    def counted_fsync(fd):
+        fsync_calls[0] += 1
+        fsync(fd)
+
+    monkeypatch.setattr("os.fsync", counted_fsync)
+    dst = tmpdir.join("src")
+    data = "x" * directio.BUFFERSIZE * 2
+    dst.write(data)
+    size = len(data)
+    op = directio.Zero(str(dst), size, flush=flush)
+    op.run()
+    with io.open(str(dst), "rb") as f:
+        assert f.read() == b"\0" * size
+    assert fsync_calls[0] == calls
 
 
 def test_open_write_only(tmpdir):

@@ -11,6 +11,7 @@ from __future__ import print_function
 
 import json
 import logging
+import io
 import os
 import ssl
 import sys
@@ -91,7 +92,7 @@ def test_tickets_no_resource():
 
 
 def test_tickets_no_method():
-    res = unix_request("POST", "/tickets/")
+    res = unix_request("FOO", "/tickets/")
     assert res.status == 405
 
 
@@ -326,7 +327,7 @@ def test_images_no_resource():
 
 
 def test_images_no_method():
-    res = http_request("POST", "/images/")
+    res = http_request("FOO", "/images/")
     assert res.status == 405
 
 
@@ -633,6 +634,68 @@ def test_download_progress(tmpdir):
     assert ticket.transferred() == size
 
 
+# PATCH
+
+def test_images_patch_unkown_op():
+    res = patch("no-such-uuid", {"op": "unknown"})
+    assert res.status == 400
+
+
+@pytest.mark.parametrize("msg", [
+    {"op": "zero", "size": 20},
+    {"op": "zero", "size": 20, "offset": 10},
+    {"op": "zero", "size": 20, "offset": 10, "flush": True},
+    {"op": "zero", "size": 20, "offset": 10, "future": True},
+])
+def test_images_zero(tmpdir, msg):
+    data = "x" * 512
+    image = create_tempfile(tmpdir, "image", data)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    size = msg["size"]
+    offset = msg.get("offset", 0)
+    res = patch(ticket["uuid"], msg)
+
+    assert res.status == 200
+    with io.open(str(image), "rb") as f:
+        assert f.read(offset) == data[:offset]
+        assert f.read(size) == b"\0" * size
+        assert f.read() == data[offset + size:]
+
+
+@pytest.mark.parametrize("msg", [
+    {"op": "zero"},
+    {"op": "zero", "size": "not an integer"},
+    {"op": "zero", "size": -1},
+    {"op": "zero", "size": 1, "offset": "not an integer"},
+    {"op": "zero", "size": 1, "offset": -1},
+    {"op": "zero", "size": 1, "offset": 1, "flush": "not a boolean"},
+])
+def test_images_zero_validation(msg):
+    res = patch("no-such-uuid", msg)
+    assert res.status == 400
+
+
+def test_images_zero_no_ticket_id():
+    res = patch("", {"op": "zero", "size": 1})
+    assert res.status == 400
+
+
+def test_images_zero_ticket_unknown():
+    res = patch("no-such-uuid", {"op": "zero", "size": 1})
+    assert res.status == 403
+
+
+def test_images_zero_ticket_readonly(tmpdir):
+    ticket = testutils.create_ticket(
+        url="file:///no/such/image", ops=("read",))
+    add_ticket(ticket)
+    res = patch(ticket["uuid"], {"op": "zero", "size": 1})
+    assert res.status == 403
+
+
+# SSL
+
 @pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
 def test_reject_protocols(protocol):
     rc = check_protocol("127.0.0.1", config.images.port, protocol)
@@ -713,6 +776,13 @@ def download(ticket_uuid, range=None):
     uri = "/images/" + ticket_uuid
     headers = {"range": range} if range else None
     return http_request("GET", uri, headers=headers)
+
+
+def patch(ticket_uuid, msg):
+    uri = "/images/" + ticket_uuid
+    headers = {"Content-Type": "application/json"}
+    body = json.dumps(msg).encode("utf-8")
+    return http_request("PATCH", uri, body=body, headers=headers)
 
 
 def http_request(method, uri, body=None, headers=None):

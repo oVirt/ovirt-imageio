@@ -218,6 +218,94 @@ class Receive(Operation):
             raise errors.PartialContent(self.size, self.done)
 
 
+class Zero(Operation):
+    """
+    Zero byte range.
+
+    TODO: Use more efficient backend specific method if available.
+    """
+
+    def __init__(self, path, size, offset=0, flush=False,
+                 buffersize=BUFFERSIZE):
+        super(Zero, self).__init__(path, size=size, offset=offset,
+                                   buffersize=buffersize)
+        self._flush = flush
+
+    def _run(self):
+        with open(self._path, "r+") as dst:
+            # Handle offset if specified.
+            if self._offset:
+                reminder = self._offset % BLOCKSIZE
+                if reminder:
+                    # Zero the end or middle of first block (unlikely).
+                    dst.seek(self._offset - reminder)
+                    count = min(self._size, BLOCKSIZE - reminder)
+                    self.zero_unaligned(dst, reminder, count)
+                else:
+                    # Offset is aligned (likely).
+                    dst.seek(self._offset)
+
+            # Zero complete blocks (likely).
+            count = round_down(self._todo)
+            if count:
+                self.zero_aligned(dst, count)
+
+            # Zero the start of last block if needed (unlikely).
+            if self._todo:
+                self.zero_unaligned(dst, 0, self._todo)
+
+            if self._flush:
+                self.flush(dst)
+
+    def zero_aligned(self, dst, count):
+        """
+        Zero count bytes at current file position.
+        """
+        buf = aligned_buffer(self._buffersize)
+        with closing(buf):
+            while count:
+                wbuf = buffer(buf, 0, min(self._buffersize, count))
+                self._clock.start("write")
+                written = util.uninterruptible(dst.write, wbuf)
+                elapsed = self._clock.stop("write")
+                log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+                count -= written
+                self._done += written
+
+    def zero_unaligned(self, dst, offset, count):
+        """
+        Zero count bytes at offset from current dst position.
+        """
+        buf = aligned_buffer(BLOCKSIZE)
+        with closing(buf):
+            # 1. Read complete block from storage.
+            self._clock.start("read")
+            read = util.uninterruptible(dst.readinto, buf)
+            elapsed = self._clock.stop("read")
+            log.debug("Read %d bytes in %.3f seconds", read, elapsed)
+            if read != BLOCKSIZE:
+                raise errors.PartialContent(BLOCKSIZE, read)
+
+            # 2. Zero count bytes in the block.
+            buf[offset:offset + count] = b"\0" * count
+
+            # 3. Write the modified block back to storage.
+            dst.seek(-BLOCKSIZE, os.SEEK_CUR)
+            self._clock.start("write")
+            written = util.uninterruptible(dst.write, buf)
+            elapsed = self._clock.stop("write")
+            log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+            if written != BLOCKSIZE:
+                raise errors.PartialContent(BLOCKSIZE, written)
+
+            self._done += count
+
+    def flush(self, dst):
+        self._clock.start("sync")
+        os.fsync(dst.fileno())
+        self._clock.stop("sync")
+
+
 def open(path, mode, direct=True):
     """
     Open a file for direct I/O.
@@ -246,6 +334,10 @@ def open(path, mode, direct=True):
 
 def round_up(n, size=BLOCKSIZE):
     n = n + size - 1
+    return n - (n % size)
+
+
+def round_down(n, size=BLOCKSIZE):
     return n - (n % size)
 
 
