@@ -708,6 +708,48 @@ def test_accept_protocols(protocol):
     assert rc == 0
 
 
+# Options
+
+def test_images_options_all():
+    res = options('*')
+    allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
+    features = set(["zero"])
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    assert set(json.loads(res.read())["features"]) == features
+
+
+def test_images_options_for_ticket_write():
+    ticket = testutils.create_ticket(ops=["write", "read"])
+    add_ticket(ticket)
+    res = options(ticket["uuid"])
+    allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
+    features = set(["zero"])
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    assert set(json.loads(res.read())["features"]) == features
+
+
+def test_images_options_for_ticket_read():
+    ticket = testutils.create_ticket(ops=["read"])
+    add_ticket(ticket)
+    res = options(ticket["uuid"])
+    allows = set(["GET", "OPTIONS"])
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    assert set(json.loads(res.read())["features"]) == set()
+
+
+def test_images_options_for_no_ticket():
+    res = options("")
+    assert res.status == 400
+
+
+def test_images_options_for_nonexistent_ticket():
+    res = options("no-such-ticket")
+    assert res.status == 403
+
+
 # HTTP correctness
 
 @pytest.mark.xfail(reason="needs investigation")
@@ -783,6 +825,11 @@ def patch(ticket_uuid, msg):
     headers = {"Content-Type": "application/json"}
     body = json.dumps(msg).encode("utf-8")
     return http_request("PATCH", uri, body=body, headers=headers)
+
+
+def options(ticket_uuid):
+    uri = "/images/" + ticket_uuid
+    return http_request("OPTIONS", uri)
 
 
 def http_request(method, uri, body=None, headers=None):

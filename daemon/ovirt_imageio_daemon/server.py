@@ -25,6 +25,7 @@ import webob
 
 from webob.exc import (
     HTTPBadRequest,
+    HTTPForbidden,
     HTTPNotFound,
 )
 
@@ -128,13 +129,15 @@ def start_server(config, server, name):
                       name=name)
 
 
-def response(status=200, payload=None):
+def response(status=200, payload=None, **kwargs):
     """
     Return WSGI application for sending response in JSON format.
     """
     body = json.dumps(payload) if payload else ""
-    return webob.Response(status=status, body=body,
-                          content_type="application/json")
+    return webob.Response(status=status,
+                          body=body,
+                          content_type="application/json",
+                          **kwargs)
 
 
 class Images(object):
@@ -243,6 +246,25 @@ class Images(object):
         except errors.PartialContent as e:
             raise HTTPBadRequest(str(e))
         return response()
+
+    def options(self, ticket_id):
+        if not ticket_id:
+            raise HTTPBadRequest("Ticket id is required")
+        allow = "GET,PUT,PATCH,OPTIONS"
+        features = ["zero"]
+        # Reporting the meta-capabilities for all images
+        if ticket_id == "*":
+            return response(payload={"features": features}, allow=allow)
+
+        # Reporting real image capabilities per ticket
+        try:
+            ticket = tickets.get(ticket_id)
+        except KeyError:
+            raise HTTPForbidden("No such ticket %r" % ticket_id)
+        if "write" not in ticket.ops:
+            allow = "GET,OPTIONS"
+            features = []
+        return response(payload={"features": features}, allow=allow)
 
 
 class Tickets(object):
