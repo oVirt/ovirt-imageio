@@ -239,9 +239,9 @@ def test_recv_repr_active():
 
 @pytest.mark.parametrize("size,rounded", [
     (0, 0),
-    (1, 512),
-    (512, 512),
-    (513, 1024),
+    (1, directio.BLOCKSIZE),
+    (directio.BLOCKSIZE, directio.BLOCKSIZE),
+    (directio.BLOCKSIZE + 1, directio.BLOCKSIZE * 2),
 ])
 def test_round_up(size, rounded):
     assert directio.round_up(size) == rounded
@@ -250,8 +250,8 @@ def test_round_up(size, rounded):
 @pytest.mark.parametrize("size,rounded", [
     (0, 0),
     (1, 0),
-    (512, 512),
-    (513, 512),
+    (directio.BLOCKSIZE, directio.BLOCKSIZE),
+    (directio.BLOCKSIZE + 1, directio.BLOCKSIZE),
 ])
 def test_round_down(size, rounded):
     assert directio.round_down(size) == rounded
