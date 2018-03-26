@@ -101,6 +101,28 @@ class RequestHandler(object):
 
         return response
 
+    @authorize
+    def patch(self, res_id):
+        """
+        Proxy PATCH request to daemon.
+        """
+        if not self.request.content_length:
+            raise exc.HTTPBadRequest("Content-Length is required")
+
+        # Note: PATCH response is not cachable, no need for cache-control.
+        res = self.make_imaged_request(
+            "PATCH",
+            self.get_imaged_url(self.ticket),
+            self.request.headers,
+            web.CappedStream(self.request.body_file,
+                             self.request.content_length),
+            False)
+
+        # TODO: We expect empty response from the daemon. If we start to return
+        # non-empty response, this must be changed to stream the daemon
+        # response to the caller.
+        return web.response(res.status_code)
+
     def get_imaged_url(self, ticket):
         return "{}/images/{}".format(ticket.url, ticket.id)
 

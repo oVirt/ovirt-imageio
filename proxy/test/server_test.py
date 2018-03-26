@@ -1,3 +1,5 @@
+import json
+
 import pytest
 import requests_mock
 
@@ -266,6 +268,80 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
         assert m.called
     assert res.status == 404
 
+
+# PATCH
+
+def test_images_patch(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    path = "/images/" + signed_ticket.id
+    msg = {"op": "zero", "offset": 0, "size": 1024, "flush": False}
+    headers = {"User-Header": "user value"}
+
+    with requests_mock.Mocker() as m:
+        # Don't check anything, match errors are useless.
+        m.patch(requests_mock.ANY, status_code=200)
+        # Send a request to the proxy.
+        res = http.patch(proxy_server, path, msg, headers=headers)
+
+    # Validate proxy request to daemon.
+    assert m.last_request.path == path
+    assert m.last_request.headers["Content-Type"] == "application/json"
+    assert m.last_request.headers["User-Header"] == "user value"
+    body = json.dumps(msg).encode("utf-8")
+    assert m.last_request.headers["Content-Length"] == str(len(body))
+    assert m.last_request.body.read() == body
+
+    # Validate response to proxy client.
+    assert res.status == 200
+    assert res.getheader("content-length") == "0"
+
+
+def test_images_patch_error(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    response_code = 403
+    response_body = "daemon response"
+    response_headers = {"Content-Type": "application/json"}
+
+    with requests_mock.Mocker() as m:
+        # Don't check anything, match errors are useless.
+        m.patch(
+            requests_mock.ANY,
+            status_code=response_code,
+            text=response_body)
+        # Send a request to the proxy.
+        res = http.patch(
+            proxy_server,
+            "/images/" + signed_ticket.id,
+            {"op": "zero", "size": 1024})
+
+    # Validate response to proxy client.
+    assert res.status == response_code
+    # Note: requests adds charset=UTF-8 on RHEL 7.
+    assert response_headers["Content-Type"] in res.getheader("Content-Type")
+    error = json.loads(res.read().decode("utf-8"))
+    assert response_body in error["detail"]
+
+
+def test_images_patch_no_ticket(proxy_server):
+    res = http.patch(proxy_server, "/images/unknown", {"op": "flush"})
+    assert res.status == 401
+
+
+def test_images_patch_no_content(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+    res = http.request(proxy_server, "PATCH", "/images/" + signed_ticket.id)
+    assert res.status == 400
+
+
+def test_images_patch_no_ticket_id(proxy_server):
+    res = http.patch(proxy_server, "/images/", {"op": "flush"})
+    # TODO: Should be 400, fix in auth.athorize_request().
+    assert res.status == 401
+
+
+# SSL
 
 @pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
 def test_reject_protocols(proxy_server, protocol):

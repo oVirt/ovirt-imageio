@@ -5,9 +5,18 @@ HTTP test helpers
 from __future__ import print_function
 
 import httplib
+import json
 
 from contextlib import closing
 from pprint import pprint
+
+
+def patch(proxy_server, path, msg, headers=None):
+    body = json.dumps(msg).encode("utf-8")
+    if headers is None:
+        headers = {}
+    headers["Content-Type"] = "application/json"
+    return request(proxy_server, "PATCH", path, body=body, headers=headers)
 
 
 def request(proxy_server, method, uri, body=None, headers=None):
