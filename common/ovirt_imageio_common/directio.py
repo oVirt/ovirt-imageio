@@ -309,6 +309,21 @@ class Zero(Operation):
         self._clock.stop("sync")
 
 
+class Flush(Operation):
+    """
+    Flush received data to storage.
+    """
+
+    def __init__(self, path):
+        super(Flush, self).__init__(path)
+
+    def _run(self):
+        with open(self._path, "r+") as dst:
+            self._clock.start("sync")
+            os.fsync(dst.fileno())
+            self._clock.stop("sync")
+
+
 def open(path, mode, direct=True):
     """
     Open a file for direct I/O.

@@ -447,6 +447,63 @@ def test_zero_repr_active():
     assert "active" not in repr(op)
 
 
+def test_flush(tmpdir, monkeypatch):
+    # This would be much cleaner when we add backend object implementing flush.
+    fsync = os.fsync
+    fsync_calls = [0]
+
+    def counted_fsync(fd):
+        fsync_calls[0] += 1
+        fsync(fd)
+
+    monkeypatch.setattr("os.fsync", counted_fsync)
+    dst = tmpdir.join("src")
+    dst.write("x" * directio.BUFFERSIZE)
+    op = directio.Flush(str(dst))
+    op.run()
+    assert fsync_calls[0] == 1
+
+
+def test_flush_busy():
+    op = directio.Flush("/no/such/file")
+    assert op.active
+
+
+def test_flush_close_on_success(tmpfile):
+    op = directio.Flush(str(tmpfile))
+    op.run()
+    assert not op.active
+
+
+def test_flush_close_on_error():
+    op = directio.Flush("/no/such/file")
+    with pytest.raises(OSError):
+        op.run()
+    assert not op.active
+
+
+def test_flush_close_twice(tmpfile):
+    op = directio.Flush(str(tmpfile))
+    op.run()
+    op.close()  # should do nothing
+    assert not op.active
+
+
+def test_flush_repr():
+    op = directio.Flush("/path")
+    rep = repr(op)
+    assert "Flush" in rep
+    assert "path='/path'" in rep
+    assert "done=0" in rep
+    assert "active" in rep
+
+
+def test_flush_repr_active():
+    op = directio.Flush("/path")
+    op.close()
+    assert "active" not in repr(op)
+
+
 def test_open_write_only(tmpdir):
     path = str(tmpdir.join("path"))
     with directio.open(path, "w") as f, \

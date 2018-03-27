@@ -235,7 +235,15 @@ class Images(object):
         except ValueError as e:
             raise HTTPBadRequest("Invalid JSON message: %s" % e)
 
-        op = validate.enum(msg, "op", ["zero"])
+        op = validate.enum(msg, "op", ("zero", "flush"))
+        if op == "zero":
+            return self._zero(ticket_id, msg)
+        elif op == "flush":
+            return self._flush(ticket_id, msg)
+        else:
+            raise RuntimeError("Unreachable")
+
+    def _zero(self, ticket_id, msg):
         size = validate.integer(msg, "size", minval=0)
         offset = validate.integer(msg, "offset", minval=0, default=0)
         flush = validate.boolean(msg, "flush", default=False)
@@ -254,11 +262,19 @@ class Images(object):
             raise HTTPBadRequest(str(e))
         return response()
 
+    def _flush(self, ticket_id, msg):
+        ticket = tickets.authorize(ticket_id, "write", 0)
+        self.log.info("Flushing %s for ticket %s", ticket.url.path, ticket_id)
+        op = directio.Flush(ticket.url.path)
+        ticket.add_operation(op)
+        op.run()
+        return response()
+
     def options(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
         allow = "GET,PUT,PATCH,OPTIONS"
-        features = ["zero"]
+        features = ["zero", "flush"]
         # Reporting the meta-capabilities for all images
         if ticket_id == "*":
             return response(payload={"features": features}, allow=allow)

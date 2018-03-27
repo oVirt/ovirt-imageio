@@ -704,6 +704,39 @@ def test_images_zero_ticket_readonly(tmpdir):
     assert res.status == 403
 
 
+# TODO: Test that data was flushed.
+@pytest.mark.parametrize("msg", [
+    {"op": "flush"},
+    {"op": "flush", "future": True},
+])
+def test_images_flush(tmpdir, msg):
+    data = "x" * 512
+    image = create_tempfile(tmpdir, "image", data)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+    res = patch(ticket["uuid"], msg)
+
+    assert res.status == 200
+
+
+def test_images_flush_no_ticket_id():
+    res = patch("", {"op": "flush"})
+    assert res.status == 400
+
+
+def test_images_flush_ticket_unknown():
+    res = patch("no-such-uuid", {"op": "flush"})
+    assert res.status == 403
+
+
+def test_images_flush_ticket_readonly(tmpdir):
+    ticket = testutils.create_ticket(
+        url="file:///no/such/image", ops=("read",))
+    add_ticket(ticket)
+    res = patch(ticket["uuid"], {"op": "flush"})
+    assert res.status == 403
+
+
 # SSL
 
 @pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
@@ -723,7 +756,7 @@ def test_accept_protocols(protocol):
 def test_images_options_all():
     res = options('*')
     allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
-    features = set(["zero"])
+    features = set(["zero", "flush"])
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
@@ -734,7 +767,7 @@ def test_images_options_for_ticket_write():
     add_ticket(ticket)
     res = options(ticket["uuid"])
     allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
-    features = set(["zero"])
+    features = set(["zero", "flush"])
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
