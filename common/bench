@@ -31,6 +31,12 @@ def recv(args):
     run(op)
 
 
+def zero(args):
+    op = directio.Zero(args.path, args.size, offset=args.offset,
+                       flush=args.flush, buffersize=args.buffersize)
+    run(op)
+
+
 def run(op):
     done = threading.Event()
     t = util.start_thread(progress, args=(op, done))
@@ -84,6 +90,13 @@ recv_parser = subparsers.add_parser("recv",
                                     help="receive image data from stdin")
 recv_parser.set_defaults(command=recv)
 add_arguments(recv_parser)
+
+zero_parser = subparsers.add_parser("zero",
+                                    help="zero image")
+zero_parser.set_defaults(command=zero)
+add_arguments(zero_parser)
+zero_parser.add_argument("-f", "--flush", dest="flush", action="store_true",
+                         help="wait until data is flushed to disk")
 
 args = parser.parse_args()
 args.command(args)
