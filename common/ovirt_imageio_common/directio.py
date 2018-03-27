@@ -153,10 +153,12 @@ class Receive(Operation):
     Receive data from file object to path using directio.
     """
 
-    def __init__(self, path, src, size=None, offset=0, buffersize=BUFFERSIZE):
+    def __init__(self, path, src, size=None, offset=0, flush=True,
+                 buffersize=BUFFERSIZE):
         super(Receive, self).__init__(path, size=size, offset=offset,
                                       buffersize=buffersize)
         self._src = src
+        self._flush = flush
 
     def _run(self):
         with open(self._path, "r+") as dst, \
@@ -174,9 +176,10 @@ class Receive(Operation):
             except EOF:
                 pass
             finally:
-                self._clock.start("sync")
-                os.fsync(dst.fileno())
-                self._clock.stop("sync")
+                if self._flush:
+                    self._clock.start("sync")
+                    os.fsync(dst.fileno())
+                    self._clock.stop("sync")
 
     def _seek_before_first_block(self, dst):
         dst.seek(self._offset)

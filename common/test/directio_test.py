@@ -209,6 +209,33 @@ def test_receive_close_twice(tmpfile):
     assert not op.active
 
 
+@pytest.mark.parametrize("extra, calls", [
+    ({}, 1),  # Flushes by default.
+    ({"flush": True}, 1),
+    ({"flush": False}, 0),
+])
+def test_receive_flush(tmpdir, monkeypatch, extra, calls):
+    # This would be much cleaner when we add backend object implementing flush.
+    fsync = os.fsync
+    fsync_calls = [0]
+
+    def counted_fsync(fd):
+        fsync_calls[0] += 1
+        fsync(fd)
+
+    monkeypatch.setattr("os.fsync", counted_fsync)
+    dst = tmpdir.join("src")
+    data = b"x" * directio.BUFFERSIZE * 2
+    dst.write(data)
+    size = len(data)
+    src = io.BytesIO(b"X" * size)
+    op = directio.Receive(str(dst), src, size, **extra)
+    op.run()
+    with io.open(str(dst), "rb") as f:
+        assert f.read() == src.getvalue()
+    assert fsync_calls[0] == calls
+
+
 def test_send_repr():
     op = directio.Send("/path", None, 200, offset=24)
     rep = repr(op)

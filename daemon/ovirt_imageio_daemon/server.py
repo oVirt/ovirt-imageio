@@ -160,6 +160,12 @@ class Images(object):
             raise HTTPBadRequest("Invalid Content-Length header: %r" % size)
         content_range = web.content_range(self.request)
         offset = content_range.start or 0
+
+        # For backward compatibility, we flush by default.
+        flush = validate.enum(self.request.params, "flush", ("y", "n"),
+                              default="y")
+        flush = (flush == "y")
+
         ticket = tickets.authorize(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info("Writing %d bytes at offset %d to %s for ticket %s",
@@ -168,6 +174,7 @@ class Images(object):
                               self.request.body_file_raw,
                               size,
                               offset=offset,
+                              flush=flush,
                               buffersize=self.config.daemon.buffer_size)
         ticket.add_operation(op)
         try:

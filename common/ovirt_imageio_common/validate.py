@@ -11,10 +11,13 @@ from __future__ import absolute_import
 from webob.exc import HTTPBadRequest
 
 
-def enum(d, name, values):
-    if name not in d:
+def enum(d, name, values, default=None):
+    try:
+        val = d[name]
+    except KeyError:
+        if default is not None:
+            return default
         raise HTTPBadRequest("Missing required value for %r" % name)
-    val = d[name]
     if val not in values:
         raise HTTPBadRequest("Unsupported value %r for %r, expecting %s"
                              % (val, name, values))

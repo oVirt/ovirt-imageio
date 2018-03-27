@@ -382,13 +382,23 @@ def test_images_upload_no_content(tmpdir):
     assert res.status == 200
 
 
-def test_images_upload(tmpdir):
+# TODO: test that flush actually flushes data. Current tests just verify that
+# the server does not reject the query string.
+@pytest.mark.parametrize("flush", [None, "y", "n"])
+def test_images_upload(tmpdir, flush):
     image = create_tempfile(tmpdir, "image", "-------|after")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
-    res = upload(ticket["uuid"], "content")
+    res = upload(ticket["uuid"], "content", flush=flush)
     assert image.read() == "content|after"
     assert res.status == 200
+
+
+def test_images_upload_invalid_flush(tmpdir):
+    ticket = testutils.create_ticket(url="file:///no/such/image")
+    add_ticket(ticket)
+    res = upload(ticket["uuid"], "data", flush="invalid")
+    assert res.status == 400
 
 
 @pytest.mark.parametrize("crange,before,after", [
@@ -806,8 +816,10 @@ def test_keep_connection_on_error(tmpdir):
 
 # Helpers
 
-def upload(ticket_uuid, body, content_range=None):
+def upload(ticket_uuid, body, content_range=None, flush=None):
     uri = "/images/" + ticket_uuid
+    if flush is not None:
+        uri += "?flush=" + flush
     headers = {}
     if content_range is not None:
         headers["content-range"] = content_range
