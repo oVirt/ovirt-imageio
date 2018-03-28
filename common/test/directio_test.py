@@ -378,6 +378,48 @@ def test_zero_flush(tmpdir, monkeypatch, flush, calls):
     assert fsync_calls[0] == calls
 
 
+def test_zero_busy():
+    op = directio.Zero("/no/such/file", 100)
+    assert op.active
+
+
+def test_zero_close_on_success(tmpfile):
+    op = directio.Zero(str(tmpfile), 100)
+    op.run()
+    assert not op.active
+
+
+def test_zero_close_on_error():
+    op = directio.Zero("/no/such/file", 100)
+    with pytest.raises(OSError):
+        op.run()
+    assert not op.active
+
+
+def test_zero_close_twice(tmpfile):
+    op = directio.Zero(str(tmpfile), 100)
+    op.run()
+    op.close()  # should do nothing
+    assert not op.active
+
+
+def test_zero_repr():
+    op = directio.Zero("/path", 100)
+    rep = repr(op)
+    assert "Zero" in rep
+    assert "path='/path'" in rep
+    assert "offset=0" in rep
+    assert "size=100" in rep
+    assert "done=0" in rep
+    assert "active" in rep
+
+
+def test_zero_repr_active():
+    op = directio.Zero("/path", 100)
+    op.close()
+    assert "active" not in repr(op)
+
+
 def test_open_write_only(tmpdir):
     path = str(tmpdir.join("path"))
     with directio.open(path, "w") as f, \
