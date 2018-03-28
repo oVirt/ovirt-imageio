@@ -1,6 +1,6 @@
-
-
+import auth
 import httplib
+import json
 import logging
 
 import requests
@@ -32,7 +32,47 @@ class RequestHandler(object):
 
     @addcors
     def options(self, res_id):
-        return web.response(httplib.NO_CONTENT)
+        """
+        Proxy OPTIONS request to daemon.
+        """
+        allow = {"GET", "PUT", "PATCH", "OPTIONS"}
+        features = {"zero", "flush"}
+        # Reporting the meta-capabilities for all images
+        if res_id == "*":
+            return web.response(payload={"features": list(features)},
+                                allow=','.join(allow))
+
+        ticket = auth.authorize_request(res_id, self.request)
+
+        # TODO: Handle old daemon failing with "405 Method Not Allowed".
+        res = self.make_imaged_request(
+            "OPTIONS",
+            self.get_imaged_url(ticket),
+            self.request.headers,
+            None,
+            False)
+
+        if res.status_code != httplib.OK:
+            raise exc.HTTPInternalServerError(
+                "Got unexpected response from host: %d %s" %
+                (res.status_code, res.reason))
+        try:
+            daemon_allow = set(res.headers.get("Allow").split(","))
+        except KeyError:
+            raise exc.HTTPInternalServerError(
+                "Got invalid response from host: missing Allow header")
+
+        try:
+            daemon_features = set(res.json()["features"])
+        except (ValueError, KeyError):
+            raise exc.HTTPInternalServerError(
+                "Got invalid response from host: "
+                "invalid JSON or missing 'features'")
+
+        allow = allow.intersection(daemon_allow)
+        features = features.intersection(daemon_features)
+        return web.response(payload={"features": list(features)},
+                            allow=','.join(allow))
 
     @authorize
     @addcors

@@ -78,22 +78,34 @@ def split_header(s):
 
 
 def test_images_cors_options(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
     request_headers = images_request_headers(signed_ticket.data)
     path = "/images/" + signed_ticket.id
 
-    res = http.request(proxy_server, "OPTIONS", path,
-                       headers=request_headers, body=None)
+    daemon_options = {"features": ["zero"]}
+    daemon_body = json.dumps(daemon_options).encode("ascii")
+    daemon_headers = {"Content-Type": "application/json",
+                      "Content-Length": "%d" % len(daemon_body),
+                      "Allow": "GET,PUT,PATCH,OPTIONS"}
+
+    with requests_mock.Mocker() as m:
+        m.options(requests_mock.ANY,
+                  status_code=200,
+                  text=daemon_body,
+                  headers=daemon_headers)
+        res = http.request(proxy_server,
+                           "OPTIONS",
+                           path,
+                           headers=request_headers)
+        assert m.called
 
     allowed_headers = split_header(res.getheader("access-control-allow-headers"))
     expected_headers = {"cache-control", "pragma", "authorization", "content-type",
                         "content-length", "content-range", "range", "session-id"}
 
-    allowed_methods = split_header(res.getheader("access-control-allow-methods"))
-    expected_methods = {"options", "get", "put", "post", "delete"}
-
-    assert res.status == 204
+    assert res.status == 200
     assert allowed_headers == expected_headers
-    assert allowed_methods == expected_methods
     assert res.getheader("access-control-allow-origin") == "*"
     assert res.getheader("access-control-max-age") == "300"
 
@@ -403,5 +415,90 @@ def images_request_headers(authorization):
        "Access-Control-Request-Method": "PUT",
        "Authorization": authorization,
        "Host": "localhost:8081",
-       "Origin": "http://localhost:0000"
+       "Origin": "http://localhost:0000",
     }
+
+
+# OPTIONS
+
+def test_images_proxy_options(proxy_server):
+    # Note: no ticket for "/images/*", so proxy returns all proxy options.
+    path = "/images/*"
+
+    proxy_allow = {"OPTIONS", "GET", "PUT", "PATCH"}
+    proxy_features = {"zero", "flush"}
+
+    res = http.request(proxy_server, "OPTIONS", path)
+
+    # Validate the response.
+    assert res.status == 200
+    assert set(res.getheader("Allow").split(",")) == proxy_allow
+    assert set(json.loads(res.read())["features"]) == proxy_features
+
+
+def test_images_options_newer_proxy(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    path = "/images/" + signed_ticket.id
+
+    # Note: the daemon does not report GET since the ticket is write only, and
+    # it supports only "zero" (simulating old daemon).
+    daemon_allow = {"OPTIONS", "PUT", "PATCH"}
+    daemon_features = {"zero"}
+
+    daemon_options = {"features": list(daemon_features)}
+    daemon_body = json.dumps(daemon_options).encode("ascii")
+    daemon_headers = {"Content-Type": "application/json",
+                      "Content-Length": "%d" % len(daemon_body),
+                      "Allow": ','.join(daemon_allow)}
+
+    with requests_mock.Mocker() as m:
+        m.options(requests_mock.ANY,
+                  status_code=200,
+                  text=daemon_body,
+                  headers=daemon_headers)
+        res = http.request(proxy_server, "OPTIONS", path)
+
+    # Validate the request.
+    assert m.called
+    assert m.last_request.path == path
+
+    # Validate the response.
+    assert res.status == 200
+    assert set(res.getheader("Allow").split(",")) == daemon_allow
+    assert set(json.loads(res.read())["features"]) == daemon_features
+
+
+def test_images_options_newer_daemon(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    path = "/images/" + signed_ticket.id
+
+    proxy_allow = {"OPTIONS", "GET", "PUT", "PATCH"}
+    proxy_features = {"zero", "flush"}
+
+    # Note: this future daemon supports "POST" and "trim".
+    daemon_allow = {"OPTIONS", "GET", "PUT", "PATCH", "POST"}
+    daemon_features = {"zero", "flush", "trim"}
+
+    daemon_options = {"features": list(daemon_features)}
+    daemon_body = json.dumps(daemon_options).encode("ascii")
+    daemon_headers = {"Content-Type": "application/json",
+                      "Content-Length": "%d" % len(daemon_body),
+                      "Allow": ','.join(daemon_allow)}
+
+    with requests_mock.Mocker() as m:
+        m.options(requests_mock.ANY,
+                  status_code=200,
+                  text=daemon_body,
+                  headers=daemon_headers)
+        res = http.request( proxy_server, "OPTIONS", path)
+
+    # Validate the request.
+    assert m.called
+    assert m.last_request.path == path
+
+    # Validate the request.
+    assert res.status == 200
+    assert set(res.getheader("Allow").split(",")) == proxy_allow
+    assert set(json.loads(res.read())["features"]) == proxy_features
