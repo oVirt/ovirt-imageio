@@ -51,22 +51,6 @@ logging.basicConfig(
             "%(message)s"))
 
 
-class FakeTime(object):
-
-    def __init__(self):
-        self.now = 0
-
-    def monotonic_time(self):
-        return self.now
-
-
-@pytest.fixture()
-def fake_time(monkeypatch):
-    time = FakeTime()
-    monkeypatch.setattr(util, "monotonic_time", time.monotonic_time)
-    return time
-
-
 def setup_module(m):
     conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
     configloader.load(config, [conf])
