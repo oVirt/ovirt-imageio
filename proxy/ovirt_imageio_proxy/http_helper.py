@@ -3,7 +3,6 @@ from functools import wraps
 import logging
 import re
 
-from webob import exc
 from webob.util import status_reasons
 
 import auth
@@ -83,23 +82,6 @@ def authorize(func):
     """
     @wraps(func)
     def wrapper(self, *args):
-        ticket_id = args[0]
-        try:
-            ticket = auth.get_ticket(ticket_id)
-        except auth.NoSuchTicket:
-            # Trying to fetch ticket from Authorization header
-            if 'Authorization' not in self.request.headers:
-                raise exc.HTTPUnauthorized("Not authorized (Ticket doesn't exists)")
-
-            signed_ticket = self.request.headers['Authorization']
-            try:
-                auth.add_signed_ticket(signed_ticket)
-            except auth.Error as e:
-                raise exc.HTTPUnauthorized("Not authorized (%s)" % e)
-            ticket = auth.get_ticket(ticket_id)
-
-        if ticket.timeout < 0:
-            raise exc.HTTPUnauthorized("Not authorized (expired ticket)")
-        self.ticket = ticket
+        self.ticket = auth.authorize_request(args[0], self.request)
         return func(self, *args)
     return wrapper

@@ -16,6 +16,8 @@ import json
 import logging
 import time
 
+from webob import exc
+
 from . import config
 from . import ticket
 
@@ -229,3 +231,24 @@ def _decode_ovirt_ticket(data):
         return decoder.decode(data)
     except (ValueError, TypeError) as e:
         raise InvalidOvirtTicket(data, e)
+
+
+def authorize_request(ticket_id, request):
+    try:
+        ticket = get_ticket(ticket_id)
+    except NoSuchTicket:
+        # Trying to fetch ticket from Authorization header
+        if 'Authorization' not in request.headers:
+            raise exc.HTTPUnauthorized("Not authorized (Ticket doesn't exists)")
+
+        signed_ticket = request.headers['Authorization']
+        try:
+            add_signed_ticket(signed_ticket)
+        except Error as e:
+            raise exc.HTTPUnauthorized("Not authorized (%s)" % e)
+        ticket = get_ticket(ticket_id)
+
+    if ticket.timeout < 0:
+        raise exc.HTTPUnauthorized("Not authorized (expired ticket)")
+
+    return ticket
