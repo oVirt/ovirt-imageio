@@ -8,7 +8,7 @@
 
 from __future__ import print_function
 
-string = "1.2.2"
+string = "1.3.0"
 
 if __name__ == "__main__":
     print(string)
