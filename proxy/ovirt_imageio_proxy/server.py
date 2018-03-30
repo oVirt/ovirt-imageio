@@ -70,17 +70,6 @@ class Server:
         t.start()
 
 
-def _error_response(status=httplib.INTERNAL_SERVER_ERROR, message=None):
-    return response(status, message)
-
-
-def response(status=httplib.OK, message=None):
-    body = message if message else ''
-    if body and not body.endswith('\n'):
-        body += '\n'
-    return webob.Response(status=status, body=body, content_type='text/plain')
-
-
 class ThreadedWSGIServer(SocketServer.ThreadingMixIn,
                          simple_server.WSGIServer):
     """

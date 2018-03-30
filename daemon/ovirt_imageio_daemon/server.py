@@ -8,7 +8,6 @@
 
 from __future__ import absolute_import
 
-import json
 import logging
 import logging.config
 import os
@@ -129,17 +128,6 @@ def start_server(config, server, name):
                       name=name)
 
 
-def response(status=200, payload=None, **kwargs):
-    """
-    Return WSGI application for sending response in JSON format.
-    """
-    body = json.dumps(payload) if payload else ""
-    return webob.Response(status=status,
-                          body=body,
-                          content_type="application/json",
-                          **kwargs)
-
-
 class Images(object):
     """
     Request handler for the /images/ resource.
@@ -182,7 +170,7 @@ class Images(object):
             op.run()
         except errors.PartialContent as e:
             raise HTTPBadRequest(str(e))
-        return response()
+        return web.response()
 
     def get(self, ticket_id):
         # TODO: cancel copy if ticket expired or revoked
@@ -261,7 +249,7 @@ class Images(object):
             op.run()
         except errors.PartialContent as e:
             raise HTTPBadRequest(str(e))
-        return response()
+        return web.response()
 
     def _flush(self, ticket_id, msg):
         ticket = tickets.authorize(ticket_id, "write", 0)
@@ -269,7 +257,7 @@ class Images(object):
         op = directio.Flush(ticket.url.path)
         ticket.add_operation(op)
         op.run()
-        return response()
+        return web.response()
 
     def options(self, ticket_id):
         if not ticket_id:
@@ -294,7 +282,7 @@ class Images(object):
                 allow.extend(("PUT", "PATCH"))
                 features = ["zero", "flush"]
 
-        return response(
+        return web.response(
             payload={"features": features},
             allow=",".join(allow))
 
@@ -317,7 +305,7 @@ class Tickets(object):
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         self.log.info("Retrieving ticket %s", ticket_id)
-        return response(payload=ticket.info())
+        return web.response(payload=ticket.info())
 
     def put(self, ticket_id):
         # TODO
@@ -337,7 +325,7 @@ class Tickets(object):
             raise HTTPBadRequest("Invalid ticket: %s" % e)
 
         tickets.add(ticket_id, ticket)
-        return response()
+        return web.response()
 
     def patch(self, ticket_id):
         # TODO: restart expire timer
@@ -360,7 +348,7 @@ class Tickets(object):
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
         ticket.extend(timeout)
-        return response()
+        return web.response()
 
     def delete(self, ticket_id):
         # TODO: cancel requests using deleted tickets
@@ -371,7 +359,7 @@ class Tickets(object):
                 raise HTTPNotFound("No such ticket %r" % ticket_id)
         else:
             tickets.clear()
-        return response(status=204)
+        return web.response(status=204)
 
 
 class ThreadedWSGIServer(socketserver.ThreadingMixIn,

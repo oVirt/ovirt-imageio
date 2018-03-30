@@ -126,13 +126,15 @@ def error_response(e):
     return response(status=e.code, payload=payload)
 
 
-def response(status=http_client.OK, payload=None):
+def response(status=http_client.OK, payload=None, **kwargs):
     """
     Return WSGI application for sending response in JSON format.
     """
     body = json.dumps(payload) if payload else ""
-    return webob.Response(status=status, body=body,
-                          content_type="application/json")
+    return webob.Response(status=status,
+                          body=body,
+                          content_type="application/json",
+                          **kwargs)
 
 
 def content_range(request):

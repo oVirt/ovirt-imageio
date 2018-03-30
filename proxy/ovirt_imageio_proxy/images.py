@@ -12,7 +12,6 @@ from http_helper import (
     success_codes as http_success_codes,
 )
 import config
-import server
 
 from ovirt_imageio_common import web
 
@@ -51,7 +50,7 @@ class RequestHandler(object):
         imaged_response = self.make_imaged_request(
             self.request.method, imaged_url, headers, body, stream)
 
-        response = server.response(imaged_response.status_code)
+        response = web.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
         response.headers['Content-Range'] = \
             imaged_response.headers.get('Content-Range', '')
@@ -98,7 +97,7 @@ class RequestHandler(object):
         imaged_response = self.make_imaged_request(
             self.request.method, imaged_url, headers, body, stream)
 
-        response = server.response(imaged_response.status_code)
+        response = web.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
 
         return response
