@@ -1,4 +1,5 @@
 import json
+from urlparse import urlparse
 
 import pytest
 import requests_mock
@@ -267,6 +268,24 @@ def test_images_put_imaged_404_notfound(proxy_server, signed_ticket):
         res = http.request(proxy_server, "PUT", path, headers=request_headers)
         assert m.called
     assert res.status == 404
+
+
+@pytest.mark.parametrize("flush", ["y", "n"])
+def test_images_put_flush(proxy_server, signed_ticket, flush):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    path = "/images/" + signed_ticket.id + "?flush=" + flush + "&ignored=1"
+
+    with requests_mock.Mocker() as m:
+        # Don't check anything, match errors are useless.
+        m.put(requests_mock.ANY, status_code=200)
+        # Send a request to the proxy.
+        res = http.request(proxy_server, "PUT", path, body="data")
+
+    # Validate proxy request to daemon.
+    url = urlparse(m.last_request.url)
+    assert url.path == "/images/" + signed_ticket.id
+    assert url.query == "flush=" + flush
 
 
 # PATCH

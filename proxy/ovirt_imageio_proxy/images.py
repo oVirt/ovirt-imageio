@@ -80,6 +80,8 @@ class RequestHandler(object):
         :rtype: webob.Response
         """
         imaged_url = self.get_imaged_url(self.ticket)
+        if "flush" in self.request.params:
+            imaged_url += "?flush=" + self.request.params["flush"]
 
         headers = self.get_default_headers(res_id)
         if 'Content-Length' not in self.request.headers:
