@@ -762,8 +762,8 @@ def test_images_options_all():
     assert set(json.loads(res.read())["features"]) == features
 
 
-def test_images_options_for_ticket_write():
-    ticket = testutils.create_ticket(ops=["write", "read"])
+def test_images_options_read_write():
+    ticket = testutils.create_ticket(ops=["read", "write"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
     allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
@@ -773,7 +773,7 @@ def test_images_options_for_ticket_write():
     assert set(json.loads(res.read())["features"]) == features
 
 
-def test_images_options_for_ticket_read():
+def test_images_options_read():
     ticket = testutils.create_ticket(ops=["read"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
@@ -781,6 +781,17 @@ def test_images_options_for_ticket_read():
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == set()
+
+
+def test_images_options_write():
+    ticket = testutils.create_ticket(ops=["write"])
+    add_ticket(ticket)
+    res = options(ticket["uuid"])
+    allows = set(["PUT", "PATCH", "OPTIONS"])
+    features = set(["zero", "flush"])
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    assert set(json.loads(res.read())["features"]) == features
 
 
 def test_images_options_for_no_ticket():

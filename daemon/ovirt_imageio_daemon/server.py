@@ -273,21 +273,29 @@ class Images(object):
     def options(self, ticket_id):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
-        allow = "GET,PUT,PATCH,OPTIONS"
-        features = ["zero", "flush"]
-        # Reporting the meta-capabilities for all images
-        if ticket_id == "*":
-            return response(payload={"features": features}, allow=allow)
 
-        # Reporting real image capabilities per ticket
-        try:
-            ticket = tickets.get(ticket_id)
-        except KeyError:
-            raise HTTPForbidden("No such ticket %r" % ticket_id)
-        if "write" not in ticket.ops:
-            allow = "GET,OPTIONS"
+        if ticket_id == "*":
+            # Reporting the meta-capabilities for all images.
+            allow = ["OPTIONS", "GET", "PUT", "PATCH"]
+            features = ["zero", "flush"]
+        else:
+            # Reporting real image capabilities per ticket.
+            try:
+                ticket = tickets.get(ticket_id)
+            except KeyError:
+                raise HTTPForbidden("No such ticket %r" % ticket_id)
+
+            allow = ["OPTIONS"]
             features = []
-        return response(payload={"features": features}, allow=allow)
+            if "read" in ticket.ops:
+                allow.append("GET")
+            if "write" in ticket.ops:
+                allow.extend(("PUT", "PATCH"))
+                features = ["zero", "flush"]
+
+        return response(
+            payload={"features": features},
+            allow=",".join(allow))
 
 
 class Tickets(object):
