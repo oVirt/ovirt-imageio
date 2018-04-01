@@ -337,7 +337,8 @@ def test_images_patch(proxy_server, signed_ticket):
 
     conn_timeout, read_timeout = m.last_request.timeout
     assert conn_timeout == proxy_server.imaged_connection_timeout_sec
-    assert read_timeout == proxy_server.imaged_read_timeout_sec
+    # PATCH cannot use a read timeout.
+    assert read_timeout is None
 
     # Validate response to proxy client.
     assert res.status == 200

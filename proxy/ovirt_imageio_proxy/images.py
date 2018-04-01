@@ -50,7 +50,9 @@ class RequestHandler(object):
                 self.get_imaged_url(ticket),
                 self.request.headers,
                 None,
-                False)
+                False,
+                connection_timeout=self.config.imaged_connection_timeout_sec,
+                read_timeout=self.config.imaged_read_timeout_sec)
         except exc.HTTPMethodNotAllowed:
             # An old daemon - we estimate its methods. We also assume that
             # the ticket is readable and writable, since only the daemon
@@ -96,7 +98,9 @@ class RequestHandler(object):
         stream = True  # Don't let Requests read entire body into memory
 
         imaged_response = self.make_imaged_request(
-            self.request.method, imaged_url, headers, body, stream)
+            self.request.method, imaged_url, headers, body, stream,
+            connection_timeout=self.config.imaged_connection_timeout_sec,
+            read_timeout=self.config.imaged_read_timeout_sec)
 
         response = web.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
@@ -143,7 +147,9 @@ class RequestHandler(object):
         logging.debug("Resource %s: transferring %d bytes to host",
                       res_id, max_transfer_bytes)
         imaged_response = self.make_imaged_request(
-            self.request.method, imaged_url, headers, body, stream)
+            self.request.method, imaged_url, headers, body, stream,
+            connection_timeout=self.config.imaged_connection_timeout_sec,
+            read_timeout=self.config.imaged_read_timeout_sec)
 
         response = web.response(imaged_response.status_code)
         response.headers['Cache-Control'] = 'no-cache, no-store'
@@ -158,14 +164,19 @@ class RequestHandler(object):
         if not self.request.content_length:
             raise exc.HTTPBadRequest("Content-Length is required")
 
-        # Note: PATCH response is not cachable, no need for cache-control.
+        # Notes:
+        # - PATCH response is not cachable, no need for cache-control.
+        # - We cannot have read_timeout since PATCH can take unpredictable
+        #   time, depending on size of the modified byte range, and the storage
+        #   capabillties.
         res = self.make_imaged_request(
             "PATCH",
             self.get_imaged_url(self.ticket),
             self.request.headers,
             web.CappedStream(self.request.body_file,
                              self.request.content_length),
-            False)
+            False,
+            connection_timeout=self.config.imaged_connection_timeout_sec)
 
         # TODO: We expect empty response from the daemon. If we start to return
         # non-empty response, this must be changed to stream the daemon
@@ -182,10 +193,8 @@ class RequestHandler(object):
             'X-AuthToken': resource_id,
         }
 
-    def make_imaged_request(self, method, imaged_url, headers, body, stream):
-        timeout = (self.config.imaged_connection_timeout_sec,
-                   self.config.imaged_read_timeout_sec)
-
+    def make_imaged_request(self, method, imaged_url, headers, body, stream,
+                            connection_timeout=None, read_timeout=None):
         logging.debug("Connecting to host at %s", imaged_url)
         logging.debug("Outgoing headers to host:\n" +
                       '\n'.join(('  {}: {}'.format(k, headers[k])
@@ -202,7 +211,7 @@ class RequestHandler(object):
             imaged_prepped = imaged_session.prepare_request(imaged_req)
             imaged_resp = imaged_session.send(
                 imaged_prepped, verify=config.engine_ca_cert_file,
-                timeout=timeout, stream=stream)
+                timeout=(connection_timeout, read_timeout), stream=stream)
         except requests.Timeout:
             s = "Timed out connecting to host"
             raise exc.HTTPGatewayTimeout(s)
