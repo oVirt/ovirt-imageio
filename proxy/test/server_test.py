@@ -502,3 +502,28 @@ def test_images_options_newer_daemon(proxy_server, signed_ticket):
     assert res.status == 200
     assert set(res.getheader("Allow").split(",")) == proxy_allow
     assert set(json.loads(res.read())["features"]) == proxy_features
+
+
+def test_images_options_old_daemon_without_options(proxy_server, signed_ticket):
+    auth.add_signed_ticket(signed_ticket.data)
+
+    path = "/images/" + signed_ticket.id
+
+    # Note: the daemon does not allow OPTIONS.
+    assumed_daemon_allow = {"OPTIONS", "GET", "PUT"}
+    assumed_daemon_features = []
+
+    with requests_mock.Mocker() as m:
+        m.options(requests_mock.ANY,
+                  status_code=405,
+                  content=b'{"detail": "Invalid method OPTIONS"}')
+        res = http.request(proxy_server, "OPTIONS", path)
+
+    # Validate the request.
+    assert m.called
+    assert m.last_request.path == path
+
+    # Validate the response.
+    assert res.status == 200
+    assert set(res.getheader("Allow").split(",")) == assumed_daemon_allow
+    assert json.loads(res.read())["features"] == assumed_daemon_features

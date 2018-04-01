@@ -44,18 +44,26 @@ class RequestHandler(object):
 
         ticket = auth.authorize_request(res_id, self.request)
 
-        # TODO: Handle old daemon failing with "405 Method Not Allowed".
-        res = self.make_imaged_request(
-            "OPTIONS",
-            self.get_imaged_url(ticket),
-            self.request.headers,
-            None,
-            False)
+        try:
+            res = self.make_imaged_request(
+                "OPTIONS",
+                self.get_imaged_url(ticket),
+                self.request.headers,
+                None,
+                False)
+        except exc.HTTPMethodNotAllowed:
+            # An old daemon - we estimate its methods. We also assume that
+            # the ticket is readable and writable, since only the daemon
+            # knows about that.
+            logging.info("The daemon does not support OPTIONS, "
+                         "returning an estimation")
+            return web.response(payload={"features": []},
+                                allow="OPTIONS,GET,PUT")
 
         if res.status_code != httplib.OK:
             raise exc.HTTPInternalServerError(
                 "Got unexpected response from host: %d %s" %
-                (res.status_code, res.reason))
+                (res.status_code, res.content))
         try:
             daemon_allow = set(res.headers.get("Allow").split(","))
         except KeyError:
@@ -216,12 +224,9 @@ class RequestHandler(object):
                                  for k in sorted(imaged_resp.headers))))
 
         if imaged_resp.status_code not in http_success_codes:
-            # Don't read the whole body, in case something went really wrong...
-            s = next(imaged_resp.iter_content(256, False), "(empty)")
-            logging.error("Failed: %s", s)
-            # TODO why isn't the exception logged somewhere?
-            raise exc.status_map[imaged_resp.status_code](
-                "Failed response from host: {}".format(s))
+            s = "Failed response from host: %d %s" % \
+                (imaged_resp.status_code, imaged_resp.content)
+            raise exc.status_map[imaged_resp.status_code](s)
 
         logging.debug(
             "Successful request to host: HTTP %d %s",
