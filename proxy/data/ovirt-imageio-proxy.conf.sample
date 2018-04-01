@@ -37,5 +37,5 @@ verify_certificate = true
 # imaged_connection_timeout_sec = 10
 
 # Seconds to wait while reading from the ovirt-imageio-daemon
-# imaged_read_timeout_sec = 30
+# imaged_read_timeout_sec = 120
 

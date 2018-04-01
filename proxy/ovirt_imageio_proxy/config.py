@@ -29,7 +29,7 @@ poll_interval = 1.0
 signed_proxy_ticket = True
 allowed_skew_seconds = 0
 imaged_connection_timeout_sec = 10
-imaged_read_timeout_sec = 30
+imaged_read_timeout_sec = 120
 
 
 def _set(name, value):
