@@ -130,7 +130,14 @@ def test_images_get_imaged_with_authorization(proxy_server, signed_ticket):
               text=body,
               headers=response_headers)
         res = http.request(proxy_server, "GET", path, headers=request_headers)
-        assert m.called
+
+    # Validate the request.
+    assert m.called
+    conn_timeout, read_timeout = m.last_request.timeout
+    assert conn_timeout == proxy_server.imaged_connection_timeout_sec
+    assert read_timeout == proxy_server.imaged_read_timeout_sec
+
+    # Validate the response.
     assert res.status == 200
     assert res.read() == "hello"
     assert res.getheader("content-length") == "5"
@@ -218,8 +225,13 @@ def test_images_put_imaged_200_ok(proxy_server, signed_ticket):
               request_headers=proxy_headers)
         res = http.request(proxy_server, "PUT", path, body=body,
                            headers=client_headers)
-        assert m.called
+
+    # Validate the request.
+    assert m.called
     assert res.status == 200
+    conn_timeout, read_timeout = m.last_request.timeout
+    assert conn_timeout == proxy_server.imaged_connection_timeout_sec
+    assert read_timeout == proxy_server.imaged_read_timeout_sec
 
 
 def test_images_put_imaged_without_content_range(proxy_server, signed_ticket):
@@ -322,6 +334,10 @@ def test_images_patch(proxy_server, signed_ticket):
     body = json.dumps(msg).encode("utf-8")
     assert m.last_request.headers["Content-Length"] == str(len(body))
     assert m.last_request.body.read() == body
+
+    conn_timeout, read_timeout = m.last_request.timeout
+    assert conn_timeout == proxy_server.imaged_connection_timeout_sec
+    assert read_timeout == proxy_server.imaged_read_timeout_sec
 
     # Validate response to proxy client.
     assert res.status == 200
@@ -462,6 +478,9 @@ def test_images_options_newer_proxy(proxy_server, signed_ticket):
     # Validate the request.
     assert m.called
     assert m.last_request.path == path
+    conn_timeout, read_timeout = m.last_request.timeout
+    assert conn_timeout == proxy_server.imaged_connection_timeout_sec
+    assert read_timeout == proxy_server.imaged_read_timeout_sec
 
     # Validate the response.
     assert res.status == 200
