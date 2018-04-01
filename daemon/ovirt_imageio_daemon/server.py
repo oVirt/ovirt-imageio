@@ -168,8 +168,9 @@ class Images(object):
 
         ticket = tickets.authorize(ticket_id, "write", offset + size)
         # TODO: cancel copy if ticket expired or revoked
-        self.log.info("Writing %d bytes at offset %d to %s for ticket %s",
-                      size, offset, ticket.url.path, ticket_id)
+        self.log.info(
+            "Writing %d bytes at offset %d flush %s to %s for ticket %s",
+            size, offset, flush, ticket.url.path, ticket_id)
         op = directio.Receive(ticket.url.path,
                               self.request.body_file_raw,
                               size,
