@@ -755,8 +755,8 @@ def test_accept_protocols(protocol):
 
 def test_images_options_all():
     res = options('*')
-    allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
-    features = set(["zero", "flush"])
+    allows = {"OPTIONS", "GET", "PUT", "PATCH"}
+    features = {"zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
@@ -766,8 +766,8 @@ def test_images_options_read_write():
     ticket = testutils.create_ticket(ops=["read", "write"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
-    allows = set(["GET", "PUT", "PATCH", "OPTIONS"])
-    features = set(["zero", "flush"])
+    allows = {"OPTIONS", "GET", "PUT", "PATCH"}
+    features = {"zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
@@ -777,18 +777,19 @@ def test_images_options_read():
     ticket = testutils.create_ticket(ops=["read"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
-    allows = set(["GET", "OPTIONS"])
+    allows = {"OPTIONS", "GET"}
+    features = set()
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == set()
+    assert set(json.loads(res.read())["features"]) == features
 
 
 def test_images_options_write():
     ticket = testutils.create_ticket(ops=["write"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
-    allows = set(["PUT", "PATCH", "OPTIONS"])
-    features = set(["zero", "flush"])
+    allows = {"OPTIONS", "PUT", "PATCH"}
+    features = {"zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
