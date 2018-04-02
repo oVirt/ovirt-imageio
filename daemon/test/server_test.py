@@ -788,7 +788,8 @@ def test_images_options_write():
     ticket = testutils.create_ticket(ops=["write"])
     add_ticket(ticket)
     res = options(ticket["uuid"])
-    allows = {"OPTIONS", "PUT", "PATCH"}
+    # Having "write" imply also "read".
+    allows = {"OPTIONS", "GET", "PUT", "PATCH"}
     features = {"zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows

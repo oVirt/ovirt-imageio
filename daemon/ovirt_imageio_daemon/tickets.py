@@ -97,6 +97,13 @@ class Ticket(object):
         merged_ranges = measure.merge_ranges(ranges)
         return sum(len(range) for range in merged_ranges)
 
+    def may(self, op):
+        if op == "read":
+            # Having "write" imply also "read".
+            return "read" in self.ops or "write" in self.ops
+        else:
+            return op in self.ops
+
     def info(self):
         info = {
             "active": self.active(),
@@ -185,7 +192,7 @@ def authorize(ticket_id, op, size):
         raise HTTPForbidden("No such ticket %r" % ticket_id)
     if ticket.expires <= util.monotonic_time():
         raise HTTPForbidden("Ticket %r expired" % ticket_id)
-    if op not in ticket.ops:
+    if not ticket.may(op):
         raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
     if size > ticket.size:
         raise HTTPForbidden("Content-Length out of allowed range")

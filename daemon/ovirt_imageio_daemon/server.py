@@ -276,9 +276,9 @@ class Images(object):
 
             allow = ["OPTIONS"]
             features = []
-            if "read" in ticket.ops:
+            if ticket.may("read"):
                 allow.append("GET")
-            if "write" in ticket.ops:
+            if ticket.may("write"):
                 allow.extend(("PUT", "PATCH"))
                 features = ["zero", "flush"]
 
