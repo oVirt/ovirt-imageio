@@ -35,7 +35,10 @@ class Ticket(object):
             timeout = int(timeout)
         except ValueError as e:
             raise errors.InvalidTicketParameter("timeout", timeout, e)
-        self._expires = int(util.monotonic_time()) + timeout
+
+        now = int(util.monotonic_time())
+        self._expires = now + timeout
+        self._access_time = now
 
         url_str = _required(ticket_dict, "url")
         try:
@@ -75,7 +78,43 @@ class Ticket(object):
     def filename(self):
         return self._filename
 
-    def add_operation(self, operation):
+    @property
+    def idle_time(self):
+        """
+        Return the time in which the ticket became inactive.
+        """
+        if self.active():
+            return 0
+        return int(util.monotonic_time()) - self._access_time
+
+    def run(self, operation):
+        """
+        Run an operation, binding it to the ticket.
+        """
+        self._add_operation(operation)
+        try:
+            operation.run()
+        finally:
+            self.touch()
+
+    def bind(self, operation):
+        """
+        Return an operation bound to the ticket, implementing
+        WebOb.Response.app_iter interface.
+
+        The caller must close the bound operation when done.
+        """
+        self._add_operation(operation)
+        return BoundOperation(self, operation)
+
+    def touch(self):
+        """
+        Update the ticket access time. Must be called when an operation is
+        completed.
+        """
+        self._access_time = int(util.monotonic_time())
+
+    def _add_operation(self, operation):
         with self._lock:
             self._operations.append(operation)
 
@@ -108,6 +147,7 @@ class Ticket(object):
         info = {
             "active": self.active(),
             "expires": self._expires,
+            "idle_time": self.idle_time,
             "ops": list(self._ops),
             "size": self._size,
             "timeout": self.expires - int(util.monotonic_time()),
@@ -132,6 +172,7 @@ class Ticket(object):
                 "active={active!r} "
                 "expires={self.expires!r} "
                 "filename={self.filename!r} "
+                "idle_time={self.idle_time} "
                 "ops={self.ops!r} "
                 "size={self.size!r} "
                 "transferred={transferred!r} "
@@ -145,6 +186,34 @@ class Ticket(object):
                     transferred=self.transferred(),
                     url=urllib_parse.urlunparse(self.url)
                 )
+
+
+class BoundOperation(object):
+    """
+    An operation bound to ticket while the operation is active.
+
+    The caller can iterate over the operation data, and finally close it.
+    """
+
+    def __init__(self, ticket, operation):
+        self._ticket = ticket
+        self._operation = operation
+
+    # WebOB.Response.app_iter interface.
+
+    def __iter__(self):
+        """
+        Iterate over operation data.
+        """
+        for chunk in self._operation:
+            yield chunk
+
+    def close(self):
+        """
+        Close the underlying operation and update the ticket access time.
+        """
+        self._ticket.touch()
+        self._operation.close()
 
 
 def _required(d, key):

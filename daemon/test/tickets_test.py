@@ -22,10 +22,22 @@ class FakeOperation(object):
     Used to fake a directio.Operation object.
     """
 
-    def __init__(self, active=True, offset=0, done=0):
+    def __init__(self, active=True, offset=0, done=0, data=()):
         self.active = active
         self.offset = offset
         self.done = done
+        self.data = data
+        self.was_run = False
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def run(self):
+        self.was_run = True
+        self.active = False
+
+    def close(self):
+        self.active = False
 
 
 class TestTicket(object):
@@ -40,8 +52,7 @@ class TestTicket(object):
     ])
     def test_active(self, operations, active):
         ticket = Ticket(ticket_dict=testutils.create_ticket())
-        for op in operations:
-            ticket.add_operation(op)
+        ticket._operations = operations
         assert ticket.active() == active
 
     @pytest.mark.parametrize("operations,transferred", [
@@ -55,8 +66,8 @@ class TestTicket(object):
     ])
     def test_transferred(self, operations, transferred):
         ticket = Ticket(ticket_dict=testutils.create_ticket(ops=["read"]))
-        for offset, done in operations:
-            ticket.add_operation(FakeOperation(offset=offset, done=done))
+        ticket._operations = [FakeOperation(offset=offset, done=done)
+                              for offset, done in operations]
         assert ticket.transferred() == transferred
 
     @pytest.mark.benchmark
@@ -64,9 +75,9 @@ class TestTicket(object):
     def test_benchmark_transferred(self, transferred_gb):
         ticket = Ticket(ticket_dict=testutils.create_ticket(ops=["read"]))
         operations = transferred_gb * 1024**3 // CHUNK_SIZE
-        for i in range(operations):
-            ticket.add_operation(FakeOperation(offset=i * CHUNK_SIZE,
-                                               done=CHUNK_SIZE))
+        ticket._operations = [
+            FakeOperation(offset=i * CHUNK_SIZE, done=CHUNK_SIZE)
+            for i in range(operations)]
         start = time.time()
         assert ticket.transferred() == transferred_gb * 1024**3
         end = time.time()
@@ -84,3 +95,24 @@ class TestTicket(object):
         for key, value in info.items():
             pair = "%s=%r" % (key, value)
             assert pair in ticket_repr
+
+
+def test_ticket_run():
+    ticket = Ticket(ticket_dict=testutils.create_ticket())
+    op = FakeOperation()
+    ticket.run(op)
+    assert op.was_run
+    assert op in ticket._operations
+
+
+def test_ticket_bind():
+    ticket = Ticket(ticket_dict=testutils.create_ticket())
+    op = FakeOperation(data=["chunk 1", "chunk 2", "chunk 3"])
+    bop = ticket.bind(op)
+    assert op in ticket._operations
+
+    # Use as WebOB.Response.app_iter.
+    data = list(bop)
+    bop.close()
+    assert data == op.data
+    assert not op.active

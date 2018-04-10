@@ -92,6 +92,7 @@ def test_tickets_get(fake_time):
     ticket["active"] = False
     ticket["transferred"] = 0
     ticket["timeout"] = 100
+    ticket["idle_time"] = 200
     assert server_ticket == ticket
 
 
@@ -107,6 +108,7 @@ def test_tickets_put(fake_time):
     # Server adds expires key
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
     ticket["active"] = False
+    ticket["idle_time"] = 0
     server_ticket = get_ticket(ticket["uuid"])
     assert res.status == 200
     assert server_ticket == ticket
@@ -195,6 +197,7 @@ def test_tickets_extend(fake_time):
     res = unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
     ticket["expires"] = int(fake_time.now + ticket["timeout"])
     ticket["active"] = False
+    ticket["idle_time"] = 240
     server_ticket = get_ticket(ticket["uuid"])
     assert res.status == 200
     assert server_ticket == ticket
@@ -279,6 +282,85 @@ def test_tickets_extend_not_found():
     body = json.dumps({"timeout": 300})
     res = unix_request("PATCH", "/tickets/%s" % ticket_id, body)
     assert res.status == 404
+
+
+def test_tickets_idle_time_active(fake_time, tmpdir):
+    filename = tmpdir.join("image")
+    # Note: must be big enough so the request remain active.
+    size = 1024**2 * 10
+    with open(str(filename), 'wb') as image:
+        image.truncate(size)
+    ticket = testutils.create_ticket(
+        url="file://" + str(filename), ops=["read"], size=size)
+    add_ticket(ticket)
+
+    # Start a download, but read only 1 byte to make sure the operation becomes
+    # active but do not complete.
+    res = download(ticket["uuid"])
+    res.read(1)
+
+    # Active ticket idle time is always 0.
+    fake_time.now += 200
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
+
+
+def test_tickets_idle_time_inactive(fake_time):
+    ticket = testutils.create_ticket()
+    add_ticket(ticket)
+
+    # Ticket idle time starts with ticket is added.
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
+
+    # Simulate time passing without any request.
+    fake_time.now += 200
+    assert get_ticket(ticket["uuid"])["idle_time"] == 200
+
+
+def test_tickets_idle_time_put(fake_time, tmpdir):
+    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+
+    # Request must reset idle time.
+    fake_time.now += 200
+    upload(ticket["uuid"], "b" * 8192)
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
+
+
+def test_tickets_idle_time_get(fake_time, tmpdir):
+    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+
+    # Request must reset idle time.
+    fake_time.now += 200
+    download(ticket["uuid"])
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
+
+
+@pytest.mark.parametrize("msg", [
+    pytest.param({"op": "zero", "size": 1}, id="zero"),
+    pytest.param({"op": "flush"}, id="flush"),
+])
+def test_tickets_idle_time_patch(fake_time, tmpdir, msg):
+    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    add_ticket(ticket)
+
+    # Request must reset idle time.
+    fake_time.now += 200
+    patch(ticket["uuid"], msg)
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
+
+
+def test_tickets_idle_time_options(fake_time):
+    ticket = testutils.create_ticket(url="file:///no/such/file")
+    add_ticket(ticket)
+
+    # Request must reset idle time.
+    fake_time.now += 200
+    options(ticket["uuid"])
+    assert get_ticket(ticket["uuid"])["idle_time"] == 0
 
 
 def test_tickets_delete_one():

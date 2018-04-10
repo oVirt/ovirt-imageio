@@ -165,9 +165,8 @@ class Images(object):
                               offset=offset,
                               flush=flush,
                               buffersize=self.config.daemon.buffer_size)
-        ticket.add_operation(op)
         try:
-            op.run()
+            ticket.run(op)
         except errors.PartialContent as e:
             raise HTTPBadRequest(str(e))
         return web.response()
@@ -198,14 +197,13 @@ class Images(object):
                            size,
                            offset=offset,
                            buffersize=self.config.daemon.buffer_size)
-        ticket.add_operation(op)
         content_disposition = "attachment"
         if ticket.filename:
             filename = ticket.filename.encode("utf-8")
             content_disposition += "; filename=%s" % filename
         resp = webob.Response(
             status=status,
-            app_iter=op,
+            app_iter=ticket.bind(op),
             content_type="application/octet-stream",
             content_length=str(size),
             content_disposition=content_disposition,
@@ -244,9 +242,8 @@ class Images(object):
             size, offset, flush, ticket.url.path, ticket_id)
         op = directio.Zero(ticket.url.path, size, offset=offset, flush=flush,
                            buffersize=self.config.daemon.buffer_size)
-        ticket.add_operation(op)
         try:
-            op.run()
+            ticket.run(op)
         except errors.PartialContent as e:
             raise HTTPBadRequest(str(e))
         return web.response()
@@ -255,8 +252,7 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", 0)
         self.log.info("Flushing %s for ticket %s", ticket.url.path, ticket_id)
         op = directio.Flush(ticket.url.path)
-        ticket.add_operation(op)
-        op.run()
+        ticket.run(op)
         return web.response()
 
     def options(self, ticket_id):
@@ -273,6 +269,9 @@ class Images(object):
                 ticket = tickets.get(ticket_id)
             except KeyError:
                 raise HTTPForbidden("No such ticket %r" % ticket_id)
+
+            # Accessing ticket options considered as client activity.
+            ticket.touch()
 
             allow = ["OPTIONS"]
             features = []
