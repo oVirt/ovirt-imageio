@@ -11,8 +11,9 @@ from distutils.core import setup
 from ovirt_imageio_daemon import version
 
 setup(
-    author="Nir Soffer, Greg Padgett, Amit Aviram",
-    author_email="nsoffer@redhat.com, gpadgett@redhat.com, aaviram@redhat.com",
+    author="Nir Soffer, Greg Padgett, Amit Aviram, Daniel Erez",
+    author_email="nsoffer@redhat.com, gpadgett@redhat.com, "
+                 "aaviram@redhat.com, derez@redhat.com",
     description="oVirt imageio daemon",
     license="GNU GPLv2+",
     name="ovirt-imageio-daemon",
