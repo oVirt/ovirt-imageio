@@ -4,7 +4,7 @@ Release:   0%{?release_suffix}%{?dist}
 Summary:   oVirt imageio common library
 
 Group:     Development/Libraries
-License:   GNU GPLv2+
+License:   GPLv2+
 Url:       https://gerrit.ovirt.org/ovirt-imageio
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 BuildArch: noarch
