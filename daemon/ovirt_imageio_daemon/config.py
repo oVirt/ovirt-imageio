@@ -21,6 +21,10 @@ class daemon:
     # slightly, but may also decrease it significantly.
     buffer_size = 8388608
 
+    # Enable TLSv1.1, for legacy user applications that do not support
+    # TLSv1.2.
+    enable_tls1_1 = False
+
 
 class images:
 

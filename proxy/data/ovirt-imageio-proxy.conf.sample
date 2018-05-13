@@ -8,6 +8,10 @@ host =
 # Wrap incoming connections with SSL
 use_ssl = true
 
+# Enable TLSv1.1, for legacy user applications that do not support
+# TLSv1.2.
+# enable_tls1_1 = False
+
 # Key file for SSL connections
 ssl_key_file = /etc/pki/ovirt-engine/keys/image-proxy.key.nopass
 

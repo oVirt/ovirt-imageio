@@ -30,15 +30,29 @@ def run_server(config_file):
         s.stop()
 
 
-@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
-def test_reject_protocols(protocol):
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1", "-tls1_1"])
+def test_default_reject(protocol):
     with run_server("proxy.conf") as proxy_server:
         rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
     assert rc != 0
 
 
-@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
-def test_accept_protocols(proxy_server, protocol):
+@pytest.mark.parametrize("protocol", ["-tls1_2"])
+def test_default_accept(proxy_server, protocol):
     with run_server("proxy.conf") as proxy_server:
+        rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
+    assert rc == 0
+
+
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
+def test_legacy_reject(protocol):
+    with run_server("proxy-tls1_1.conf") as proxy_server:
+        rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
+    assert rc != 0
+
+
+@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+def test_legacy_accept(proxy_server, protocol):
+    with run_server("proxy-tls1_1.conf") as proxy_server:
         rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
     assert rc == 0

@@ -20,6 +20,7 @@ _CONFIG_SECTION = 'proxy'
 port = 54323
 host = ''
 use_ssl = True
+enable_tls1_1 = False
 ssl_key_file = '/path/to/ssl_key_file'
 ssl_cert_file = '/path/to/ssl_cert_file'
 engine_cert_file = '/path/to/engine_cert_file'

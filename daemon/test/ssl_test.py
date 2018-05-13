@@ -32,15 +32,29 @@ def remote_service(config_file):
         s.stop()
 
 
-@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1", "-tls1_1"])
 def test_default_reject(protocol):
     with remote_service("daemon.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
     assert rc != 0
 
 
-@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+@pytest.mark.parametrize("protocol", ["-tls1_2"])
 def test_default_accept(protocol):
     with remote_service("daemon.conf") as service:
+        rc = check_protocol("127.0.0.1", service.port, protocol)
+    assert rc == 0
+
+
+@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
+def test_legacy_reject(protocol):
+    with remote_service("daemon-tls1_1.conf") as service:
+        rc = check_protocol("127.0.0.1", service.port, protocol)
+    assert rc != 0
+
+
+@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+def test_legacy_accept(protocol):
+    with remote_service("daemon-tls1_1.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
     assert rc == 0

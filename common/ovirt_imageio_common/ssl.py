@@ -12,18 +12,22 @@ import ssl
 import subprocess
 
 
-def server_context(cafile, certfile, keyfile):
+def server_context(cafile, certfile, keyfile, enable_tls1_1=False):
     # TODO: Verify client certs
-    return _context(ssl.Purpose.CLIENT_AUTH, cafile, certfile, keyfile)
+    return _context(ssl.Purpose.CLIENT_AUTH, cafile, certfile, keyfile,
+                    enable_tls1_1=enable_tls1_1)
 
 
-def client_context(cafile, certfile, keyfile):
-    return _context(ssl.Purpose.SERVER_AUTH, cafile, certfile, keyfile)
+def client_context(cafile, certfile, keyfile, enable_tls1_1=False):
+    return _context(ssl.Purpose.SERVER_AUTH, cafile, certfile, keyfile,
+                    enable_tls1_1=enable_tls1_1)
 
 
-def _context(purpose, cafile, certfile, keyfile):
+def _context(purpose, cafile, certfile, keyfile, enable_tls1_1=False):
     ctx = ssl.create_default_context(purpose=purpose, cafile=cafile)
     ctx.options |= ssl.OP_NO_TLSv1
+    if not enable_tls1_1:
+        ctx.options |= ssl.OP_NO_TLSv1_1
     ctx.load_cert_chain(certfile, keyfile)
     return ctx
 

@@ -58,7 +58,8 @@ class Server:
         # TODO consider cert_reqs
         context = ssl.server_context(config.ssl_cert_file,
                                      config.ssl_cert_file,
-                                     config.ssl_key_file)
+                                     config.ssl_key_file,
+                                     enable_tls1_1=config.enable_tls1_1)
         server.socket = context.wrap_socket(server.socket, server_side=True)
 
     def _start_server(self, config, server, name):
