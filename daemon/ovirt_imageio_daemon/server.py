@@ -45,8 +45,8 @@ from . import tickets
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 
 log = logging.getLogger("server")
-image_server = None
-ticket_server = None
+images_service = None
+tickets_service = None
 running = True
 
 
@@ -68,8 +68,9 @@ def main(args):
         log.info("Stopped")
     except Exception:
         log.exception(
-            "Service failed (image_server=%s, ticket_server=%s, running=%s)",
-            image_server, ticket_server, running)
+            "Service failed (images_service=%s, tickets_service=%s, "
+            "running=%s)"
+            % (images_service, tickets_service, running))
         sys.exit(1)
 
 
@@ -85,47 +86,82 @@ def terminate(signo, frame):
 
 
 def start(config):
-    global image_server, ticket_server
-    assert not (image_server or ticket_server)
+    global images_service, tickets_service
+    assert not (images_service or tickets_service)
 
     log.debug("Starting images service on port %d", config.images.port)
-    image_server = ThreadedWSGIServer((config.images.host, config.images.port),
-                                      WSGIRequestHandler)
-    secure_server(config, image_server)
-    image_app = web.Application(config, [(r"/images/(.*)", Images)])
-    image_server.set_app(image_app)
-    start_server(config, image_server, "image.server")
+    images_service = ImagesService(config)
+    images_service.start()
 
     log.debug("Starting tickets service on socket %s", config.tickets.socket)
-    ticket_server = uhttp.UnixWSGIServer(config.tickets.socket,
-                                         UnixWSGIRequestHandler)
-    ticket_app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
-    ticket_server.set_app(ticket_app)
-    start_server(config, ticket_server, "ticket.server")
+    tickets_service = TicketsService(config)
+    tickets_service.start()
 
 
 def stop():
-    global image_server, ticket_server
+    global images_service, tickets_service
     log.debug("Stopping services")
-    image_server.shutdown()
-    ticket_server.shutdown()
-    image_server = None
-    ticket_server = None
+    images_service.stop()
+    tickets_service.stop()
+    images_service = None
+    tickets_service = None
 
 
-def secure_server(config, server):
-    key_file = pki.key_file(config)
-    cert_file = pki.cert_file(config)
-    log.debug("Securing server (certfile=%s, keyfile=%s)", cert_file, key_file)
-    context = ssl.server_context(cert_file, cert_file, key_file)
-    server.socket = context.wrap_socket(server.socket, server_side=True)
+class Service(object):
+
+    name = None
+
+    def start(self):
+        log.debug("Starting %s", self.name)
+        util.start_thread(
+            self._server.serve_forever,
+            kwargs={"poll_interval": self._config.daemon.poll_interval},
+            name=self.name)
+
+    def stop(self):
+        log.debug("Stopping %s", self.name)
+        self._server.shutdown()
 
 
-def start_server(config, server, name):
-    log.debug("Starting thread %s", name)
-    util.start_thread(server.serve_forever,
-                      kwargs={"poll_interval": config.daemon.poll_interval},
-                      name=name)
+class ImagesService(Service):
+
+    name = "images.service"
+
+    def __init__(self, config):
+        self._config = config
+        self._server = ThreadedWSGIServer(
+            (config.images.host, config.images.port),
+            WSGIRequestHandler)
+        self._secure_server()
+        app = web.Application(config, [(r"/images/(.*)", Images)])
+        self._server.set_app(app)
+        log.debug("%s listening on port %d", self.name, self.port)
+
+    @property
+    def port(self):
+        return self._server.server_port
+
+    def _secure_server(self):
+        key_file = pki.key_file(self._config)
+        cert_file = pki.cert_file(self._config)
+        log.debug("Securing server (certfile=%s, keyfile=%s)",
+                  cert_file, key_file)
+        context = ssl.server_context(cert_file, cert_file, key_file)
+        self._server.socket = context.wrap_socket(
+            self._server.socket, server_side=True)
+
+
+class TicketsService(Service):
+
+    name = "tickets.service"
+
+    def __init__(self, config):
+        self._config = config
+        self._server = uhttp.UnixWSGIServer(
+            config.tickets.socket, UnixWSGIRequestHandler)
+        app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
+        self._server.set_app(app)
+        log.debug("%s listening on %s", self.name, self._server.server_address)
 
 
 class Images(object):
