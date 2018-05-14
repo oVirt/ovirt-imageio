@@ -55,6 +55,8 @@ def setup_module(m):
     conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
     configloader.load(config, [conf])
     server.start(config)
+    # During testing we use port 0 to get a random port.
+    config.images.port = server.images_service.port
 
 
 def teardown_module(m):
