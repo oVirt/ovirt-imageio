@@ -69,6 +69,10 @@ class Server:
         t.daemon = True
         t.start()
 
+    @property
+    def port(self):
+        return self._image_server.server_port
+
 
 class ThreadedWSGIServer(SocketServer.ThreadingMixIn,
                          simple_server.WSGIServer):

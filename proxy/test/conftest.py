@@ -26,6 +26,8 @@ def proxy_server():
     server_instance = server.Server()
     server_instance.start(config)
     try:
+        # During testing we use port 0 to get a random port.
+        config.port = server_instance.port
         yield config
     finally:
         server_instance.stop()
