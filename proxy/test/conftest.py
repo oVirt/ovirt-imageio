@@ -22,7 +22,7 @@ def proxy_server():
     """
     Run proxy server during the test.
     """
-    config.load(os.path.join(TEST_DIR, "resources/test_config.ini"))
+    config.load(os.path.join(TEST_DIR, "proxy.conf"))
     server_instance = server.Server()
     server_instance.start(config)
     try:
