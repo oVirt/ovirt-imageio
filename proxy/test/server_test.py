@@ -4,7 +4,6 @@ from urlparse import urlparse
 import pytest
 import requests_mock
 
-from ovirt_imageio_common.ssl import check_protocol
 from ovirt_imageio_proxy import auth
 
 from . import http
@@ -387,20 +386,6 @@ def test_images_patch_no_ticket_id(proxy_server):
     res = http.patch(proxy_server, "/images/", {"op": "flush"})
     # TODO: Should be 400, fix in auth.athorize_request().
     assert res.status == 401
-
-
-# SSL
-
-@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
-def test_reject_protocols(proxy_server, protocol):
-    rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
-    assert rc != 0
-
-
-@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
-def test_accept_protocols(proxy_server, protocol):
-    rc = check_protocol("127.0.0.1", proxy_server.port, protocol)
-    assert rc == 0
 
 
 def test_sessions_post_sessionid_exists(proxy_server, signed_ticket):
