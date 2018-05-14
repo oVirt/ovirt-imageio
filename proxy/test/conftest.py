@@ -17,7 +17,7 @@ SingedTicket = collections.namedtuple(
     "SingedTicket", "data, id, url")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def proxy_server():
     """
     Run proxy server during the test.
