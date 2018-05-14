@@ -27,7 +27,6 @@ import pytest
 
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import util
-from ovirt_imageio_common.ssl import check_protocol
 from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import pki
 from ovirt_imageio_daemon import uhttp
@@ -803,20 +802,6 @@ def test_images_flush_ticket_readonly(tmpdir):
     add_ticket(ticket)
     res = patch(ticket["uuid"], {"op": "flush"})
     assert res.status == 403
-
-
-# SSL
-
-@pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
-def test_reject_protocols(protocol):
-    rc = check_protocol("127.0.0.1", config.images.port, protocol)
-    assert rc != 0
-
-
-@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
-def test_accept_protocols(protocol):
-    rc = check_protocol("127.0.0.1", config.images.port, protocol)
-    assert rc == 0
 
 
 # Options
