@@ -155,7 +155,7 @@ class TicketsService(Service):
     def __init__(self, config):
         self._config = config
         self._server = uhttp.UnixWSGIServer(
-            config.tickets.socket, UnixWSGIRequestHandler)
+            config.tickets.socket, uhttp.UnixWSGIRequestHandler)
         app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
         self._server.set_app(app)
         log.debug("%s listening on %s", self.name, self._server.server_address)
@@ -391,15 +391,3 @@ class Tickets(object):
         else:
             tickets.clear()
         return web.response(status=204)
-
-
-class UnixWSGIRequestHandler(uhttp.UnixWSGIRequestHandler):
-    """
-    WSGI over unix domain socket request handler using HTTP/1.1.
-    """
-    protocol_version = "HTTP/1.1"
-
-    def log_message(self, format, *args):
-        """
-        Override to avoid unwanted logging to stderr.
-        """

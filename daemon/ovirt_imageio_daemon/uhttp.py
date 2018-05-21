@@ -12,10 +12,10 @@ import errno
 import os
 import socket
 
-from wsgiref import simple_server
-
 import six
 from six.moves import http_client
+
+from . import wsgi
 
 PUT = "PUT"
 DELETE = "DELETE"
@@ -51,7 +51,7 @@ class UnixHTTPConnection(_UnixMixin, http_client.HTTPConnection):
         self.sock.connect(self.path)
 
 
-class UnixWSGIServer(simple_server.WSGIServer):
+class UnixWSGIServer(wsgi.WSGIServer):
     """
     WSGI HTTP server over unix domain socket.
     """
@@ -81,7 +81,7 @@ class UnixWSGIServer(simple_server.WSGIServer):
         return sock, self.server_address
 
 
-class UnixWSGIRequestHandler(simple_server.WSGIRequestHandler):
+class UnixWSGIRequestHandler(wsgi.WSGIRequestHandler):
     """
     WSGI HTTP request handler over unix domain socket.
     """
