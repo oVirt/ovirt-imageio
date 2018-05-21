@@ -318,7 +318,7 @@ def test_tickets_idle_time_inactive(fake_time):
 
 
 def test_tickets_idle_time_put(fake_time, tmpdir):
-    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    image = testutils.create_tempfile(tmpdir, "image", "a" * 8192)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
 
@@ -329,7 +329,7 @@ def test_tickets_idle_time_put(fake_time, tmpdir):
 
 
 def test_tickets_idle_time_get(fake_time, tmpdir):
-    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    image = testutils.create_tempfile(tmpdir, "image", "a" * 8192)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
 
@@ -344,7 +344,7 @@ def test_tickets_idle_time_get(fake_time, tmpdir):
     pytest.param({"op": "flush"}, id="flush"),
 ])
 def test_tickets_idle_time_patch(fake_time, tmpdir, msg):
-    image = create_tempfile(tmpdir, "image", "a" * 8192)
+    image = testutils.create_tempfile(tmpdir, "image", "a" * 8192)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
 
@@ -432,7 +432,7 @@ def test_images_upload_content_length_invalid(tmpdir):
 
 
 def test_images_upload_content_length_negative(tmpdir):
-    image = create_tempfile(tmpdir, "image", "before")
+    image = testutils.create_tempfile(tmpdir, "image", "before")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = raw_http_request("PUT", "/images/" + ticket["uuid"],
@@ -442,7 +442,7 @@ def test_images_upload_content_length_negative(tmpdir):
 
 def test_images_upload_no_content(tmpdir):
     # This is a pointless request, but valid
-    image = create_tempfile(tmpdir, "image", "before")
+    image = testutils.create_tempfile(tmpdir, "image", "before")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(ticket["uuid"], "")
@@ -453,7 +453,7 @@ def test_images_upload_no_content(tmpdir):
 # the server does not reject the query string.
 @pytest.mark.parametrize("flush", [None, "y", "n"])
 def test_images_upload(tmpdir, flush):
-    image = create_tempfile(tmpdir, "image", "-------|after")
+    image = testutils.create_tempfile(tmpdir, "image", "-------|after")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(ticket["uuid"], "content", flush=flush)
@@ -474,7 +474,7 @@ def test_images_upload_invalid_flush(tmpdir):
     ("bytes */*", "-------|after", "content|after"),
 ])
 def test_images_upload_with_range(tmpdir, crange, before, after):
-    image = create_tempfile(tmpdir, "image", before)
+    image = testutils.create_tempfile(tmpdir, "image", before)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(ticket["uuid"], "content",
@@ -486,7 +486,7 @@ def test_images_upload_with_range(tmpdir, crange, before, after):
 def test_images_upload_max_size(tmpdir):
     image_size = 100
     content = "b" * image_size
-    image = create_tempfile(tmpdir, "image", "")
+    image = testutils.create_tempfile(tmpdir, "image", "")
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     add_ticket(ticket)
@@ -497,7 +497,7 @@ def test_images_upload_max_size(tmpdir):
 
 def test_images_upload_too_big(tmpdir):
     image_size = 100
-    image = create_tempfile(tmpdir, "image", "")
+    image = testutils.create_tempfile(tmpdir, "image", "")
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     add_ticket(ticket)
@@ -508,7 +508,7 @@ def test_images_upload_too_big(tmpdir):
 
 def test_images_upload_last_byte(tmpdir):
     image_size = 100
-    image = create_tempfile(tmpdir, "image", "a" * image_size)
+    image = testutils.create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     add_ticket(ticket)
@@ -520,7 +520,7 @@ def test_images_upload_last_byte(tmpdir):
 
 def test_images_upload_after_last_byte(tmpdir):
     image_size = 100
-    image = create_tempfile(tmpdir, "image", "a" * image_size)
+    image = testutils.create_tempfile(tmpdir, "image", "a" * image_size)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     add_ticket(ticket)
@@ -557,7 +557,7 @@ def test_images_upload_invalid_range(tmpdir, content_range):
 ])
 def test_images_download(tmpdir, rng, start, end):
     data = "a" * 512 + "b" * 512
-    image = create_tempfile(tmpdir, "image", data)
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=end)
     add_ticket(ticket)
@@ -569,7 +569,7 @@ def test_images_download(tmpdir, rng, start, end):
 
 def test_images_download_no_range(tmpdir):
     size = 1024
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size)
     add_ticket(ticket)
     res = download(ticket["uuid"])
@@ -580,7 +580,7 @@ def test_images_download_no_range(tmpdir):
 
 def test_images_download_empty(tmpdir):
     # Stupid edge case, but it should work, returning empty file :-)
-    image = create_tempfile(tmpdir, "image")  # Empty image
+    image = testutils.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutils.create_ticket(url="file://" + str(image), size=0)
     add_ticket(ticket)
     res = download(ticket["uuid"])
@@ -596,7 +596,7 @@ def test_images_download_partial_not_satistieble(tmpdir):
     # cause a failure.
     # See https://bugzilla.redhat.com/1512315.
     size = 1024
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size + 1)
     add_ticket(ticket)
     unsatisfiable_range = "bytes=0-%d" % size  # Max is size - 1
@@ -612,7 +612,7 @@ def test_images_download_partial_no_range(tmpdir):
     # expected size?
     # This is another variant of https://bugzilla.redhat.com/1512315.
     size = 1024
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size + 1)
     add_ticket(ticket)
     res = download(ticket["uuid"])
@@ -627,7 +627,7 @@ def test_images_download_partial_no_range_empty(tmpdir):
     # Image is empty, no range, should return an empty file - we return invalid
     # http response that fail on the client side with BadStatusLine: ''.
     # See https://bugzilla.redhat.com/1512312
-    image = create_tempfile(tmpdir, "image")  # Empty image
+    image = testutils.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutils.create_ticket(url="file://" + str(image), size=1024)
     add_ticket(ticket)
     res = download(ticket["uuid"])
@@ -637,7 +637,7 @@ def test_images_download_partial_no_range_empty(tmpdir):
 
 def test_images_download_no_range_end(tmpdir):
     size = 1024
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size)
     add_ticket(ticket)
     res = download(ticket["uuid"], "bytes=0-")
@@ -648,7 +648,7 @@ def test_images_download_no_range_end(tmpdir):
 
 def test_images_download_holes(tmpdir):
     size = 1024
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size)
     add_ticket(ticket)
     res = download(ticket["uuid"], "bytes=0-1023")
@@ -660,7 +660,7 @@ def test_images_download_holes(tmpdir):
 def test_images_download_filename_in_ticket(tmpdir):
     size = 1024
     filename = u"\u05d0.raw"  # hebrew aleph
-    image = create_tempfile(tmpdir, "image", size=size)
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
     ticket = testutils.create_ticket(url="file://" + str(image), size=size,
                                      filename=filename)
     add_ticket(ticket)
@@ -674,7 +674,7 @@ def test_images_download_filename_in_ticket(tmpdir):
 ])
 def test_images_download_out_of_range(tmpdir, rng, end):
     data = "a" * 512 + "b" * 512
-    image = create_tempfile(tmpdir, "image", data)
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image), size=end)
     add_ticket(ticket)
     res = download(ticket["uuid"], rng)
@@ -726,7 +726,7 @@ def test_images_patch_unkown_op():
 ])
 def test_images_zero(tmpdir, msg):
     data = "x" * 512
-    image = create_tempfile(tmpdir, "image", data)
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     size = msg["size"]
@@ -778,7 +778,7 @@ def test_images_zero_ticket_readonly(tmpdir):
 ])
 def test_images_flush(tmpdir, msg):
     data = "x" * 512
-    image = create_tempfile(tmpdir, "image", data)
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = patch(ticket["uuid"], msg)
@@ -863,7 +863,7 @@ def test_images_options_for_nonexistent_ticket():
 
 @pytest.mark.xfail(reason="needs investigation")
 def test_images_response_version_success(tmpdir):
-    image = create_tempfile(tmpdir, "image", "old")
+    image = testutils.create_tempfile(tmpdir, "image", "old")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     res = upload(ticket["uuid"], "new")
@@ -879,7 +879,7 @@ def test_images_response_version_error(tmpdir):
 
 
 def test_keep_connection_on_success(tmpdir):
-    image = create_tempfile(tmpdir, "image")
+    image = testutils.create_tempfile(tmpdir, "image")
     ticket = testutils.create_ticket(url="file://" + str(image))
     add_ticket(ticket)
     uri = "/images/%(uuid)s" % ticket
@@ -987,41 +987,6 @@ def response(con):
     pprint((res.status, res.reason, res.version))
     pprint(res.getheaders())
     return res
-
-
-# TODO: move to utils
-def create_tempfile(tmpdir, name, data='', size=None):
-    file = tmpdir.join(name)
-    with open(str(file), 'wb') as f:
-        if size is not None:
-            f.seek(size - 1)
-            f.write("\0")
-            f.seek(0)
-        if data:
-            f.write(data)
-    return file
-
-
-def test_create_tempfile_hole(tmpdir):
-    size = 1024
-    file = create_tempfile(tmpdir, "image", size=size)
-    assert file.read() == "\0" * size
-
-
-def test_create_tempfile_data(tmpdir):
-    size = 1024
-    byte = "\xf0"
-    data = byte * size
-    file = create_tempfile(tmpdir, "image", data=data)
-    assert file.read() == byte * size
-
-
-def test_create_tempfile_data_and_size(tmpdir):
-    virtual_size = 1024
-    byte = "\xf0"
-    data = byte * 512
-    file = create_tempfile(tmpdir, "image", data=data, size=virtual_size)
-    assert file.read() == data + "\0" * (virtual_size - len(data))
 
 
 # TODO: move into tickets.py

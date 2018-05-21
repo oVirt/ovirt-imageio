@@ -23,3 +23,13 @@ def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
     if filename is not None:
         d["filename"] = filename
     return d
+
+
+def create_tempfile(tmpdir, name, data='', size=None):
+    file = tmpdir.join(name)
+    with open(str(file), 'wb') as f:
+        if size is not None:
+            f.truncate(size)
+        if data:
+            f.write(data)
+    return file
