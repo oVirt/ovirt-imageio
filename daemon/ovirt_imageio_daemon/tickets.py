@@ -222,13 +222,15 @@ def _required(d, key):
     return d[key]
 
 
-def add(ticket_id, ticket):
+def add(ticket_dict):
     """
-    Gets a ticket ID and a Ticket object
-    and adds it to the tickets' cache.
+    Add a ticket to the store.
+
+    Raises errors.InvalidTicket if ticket dict is invalid.
     """
+    ticket = Ticket(ticket_dict)
     log.info("Adding ticket %s", ticket)
-    _tickets[ticket_id] = ticket
+    _tickets[ticket.uuid] = ticket
 
 
 def remove(ticket_id):

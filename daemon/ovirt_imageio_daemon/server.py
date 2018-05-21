@@ -355,11 +355,10 @@ class Tickets(object):
             raise HTTPBadRequest("Ticket is not in a json format: %s" % e)
 
         try:
-            ticket = tickets.Ticket(ticket_dict)
+            tickets.add(ticket_dict)
         except errors.InvalidTicket as e:
             raise HTTPBadRequest("Invalid ticket: %s" % e)
 
-        tickets.add(ticket_id, ticket)
         return web.response()
 
     def patch(self, ticket_id):
