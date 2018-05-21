@@ -21,10 +21,10 @@ TEST_DIR = os.path.dirname(__file__)
 
 
 @contextmanager
-def images_service(config_file):
+def remote_service(config_file):
     path = os.path.join(TEST_DIR, config_file)
     configloader.load(config, [path])
-    s = server.ImagesService(config)
+    s = server.RemoteService(config)
     s.start()
     try:
         yield s
@@ -34,13 +34,13 @@ def images_service(config_file):
 
 @pytest.mark.parametrize("protocol", ["-ssl2", "-ssl3", "-tls1"])
 def test_default_reject(protocol):
-    with images_service("daemon.conf") as service:
+    with remote_service("daemon.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
     assert rc != 0
 
 
 @pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
 def test_default_accept(protocol):
-    with images_service("daemon.conf") as service:
+    with remote_service("daemon.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
     assert rc == 0

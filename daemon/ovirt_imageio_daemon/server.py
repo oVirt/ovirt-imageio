@@ -42,8 +42,8 @@ from . import wsgi
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 
 log = logging.getLogger("server")
-images_service = None
-tickets_service = None
+remote_service = None
+control_service = None
 running = True
 
 
@@ -65,9 +65,9 @@ def main(args):
         log.info("Stopped")
     except Exception:
         log.exception(
-            "Service failed (images_service=%s, tickets_service=%s, "
+            "Service failed (remote_service=%s, control_service=%s, "
             "running=%s)"
-            % (images_service, tickets_service, running))
+            % (remote_service, control_service, running))
         sys.exit(1)
 
 
@@ -83,25 +83,25 @@ def terminate(signo, frame):
 
 
 def start(config):
-    global images_service, tickets_service
-    assert not (images_service or tickets_service)
+    global remote_service, control_service
+    assert not (remote_service or control_service)
 
-    log.debug("Starting images service on port %d", config.images.port)
-    images_service = ImagesService(config)
-    images_service.start()
+    log.debug("Starting remote service on port %d", config.images.port)
+    remote_service = RemoteService(config)
+    remote_service.start()
 
-    log.debug("Starting tickets service on socket %s", config.tickets.socket)
-    tickets_service = TicketsService(config)
-    tickets_service.start()
+    log.debug("Starting control service on socket %s", config.tickets.socket)
+    control_service = ControlService(config)
+    control_service.start()
 
 
 def stop():
-    global images_service, tickets_service
+    global remote_service, control_service
     log.debug("Stopping services")
-    images_service.stop()
-    tickets_service.stop()
-    images_service = None
-    tickets_service = None
+    remote_service.stop()
+    control_service.stop()
+    remote_service = None
+    control_service = None
 
 
 class Service(object):
@@ -120,9 +120,15 @@ class Service(object):
         self._server.shutdown()
 
 
-class ImagesService(Service):
+class RemoteService(Service):
+    """
+    Service used to access images data from remote host.
 
-    name = "images.service"
+    Access to this service requires a valid ticket that can be installed using
+    the local control service.
+    """
+
+    name = "remote.service"
 
     def __init__(self, config):
         self._config = config
@@ -148,9 +154,15 @@ class ImagesService(Service):
             self._server.socket, server_side=True)
 
 
-class TicketsService(Service):
+class ControlService(Service):
+    """
+    Service used to control imageio daemon on a host.
 
-    name = "tickets.service"
+    The service is using unix socket owned by a program managing the host. Only
+    this program can access the socket.
+    """
+
+    name = "control.service"
 
     def __init__(self, config):
         self._config = config

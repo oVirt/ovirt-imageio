@@ -53,7 +53,7 @@ def setup_module(m):
     configloader.load(config, [conf])
     server.start(config)
     # During testing we use port 0 to get a random port.
-    config.images.port = server.images_service.port
+    config.images.port = server.remote_service.port
 
 
 def teardown_module(m):
