@@ -239,7 +239,7 @@ class Images(object):
                               default="y")
         flush = (flush == "y")
 
-        ticket = tickets.authorize(ticket_id, "write", offset + size)
+        ticket = tickets.authorize(ticket_id, "write", offset, size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info(
             "Writing %d bytes at offset %d flush %s to %s for ticket %s",
@@ -262,19 +262,16 @@ class Images(object):
             raise HTTPBadRequest("Ticket id is required")
         # TODO: support partial range (e.g. bytes=0-*)
 
+        offset = 0
+        size = None
         if self.request.range:
             offset = self.request.range.start
-            if self.request.range.end is None:
-                size = tickets.get(ticket_id).size - offset
-            else:
+            if self.request.range.end is not None:
                 size = self.request.range.end - offset
-            status = 206
-        else:
-            offset = 0
-            size = tickets.get(ticket_id).size
-            status = 200
 
-        ticket = tickets.authorize(ticket_id, "read", offset + size)
+        ticket = tickets.authorize(ticket_id, "read", offset, size)
+        if size is None:
+            size = ticket.size - offset
         self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
                       size, offset, ticket.url.path, ticket_id)
         op = directio.Send(ticket.url.path,
@@ -287,7 +284,7 @@ class Images(object):
             filename = ticket.filename.encode("utf-8")
             content_disposition += "; filename=%s" % filename
         resp = webob.Response(
-            status=status,
+            status=206 if self.request.range else 200,
             app_iter=ticket.bind(op),
             content_type="application/octet-stream",
             content_length=str(size),
@@ -320,7 +317,7 @@ class Images(object):
         offset = validate.integer(msg, "offset", minval=0, default=0)
         flush = validate.boolean(msg, "flush", default=False)
 
-        ticket = tickets.authorize(ticket_id, "write", offset + size)
+        ticket = tickets.authorize(ticket_id, "write", offset, size)
 
         self.log.info(
             "Zeroing %d bytes at offset %d flush %s to %s for ticket %s",
@@ -334,7 +331,7 @@ class Images(object):
         return web.response()
 
     def _flush(self, ticket_id, msg):
-        ticket = tickets.authorize(ticket_id, "write", 0)
+        ticket = tickets.authorize(ticket_id, "write", 0, 0)
         self.log.info("Flushing %s for ticket %s", ticket.url.path, ticket_id)
         op = directio.Flush(ticket.url.path)
         ticket.run(op)

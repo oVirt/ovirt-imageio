@@ -575,6 +575,16 @@ def test_images_upload_invalid_range(tmpdir, content_range):
     assert res.status == 400
 
 
+def test_images_download_no_ticket_id():
+    res = http.get("/images/")
+    assert res.status == http_client.BAD_REQUEST
+
+
+def test_images_download_no_ticket():
+    res = http.get("/images/no-such-ticket")
+    assert res.status == http_client.FORBIDDEN
+
+
 @pytest.mark.parametrize("rng,start,end", [
     ("bytes=0-1023", 0, 1024),
     ("bytes=1-1023", 1, 1024),

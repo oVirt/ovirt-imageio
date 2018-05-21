@@ -63,11 +63,9 @@ def test_no_ticket_id(service, method):
 
 
 @pytest.mark.parametrize("method,body", [
-    pytest.param("GET", None,
-                 marks=pytest.mark.xfail(reason="known issue")),
+    ("GET", None),
     ("PUT", "body"),
-    pytest.param("PATCH", "body",
-                 marks=pytest.mark.xfail(reason="known issue")),
+    ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
 ])
 def test_no_ticket(service, method, body):
     res = http.unix_request(

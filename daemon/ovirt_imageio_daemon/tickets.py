@@ -253,12 +253,12 @@ def get(ticket_id):
     return _tickets[ticket_id]
 
 
-def authorize(ticket_id, op, size):
+def authorize(ticket_id, op, offset, size):
     """
     Authorizing a ticket operation
     """
-    log.debug("Authorizing %r to offset %d for ticket %s",
-              op, size, ticket_id)
+    log.debug("Authorizing op=%r, offset=%r, size=%r, for ticket %s",
+              op, offset, size, ticket_id)
     try:
         ticket = _tickets[ticket_id]
     except KeyError:
@@ -267,6 +267,7 @@ def authorize(ticket_id, op, size):
         raise HTTPForbidden("Ticket %r expired" % ticket_id)
     if not ticket.may(op):
         raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
-    if size > ticket.size:
-        raise HTTPForbidden("Content-Length out of allowed range")
+    end = (offset + size) if size else offset
+    if end > ticket.size:
+        raise HTTPForbidden("Requested range out of allowed range")
     return ticket
