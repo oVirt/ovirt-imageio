@@ -51,7 +51,7 @@ class TestTicket(object):
         ([FakeOperation(active=True), FakeOperation(active=False)], True),
     ])
     def test_active(self, operations, active):
-        ticket = Ticket(ticket_dict=testutils.create_ticket())
+        ticket = Ticket(testutils.create_ticket())
         ticket._operations = operations
         assert ticket.active() == active
 
@@ -65,7 +65,7 @@ class TestTicket(object):
         ([(10, 10), (0, 15), (18, 7)], 25),
     ])
     def test_transferred(self, operations, transferred):
-        ticket = Ticket(ticket_dict=testutils.create_ticket(ops=["read"]))
+        ticket = Ticket(testutils.create_ticket(ops=["read"]))
         ticket._operations = [FakeOperation(offset=offset, done=done)
                               for offset, done in operations]
         assert ticket.transferred() == transferred
@@ -73,7 +73,7 @@ class TestTicket(object):
     @pytest.mark.benchmark
     @pytest.mark.parametrize("transferred_gb", [1, 8, 64, 512, 4096])
     def test_benchmark_transferred(self, transferred_gb):
-        ticket = Ticket(ticket_dict=testutils.create_ticket(ops=["read"]))
+        ticket = Ticket(testutils.create_ticket(ops=["read"]))
         operations = transferred_gb * 1024**3 // CHUNK_SIZE
         ticket._operations = [
             FakeOperation(offset=i * CHUNK_SIZE, done=CHUNK_SIZE)
@@ -85,7 +85,7 @@ class TestTicket(object):
               (transferred_gb, operations, end - start))
 
     def test_repr(self):
-        ticket = Ticket(ticket_dict=testutils.create_ticket(
+        ticket = Ticket(testutils.create_ticket(
             ops=["read"], filename="tmp_file"))
         ticket_repr = repr(ticket)
 
@@ -98,7 +98,7 @@ class TestTicket(object):
 
 
 def test_ticket_run():
-    ticket = Ticket(ticket_dict=testutils.create_ticket())
+    ticket = Ticket(testutils.create_ticket())
     op = FakeOperation()
     ticket.run(op)
     assert op.was_run
@@ -106,7 +106,7 @@ def test_ticket_run():
 
 
 def test_ticket_bind():
-    ticket = Ticket(ticket_dict=testutils.create_ticket())
+    ticket = Ticket(testutils.create_ticket())
     op = FakeOperation(data=["chunk 1", "chunk 2", "chunk 3"])
     bop = ticket.bind(op)
     assert op in ticket._operations

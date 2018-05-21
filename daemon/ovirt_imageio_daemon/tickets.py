@@ -23,9 +23,7 @@ supported_schemes = ['file']
 
 class Ticket(object):
 
-    def __init__(self, ticket_dict=None):
-        ticket_dict = ticket_dict or {}
-
+    def __init__(self, ticket_dict):
         self._uuid = _required(ticket_dict, "uuid")
         self._size = _required(ticket_dict, "size")
         self._ops = _required(ticket_dict, "ops")
