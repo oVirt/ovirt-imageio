@@ -11,7 +11,9 @@ from __future__ import absolute_import
 import pytest
 import time
 
+from ovirt_imageio_common import errors
 from ovirt_imageio_daemon.tickets import Ticket
+
 from test import testutils
 
 CHUNK_SIZE = 8 * 1024**2
@@ -83,6 +85,19 @@ class TestTicket(object):
         end = time.time()
         print("%dG file (%d operations) in %.6f seconds" %
               (transferred_gb, operations, end - start))
+
+    @pytest.mark.parametrize("arg", [
+        "not a dict",
+        ["not", "a", "dict"],
+        1,
+        3.1,
+        True,
+        False,
+        None
+    ])
+    def test_invalid_argument(self, arg):
+        with pytest.raises(errors.InvalidTicket):
+            Ticket(arg)
 
     def test_repr(self):
         ticket = Ticket(testutils.create_ticket(

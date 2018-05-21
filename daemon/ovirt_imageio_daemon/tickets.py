@@ -24,6 +24,10 @@ supported_schemes = ['file']
 class Ticket(object):
 
     def __init__(self, ticket_dict):
+        if not isinstance(ticket_dict, dict):
+            raise errors.InvalidTicket(
+                "Invalid ticket: %r, expecting a dict" % ticket_dict)
+
         self._uuid = _required(ticket_dict, "uuid")
         self._size = _required(ticket_dict, "size")
         self._ops = _required(ticket_dict, "ops")
