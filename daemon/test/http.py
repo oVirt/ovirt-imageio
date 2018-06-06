@@ -73,8 +73,8 @@ def raw_request(method, uri, body=None, headers=None):
         return response(con)
 
 
-def unix_request(method, uri, body=None, headers=None):
-    con = uhttp.UnixHTTPConnection(config.tickets.socket)
+def unix_request(socket, method, uri, body=None, headers=None):
+    con = uhttp.UnixHTTPConnection(socket)
     with closing(con):
         con.request(method, uri, body=body, headers=headers or {})
         return response(con)

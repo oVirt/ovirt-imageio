@@ -65,17 +65,18 @@ def setup_function(f):
 
 
 def test_tickets_method_not_allowed():
-    res = http.unix_request("NO_SUCH_METHO", "/tickets/")
+    res = http.unix_request(
+        config.tickets.socket, "NO_SUCH_METHO", "/tickets/")
     assert res.status == http_client.METHOD_NOT_ALLOWED
 
 
 def test_tickets_no_resource():
-    res = http.unix_request("GET", "/no/such/resource")
+    res = http.unix_request(config.tickets.socket, "GET", "/no/such/resource")
     assert res.status == 404
 
 
 def test_tickets_no_method():
-    res = http.unix_request("FOO", "/tickets/")
+    res = http.unix_request(config.tickets.socket, "FOO", "/tickets/")
     assert res.status == 405
 
 
@@ -83,7 +84,8 @@ def test_tickets_get(fake_time):
     ticket = testutils.create_ticket(ops=["read"])
     tickets.add(ticket)
     fake_time.now += 200
-    res = http.unix_request("GET", "/tickets/%(uuid)s" % ticket)
+    res = http.unix_request(
+        config.tickets.socket, "GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
     server_ticket = json.loads(res.read())
     # The server adds an expires key
@@ -96,14 +98,16 @@ def test_tickets_get(fake_time):
 
 
 def test_tickets_get_not_found():
-    res = http.unix_request("GET", "/tickets/%s" % uuid.uuid4())
+    res = http.unix_request(
+        config.tickets.socket, "GET", "/tickets/%s" % uuid.uuid4())
     assert res.status == 404
 
 
 def test_tickets_put(fake_time):
     ticket = testutils.create_ticket()
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     # Server adds expires key
     ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
     ticket["active"] = False
@@ -116,7 +120,8 @@ def test_tickets_put(fake_time):
 def test_tickets_put_bad_url_value(fake_time):
     ticket = testutils.create_ticket(url='http://[1.2.3.4:33')
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -125,7 +130,8 @@ def test_tickets_general_exception(monkeypatch):
     def fail(x, y):
         raise Exception("EXPECTED FAILURE")
     monkeypatch.setattr(server.Tickets, "get", fail)
-    res = http.unix_request("GET", "/tickets/%s" % uuid.uuid4())
+    res = http.unix_request(
+        config.tickets.socket, "GET", "/tickets/%s" % uuid.uuid4())
     error = json.loads(res.read())
     assert res.status == http_client.INTERNAL_SERVER_ERROR
     assert "application/json" in res.getheader('content-type')
@@ -135,15 +141,17 @@ def test_tickets_general_exception(monkeypatch):
 def test_tickets_put_no_ticket_id():
     ticket = testutils.create_ticket()
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/", body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/", body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_put_invalid_json():
     ticket = testutils.create_ticket()
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket,
-                            "invalid json")
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket,
+        "invalid json")
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -155,7 +163,8 @@ def test_tickets_put_mandatory_fields(missing):
     ticket = testutils.create_ticket()
     del ticket[missing.strip("-")]
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -164,7 +173,8 @@ def test_tickets_put_invalid_timeout():
     ticket = testutils.create_ticket()
     ticket["timeout"] = "invalid"
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -173,7 +183,8 @@ def test_tickets_put_url_type_error():
     ticket = testutils.create_ticket()
     ticket["url"] = 1
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -182,7 +193,8 @@ def test_tickets_put_url_scheme_not_supported():
     ticket = testutils.create_ticket()
     ticket["url"] = "notsupported:path"
     body = json.dumps(ticket)
-    res = http.unix_request("PUT", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 400
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -193,7 +205,8 @@ def test_tickets_extend(fake_time):
     patch = {"timeout": 300}
     body = json.dumps(patch)
     fake_time.now += 240
-    res = http.unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     ticket["expires"] = int(fake_time.now + ticket["timeout"])
     ticket["active"] = False
     ticket["idle_time"] = 240
@@ -207,7 +220,8 @@ def test_tickets_get_expired_ticket(fake_time):
     tickets.add(ticket)
     # Make the ticket expire.
     fake_time.now += 500
-    res = http.unix_request("GET", "/tickets/%(uuid)s" % ticket)
+    res = http.unix_request(
+        config.tickets.socket, "GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
     server_ticket = json.loads(res.read())
     assert server_ticket["timeout"] == -200
@@ -222,7 +236,8 @@ def test_tickets_extend_expired_ticket(fake_time):
     assert server_ticket["timeout"] == -200
     # Extend the expired ticket.
     body = json.dumps({"timeout": 300})
-    res = http.unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 200
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["timeout"] == 300
@@ -237,7 +252,7 @@ def test_tickets_extend_no_ticket_id(fake_time):
     tickets.add(ticket)
     prev_ticket = tickets.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": 300})
-    res = http.unix_request("PATCH", "/tickets/", body)
+    res = http.unix_request(config.tickets.socket, "PATCH", "/tickets/", body)
     cur_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 400
     assert cur_ticket == prev_ticket
@@ -247,8 +262,9 @@ def test_tickets_extend_invalid_json(fake_time):
     ticket = testutils.create_ticket()
     tickets.add(ticket)
     prev_ticket = tickets.get(ticket["uuid"]).info()
-    res = http.unix_request("PATCH", "/tickets/%(uuid)s" % ticket,
-                            "{invalid}")
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket,
+        "{invalid}")
     cur_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 400
     assert cur_ticket == prev_ticket
@@ -259,7 +275,8 @@ def test_tickets_extend_no_timeout(fake_time):
     tickets.add(ticket)
     prev_ticket = tickets.get(ticket["uuid"]).info()
     body = json.dumps({"not-a-timeout": 300})
-    res = http.unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     cur_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 400
     assert cur_ticket == prev_ticket
@@ -270,7 +287,8 @@ def test_tickets_extend_invalid_timeout(fake_time):
     tickets.add(ticket)
     prev_ticket = tickets.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": "invalid"})
-    res = http.unix_request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     cur_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 400
     assert cur_ticket == prev_ticket
@@ -279,7 +297,8 @@ def test_tickets_extend_invalid_timeout(fake_time):
 def test_tickets_extend_not_found():
     ticket_id = str(uuid.uuid4())
     body = json.dumps({"timeout": 300})
-    res = http.unix_request("PATCH", "/tickets/%s" % ticket_id, body)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%s" % ticket_id, body)
     assert res.status == 404
 
 
@@ -367,13 +386,15 @@ def test_tickets_idle_time_options(fake_time):
 def test_tickets_delete_one():
     ticket = testutils.create_ticket()
     tickets.add(ticket)
-    res = http.unix_request("DELETE", "/tickets/%(uuid)s" % ticket)
+    res = http.unix_request(
+        config.tickets.socket, "DELETE", "/tickets/%(uuid)s" % ticket)
     assert res.status == 204
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
 def test_tickets_delete_one_not_found():
-    res = http.unix_request("DELETE", "/tickets/%s" % uuid.uuid4())
+    res = http.unix_request(
+        config.tickets.socket, "DELETE", "/tickets/%s" % uuid.uuid4())
     assert res.status == 404
 
 
@@ -383,7 +404,7 @@ def test_tickets_delete_all():
         ticket = testutils.create_ticket(
             url="file:///var/run/vdsm/storage/foo%s" % i)
         tickets.add(ticket)
-    res = http.unix_request("DELETE", "/tickets/")
+    res = http.unix_request(config.tickets.socket, "DELETE", "/tickets/")
     assert res.status == 204
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
