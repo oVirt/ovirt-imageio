@@ -119,6 +119,14 @@ class Service(object):
         log.debug("Stopping %s", self.name)
         self._server.shutdown()
 
+    @property
+    def port(self):
+        return self._server.server_port
+
+    @property
+    def address(self):
+        return self._server.server_address
+
 
 class RemoteService(Service):
     """
@@ -139,10 +147,6 @@ class RemoteService(Service):
         app = web.Application(config, [(r"/images/(.*)", Images)])
         self._server.set_app(app)
         log.debug("%s listening on port %d", self.name, self.port)
-
-    @property
-    def port(self):
-        return self._server.server_port
 
     def _secure_server(self):
         key_file = pki.key_file(self._config)
@@ -170,7 +174,7 @@ class ControlService(Service):
             config.tickets.socket, uhttp.UnixWSGIRequestHandler)
         app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
         self._server.set_app(app)
-        log.debug("%s listening on %s", self.name, self._server.server_address)
+        log.debug("%s listening on %s", self.name, self.address)
 
 
 class Images(object):
