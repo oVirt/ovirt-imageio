@@ -53,6 +53,8 @@ import urlparse
 
 from contextlib import closing
 
+from ovirt_imageio_daemon import uhttp
+
 # You may need to modify the path if you run this on a host which is not
 # connected to ovirt engine.
 CERTFILE = "/etc/pki/vdsm/certs/cacert.pem"
@@ -80,8 +82,8 @@ def upload_sparse(con, src):
         ["qemu-img", "map", "--format", "raw", "--output", "json", filename])
     chunks = json.loads(out.decode("utf-8"))
 
-    # If the server supports "flush, these requests are not waiting until the
-    # data is flushed the underlying storage.
+    # If the server supports "flush", these requests are not waiting
+    # until the data is flushed the underlying storage.
     for chunk in chunks:
         if chunk["data"]:
             put(con, url.path, chunk["start"], chunk["length"], src)
@@ -187,12 +189,14 @@ def options(con, path):
     con.request("OPTIONS", path)
     res = con.getresponse()
 
+    default = {"features": []}
+
     if res.status == httplib.METHOD_NOT_ALLOWED:
         # Older daemon did not implement OPTIONS
-        return []
+        return default
     elif res.status == httplib.NO_CONTENT:
         # Older proxy did implement OPTIONS but does not return any content.
-        return []
+        return default
     elif res.status != httplib.OK:
         raise RuntimeError("options %s failed: %s" % (path, res.read()))
 
@@ -201,29 +205,37 @@ def options(con, path):
     try:
         msg = json.loads(body)
     except ValueError:
-        # Bad response, we must assume we don't have any features.
-        return []
+        # Bad response, we must assume we don't support any features or unix
+        # socket.
+        return default
 
-    return msg["features"]
+    return msg
 
 
 # Get input from the user.
 filename = sys.argv[1]
 url = urlparse.urlparse(sys.argv[2])
 
-# Connect to the server.
 context = ssl.create_default_context(
     purpose=ssl.Purpose.SERVER_AUTH, cafile=CERTFILE)
+
+# Check the server capabilities for this image.
 con = httplib.HTTPSConnection(url.netloc, context=context)
+with closing(con):
+    server_options = options(con, url.path)
+    can_flush = "flush" in server_options["features"]
+    can_zero = "zero" in server_options["features"]
+
+# Open connection for transfering data. If the server supports unix
+# socket, we can transfer data faster using less resources.
+if "unix_socket" in server_options:
+    con = uhttp.UnixHTTPConnection(server_options["unix_socket"])
+else:
+    con = httplib.HTTPSConnection(url.netloc, context=context)
+
+# Upload the data. If the server supports "zero", we can upload sparse
+# files more efficiently.
 with closing(con), io.open(filename, "rb") as src:
-
-    # Check the server capabilities.
-    features = options(con, url.path)
-    can_flush = "flush" in features
-    can_zero = "zero" in features
-
-    # If the server supports zero, we can upload sparse files more
-    # efficiently.
     if can_zero:
         upload_sparse(con, src)
     else:
