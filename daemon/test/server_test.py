@@ -52,8 +52,10 @@ def setup_module(m):
     conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
     configloader.load(config, [conf])
     server.start(config)
-    # During testing we use port 0 to get a random port.
+    # During testing we use port 0 to get a random port, and empty
+    # socket to get a random socket.
     config.images.port = server.remote_service.port
+    config.images.socket = server.local_service.address
 
 
 def teardown_module(m):
@@ -62,6 +64,12 @@ def teardown_module(m):
 
 def setup_function(f):
     tickets.clear()
+
+
+def test_local_service_running():
+    res = http.unix_request(
+        config.images.socket, "OPTIONS", "/images/*")
+    assert res.status == http_client.OK
 
 
 def test_tickets_method_not_allowed():

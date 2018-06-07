@@ -43,6 +43,7 @@ CONF_DIR = "/etc/ovirt-imageio-daemon"
 
 log = logging.getLogger("server")
 remote_service = None
+local_service = None
 control_service = None
 running = True
 
@@ -65,9 +66,9 @@ def main(args):
         log.info("Stopped")
     except Exception:
         log.exception(
-            "Service failed (remote_service=%s, control_service=%s, "
-            "running=%s)"
-            % (remote_service, control_service, running))
+            "Service failed (remote_service=%s, local_service=%s, "
+            "control_service=%s, running=%s)"
+            % (remote_service, local_service, control_service, running))
         sys.exit(1)
 
 
@@ -83,12 +84,16 @@ def terminate(signo, frame):
 
 
 def start(config):
-    global remote_service, control_service
-    assert not (remote_service or control_service)
+    global remote_service, local_service, control_service
+    assert not (remote_service or local_service or control_service)
 
     log.debug("Starting remote service on port %d", config.images.port)
     remote_service = RemoteService(config)
     remote_service.start()
+
+    log.debug("Starting local service on port %d", config.images.socket)
+    local_service = LocalService(config)
+    local_service.start()
 
     log.debug("Starting control service on socket %s", config.tickets.socket)
     control_service = ControlService(config)
@@ -96,11 +101,13 @@ def start(config):
 
 
 def stop():
-    global remote_service, control_service
+    global remote_service, local_service, control_service
     log.debug("Stopping services")
     remote_service.stop()
+    local_service.stop()
     control_service.stop()
     remote_service = None
+    local_service = None
     control_service = None
 
 
@@ -156,6 +163,25 @@ class RemoteService(Service):
         context = ssl.server_context(cert_file, cert_file, key_file)
         self._server.socket = context.wrap_socket(
             self._server.socket, server_side=True)
+
+
+class LocalService(Service):
+    """
+    Service used to access images locally.
+
+    Access to this service requires a valid ticket that can be installed using
+    the control service.
+    """
+
+    name = "local.service"
+
+    def __init__(self, config):
+        self._config = config
+        self._server = uhttp.UnixWSGIServer(
+            config.images.socket, uhttp.UnixWSGIRequestHandler)
+        app = web.Application(config, [(r"/images/(.*)", Images)])
+        self._server.set_app(app)
+        log.debug("%s listening on %s", self.name, self.address)
 
 
 class ControlService(Service):

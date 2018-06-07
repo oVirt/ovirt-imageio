@@ -28,6 +28,9 @@ class images:
     # Image service port.
     port = 54322
 
+    # Unix socket for accessing images locally.
+    socket = "\0/org/ovirt/imageio"
+
 
 class tickets:
 
