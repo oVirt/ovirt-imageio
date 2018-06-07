@@ -140,4 +140,6 @@ def test_options(service):
     features = {"zero", "flush"}
     assert res.status == http_client.OK
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == features
+    options = json.loads(res.read())
+    assert set(options["features"]) == features
+    assert options["unix_socket"] == service.address

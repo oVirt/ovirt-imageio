@@ -100,6 +100,11 @@ Available features:
 - flush: the application can control flushing in PUT and PATCH requests
   or send PATCH/flush request.
 
+If the server listen also on a unix socket, the unix socket address is
+returned in the "unix_socket" key in the response. If the client run on
+the same host, it should transfer image data using the unix socket for
+improved throughput and lower CPU usage.
+
 Older versions of the daemon did not implement this method, so the
 request would fail with "405 Method Not Allowed".
 
@@ -120,7 +125,8 @@ Response:
     Content-Length: LENGTH
 
     {
-        "features": ["zero", "flush"]
+        "features": ["zero", "flush"],
+        "unix_socket": "\0/org/ovirt/imageio"
     }
 
 Since: 1.3

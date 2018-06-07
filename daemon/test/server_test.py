@@ -52,10 +52,6 @@ def setup_module(m):
     conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
     configloader.load(config, [conf])
     server.start(config)
-    # During testing we use port 0 to get a random port, and empty
-    # socket to get a random socket.
-    config.images.port = server.remote_service.port
-    config.images.socket = server.local_service.address
 
 
 def teardown_module(m):
@@ -858,7 +854,9 @@ def test_images_options_all():
     features = {"zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == features
+    options = json.loads(res.read())
+    assert set(options["features"]) == features
+    assert options["unix_socket"] == config.images.socket
 
 
 def test_images_options_read_write():

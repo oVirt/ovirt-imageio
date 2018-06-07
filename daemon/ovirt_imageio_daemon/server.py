@@ -150,6 +150,8 @@ class RemoteService(Service):
         self._server = wsgi.WSGIServer(
             (config.images.host, config.images.port),
             wsgi.WSGIRequestHandler)
+        if config.images.port == 0:
+            config.images.port = self.port
         self._secure_server()
         app = web.Application(config, [(r"/images/(.*)", Images)])
         self._server.set_app(app)
@@ -179,6 +181,8 @@ class LocalService(Service):
         self._config = config
         self._server = uhttp.UnixWSGIServer(
             config.images.socket, uhttp.UnixWSGIRequestHandler)
+        if config.images.socket == "":
+            config.images.socket = self.address
         app = web.Application(config, [(r"/images/(.*)", Images)])
         self._server.set_app(app)
         log.debug("%s listening on %s", self.name, self.address)
@@ -198,6 +202,8 @@ class ControlService(Service):
         self._config = config
         self._server = uhttp.UnixWSGIServer(
             config.tickets.socket, uhttp.UnixWSGIRequestHandler)
+        if config.tickets.socket == "":
+            config.tickets.socket = self.address
         app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
         self._server.set_app(app)
         log.debug("%s listening on %s", self.name, self.address)
@@ -357,7 +363,10 @@ class Images(object):
                 features = ["zero", "flush"]
 
         return web.response(
-            payload={"features": features},
+            payload={
+                "features": features,
+                "unix_socket": self.config.images.socket,
+            },
             allow=",".join(allow))
 
 
