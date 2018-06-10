@@ -15,9 +15,11 @@ class daemon:
     # Interval in seconds for checking termination conditions.
     poll_interval = 1.0
 
-    # Buffer size in bytes for data operations. Typically larger value
-    # improve throughput and decrease cpu time.
-    buffer_size = 1048576
+    # Buffer size in bytes for data operations. The default value seems
+    # to give optimal throughput with both low end and high end storage,
+    # using iSCSI and FC. Larger values may increase throughput
+    # slightly, but may also decrease it significantly.
+    buffer_size = 8388608
 
 
 class images:
