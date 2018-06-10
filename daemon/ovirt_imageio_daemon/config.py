@@ -1,5 +1,5 @@
-# ovirt-imageio-daemon
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# ovirt-imageio
+# Copyright (C) 2015-2018 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -9,23 +9,26 @@
 
 class daemon:
 
-    # Directory where vdsm pki files are stored (default /etc/pki/vdsm).
+    # Directory where vdsm pki files are stored.
     pki_dir = "/etc/pki/vdsm"
 
-    # Interval in seconds for checking termination conditions (defalt 1.0).
+    # Interval in seconds for checking termination conditions.
     poll_interval = 1.0
 
-    # Buffer size in bytes for data operations.  Typically, larger value
-    # improve throughput and decrease cpu time (default 1048576).
+    # Buffer size in bytes for data operations. Typically larger value
+    # improve throughput and decrease cpu time.
     buffer_size = 1048576
 
 
 class images:
 
-    # Image service interface (default "").
+    # Image service interface. Use empty string to listen on any
+    # interface.
     host = ""
 
-    # Image service port.
+    # Image service port. Changing this value require change in the
+    # firewall rules on the host, and changing this value in engine
+    # configuration.
     port = 54322
 
     # Unix socket for accessing images locally.
@@ -34,5 +37,7 @@ class images:
 
 class tickets:
 
-    # tickets service socket path
-    socket = "/var/run/vdsm/ovirt-imageio-daemon.sock"
+    # tickets service socket path. This socket is used to control the
+    # daemon and must be accessible only to the program controlling the
+    # daemon.
+    socket = "/run/vdsm/ovirt-imageio-daemon.sock"
