@@ -34,4 +34,3 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -f INSTALLED_FILES
 %license COPYING
-%doc README

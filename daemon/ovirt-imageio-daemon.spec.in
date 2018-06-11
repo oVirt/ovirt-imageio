@@ -51,7 +51,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -f INSTALLED_FILES
 %license COPYING
-%doc README
 %{_unitdir}/ovirt-imageio-daemon.service
 %dir %{_sysconfdir}/%{name}
 %config %{_sysconfdir}/%{name}/logger.conf

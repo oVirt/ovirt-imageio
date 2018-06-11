@@ -62,7 +62,6 @@ make clean
 
 %files
 %license COPYING
-%doc README
 
 %dir %{proxy_confdir}
 %config(noreplace) %{proxy_confdir}/*
