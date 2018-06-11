@@ -35,6 +35,7 @@ from ovirt_imageio_common import web
 
 from . import config
 from . import pki
+from . import profile
 from . import uhttp
 from . import tickets
 from . import wsgi
@@ -204,7 +205,10 @@ class ControlService(Service):
             config.tickets.socket, uhttp.UnixWSGIRequestHandler)
         if config.tickets.socket == "":
             config.tickets.socket = self.address
-        app = web.Application(config, [(r"/tickets/(.*)", Tickets)])
+        app = web.Application(config, [
+            (r"/tickets/(.*)", Tickets),
+            (r"/profile/", profile.Handler),
+        ])
         self._server.set_app(app)
         log.debug("%s listening on %s", self.name, self.address)
 

@@ -43,3 +43,10 @@ class tickets:
     # daemon and must be accessible only to the program controlling the
     # daemon.
     socket = "/run/vdsm/ovirt-imageio-daemon.sock"
+
+
+class profile:
+
+    # Filename for storing profile data. Profiling requires the "yappi"
+    # package. Version 0.93 is recommended for best performance.
+    filename = "/tmp/ovirt-imageio-daemon.prof"
