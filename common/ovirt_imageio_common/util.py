@@ -104,5 +104,5 @@ class Clock(object):
                 total += now - started
             else:
                 running = ""
-            timers.append("%s=%.2f%s" % (name, total, running))
+            timers.append("%s=%.6f%s" % (name, total, running))
         return "<Clock(%s)>" % ", ".join(timers)

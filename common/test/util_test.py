@@ -143,7 +143,9 @@ def test_clock_measure(fake_time):
     fake_time.value += 1
     c.stop("sync")
     c.stop("total")
-    assert str(c) == "<Clock(total=3.00, read=1.00, write=1.00, sync=1.00)>"
+    assert str(c) == (
+        "<Clock(total=3.000000, read=1.000000, write=1.000000, "
+        "sync=1.000000)>")
 
 
 def test_clock_measure_multiple(fake_time):
@@ -165,7 +167,9 @@ def test_clock_measure_multiple(fake_time):
     fake_time.value += 1
     c.stop("sync")
     c.stop("total")
-    assert str(c) == "<Clock(total=5.00, read=2.00, write=2.00, sync=1.00)>"
+    assert str(c) == (
+        "<Clock(total=5.000000, read=2.000000, write=2.000000, "
+        "sync=1.000000)>")
 
 
 def test_clock_running(fake_time):
@@ -175,7 +179,7 @@ def test_clock_running(fake_time):
     c.start("read")
     fake_time.value += 4
     c.stop("read")
-    assert str(c) == "<Clock(total=7.00*, read=4.00)>"
+    assert str(c) == "<Clock(total=7.000000*, read=4.000000)>"
 
 
 # Inccorrect usage
