@@ -21,7 +21,7 @@ class RequestHandler(object):
     Request handler for the /images/ resource.
     """
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         """
         :param config: config.py
         :param request: http request
@@ -29,6 +29,7 @@ class RequestHandler(object):
         """
         self.config = config
         self.request = request
+        self.clock = clock
 
     @addcors
     def options(self, res_id):

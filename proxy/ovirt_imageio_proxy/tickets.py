@@ -14,7 +14,7 @@ class RequestHandler(object):
     Request handler for the /tickets/ resource.
     """
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         """
         Arguments:
             config (config object): proxy configuration
@@ -22,6 +22,7 @@ class RequestHandler(object):
         """
         self.config = config
         self.request = request
+        self.clock = clock
 
     def put(self, ticket_id=None):
         """

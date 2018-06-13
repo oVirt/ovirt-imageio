@@ -221,9 +221,10 @@ class Images(object):
     """
     log = logging.getLogger("images")
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         self.config = config
         self.request = request
+        self.clock = clock
 
     def put(self, ticket_id):
         if not ticket_id:
@@ -246,12 +247,14 @@ class Images(object):
         self.log.info(
             "Writing %d bytes at offset %d flush %s to %s for ticket %s",
             size, offset, flush, ticket.url.path, ticket_id)
-        op = directio.Receive(ticket.url.path,
-                              self.request.body_file_raw,
-                              size,
-                              offset=offset,
-                              flush=flush,
-                              buffersize=self.config.daemon.buffer_size)
+        op = directio.Receive(
+            ticket.url.path,
+            self.request.body_file_raw,
+            size,
+            offset=offset,
+            flush=flush,
+            buffersize=self.config.daemon.buffer_size,
+            clock=self.clock)
         try:
             ticket.run(op)
         except errors.PartialContent as e:
@@ -276,11 +279,13 @@ class Images(object):
             size = ticket.size - offset
         self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
                       size, offset, ticket.url.path, ticket_id)
-        op = directio.Send(ticket.url.path,
-                           None,
-                           size,
-                           offset=offset,
-                           buffersize=self.config.daemon.buffer_size)
+        op = directio.Send(
+            ticket.url.path,
+            None,
+            size,
+            offset=offset,
+            buffersize=self.config.daemon.buffer_size,
+            clock=self.clock)
         content_disposition = "attachment"
         if ticket.filename:
             filename = ticket.filename.encode("utf-8")
@@ -324,8 +329,13 @@ class Images(object):
         self.log.info(
             "Zeroing %d bytes at offset %d flush %s to %s for ticket %s",
             size, offset, flush, ticket.url.path, ticket_id)
-        op = directio.Zero(ticket.url.path, size, offset=offset, flush=flush,
-                           buffersize=self.config.daemon.buffer_size)
+        op = directio.Zero(
+            ticket.url.path,
+            size,
+            offset=offset,
+            flush=flush,
+            buffersize=self.config.daemon.buffer_size,
+            clock=self.clock)
         try:
             ticket.run(op)
         except errors.PartialContent as e:
@@ -335,7 +345,7 @@ class Images(object):
     def _flush(self, ticket_id, msg):
         ticket = tickets.authorize(ticket_id, "write", 0, 0)
         self.log.info("Flushing %s for ticket %s", ticket.url.path, ticket_id)
-        op = directio.Flush(ticket.url.path)
+        op = directio.Flush(ticket.url.path, clock=self.clock)
         ticket.run(op)
         return web.response()
 
@@ -379,9 +389,10 @@ class Tickets(object):
     """
     log = logging.getLogger("tickets")
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         self.config = config
         self.request = request
+        self.clock = clock
 
     def get(self, ticket_id):
         if not ticket_id:

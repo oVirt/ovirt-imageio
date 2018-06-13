@@ -36,7 +36,8 @@ class EOF(Exception):
 
 class Operation(object):
 
-    def __init__(self, path, size=None, offset=0, buffersize=BUFFERSIZE):
+    def __init__(self, path, size=None, offset=0, buffersize=BUFFERSIZE,
+                 clock=None):
         self._path = path
         self._size = size
         self._offset = offset
@@ -46,8 +47,9 @@ class Operation(object):
             self._buffersize = buffersize
         self._done = 0
         self._active = True
-        self._clock = util.Clock()
-        self._clock.start("total")
+        self._clock = clock
+        if self._clock:
+            self._clock.start("operation")
 
     @property
     def size(self):
@@ -80,8 +82,8 @@ class Operation(object):
     def close(self):
         if self._active:
             self._active = False
-            self._clock.stop("total")
-            log.info("Operation stats: %s", self._clock)
+            if self._clock:
+                self._clock.stop("operation")
 
     def __repr__(self):
         return ("<{self.__class__.__name__} path={self._path!r} "
@@ -99,17 +101,19 @@ class Send(Operation):
     Send data from path to file object using directio.
     """
 
-    def __init__(self, path, dst, size=None, offset=0, buffersize=BUFFERSIZE):
+    def __init__(self, path, dst, size=None, offset=0, buffersize=BUFFERSIZE,
+                 clock=None):
         super(Send, self).__init__(path, size=size, offset=offset,
-                                   buffersize=buffersize)
+                                   buffersize=buffersize, clock=clock)
         self._dst = dst
 
     def _run(self):
         for chunk in self:
-            self._clock.start("write")
+            if self._clock:
+                self._clock.start("write")
             self._dst.write(chunk)
-            elapsed = self._clock.stop("write")
-            log.debug("Wrote %d bytes in %.3f seconds", len(chunk), elapsed)
+            if self._clock:
+                self._clock.stop("write")
 
     def __iter__(self):
         with open(self._path, "r") as src, \
@@ -134,10 +138,11 @@ class Send(Operation):
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
-        self._clock.start("read")
+        if self._clock:
+            self._clock.start("read")
         count = util.uninterruptible(src.readinto, buf)
-        elapsed = self._clock.stop("read")
-        log.debug("Read %d bytes in %.3f seconds", count, elapsed)
+        if self._clock:
+            self._clock.stop("read")
         if count == 0:
             if self._size is None:
                 raise EOF
@@ -154,9 +159,9 @@ class Receive(Operation):
     """
 
     def __init__(self, path, src, size=None, offset=0, flush=True,
-                 buffersize=BUFFERSIZE):
+                 buffersize=BUFFERSIZE, clock=None):
         super(Receive, self).__init__(path, size=size, offset=offset,
-                                      buffersize=buffersize)
+                                      buffersize=buffersize, clock=clock)
         self._src = src
         self._flush = flush
 
@@ -177,9 +182,11 @@ class Receive(Operation):
                 pass
             finally:
                 if self._flush:
-                    self._clock.start("sync")
+                    if self._clock:
+                        self._clock.start("sync")
                     os.fsync(dst.fileno())
-                    self._clock.stop("sync")
+                    if self._clock:
+                        self._clock.stop("sync")
 
     def _seek_before_first_block(self, dst):
         dst.seek(self._offset)
@@ -192,10 +199,11 @@ class Receive(Operation):
         buf.seek(0)
         toread = count
         while toread:
-            self._clock.start("read")
+            if self._clock:
+                self._clock.start("read")
             chunk = self._src.read(toread)
-            elapsed = self._clock.stop("read")
-            log.debug("Read %d bytes in %.3f seconds", len(chunk), elapsed)
+            if self._clock:
+                self._clock.stop("read")
             if chunk == "":
                 break
             buf.write(chunk)
@@ -208,10 +216,11 @@ class Receive(Operation):
             wbuf = buffer(buf, offset, size)
             if size % BLOCKSIZE:
                 disable_directio(dst.fileno())
-            self._clock.start("write")
+            if self._clock:
+                self._clock.start("write")
             written = util.uninterruptible(dst.write, wbuf)
-            elapsed = self._clock.stop("write")
-            log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+            if self._clock:
+                self._clock.stop("write")
             towrite -= written
 
         self._done += buf.tell()
@@ -229,9 +238,9 @@ class Zero(Operation):
     """
 
     def __init__(self, path, size, offset=0, flush=False,
-                 buffersize=BUFFERSIZE):
+                 buffersize=BUFFERSIZE, clock=None):
         super(Zero, self).__init__(path, size=size, offset=offset,
-                                   buffersize=buffersize)
+                                   buffersize=buffersize, clock=clock)
         self._flush = flush
 
     def _run(self):
@@ -268,10 +277,11 @@ class Zero(Operation):
         with closing(buf):
             while count:
                 wbuf = buffer(buf, 0, min(self._buffersize, count))
-                self._clock.start("write")
+                if self._clock:
+                    self._clock.start("write")
                 written = util.uninterruptible(dst.write, wbuf)
-                elapsed = self._clock.stop("write")
-                log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+                if self._clock:
+                    self._clock.stop("write")
                 count -= written
                 self._done += written
 
@@ -282,10 +292,11 @@ class Zero(Operation):
         buf = aligned_buffer(BLOCKSIZE)
         with closing(buf):
             # 1. Read complete block from storage.
-            self._clock.start("read")
+            if self._clock:
+                self._clock.start("read")
             read = util.uninterruptible(dst.readinto, buf)
-            elapsed = self._clock.stop("read")
-            log.debug("Read %d bytes in %.3f seconds", read, elapsed)
+            if self._clock:
+                self._clock.stop("read")
             if read != BLOCKSIZE:
                 raise errors.PartialContent(BLOCKSIZE, read)
 
@@ -294,19 +305,22 @@ class Zero(Operation):
 
             # 3. Write the modified block back to storage.
             dst.seek(-BLOCKSIZE, os.SEEK_CUR)
-            self._clock.start("write")
+            if self._clock:
+                self._clock.start("write")
             written = util.uninterruptible(dst.write, buf)
-            elapsed = self._clock.stop("write")
-            log.debug("Wrote %d bytes in %.3f seconds", written, elapsed)
+            if self._clock:
+                self._clock.stop("write")
             if written != BLOCKSIZE:
                 raise errors.PartialContent(BLOCKSIZE, written)
 
             self._done += count
 
     def flush(self, dst):
-        self._clock.start("sync")
+        if self._clock:
+            self._clock.start("sync")
         os.fsync(dst.fileno())
-        self._clock.stop("sync")
+        if self._clock:
+            self._clock.stop("sync")
 
 
 class Flush(Operation):
@@ -314,14 +328,16 @@ class Flush(Operation):
     Flush received data to storage.
     """
 
-    def __init__(self, path):
-        super(Flush, self).__init__(path)
+    def __init__(self, path, clock=None):
+        super(Flush, self).__init__(path, clock=clock)
 
     def _run(self):
         with open(self._path, "r+") as dst:
-            self._clock.start("sync")
+            if self._clock:
+                self._clock.start("sync")
             os.fsync(dst.fileno())
-            self._clock.stop("sync")
+            if self._clock:
+                self._clock.stop("sync")
 
 
 def open(path, mode, direct=True):

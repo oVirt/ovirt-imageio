@@ -31,9 +31,10 @@ class Handler(object):
     Request handler for the /profile/ resource.
     """
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         self.config = config
         self.request = request
+        self.clock = clock
 
     def post(self):
         """

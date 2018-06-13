@@ -11,7 +11,6 @@ from __future__ import absolute_import
 import json
 import logging
 import re
-import time
 
 from six.moves import http_client
 
@@ -25,22 +24,57 @@ from webob.exc import (
     HTTPInternalServerError,
 )
 
+from . import util
+
 log = logging.getLogger("web")
 
 
 class RequestInfo(object):
+    """
+    Keep request information for logging.
+    """
 
-    def __init__(self, r):
-        self.r = r
-        # Save request.path - modified during dispatching the request.
-        self.path = r.path
-        self.start = time.time()
-
-    def time(self):
-        return time.time() - self.start
+    def __init__(self, request):
+        self.client_addr = request.client_addr
+        self.method = request.method
+        self.path = request.path
 
     def __str__(self):
-        return "[%s] %s %s" % (self.r.client_addr, self.r.method, self.path)
+        return "[%s] %s %s" % (self.client_addr, self.method, self.path)
+
+
+class ResponseInfo(object):
+    """
+    Keep response information for logging.
+    """
+
+    def __init__(self, response):
+        self.status_code = response.status_code
+        self.content_length = response.content_length
+
+    def __str__(self):
+        return "[%s] %s" % (self.status_code, self.content_length)
+
+
+class LoggingAppIter(object):
+    """
+    WSGI app_iter logging a FINISH log with request and response info.
+    """
+
+    def __init__(self, app_iter, req, res, clock):
+        self.app_iter = app_iter
+        self.req = req
+        self.res = res
+        self.clock = clock
+
+    def __iter__(self):
+        return iter(self.app_iter)
+
+    def close(self):
+        if hasattr(self.app_iter, "close"):
+            self.app_iter.close()
+        self.clock.stop("request")
+        log.info("FINISH %s: %s %s", self.req, self.res, self.clock)
 
 
 class Application(object):
@@ -56,21 +90,25 @@ class Application(object):
         self.routes = [(re.compile(pattern), cls) for pattern, cls in routes]
 
     def __call__(self, env, start_response):
+        clock = util.Clock()
+        clock.start("request")
         request = webob.Request(env)
         req = RequestInfo(request)
-        self.log_start(req)
+        log.info("START: %s", req)
         try:
-            resp = self.dispatch(request)
+            resp = self.dispatch(request, clock)
         except Exception as e:
             if not isinstance(e, HTTPException):
                 e = HTTPInternalServerError(detail=str(e))
             resp = error_response(e)
-            self.log_error(req, resp, e)
+            self.log_error(req, resp, e, clock)
+            return resp(env, start_response)
         else:
-            self.log_finish(req, resp)
-        return resp(env, start_response)
+            app_iter = resp(env, start_response)
+            res = ResponseInfo(resp)
+            return LoggingAppIter(app_iter, req, res, clock)
 
-    def dispatch(self, request):
+    def dispatch(self, request, clock):
         if request.method not in self.ALLOWED_METHODS:
             raise HTTPMethodNotAllowed("Invalid method %r" %
                                        request.method)
@@ -78,7 +116,7 @@ class Application(object):
         for route, handler_class in self.routes:
             match = route.match(path)
             if match:
-                handler = handler_class(self.config, request)
+                handler = handler_class(self.config, request, clock=clock)
                 try:
                     method = getattr(handler, request.method.lower())
                 except AttributeError:
@@ -90,25 +128,12 @@ class Application(object):
                     return method(*match.groups())
         raise HTTPNotFound("No handler for %r" % path)
 
-    def log_start(self, req):
-        log.info("START %s", req)
-
-    def log_finish(self, req, resp):
-        log.info("FINISH %s: [%s] %s (%.6f seconds)",
-                 req,
-                 resp.status_code,
-                 resp.content_length,
-                 req.time())
-
-    def log_error(self, req, resp, error):
+    def log_error(self, req, resp, error, clock):
+        clock.stop("request")
         # Show exceptions only for internal errors (bugs in proxy), and warn
         # about anthing else (client error).
         meth = log.exception if resp.status_code >= 500 else log.warning
-        meth("ERROR %s: [%s] %s (%.6f seconds)",
-             req,
-             resp.status_code,
-             error,
-             req.time())
+        meth("ERROR %s: [%s] %s %s", req, resp.status_code, error, clock)
 
 
 def error_response(e):

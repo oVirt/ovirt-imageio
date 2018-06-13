@@ -17,7 +17,7 @@ class RequestHandler(object):
     Request handler for the /info/ resource.
     """
 
-    def __init__(self, config, request):
+    def __init__(self, config, request, clock=None):
         """
         Arguments:
             config (config object): proxy configuration
@@ -25,6 +25,7 @@ class RequestHandler(object):
         """
         self.config = config
         self.request = request
+        self.clock = clock
 
     @addcors
     def get(self):
