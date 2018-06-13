@@ -105,4 +105,4 @@ class Clock(object):
             else:
                 running = ""
             timers.append("%s=%.6f%s" % (name, total, running))
-        return "<Clock(%s)>" % ", ".join(timers)
+        return "[%s]" % ", ".join(timers)

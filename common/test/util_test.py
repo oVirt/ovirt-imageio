@@ -115,7 +115,7 @@ def fake_time(monkeypatch):
 
 def test_clock_empty():
     c = util.Clock()
-    assert str(c) == "<Clock()>"
+    assert str(c) == "[]"
 
 
 def test_clock_stop_returns_elapsed_time(fake_time):
@@ -144,8 +144,7 @@ def test_clock_measure(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "<Clock(total=3.000000, read=1.000000, write=1.000000, "
-        "sync=1.000000)>")
+        "[total=3.000000, read=1.000000, write=1.000000, sync=1.000000]")
 
 
 def test_clock_measure_multiple(fake_time):
@@ -168,8 +167,7 @@ def test_clock_measure_multiple(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "<Clock(total=5.000000, read=2.000000, write=2.000000, "
-        "sync=1.000000)>")
+        "[total=5.000000, read=2.000000, write=2.000000, sync=1.000000]")
 
 
 def test_clock_running(fake_time):
@@ -179,7 +177,7 @@ def test_clock_running(fake_time):
     c.start("read")
     fake_time.value += 4
     c.stop("read")
-    assert str(c) == "<Clock(total=7.000000*, read=4.000000)>"
+    assert str(c) == "[total=7.000000*, read=4.000000]"
 
 
 # Inccorrect usage
