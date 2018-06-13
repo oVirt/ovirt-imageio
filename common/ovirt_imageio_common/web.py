@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import json
 import logging
 import re
+import time
 
 from six.moves import http_client
 
@@ -24,8 +25,6 @@ from webob.exc import (
     HTTPInternalServerError,
 )
 
-from . import util
-
 log = logging.getLogger("web")
 
 
@@ -35,10 +34,10 @@ class RequestInfo(object):
         self.r = r
         # Save request.path - modified during dispatching the request.
         self.path = r.path
-        self.start = util.monotonic_time()
+        self.start = time.time()
 
     def time(self):
-        return util.monotonic_time() - self.start
+        return time.time() - self.start
 
     def __str__(self):
         return "[%s] %s %s" % (self.r.client_addr, self.r.method, self.path)
@@ -95,7 +94,7 @@ class Application(object):
         log.info("START %s", req)
 
     def log_finish(self, req, resp):
-        log.info("FINISH %s: [%s] %s (%.2fs)",
+        log.info("FINISH %s: [%s] %s (%.6f seconds)",
                  req,
                  resp.status_code,
                  resp.content_length,
@@ -105,7 +104,7 @@ class Application(object):
         # Show exceptions only for internal errors (bugs in proxy), and warn
         # about anthing else (client error).
         meth = log.exception if resp.status_code >= 500 else log.warning
-        meth("ERROR %s: [%s] %s (%.2fs)",
+        meth("ERROR %s: [%s] %s (%.6f seconds)",
              req,
              resp.status_code,
              error,
