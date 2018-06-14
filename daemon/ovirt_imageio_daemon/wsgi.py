@@ -25,6 +25,9 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
 
     protocol_version = "HTTP/1.1"
 
+    # Avoids possible delays when sending very small response.
+    disable_nagle_algorithm = True
+
     def address_string(self):
         """
         Override to avoid slow and unneeded name lookup.

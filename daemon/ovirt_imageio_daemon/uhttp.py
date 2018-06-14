@@ -94,6 +94,9 @@ class UnixWSGIRequestHandler(wsgi.WSGIRequestHandler):
     WSGI HTTP request handler over unix domain socket.
     """
 
+    # Not needed for unix socket.
+    disable_nagle_algorithm = False
+
     def address_string(self):
         """
         Override to avoid pointless code in WSGIRequestHandler assuming AF_INET
