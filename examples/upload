@@ -69,6 +69,20 @@ can_zero = False
 can_flush = False
 
 
+class HTTPSConnection(httplib.HTTPSConnection):
+
+    def connect(self):
+        """
+        Using TCP_NO_DELAY avoids delays when sending small payload, such as
+        ovirt PATCH requests.
+
+        This issue was fixed in python 3.5, see:
+        https://bugs.python.org/issue23302
+        """
+        httplib.HTTPSConnection.connect(self)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+
 def upload_sparse(con, src):
     """
     Upload a possibly sparse file by sending the data portions using PUT
@@ -218,7 +232,7 @@ context = ssl.create_default_context(
     purpose=ssl.Purpose.SERVER_AUTH, cafile=CERTFILE)
 
 # Check the server capabilities for this image.
-con = httplib.HTTPSConnection(url.netloc, context=context)
+con = HTTPSConnection(url.netloc, context=context)
 with closing(con):
     server_options = options(con, url.path)
     can_flush = "flush" in server_options["features"]
@@ -229,7 +243,7 @@ with closing(con):
 if "unix_socket" in server_options:
     con = uhttp.UnixHTTPConnection(server_options["unix_socket"])
 else:
-    con = httplib.HTTPSConnection(url.netloc, context=context)
+    con = HTTPSConnection(url.netloc, context=context)
 
 # Upload the data. If the server supports "zero", we can upload sparse
 # files more efficiently.
