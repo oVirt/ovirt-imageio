@@ -171,11 +171,9 @@ def patch(con, path, msg):
     Send a PATCH request with specified message.
     """
     body = json.dumps(msg).encode("utf-8")
-    con.putrequest("PATCH", path)
-    con.putheader("content-type", "application/json")
-    con.putheader("content-length", "%d" %  len(body))
-    con.endheaders()
-    con.send(body)
+    headers = {"content-type": "application/json",
+               "content-length": "%d" %  len(body)}
+    con.request("PATCH", path, body=body, headers=headers)
     res = con.getresponse()
     if res.status != httplib.OK:
         raise RuntimeError("patch %s failed: %s" % (msg, res.read()))
