@@ -92,7 +92,7 @@ def start(config):
     remote_service = RemoteService(config)
     remote_service.start()
 
-    log.debug("Starting local service on port %d", config.images.socket)
+    log.debug("Starting local service on socket %s", config.images.socket)
     local_service = LocalService(config)
     local_service.start()
 
