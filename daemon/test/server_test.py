@@ -951,7 +951,8 @@ def test_keep_connection_on_success(tmpdir):
     tickets.add(ticket)
     uri = "/images/%(uuid)s" % ticket
     body = "data"
-    with http.connection() as con:
+    con = http.connection()
+    with closing(con):
 
         # Send the first request - it should succeed...
         con.request("PUT", uri, body=body)
@@ -967,7 +968,8 @@ def test_keep_connection_on_success(tmpdir):
 def test_keep_connection_on_error(tmpdir):
     uri = "/images/no-such-ticket"
     body = "data"
-    with http.connection() as con:
+    con = http.connection()
+    with closing(con):
 
         # Send the first request - it should fail...
         con.request("PUT", uri, body=body)
