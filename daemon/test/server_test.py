@@ -603,6 +603,8 @@ def test_images_download(tmpdir, rng, start, end):
     assert res.status == 206
     received = res.read()
     assert received == data[start:end]
+    content_range = 'bytes %d-%d/%d' % (start, end-1, end-start)
+    assert res.getheader("Content-Range") == content_range
 
 
 def test_images_download_no_range(tmpdir):

@@ -293,7 +293,8 @@ class Images(object):
             content_disposition=content_disposition,
         )
         if self.request.range:
-            content_range = self.request.range.content_range(size)
+            end = offset + size - 1
+            content_range = 'bytes %d-%d/%d' % (offset, end, size)
             resp.headers["content-range"] = str(content_range)
 
         return resp
