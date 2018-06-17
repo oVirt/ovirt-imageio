@@ -154,8 +154,9 @@ def put(con, path, start, length, src):
         pos += len(chunk)
 
     res = con.getresponse()
+    error = res.read()
     if res.status != httplib.OK:
-        raise RuntimeError("put chunk failed: %s" % res.read())
+        raise RuntimeError("put chunk failed: %s" % error)
 
 
 def zero(con, path, start, length):
@@ -189,8 +190,9 @@ def patch(con, path, msg):
                "content-length": "%d" %  len(body)}
     con.request("PATCH", path, body=body, headers=headers)
     res = con.getresponse()
+    error = res.read()
     if res.status != httplib.OK:
-        raise RuntimeError("patch %s failed: %s" % (msg, res.read()))
+        raise RuntimeError("patch %s failed: %s" % (msg, error))
 
 
 def options(con, path):
@@ -200,6 +202,7 @@ def options(con, path):
     """
     con.request("OPTIONS", path)
     res = con.getresponse()
+    body = res.read()
 
     default = {"features": []}
 
@@ -210,10 +213,9 @@ def options(con, path):
         # Older proxy did implement OPTIONS but does not return any content.
         return default
     elif res.status != httplib.OK:
-        raise RuntimeError("options %s failed: %s" % (path, res.read()))
+        raise RuntimeError("options %s failed: %s" % (path, body))
 
     # New daemon or proxy provide a features list.
-    body = res.read()
     try:
         msg = json.loads(body)
     except ValueError:

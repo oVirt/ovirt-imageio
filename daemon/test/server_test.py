@@ -961,13 +961,15 @@ def test_keep_connection_on_success(tmpdir):
 
         # Send the first request - it should succeed...
         con.request("PUT", uri, body=body)
-        with closing(http.response(con)) as r1:
-            assert r1.status == 200
+        r1 = http.response(con)
+        assert r1.status == 200
+        r1.read()
 
         # The connection should be open for the next request.
         con.request("PUT", uri, body=body)
-        with closing(http.response(con)) as r2:
-            assert r2.status == 200
+        r2 = http.response(con)
+        assert r2.status == 200
+        r2.read()
 
 
 def test_keep_connection_on_error(tmpdir):
@@ -978,10 +980,12 @@ def test_keep_connection_on_error(tmpdir):
 
         # Send the first request - it should fail...
         con.request("PUT", uri, body=body)
-        with closing(http.response(con)) as r1:
-            assert r1.status == 403
+        r1 = http.response(con)
+        assert r1.status == 403
+        r1.read()
 
         # The connection should be open for the next request.
         con.request("PUT", uri, body=body)
-        with closing(http.response(con)) as r2:
-            assert r2.status == 403
+        r2 = http.response(con)
+        assert r2.status == 403
+        r2.read()
