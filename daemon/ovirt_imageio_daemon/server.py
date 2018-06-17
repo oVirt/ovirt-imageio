@@ -294,7 +294,7 @@ class Images(object):
         )
         if self.request.range:
             content_range = self.request.range.content_range(size)
-            resp.headers["content_range"] = str(content_range)
+            resp.headers["content-range"] = str(content_range)
 
         return resp
 
