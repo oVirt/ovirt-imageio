@@ -9,12 +9,13 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import io
 import json
 import logging
-import io
 import os
 import ssl
 import sys
+import time
 import uuid
 
 from contextlib import closing
@@ -739,7 +740,7 @@ def test_images_download_out_of_range(tmpdir, rng, end):
 
 
 def test_download_progress(tmpdir):
-    size = 1024**2 * 50
+    size = 1024**2 * 10
     filename = tmpdir.join("image")
     with open(str(filename), 'wb') as image:
         image.truncate(size)
@@ -759,7 +760,11 @@ def test_download_progress(tmpdir):
     assert 0 < ticket.transferred() < size
 
     res.read()
-    # The server has sent all the chunks - download completed
+
+    # The server has sent all the chunks but we need to give it time to
+    # touch the ticket.
+    time.sleep(0.2)
+
     assert not ticket.active()
     assert ticket.transferred() == size
 
