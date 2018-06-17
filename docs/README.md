@@ -14,4 +14,6 @@
 
 * [Random I/O](random-io.md)
 
+* [UNIX Socket Support](unix-socket.md)
+
 * [Example Upload Script](https://raw.githubusercontent.com/oVirt/ovirt-imageio/master/examples/upload)
