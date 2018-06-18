@@ -594,16 +594,16 @@ def test_images_download_no_ticket():
     ("bytes=0-512", 0, 513),
 ])
 def test_images_download(tmpdir, rng, start, end):
-    data = "a" * 512 + "b" * 512
+    data = "a" * 512 + "b" * 512 + "c" * 512
     image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(
-        url="file://" + str(image), size=end)
+        url="file://" + str(image), size=len(data))
     tickets.add(ticket)
     res = http.get("/images/" + ticket["uuid"], headers={"Range": rng})
     assert res.status == 206
     received = res.read()
     assert received == data[start:end]
-    content_range = 'bytes %d-%d/%d' % (start, end-1, end)
+    content_range = 'bytes %d-%d/%d' % (start, end-1, len(data))
     assert res.getheader("Content-Range") == content_range
 
 
