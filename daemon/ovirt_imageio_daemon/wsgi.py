@@ -6,8 +6,11 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import logging
 from wsgiref import simple_server
 from six.moves import socketserver
+
+log = logging.getLogger("wsgi")
 
 
 class WSGIServer(socketserver.ThreadingMixIn,
@@ -94,3 +97,20 @@ class ServerHandler(simple_server.ServerHandler):
 
         self._write(data)
         self._flush()
+
+    def close(self):
+        """
+        Extend to close the connection after failures.
+
+        If the request failed but it has a content-length header, there
+        is a chance that some of the body was not read yet. Since we
+        cannot recover from this, the only thing we can do is closing
+        the connection.
+        """
+        if self.status:
+            status = int(self.status[:3])
+            if status >= 400 and self.environ["CONTENT_LENGTH"]:
+                log.debug("Closing the connection")
+                self.request_handler.close_connection = 1
+
+        simple_server.ServerHandler.close(self)

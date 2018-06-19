@@ -950,42 +950,81 @@ def test_images_response_version_error(tmpdir):
     assert res.version == 11
 
 
-def test_keep_connection_on_success(tmpdir):
-    image = testutils.create_tempfile(tmpdir, "image")
-    ticket = testutils.create_ticket(url="file://" + str(image))
+@pytest.mark.xfail(reason="wsgiref does not support keep alive connections")
+@pytest.mark.parametrize("method, body", [
+    ("PUT", "data"),
+    ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
+    ("OPTIONS", None),
+    ("GET", None),
+])
+def test_keep_alive_connection_on_success(tmpdir, method, body):
+    # After successful request the connection should remain open.
+    image = testutils.create_tempfile(tmpdir, "image", size=1024)
+    ticket = testutils.create_ticket(url="file://" + str(image),
+                                     size=1024)
     tickets.add(ticket)
     uri = "/images/%(uuid)s" % ticket
-    body = "data"
     con = http.connection()
     with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
 
-        # Send the first request - it should succeed...
-        con.request("PUT", uri, body=body)
-        r1 = http.response(con)
-        assert r1.status == 200
-        r1.read()
-
-        # The connection should be open for the next request.
-        con.request("PUT", uri, body=body)
-        r2 = http.response(con)
-        assert r2.status == 200
-        r2.read()
+        # Send couple of requests - all should succeed.
+        for i in range(3):
+            con.request(method, uri, body=body)
+            r1 = http.response(con)
+            r1.read()
+            assert r1.status == 200
 
 
-def test_keep_connection_on_error(tmpdir):
+@pytest.mark.xfail(reason="wsgiref does not support keep alive connections")
+@pytest.mark.parametrize("method", ["OPTIONS", "GET"])
+def test_keep_alive_connection_on_error(tmpdir, method):
+    # When a request does not have a payload, the server can keep the
+    # connection open after and error.
     uri = "/images/no-such-ticket"
-    body = "data"
     con = http.connection()
     with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
 
-        # Send the first request - it should fail...
-        con.request("PUT", uri, body=body)
+        # Send couple of requests - all should fail, without closing the
+        # connection.
+        for i in range(3):
+            con.request(method, uri)
+            r1 = http.response(con)
+            r1.read()
+            assert r1.status == 403
+
+
+@pytest.mark.parametrize("method, body", [
+    ("PUT", "data"),
+    ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
+])
+def test_close_connection_on_errors(tmpdir, method, body):
+    # When a request have a payload, the server must close the
+    # connection after an error, in case the entire body was not read.
+    uri = "/images/no-such-ticket"
+    con = http.connection()
+
+    # Disabling auto_open so we can test if a connection was closed.
+    con.auto_open = False
+    with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
+
+        # Send the first request. It will fail before reading the
+        # payload.
+        con.request(method, uri, body=body)
         r1 = http.response(con)
-        assert r1.status == 403
         r1.read()
+        assert r1.status == 403
 
-        # The connection should be open for the next request.
-        con.request("PUT", uri, body=body)
-        r2 = http.response(con)
-        assert r2.status == 403
-        r2.read()
+        # Try to send another request. This will fail since the server
+        # closed the connection, and we disabled auto_open.
+        with pytest.raises(http_client.NotConnected):
+            con.request(method, uri, body=body)
+            http.response(con)
