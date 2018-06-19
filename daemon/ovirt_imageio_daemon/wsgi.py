@@ -6,11 +6,25 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import errno
 import logging
+import socket
+
 from wsgiref import simple_server
 from six.moves import socketserver
 
 log = logging.getLogger("wsgi")
+
+
+# Taken from asyncore.py. Treat these as expected error when reading or writing
+# to client connection.
+_DISCONNECTED = frozenset((
+    errno.ECONNRESET,
+    errno.ENOTCONN,
+    errno.ESHUTDOWN,
+    errno.ECONNABORTED,
+    errno.EPIPE
+))
 
 
 class WSGIServer(socketserver.ThreadingMixIn,
@@ -37,28 +51,72 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
         """
         return self.client_address[0]
 
+    def handle_one_request(self):
+        """
+        WSGIRequestHandler does not implement this, and instead implements
+        handle().
+
+        This code was copied from BaseHTTPServer.BaseHTTPRequestHandler
+        and modified to dispatch the request to ServerHandler, based on
+        WSGIRequestHandler.handle(). Logging and error handling were
+        also improved. The rest of the code should be kept as is, to
+        make it easy to backport fixes from Python.
+
+        See the original version here:
+        https://github.com/python/cpython/blob/2.7/Lib/BaseHTTPServer.py
+        https://github.com/python/cpython/blob/master/Lib/http/server.py
+        """
+        try:
+            self.raw_requestline = self.rfile.readline(65537)
+            if len(self.raw_requestline) > 65536:
+                log.warning("Request line too long: %d > 65536, closing "
+                            "connection",
+                            len(self.raw_requestline))
+                self.requestline = ''
+                self.request_version = ''
+                self.command = ''
+                self.send_error(414)
+                return
+
+            if not self.raw_requestline:
+                log.debug("Empty request line, client disconnected")
+                self.close_connection = 1
+                return
+
+            if not self.parse_request():
+                return
+
+            handler = ServerHandler(
+                self.rfile,
+                self.wfile,
+                self.get_stderr(),
+                self.get_environ())
+
+            handler.request_handler = self  # back reference for logging
+            handler.http_version = self.protocol_version.split("/")[1]
+
+            handler.run(self.server.get_app())
+
+        except socket.timeout as e:
+            log.warning("Timeout reading or writing to socket: %s", e)
+            self.close_connection = 1
+        except socket.error as e:
+            if e[0] not in _DISCONNECTED:
+                raise
+            log.debug("Client disconnected: %s", e)
+            self.close_connection = 1
+
     def handle(self):
         """
-        Override to use fixed ServerHandler.
+        Override to handle multiple requests per connection.
 
-        Copied from wsgiref/simple_server.py, using our ServerHandler.
+        Copied from BaseHTTServer.BaseHTTPRequestHandler.
         """
-        self.raw_requestline = self.rfile.readline(65537)
-        if len(self.raw_requestline) > 65536:
-            self.requestline = ''
-            self.request_version = ''
-            self.command = ''
-            self.send_error(414)
-            return
+        self.close_connection = 1
 
-        if not self.parse_request():  # An error code has been sent, just exit
-            return
-
-        handler = ServerHandler(
-            self.rfile, self.wfile, self.get_stderr(), self.get_environ()
-        )
-        handler.request_handler = self      # backpointer for logging
-        handler.run(self.server.get_app())
+        self.handle_one_request()
+        while not self.close_connection:
+            self.handle_one_request()
 
     def log_message(self, format, *args):
         """
@@ -67,17 +125,6 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
 
 
 class ServerHandler(simple_server.ServerHandler):
-
-    # wsgiref handers ignores the http request handler's protocol_version, and
-    # uses its own version. This results in requests returning HTTP/1.0 instead
-    # of HTTP/1.1 - see https://bugzilla.redhat.com/1512317
-    #
-    # Looking at python source we need to define here:
-    #
-    #   http_version = "1.1"
-    #
-    # Bug adding this break some tests.
-    # TODO: investigate this.
 
     def write(self, data):
         """

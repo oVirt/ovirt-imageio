@@ -933,7 +933,6 @@ def test_images_options_for_nonexistent_ticket():
 
 # HTTP correctness
 
-@pytest.mark.xfail(reason="needs investigation")
 def test_images_response_version_success(tmpdir):
     image = testutils.create_tempfile(tmpdir, "image", "old")
     ticket = testutils.create_ticket(url="file://" + str(image))
@@ -943,14 +942,12 @@ def test_images_response_version_success(tmpdir):
     assert res.version == 11
 
 
-@pytest.mark.xfail(reason="needs investigation")
 def test_images_response_version_error(tmpdir):
     res = http.get("/images/no-such-ticket")
     assert res.status != 200
     assert res.version == 11
 
 
-@pytest.mark.xfail(reason="wsgiref does not support keep alive connections")
 @pytest.mark.parametrize("method, body", [
     ("PUT", "data"),
     ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
@@ -978,7 +975,6 @@ def test_keep_alive_connection_on_success(tmpdir, method, body):
             assert r1.status == 200
 
 
-@pytest.mark.xfail(reason="wsgiref does not support keep alive connections")
 @pytest.mark.parametrize("method", ["OPTIONS", "GET"])
 def test_keep_alive_connection_on_error(tmpdir, method):
     # When a request does not have a payload, the server can keep the
@@ -1023,8 +1019,10 @@ def test_close_connection_on_errors(tmpdir, method, body):
         r1.read()
         assert r1.status == 403
 
-        # Try to send another request. This will fail since the server
-        # closed the connection, and we disabled auto_open.
-        with pytest.raises(http_client.NotConnected):
+        # Try to send another request. This will fail since the server closed
+        # the connection, and we disabled auto_open.  Fails in request() or in
+        # getresponse(), probably depends on timing.
+        with pytest.raises(
+                (http_client.NotConnected, http_client.BadStatusLine)):
             con.request(method, uri, body=body)
             http.response(con)
