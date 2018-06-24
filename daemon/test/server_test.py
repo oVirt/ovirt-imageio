@@ -402,8 +402,10 @@ def test_tickets_delete_one():
 
 def test_tickets_delete_one_not_found():
     res = http.unix_request(
-        config.tickets.socket, "DELETE", "/tickets/%s" % uuid.uuid4())
-    assert res.status == 404
+        config.tickets.socket, "DELETE", "/tickets/no-such-ticket")
+    assert res.status == 204
+    # Note: incorrect according to RFC, but required for vdsm.
+    assert res.getheader("content-length") == "0"
 
 
 def test_tickets_delete_all():

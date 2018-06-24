@@ -447,12 +447,19 @@ class Tickets(object):
         return web.response()
 
     def delete(self, ticket_id):
+        """
+        Delete a ticket if exists.
+
+        Note that DELETE is idempotent;  the client can issue multiple DELETE
+        requests in case of network failures. See
+        https://tools.ietf.org/html/rfc7231#section-4.2.2.
+        """
         # TODO: cancel requests using deleted tickets
         if ticket_id:
             try:
                 tickets.remove(ticket_id)
             except KeyError:
-                raise HTTPNotFound("No such ticket %r" % ticket_id)
+                log.debug("Ticket %s does not exists", ticket_id)
         else:
             tickets.clear()
         return web.response(status=204)
