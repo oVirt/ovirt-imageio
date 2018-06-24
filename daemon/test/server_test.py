@@ -389,13 +389,13 @@ def test_tickets_idle_time_options(fake_time):
     assert tickets.get(ticket["uuid"]).idle_time == 0
 
 
-@pytest.mark.xfail(reason="content-length missing")
 def test_tickets_delete_one():
     ticket = testutils.create_ticket()
     tickets.add(ticket)
     res = http.unix_request(
         config.tickets.socket, "DELETE", "/tickets/%(uuid)s" % ticket)
     assert res.status == 204
+    # Note: incorrect according to RFC, but required for vdsm.
     assert res.getheader("content-length") == "0"
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
@@ -406,7 +406,6 @@ def test_tickets_delete_one_not_found():
     assert res.status == 404
 
 
-@pytest.mark.xfail(reason="content-length missing")
 def test_tickets_delete_all():
     # Example usage: move host to maintenance
     for i in range(5):
@@ -415,6 +414,7 @@ def test_tickets_delete_all():
         tickets.add(ticket)
     res = http.unix_request(config.tickets.socket, "DELETE", "/tickets/")
     assert res.status == 204
+    # Note: incorrect according to RFC, but required for vdsm.
     assert res.getheader("content-length") == "0"
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 

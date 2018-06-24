@@ -158,6 +158,7 @@ def response(status=http_client.OK, payload=None, **kwargs):
     return webob.Response(status=status,
                           body=body,
                           content_type="application/json",
+                          content_length=len(body),
                           **kwargs)
 
 
