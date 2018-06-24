@@ -89,6 +89,7 @@ def test_put(service, tmpdir):
     uri = "/images/" + ticket["uuid"]
     res = http.unix_request(service.address, "PUT", uri, "content")
     assert res.status == http_client.OK
+    assert res.getheader("content-length") == "0"
     with io.open(str(image)) as f:
         assert f.read() == "content|after"
 
@@ -126,6 +127,7 @@ def test_images_zero(service, tmpdir):
     res = http.unix_request(
         service.address, "PATCH", "/images/" + ticket["uuid"], body)
     assert res.status == http_client.OK
+    assert res.getheader("content-length") == "0"
     with io.open(str(image), "rb") as f:
         assert f.read(offset) == data[:offset]
         assert f.read(size) == b"\0" * size

@@ -118,6 +118,7 @@ def test_tickets_put(fake_time):
     ticket["idle_time"] = 0
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 200
+    assert res.getheader("content-length") == "0"
     assert server_ticket == ticket
 
 
@@ -216,6 +217,7 @@ def test_tickets_extend(fake_time):
     ticket["idle_time"] = 240
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert res.status == 200
+    assert res.getheader("content-length") == "0"
     assert server_ticket == ticket
 
 
@@ -387,12 +389,14 @@ def test_tickets_idle_time_options(fake_time):
     assert tickets.get(ticket["uuid"]).idle_time == 0
 
 
+@pytest.mark.xfail(reason="content-length missing")
 def test_tickets_delete_one():
     ticket = testutils.create_ticket()
     tickets.add(ticket)
     res = http.unix_request(
         config.tickets.socket, "DELETE", "/tickets/%(uuid)s" % ticket)
     assert res.status == 204
+    assert res.getheader("content-length") == "0"
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
@@ -402,6 +406,7 @@ def test_tickets_delete_one_not_found():
     assert res.status == 404
 
 
+@pytest.mark.xfail(reason="content-length missing")
 def test_tickets_delete_all():
     # Example usage: move host to maintenance
     for i in range(5):
@@ -410,6 +415,7 @@ def test_tickets_delete_all():
         tickets.add(ticket)
     res = http.unix_request(config.tickets.socket, "DELETE", "/tickets/")
     assert res.status == 204
+    assert res.getheader("content-length") == "0"
     pytest.raises(KeyError, tickets.get, ticket["uuid"])
 
 
@@ -487,6 +493,7 @@ def test_images_upload(tmpdir, flush):
     res = http.put(uri, "content")
     assert image.read() == "content|after"
     assert res.status == 200
+    assert res.getheader("content-length") == "0"
 
 
 def test_images_upload_invalid_flush(tmpdir):
@@ -780,6 +787,7 @@ def test_images_zero(tmpdir, msg):
     res = http.patch("/images/" + ticket["uuid"], body)
 
     assert res.status == 200
+    assert res.getheader("content-length") == "0"
     with io.open(str(image), "rb") as f:
         assert f.read(offset) == data[:offset]
         assert f.read(size) == b"\0" * size
@@ -835,6 +843,7 @@ def test_images_flush(tmpdir, msg):
     res = http.patch("/images/" + ticket["uuid"], body)
 
     assert res.status == 200
+    assert res.getheader("content-length") == "0"
 
 
 def test_images_flush_no_ticket_id():
