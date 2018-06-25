@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 # ovirt-imageio
 # Copyright (C) 2018 Red Hat, Inc.
 #
@@ -41,7 +41,6 @@ How to use:
 """
 
 import errno
-import httplib
 import io
 import json
 import os
@@ -49,11 +48,12 @@ import socket
 import ssl
 import subprocess
 import sys
-import urlparse
 
 from contextlib import closing
 
-from ovirt_imageio_daemon import uhttp
+import six
+from six.moves import http_client
+from six.moves.urllib.parse import urlparse
 
 # You may need to modify the path if you run this on a host which is not
 # connected to ovirt engine.
@@ -69,18 +69,42 @@ can_zero = False
 can_flush = False
 
 
-class HTTPSConnection(httplib.HTTPSConnection):
+class HTTPSConnection(http_client.HTTPSConnection):
+    """
+    HTTPS connection using TCP_NO_DELAY on python 2.
+    """
+
+    if six.PY2:
+        def connect(self):
+            """
+            Using TCP_NO_DELAY avoids delays when sending small payload, such
+            as ovirt PATCH requests.
+
+            This issue was fixed in python 3.5, see:
+            https://bugs.python.org/issue23302
+            """
+            http_client.HTTPSConnection.connect(self)
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+
+class UnixHTTPConnection(http_client.HTTPConnection):
+    """
+    HTTP connection over unix domain socket.
+    """
+
+    def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+        self.path = path
+        extra = {}
+        if six.PY2:
+            extra['strict'] = True
+        http_client.HTTPConnection.__init__(
+            self, "localhost", timeout=timeout, **extra)
 
     def connect(self):
-        """
-        Using TCP_NO_DELAY avoids delays when sending small payload, such as
-        ovirt PATCH requests.
-
-        This issue was fixed in python 3.5, see:
-        https://bugs.python.org/issue23302
-        """
-        httplib.HTTPSConnection.connect(self)
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+            self.sock.settimeout(self.timeout)
+        self.sock.connect(self.path)
 
 
 def upload_sparse(con, src):
@@ -155,7 +179,7 @@ def put(con, path, start, length, src):
 
     res = con.getresponse()
     error = res.read()
-    if res.status != httplib.OK:
+    if res.status != http_client.OK:
         raise RuntimeError("put chunk failed: %s" % error)
 
 
@@ -191,7 +215,7 @@ def patch(con, path, msg):
     con.request("PATCH", path, body=body, headers=headers)
     res = con.getresponse()
     error = res.read()
-    if res.status != httplib.OK:
+    if res.status != http_client.OK:
         raise RuntimeError("patch %s failed: %s" % (msg, error))
 
 
@@ -206,18 +230,18 @@ def options(con, path):
 
     default = {"features": []}
 
-    if res.status == httplib.METHOD_NOT_ALLOWED:
+    if res.status == http_client.METHOD_NOT_ALLOWED:
         # Older daemon did not implement OPTIONS
         return default
-    elif res.status == httplib.NO_CONTENT:
+    elif res.status == http_client.NO_CONTENT:
         # Older proxy did implement OPTIONS but does not return any content.
         return default
-    elif res.status != httplib.OK:
+    elif res.status != http_client.OK:
         raise RuntimeError("options %s failed: %s" % (path, body))
 
     # New daemon or proxy provide a features list.
     try:
-        msg = json.loads(body)
+        msg = json.loads(body.decode("utf-8"))
     except ValueError:
         # Bad response, we must assume we don't support any features or unix
         # socket.
@@ -228,7 +252,7 @@ def options(con, path):
 
 # Get input from the user.
 filename = sys.argv[1]
-url = urlparse.urlparse(sys.argv[2])
+url = urlparse(sys.argv[2])
 
 context = ssl.create_default_context(
     purpose=ssl.Purpose.SERVER_AUTH, cafile=CERTFILE)
@@ -243,7 +267,7 @@ with closing(con):
 # Open connection for transfering data. If the server supports unix
 # socket, we can transfer data faster using less resources.
 if "unix_socket" in server_options:
-    con = uhttp.UnixHTTPConnection(server_options["unix_socket"])
+    con = UnixHTTPConnection(server_options["unix_socket"])
 else:
     con = HTTPSConnection(url.netloc, context=context)
 
