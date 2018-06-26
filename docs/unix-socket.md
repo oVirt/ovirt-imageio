@@ -63,8 +63,31 @@ The user program needs to use a modified httplib.HTTPConnection to
 connect using socket address. Then it can use standard HTTPConnection
 APIs to perform the transfers.
 
-We have example implementation here:
-https://github.com/oVirt/ovirt-imageio/blob/master/daemon/ovirt_imageio_daemon/uhttp.py
+Here is an example of UnixHTTPConnection class:
 
-The following pypi package can also be used:
-https://pypi.org/project/uhttplib/
+    import socket
+    import six
+    from six.moves import http_client
+
+
+    class UnixHTTPConnection(http_client.HTTPConnection):
+        """
+        HTTP connection over unix domain socket.
+        """
+
+        def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+            self.path = path
+            extra = {}
+            if six.PY2:
+                extra['strict'] = True
+            http_client.HTTPConnection.__init__(
+                self, "localhost", timeout=timeout, **extra)
+
+        def connect(self):
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                self.sock.settimeout(self.timeout)
+            self.sock.connect(self.path)
+
+See upload example for more info:
+https://github.com/oVirt/ovirt-imageio/blob/master/examples/upload
