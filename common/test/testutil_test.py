@@ -8,7 +8,7 @@
 
 from __future__ import absolute_import
 
-from . import ioutil
+from . import testutil
 
 
 def test_unbuffered_stream_more():
@@ -16,7 +16,7 @@ def test_unbuffered_stream_more():
               b"2" * 256,
               b"3" * 42,
               b"4" * 256]
-    s = ioutil.UnbufferedStream(chunks)
+    s = testutil.UnbufferedStream(chunks)
     # Chunk 1
     b = s.read(512)
     assert b == chunks[0]
@@ -41,7 +41,7 @@ def test_unbuffered_stream_less():
               b"2" * 256,
               b"3" * 42,
               b"4" * 256]
-    s = ioutil.UnbufferedStream(chunks)
+    s = testutil.UnbufferedStream(chunks)
     # Chunk 1
     b = s.read(128)
     assert b == chunks[0][:128]

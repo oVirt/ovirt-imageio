@@ -21,7 +21,7 @@ import pytest
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
 
-from . import ioutil
+from . import testutil
 
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
@@ -307,7 +307,7 @@ def test_receive_unbuffered_stream_partial_content(tmpdir):
 def receive_unbuffered(tmpdir, chunks, size, bufsize):
     dst = tmpdir.join("dst")
     dst.write("")
-    src = ioutil.UnbufferedStream(chunks)
+    src = testutil.UnbufferedStream(chunks)
     op = directio.Receive(str(dst), src, size, buffersize=bufsize)
     op.run()
     return dst.read()
