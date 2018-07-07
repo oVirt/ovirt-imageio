@@ -95,7 +95,7 @@ with directio.open(args.filename, "r+") as f:
 
 elapsed_time = time.time() - start_time
 
-print "Zero %.2f GiB in %.2f seconds (%.2f GiB/s)" % (
+print "Zero %.2f GiB in %.3f seconds (%.2f GiB/s)" % (
     float(args.length) / 1024**3,
     elapsed_time,
     float(args.length) / 1024**3 / elapsed_time)

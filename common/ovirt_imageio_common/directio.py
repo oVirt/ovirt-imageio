@@ -482,11 +482,47 @@ class BlockIO(BaseIO):
     Block device I/O backend.
     """
 
+    def __init__(self, fio):
+        """
+        Initialize a BlockIO backend.
+
+        Arguments:
+            fio (io.FileIO): underlying file object.
+        """
+        super(BlockIO, self).__init__(fio)
+        # May be set to False if the first call to fallocate() reveal that it
+        # is not supported.
+        self._can_fallocate = True
+
     def zero(self, count):
         """
         Zero count bytes at current file position.
         """
         offset = self.tell()
+
+        # First try fallocate(). It works also for block devices since kernel
+        # 4.9. We prefer it since it also invalidates the page cache, avoiding
+        # reading stale data.
+        if self._can_fallocate:
+            mode = ioutil.FALLOC_FL_ZERO_RANGE
+            try:
+                util.uninterruptible(ioutil.fallocate, self.fileno(), mode,
+                                     offset, count)
+            except EnvironmentError as e:
+                # On RHEL 7.5 (kenerl 3.10.0) this will fail with ENODEV.
+                if e.errno not in (errno.EOPNOTSUPP, errno.ENODEV):
+                    raise
+                # fallocate() is not supported - do not try again.
+                log.debug("fallocate(mode=%r) is not supported, zeroing "
+                          "using BLKZEROOUT",
+                          mode)
+                self._can_fallocate = False
+            else:
+                self.seek(offset + count)
+                return
+
+        # If we reach this, this kernel does not support fallocate() for block
+        # devices, so we fallback to BLKZEROOUT.
         util.uninterruptible(
             ioutil.blkzeroout, self.fileno(), offset, count)
         self.seek(offset + count)
