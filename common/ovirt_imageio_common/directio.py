@@ -13,10 +13,12 @@ import io
 import logging
 import mmap
 import os
+import stat
 
 from contextlib import closing
 
 from . import errors
+from . import ioutil
 from . import util
 
 # This value is used by vdsm when copying image data using dd. Smaller values
@@ -365,7 +367,13 @@ def open(path, mode, direct=True, buffer_size=BUFFERSIZE):
 
     fd = os.open(path, flags)
     fio = io.FileIO(fd, mode, closefd=True)
-    return GenericIO(fio, buffer_size=buffer_size)
+    try:
+        mode = os.fstat(fd).st_mode
+        backend = BlockIO if stat.S_ISBLK(mode) else GenericIO
+        return backend(fio, buffer_size=buffer_size)
+    except:
+        fio.close()
+        raise
 
 
 def round_up(n, size=BLOCKSIZE):
@@ -478,3 +486,18 @@ class GenericIO(object):
 
     def flush(self):
         return os.fsync(self.fileno())
+
+
+class BlockIO(GenericIO):
+    """
+    Block device I/O backend.
+    """
+
+    def zero(self, count):
+        """
+        Zero count bytes at current file position.
+        """
+        offset = self.tell()
+        util.uninterruptible(
+            ioutil.blkzeroout, self.fileno(), offset, count)
+        self.seek(offset + count)

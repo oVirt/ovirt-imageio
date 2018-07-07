@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 """
-Test script for ioutil.blkzeroout, simulating blkdiscard --zeroout.
+Test script for directio.BlockIO, simulating blkdiscard --zeroout.
 """
 
 from __future__ import absolute_import
@@ -16,7 +16,7 @@ import os
 import stat
 import time
 
-from ovirt_imageio_common import ioutil
+from ovirt_imageio_common import directio
 
 
 def humansize(s):
@@ -70,8 +70,7 @@ if not stat.S_ISBLK(device_stat.st_mode):
 
 start_time = time.time()
 
-with open(args.device, "wb") as f:
-    fd = f.fileno()
+with directio.open(args.device, "w") as f:
     if args.length is None:
         f.seek(0, os.SEEK_END)
         device_size = f.tell()
@@ -80,15 +79,15 @@ with open(args.device, "wb") as f:
     if args.step is None:
         args.step = args.length
 
-    end = args.offset + args.length
-    offset = args.offset
+    f.seek(args.offset)
 
-    while offset < end:
-        length = min(args.step, end - offset)
-        ioutil.blkzeroout(fd, offset, length)
-        offset += length
+    count = args.length
+    while count:
+        step = min(args.step, count)
+        f.zero(step)
+        count -= step
 
-    os.fsync(fd)
+    f.flush()
 
 elapsed_time = time.time() - start_time
 
