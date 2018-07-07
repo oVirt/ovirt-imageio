@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import errno
 import fcntl
 import io
 import logging
@@ -369,8 +370,10 @@ def open(path, mode, direct=True, buffer_size=BUFFERSIZE):
     fio = io.FileIO(fd, mode, closefd=True)
     try:
         mode = os.fstat(fd).st_mode
-        backend = BlockIO if stat.S_ISBLK(mode) else GenericIO
-        return backend(fio, buffer_size=buffer_size)
+        if stat.S_ISBLK(mode):
+            return BlockIO(fio)
+        else:
+            return FileIO(fio, buffer_size=buffer_size)
     except:
         fio.close()
         raise
@@ -409,23 +412,19 @@ def disable_directio(fd):
     fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_DIRECT)
 
 
-class GenericIO(object):
+class BaseIO(object):
     """
-    Generic I/O backend.
+    Abstract I/O backend.
     """
 
-    def __init__(self, fio, buffer_size=BUFFERSIZE):
+    def __init__(self, fio):
         """
-        Initizlie a generic I/O backend.
+        Initizlie an I/O backend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
-            buffer_size (int): size of buffer used in zero()
         """
         self._fio = fio
-        self._buffer_size = buffer_size
-        # buf is allocated on the first call to zero.
-        self._buf = None
 
     # io.FileIO interface
 
@@ -465,30 +464,20 @@ class GenericIO(object):
                 self._fio.close()
             finally:
                 self._fio = None
-        if self._buf:
-            try:
-                self._buf.close()
-            finally:
-                self._buf = None
 
-    # GenericIO interface.
+    # BaseIO interface.
 
     def zero(self, count):
         """
         Zero count bytes at current file position.
         """
-        if self._buf is None:
-            self._buf = aligned_buffer(self._buffer_size)
-        while count:
-            step = min(self._buffer_size, count)
-            wbuf = buffer(self._buf, 0, step)
-            count -= self.write(wbuf)
+        raise NotImplementedError
 
     def flush(self):
         return os.fsync(self.fileno())
 
 
-class BlockIO(GenericIO):
+class BlockIO(BaseIO):
     """
     Block device I/O backend.
     """
@@ -501,3 +490,106 @@ class BlockIO(GenericIO):
         util.uninterruptible(
             ioutil.blkzeroout, self.fileno(), offset, count)
         self.seek(offset + count)
+
+
+class FileIO(BaseIO):
+    """
+    File I/O backend.
+    """
+
+    def __init__(self, fio, buffer_size=BUFFERSIZE):
+        """
+        Initialize a FileIO backend.
+
+        Arguments:
+            fio (io.FileIO): underlying file object.
+            buffer_size (int): size of buffer used in zero() if manual zeroing
+                is needed.
+        """
+        super(FileIO, self).__init__(fio)
+        # These will be set to False if the first call to fallocate() reveal
+        # that it is not supported on the current file system.
+        self._can_zero_range = True
+        self._can_punch_hole = True
+        self._can_fallocate = True
+        # If we cannot use fallocate, we fallback to manual zero, using this
+        # buffer.
+        self._buffer_size = buffer_size
+        self._buf = None
+
+    def zero(self, count):
+        """
+        Zero count bytes at current file position.
+        """
+        # NOTE: Supports only preallocated images. To support sparse images, we
+        # need to specify the image sparseness in the ticket.
+
+        offset = self.tell()
+
+        # First try the modern way. If this works, we can zero a range using
+        # single call. Unfortunately, this does not work with NFS 4.2.
+        if self._can_zero_range:
+            mode = ioutil.FALLOC_FL_ZERO_RANGE
+            if self._fallocate(mode, offset, count):
+                self.seek(offset + count)
+                return
+            else:
+                log.debug("Cannot zero range")
+                self._can_zero_range = False
+
+        # Next try to punch a hole and then allocate the range. This hack is
+        # used by qemu since 2015.
+        # See https://github.com/qemu/qemu/commit/1cdc3239f1bb
+        if self._can_punch_hole and self._can_fallocate:
+            mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
+            if self._fallocate(mode, offset, count):
+                if self._fallocate(0, offset, count):
+                    self.seek(offset + count)
+                    return
+                else:
+                    log.debug("Cannot fallocate range")
+                    self._can_fallocate = False
+            else:
+                log.debug("Cannot punch hole")
+                self._can_punch_hole = False
+
+        # If we are writing after the end of the file, we can allocate.
+        if self._can_fallocate:
+            size = os.fstat(self.fileno()).st_size
+            if offset >= size:
+                if self._fallocate(0, offset, count):
+                    self.seek(offset + count)
+                    return
+                else:
+                    log.debug("Cannot fallocate range")
+                    self._can_fallocate = False
+
+        # We have to write zeros manually.
+        if self._buf is None:
+            self._buf = aligned_buffer(self._buffer_size)
+        while count:
+            step = min(self._buffer_size, count)
+            wbuf = buffer(self._buf, 0, step)
+            count -= self.write(wbuf)
+
+    def _fallocate(self, mode, offset, count):
+        """
+        Try to fallocate, returning True if the attempt was successful, or
+        False if this mode is not supported. Any other error is raised.
+        """
+        try:
+            util.uninterruptible(
+                ioutil.fallocate, self.fileno(), mode, offset, count)
+            return True
+        except EnvironmentError as e:
+            if e.errno != errno.EOPNOTSUPP:
+                raise
+            return False
+
+    def close(self):
+        if self._buf:
+            try:
+                self._buf.close()
+            finally:
+                self._buf = None
+        super(FileIO, self).close()
