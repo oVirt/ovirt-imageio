@@ -16,8 +16,8 @@ import os
 
 from contextlib import closing
 
-from . import util
 from . import errors
+from . import util
 
 # This value is used by vdsm when copying image data using dd. Smaller values
 # save memory, and larger values minimize syscall and python calls overhead.
@@ -140,7 +140,7 @@ class Send(Operation):
 
         if self._clock:
             self._clock.start("read")
-        count = util.uninterruptible(src.readinto, buf)
+        count = src.readinto(buf)
         if self._clock:
             self._clock.stop("read")
         if count == 0:
@@ -184,7 +184,7 @@ class Receive(Operation):
                 if self._flush:
                     if self._clock:
                         self._clock.start("sync")
-                    os.fsync(dst.fileno())
+                    dst.flush()
                     if self._clock:
                         self._clock.stop("sync")
 
@@ -218,7 +218,7 @@ class Receive(Operation):
                 disable_directio(dst.fileno())
             if self._clock:
                 self._clock.start("write")
-            written = util.uninterruptible(dst.write, wbuf)
+            written = dst.write(wbuf)
             if self._clock:
                 self._clock.stop("write")
             towrite -= written
@@ -244,7 +244,7 @@ class Zero(Operation):
         self._flush = flush
 
     def _run(self):
-        with open(self._path, "r+") as dst:
+        with open(self._path, "r+", buffer_size=self._buffersize) as dst:
             # Handle offset if specified.
             if self._offset:
                 reminder = self._offset % BLOCKSIZE
@@ -273,17 +273,18 @@ class Zero(Operation):
         """
         Zero count bytes at current file position.
         """
-        buf = aligned_buffer(self._buffersize)
-        with closing(buf):
-            while count:
-                wbuf = buffer(buf, 0, min(self._buffersize, count))
-                if self._clock:
-                    self._clock.start("write")
-                written = util.uninterruptible(dst.write, wbuf)
-                if self._clock:
-                    self._clock.stop("write")
-                count -= written
-                self._done += written
+        while count:
+            # Use small steps so we update self._done regularly, and avoid
+            # blocking in kernel for too long time. Zeroing 128 MiB take less
+            # than 1 second on my poor LIO storage.
+            step = min(count, 128 * 1024**2)
+            if self._clock:
+                self._clock.start("zero")
+            dst.zero(step)
+            if self._clock:
+                self._clock.stop("zero")
+            count -= step
+            self._done += step
 
     def zero_unaligned(self, dst, offset, count):
         """
@@ -294,7 +295,7 @@ class Zero(Operation):
             # 1. Read complete block from storage.
             if self._clock:
                 self._clock.start("read")
-            read = util.uninterruptible(dst.readinto, buf)
+            read = dst.readinto(buf)
             if self._clock:
                 self._clock.stop("read")
             if read != BLOCKSIZE:
@@ -307,7 +308,7 @@ class Zero(Operation):
             dst.seek(-BLOCKSIZE, os.SEEK_CUR)
             if self._clock:
                 self._clock.start("write")
-            written = util.uninterruptible(dst.write, buf)
+            written = dst.write(buf)
             if self._clock:
                 self._clock.stop("write")
             if written != BLOCKSIZE:
@@ -317,10 +318,10 @@ class Zero(Operation):
 
     def flush(self, dst):
         if self._clock:
-            self._clock.start("sync")
-        os.fsync(dst.fileno())
+            self._clock.start("flush")
+        dst.flush()
         if self._clock:
-            self._clock.stop("sync")
+            self._clock.stop("flush")
 
 
 class Flush(Operation):
@@ -334,13 +335,13 @@ class Flush(Operation):
     def _run(self):
         with open(self._path, "r+") as dst:
             if self._clock:
-                self._clock.start("sync")
-            os.fsync(dst.fileno())
+                self._clock.start("flush")
+            dst.flush()
             if self._clock:
-                self._clock.stop("sync")
+                self._clock.stop("flush")
 
 
-def open(path, mode, direct=True):
+def open(path, mode, direct=True, buffer_size=BUFFERSIZE):
     """
     Open a file for direct I/O.
 
@@ -363,7 +364,8 @@ def open(path, mode, direct=True):
         flags |= os.O_DIRECT
 
     fd = os.open(path, flags)
-    return io.FileIO(fd, mode, closefd=True)
+    fio = io.FileIO(fd, mode, closefd=True)
+    return GenericIO(fio, buffer_size=buffer_size)
 
 
 def round_up(n, size=BLOCKSIZE):
@@ -397,3 +399,82 @@ def enable_directio(fd):
 def disable_directio(fd):
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_DIRECT)
+
+
+class GenericIO(object):
+    """
+    Generic I/O backend.
+    """
+
+    def __init__(self, fio, buffer_size=BUFFERSIZE):
+        """
+        Initizlie a generic I/O backend.
+
+        Arguments:
+            fio (io.FileIO): underlying file object.
+            buffer_size (int): size of buffer used in zero()
+        """
+        self._fio = fio
+        self._buffer_size = buffer_size
+        # buf is allocated on the first call to zero.
+        self._buf = None
+
+    # io.FileIO interface
+
+    def readinto(self, buf):
+        return util.uninterruptible(self._fio.readinto, buf)
+
+    def write(self, buf):
+        return util.uninterruptible(self._fio.write, buf)
+
+    def tell(self):
+        return self._fio.tell()
+
+    def seek(self, pos, how=os.SEEK_SET):
+        return self._fio.seek(pos, how)
+
+    def truncate(self, size):
+        self._fio.truncate(size)
+
+    def fileno(self):
+        return self._fio.fileno()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, t, v, tb):
+        try:
+            self.close()
+        except Exception:
+            # Do not hide the original error.
+            if t is None:
+                raise
+            log.exception("Error closing")
+
+    def close(self):
+        if self._fio:
+            try:
+                self._fio.close()
+            finally:
+                self._fio = None
+        if self._buf:
+            try:
+                self._buf.close()
+            finally:
+                self._buf = None
+
+    # GenericIO interface.
+
+    def zero(self, count):
+        """
+        Zero count bytes at current file position.
+        """
+        if self._buf is None:
+            self._buf = aligned_buffer(self._buffer_size)
+        while count:
+            step = min(self._buffer_size, count)
+            wbuf = buffer(self._buf, 0, step)
+            count -= self.write(wbuf)
+
+    def flush(self):
+        return os.fsync(self.fileno())

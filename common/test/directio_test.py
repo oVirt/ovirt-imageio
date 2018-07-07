@@ -562,7 +562,10 @@ def test_open_no_direct_read_only(tmpdir):
     with io.open(path, "wb") as f:
         f.write(b"x" * 512)
     with directio.open(path, "r", direct=False) as f:
-        assert f.read() == b"x" * 512
+        buf = bytearray(512)
+        n = f.readinto(buf)
+        assert n == 512
+        assert buf == "x" * n
 
 
 def test_open_no_direct_read_write(tmpdir):
@@ -572,7 +575,10 @@ def test_open_no_direct_read_write(tmpdir):
     with directio.open(path, "r+", direct=False) as f:
         f.write(b"b" * 512)
         f.seek(0)
-        assert f.read() == b"b" * 512
+        buf = bytearray(512)
+        n = f.readinto(buf)
+        assert n == 512
+        assert buf == "b" * n
 
 
 def test_open_no_direct_write_only(tmpdir):
