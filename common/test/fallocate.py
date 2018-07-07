@@ -6,7 +6,11 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 """
-Test script for directio.BlockIO, simulating blkdiscard --zeroout.
+Test script for directio.BlockIO() and directio.FileIO(), simulating fallocate
+and blkdiscard --zeroout.
+
+NOTE: When zeroing files, we always allocate space in the file. Sparse files
+are not supported yet.
 """
 
 from __future__ import absolute_import
@@ -42,7 +46,7 @@ parser.add_argument(
     dest="length",
     type=humansize,
     help=("The  number of bytes to zero (counting from the starting point) "
-          "(default entire device)"))
+          "(default entire device or file)"))
 
 parser.add_argument(
     "-o", "--offset",
@@ -55,26 +59,26 @@ parser.add_argument(
     "-p", "--step",
     dest="step",
     type=humansize,
-    help=("The number of bytes to discard within one iteration. The default "
+    help=("The number of bytes to zero within one iteration. The default "
           "is to discard all by one ioctl call"))
 
 parser.add_argument(
-    "device",
-    help="device")
+    "filename",
+    help="file or block device to fill with zeros")
 
 args = parser.parse_args()
 
-device_stat = os.stat(args.device)
-if not stat.S_ISBLK(device_stat.st_mode):
-    parser.error("Not a block device: %r" % args.device)
-
 start_time = time.time()
 
-with directio.open(args.device, "w") as f:
+with directio.open(args.filename, "r+") as f:
     if args.length is None:
-        f.seek(0, os.SEEK_END)
-        device_size = f.tell()
-        args.length = device_size - args.offset
+        st = os.stat(args.filename)
+        if stat.S_ISBLK(st.st_mode):
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+        else:
+            size = st.st_size
+        args.length = size - args.offset
 
     if args.step is None:
         args.step = args.length
