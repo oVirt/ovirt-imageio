@@ -336,7 +336,8 @@ class Images(object):
             offset=offset,
             flush=flush,
             buffersize=self.config.daemon.buffer_size,
-            clock=self.clock)
+            clock=self.clock,
+            sparse=ticket.sparse)
         try:
             ticket.run(op)
         except errors.PartialContent as e:

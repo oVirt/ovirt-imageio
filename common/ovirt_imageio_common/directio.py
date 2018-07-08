@@ -241,10 +241,11 @@ class Zero(Operation):
     """
 
     def __init__(self, path, size, offset=0, flush=False,
-                 buffersize=BUFFERSIZE, clock=None):
+                 buffersize=BUFFERSIZE, clock=None, sparse=False):
         super(Zero, self).__init__(path, size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
         self._flush = flush
+        self._sparse = sparse
 
     def _run(self):
         with open(self._path, "r+", buffer_size=self._buffersize) as dst:
@@ -283,7 +284,10 @@ class Zero(Operation):
             step = min(count, 128 * 1024**2)
             if self._clock:
                 self._clock.start("zero")
-            dst.zero(step)
+            if self._sparse:
+                dst.trim(step)
+            else:
+                dst.zero(step)
             if self._clock:
                 self._clock.stop("zero")
             count -= step
@@ -441,7 +445,7 @@ class BaseIO(object):
         return self._fio.seek(pos, how)
 
     def truncate(self, size):
-        self._fio.truncate(size)
+        util.uninterruptible(self._fio.truncate, size)
 
     def fileno(self):
         return self._fio.fileno()
@@ -469,7 +473,14 @@ class BaseIO(object):
 
     def zero(self, count):
         """
-        Zero count bytes at current file position.
+        Allocate and zero count bytes at current file position.
+        """
+        raise NotImplementedError
+
+    def trim(self, count):
+        """
+        Deallocate count bytes at curent file position. After successful call,
+        reading from this range will return zeroes.
         """
         raise NotImplementedError
 
@@ -527,6 +538,9 @@ class BlockIO(BaseIO):
             ioutil.blkzeroout, self.fileno(), offset, count)
         self.seek(offset + count)
 
+    # Emulate trim using zero.
+    trim = zero
+
 
 class FileIO(BaseIO):
     """
@@ -554,12 +568,6 @@ class FileIO(BaseIO):
         self._buf = None
 
     def zero(self, count):
-        """
-        Zero count bytes at current file position.
-        """
-        # NOTE: Supports only preallocated images. To support sparse images, we
-        # need to specify the image sparseness in the ticket.
-
         offset = self.tell()
 
         # First try the modern way. If this works, we can zero a range using
@@ -601,12 +609,29 @@ class FileIO(BaseIO):
                     self._can_fallocate = False
 
         # We have to write zeros manually.
-        if self._buf is None:
-            self._buf = aligned_buffer(self._buffer_size)
-        while count:
-            step = min(self._buffer_size, count)
-            wbuf = buffer(self._buf, 0, step)
-            count -= self.write(wbuf)
+        self._write_zeros(count)
+
+    def trim(self, count):
+        # First try to punch a hole.
+        if self._can_punch_hole:
+            offset = self.tell()
+
+            # Extend file size if needed.
+            size = os.fstat(self.fileno()).st_size
+            if offset + count > size:
+                self.truncate(offset + count)
+
+            # And punch a hole.
+            mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
+            if self._fallocate(mode, offset, count):
+                self.seek(offset + count)
+                return
+            else:
+                log.debug("Cannot punch hole")
+                self._can_punch_hole = False
+
+        # We have to write zeros manually.
+        self._write_zeros(count)
 
     def _fallocate(self, mode, offset, count):
         """
@@ -621,6 +646,17 @@ class FileIO(BaseIO):
             if e.errno != errno.EOPNOTSUPP:
                 raise
             return False
+
+    def _write_zeros(self, count):
+        """
+        Write zeros manually.
+        """
+        if self._buf is None:
+            self._buf = aligned_buffer(self._buffer_size)
+        while count:
+            step = min(self._buffer_size, count)
+            wbuf = buffer(self._buf, 0, step)
+            count -= self.write(wbuf)
 
     def close(self):
         if self._buf:

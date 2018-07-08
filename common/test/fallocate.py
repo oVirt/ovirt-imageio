@@ -8,9 +8,6 @@
 """
 Test script for directio.BlockIO() and directio.FileIO(), simulating fallocate
 and blkdiscard --zeroout.
-
-NOTE: When zeroing files, we always allocate space in the file. Sparse files
-are not supported yet.
 """
 
 from __future__ import absolute_import
@@ -63,6 +60,12 @@ parser.add_argument(
           "is to discard all by one ioctl call"))
 
 parser.add_argument(
+    "-s", "--sparse",
+    dest="sparse",
+    action="store_true",
+    help="Deallocate zeroed space (punch holes)")
+
+parser.add_argument(
     "filename",
     help="file or block device to fill with zeros")
 
@@ -88,7 +91,10 @@ with directio.open(args.filename, "r+") as f:
     count = args.length
     while count:
         step = min(args.step, count)
-        f.zero(step)
+        if args.sparse:
+            f.trim(step)
+        else:
+            f.zero(step)
         count -= step
 
     f.flush()

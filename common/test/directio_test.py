@@ -347,6 +347,7 @@ def test_send_no_size(tmpdir, data, offset):
     assert dst.getvalue() == data[offset:]
 
 
+@pytest.mark.parametrize("sparse", [True, False])
 @pytest.mark.parametrize("offset,size", [
     # Aligned offset and size
     (0, directio.BLOCKSIZE),
@@ -371,11 +372,11 @@ def test_send_no_size(tmpdir, data, offset):
     (directio.BUFFERSIZE + 42, directio.BUFFERSIZE - 42),
     (directio.BUFFERSIZE * 2 - 42, 42),
 ])
-def test_zero(tmpdir, offset, size):
+def test_zero(tmpdir, offset, size, sparse):
     dst = tmpdir.join("src")
     data = "x" * directio.BUFFERSIZE * 2
     dst.write(data)
-    op = directio.Zero(str(dst), size, offset=offset)
+    op = directio.Zero(str(dst), size, offset=offset, sparse=sparse)
     op.run()
     with io.open(str(dst), "rb") as f:
         assert f.read(offset) == data[:offset]
