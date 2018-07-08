@@ -11,12 +11,12 @@ from __future__ import absolute_import
 import uuid
 
 
-def create_ticket(ops=("read", "write"), timeout=300, size=2**64,
+def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
                   url="file:///var/run/vdsm/storage/foo", filename=None):
     d = {
-        "uuid": str(uuid.uuid4()),
+        "uuid": uuid,
         "timeout": timeout,
-        "ops": list(ops),
+        "ops": ["read", "write"] if ops is None else ops,
         "size": size,
         "url": url,
     }

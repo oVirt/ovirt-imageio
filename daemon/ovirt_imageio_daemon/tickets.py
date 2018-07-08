@@ -16,6 +16,7 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_daemon import measure
 
+import six
 from six.moves import urllib_parse
 
 log = logging.getLogger("tickets")
@@ -30,21 +31,16 @@ class Ticket(object):
             raise errors.InvalidTicket(
                 "Invalid ticket: %r, expecting a dict" % ticket_dict)
 
-        self._uuid = _required(ticket_dict, "uuid")
-        self._size = _required(ticket_dict, "size")
-        self._ops = _required(ticket_dict, "ops")
+        self._uuid = _required(ticket_dict, "uuid", six.string_types)
+        self._size = _required(ticket_dict, "size", six.integer_types)
+        self._ops = _required(ticket_dict, "ops", list)
 
-        timeout = _required(ticket_dict, "timeout")
-        try:
-            timeout = int(timeout)
-        except ValueError as e:
-            raise errors.InvalidTicketParameter("timeout", timeout, e)
-
+        timeout = _required(ticket_dict, "timeout", six.integer_types)
         now = int(util.monotonic_time())
         self._expires = now + timeout
         self._access_time = now
 
-        url_str = _required(ticket_dict, "url")
+        url_str = _required(ticket_dict, "url", six.string_types)
         try:
             self._url = urllib_parse.urlparse(url_str)
         except (ValueError, AttributeError, TypeError) as e:
@@ -54,7 +50,8 @@ class Ticket(object):
                 "url", url_str,
                 "Unsupported url scheme: %s" % self._url.scheme)
 
-        self._filename = ticket_dict.get("filename")
+        self._filename = _optional(ticket_dict, "filename", six.string_types)
+        self._operations = []
         self._lock = threading.Lock()
 
         # Set holding ongoing operations.
@@ -235,10 +232,23 @@ class BoundOperation(object):
         self._operation.close()
 
 
-def _required(d, key):
+def _required(d, key, type):
     if key not in d:
         raise errors.MissingTicketParameter(key)
-    return d[key]
+    return _validate(key, d[key], type)
+
+
+def _optional(d, key, type, default=None):
+    if key not in d:
+        return default
+    return _validate(key, d[key], type)
+
+
+def _validate(key, value, type):
+    if not isinstance(value, type):
+        raise errors.InvalidTicketParameter(
+            key, value, "expecting a {!r} value".format(type))
+    return value
 
 
 def add(ticket_dict):

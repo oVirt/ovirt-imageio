@@ -75,7 +75,7 @@ def test_no_ticket(service, method, body):
 
 def test_put_forbidden(service):
     ticket = testutils.create_ticket(
-        url="file:///no/such/image", ops=("read",))
+        url="file:///no/such/image", ops=["read"])
     tickets.add(ticket)
     res = http.unix_request(
         service.address, "PUT", "/images/" + ticket["uuid"], "content")
@@ -96,7 +96,7 @@ def test_put(service, tmpdir):
 
 def test_get_forbidden(service):
     ticket = testutils.create_ticket(
-        url="file:///no/such/image", ops=())
+        url="file:///no/such/image", ops=[])
     tickets.add(ticket)
     res = http.unix_request(
         service.address, "GET", "/images/" + ticket["uuid"], "content")

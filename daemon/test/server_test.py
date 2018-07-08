@@ -444,7 +444,7 @@ def test_images_upload_no_ticket(tmpdir):
 
 def test_images_upload_forbidden(tmpdir):
     ticket = testutils.create_ticket(
-        url="file:///no/such/image", ops=("read",))
+        url="file:///no/such/image", ops=["read"])
     tickets.add(ticket)
     res = http.put("/images/" + ticket["uuid"], "content")
     assert res.status == 403
@@ -829,7 +829,7 @@ def test_images_zero_ticket_unknown():
 
 def test_images_zero_ticket_readonly(tmpdir):
     ticket = testutils.create_ticket(
-        url="file:///no/such/image", ops=("read",))
+        url="file:///no/such/image", ops=["read"])
     tickets.add(ticket)
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
     res = http.patch("/images/" + ticket["uuid"], body)
@@ -867,7 +867,7 @@ def test_images_flush_ticket_unknown():
 
 def test_images_flush_ticket_readonly(tmpdir):
     ticket = testutils.create_ticket(
-        url="file:///no/such/image", ops=("read",))
+        url="file:///no/such/image", ops=["read"])
     tickets.add(ticket)
     body = json.dumps({"op": "flush"}).encode("ascii")
     res = http.patch("/images/" + ticket["uuid"], body)

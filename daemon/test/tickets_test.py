@@ -292,6 +292,19 @@ def test_invalid_argument(arg):
         Ticket(arg)
 
 
+@pytest.mark.parametrize("kw", [
+    {"uuid": 1},
+    {"size": "not an int"},
+    {"ops": "not a list"},
+    {"timeout": "not an int"},
+    {"url": 1},
+    {"filename": 1},
+])
+def test_invalid_parameter(kw):
+    with pytest.raises(errors.InvalidTicketParameter):
+        Ticket(testutils.create_ticket(**kw))
+
+
 def test_repr():
     ticket = Ticket(testutils.create_ticket(
         ops=["read"], filename="tmp_file"))
