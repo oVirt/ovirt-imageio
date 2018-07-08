@@ -51,6 +51,7 @@ class Ticket(object):
                 "Unsupported url scheme: %s" % self._url.scheme)
 
         self._filename = _optional(ticket_dict, "filename", six.string_types)
+        self._sparse = _optional(ticket_dict, "sparse", bool, default=False)
         self._operations = []
         self._lock = threading.Lock()
 
@@ -83,6 +84,10 @@ class Ticket(object):
     @property
     def filename(self):
         return self._filename
+
+    @property
+    def sparse(self):
+        return self._sparse
 
     @property
     def idle_time(self):
@@ -167,6 +172,7 @@ class Ticket(object):
             "idle_time": self.idle_time,
             "ops": list(self._ops),
             "size": self._size,
+            "sparse": self._sparse,
             "timeout": self.expires - int(util.monotonic_time()),
             "url": urllib_parse.urlunparse(self._url),
             "uuid": self._uuid,
@@ -190,6 +196,7 @@ class Ticket(object):
                 "idle_time={self.idle_time} "
                 "ops={self.ops!r} "
                 "size={self.size!r} "
+                "sparse={self.sparse!r} "
                 "transferred={transferred!r} "
                 "url={url!r} "
                 "uuid={self.uuid!r} "

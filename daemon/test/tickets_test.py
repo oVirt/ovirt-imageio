@@ -299,10 +299,21 @@ def test_invalid_argument(arg):
     {"timeout": "not an int"},
     {"url": 1},
     {"filename": 1},
+    {"sparse": 1},
 ])
 def test_invalid_parameter(kw):
     with pytest.raises(errors.InvalidTicketParameter):
         Ticket(testutils.create_ticket(**kw))
+
+
+def test_sparse_unset():
+    ticket = Ticket(testutils.create_ticket())
+    assert not ticket.sparse
+
+
+def test_sparse():
+    ticket = Ticket(testutils.create_ticket(sparse=True))
+    assert ticket.sparse
 
 
 def test_repr():
