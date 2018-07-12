@@ -1,3 +1,5 @@
 git
+make
 python2-devel
+rpm-build
 systemd
