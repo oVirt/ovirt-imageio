@@ -84,10 +84,11 @@ class Server:
         self.remote_service = services.RemoteService(self.config, self.auth)
         self.remote_service.start()
 
-        log.debug("Starting local service on socket %r",
-                  self.config.local.socket)
-        self.local_service = services.LocalService(self.config, self.auth)
-        self.local_service.start()
+        if config.local.enable:
+            log.debug("Starting local service on socket %r",
+                      self.config.local.socket)
+            self.local_service = services.LocalService(self.config, self.auth)
+            self.local_service.start()
 
         log.debug("Starting control service on socket %r",
                   self.config.control.socket)
@@ -97,7 +98,8 @@ class Server:
     def stop(self):
         log.debug("Stopping services")
         self.remote_service.stop()
-        self.local_service.stop()
+        if self.local_service is not None:
+            self.local_service.stop()
         self.control_service.stop()
         self.remote_service = None
         self.local_service = None

@@ -218,5 +218,7 @@ class Handler(object):
                 features.extend(("zero", "flush"))
 
         resp.headers["allow"] = ",".join(allow)
-        msg = {"features": features, "unix_socket": self.config.local.socket}
+        msg = {"features": features}
+        if self.config.local.enable:
+            msg["unix_socket"] = self.config.local.socket
         resp.send_json(msg)

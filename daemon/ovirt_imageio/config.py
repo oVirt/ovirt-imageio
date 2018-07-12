@@ -55,6 +55,9 @@ class remote:
 
 class local:
 
+    # Enable local service.
+    enable = True
+
     # Local service unix socket for accessing images locally.
     socket = u"\u0000/org/ovirt/imageio"
 
