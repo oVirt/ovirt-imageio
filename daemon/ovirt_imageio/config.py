@@ -23,6 +23,10 @@ class daemon:
 
 class tls:
 
+    # Enable TLS. Note that without TLS transfer tickets and image data are
+    # transferred in clear text.
+    enable = True
+
     # Directory where vdsm pki files are stored.
     pki_dir = "/etc/pki/vdsm"
 

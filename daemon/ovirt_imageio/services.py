@@ -68,7 +68,8 @@ class RemoteService(Service):
         self._server.clock_class = util.Clock
         if config.remote.port == 0:
             config.remote.port = self.port
-        self._secure_server()
+        if config.tls.enable:
+            self._secure_server()
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),
