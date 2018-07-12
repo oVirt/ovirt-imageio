@@ -1,3 +1,10 @@
+# Hack to require python2-* packages on Fedora, and python-* on RHEL.
+%if 0%{?rhel}
+%global python python
+%else
+%global python python2
+%endif
+
 %global    logdir @LOGDIR@
 
 Name:      @PACKAGE_NAME@
@@ -13,9 +20,14 @@ BuildArch: noarch
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  ovirt-imageio-common = %{version}
-Requires:  python
-Requires:  python-six
-Requires:  systemd-python
+Requires:  %{python}
+Requires:  %{python}-six
+
+%if 0%{?rhel}
+Requires:   systemd-python
+%else
+Requires:   python2-systemd
+%endif
 
 # We run as vdsm so we can access vdsm images and pki files, so vdsm must be
 # installed before installing the imageio daemon.
@@ -24,7 +36,7 @@ Requires:  systemd-python
 Requires(pre): vdsm
 
 # NOTE: keep in sync with automation/build-artifacts.packages
-BuildRequires: python-devel
+BuildRequires: %{python}-devel
 BuildRequires: systemd
 
 %description
@@ -34,10 +46,10 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 %setup -q
 
 %build
-python setup.py build
+%{python} setup.py build
 
 %install
-python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+%{python} setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
 touch %{buildroot}%{logdir}/daemon.log

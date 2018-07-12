@@ -1,6 +1,6 @@
 PACKAGE_NAME=ovirt-imageio-proxy
 PROGRAM_NAME=ovirt-imageio-proxy
-PACKAGE_VERSION=$(shell python ovirt_imageio_proxy/version.py --version)
+PACKAGE_VERSION=$(shell python2 ovirt_imageio_proxy/version.py --version)
 
 # TODO: remove rpm dependencies
 PROXY_CONFDIR=$(ENGINE_PREFIX)/etc/$(PACKAGE_NAME)
@@ -28,14 +28,14 @@ METADATA = ovirt_imageio_proxy/version.py Makefile
 .PHONY: all generated-files build install install-dev clean check dist srpm rpm $(GENERATED)
 
 build: $(GENERATED)
-	python setup.py build
+	python2 setup.py build
 
 check:
 	tox
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
-	python setup.py sdist
+	python2 setup.py sdist
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
@@ -50,13 +50,13 @@ rpm: srpm
 
 install:
 ifdef DESTDIR
-	python setup.py install --skip-build --root $(DESTDIR)
+	python2 setup.py install --skip-build --root $(DESTDIR)
 else
 	# ERROR: DESTDIR is not defined! Please refer to installation notes.
 endif
 
 install-dev: $(GENERATED)
-	python setup.py install --user
+	python2 setup.py install --user
 	# TODO: Remove duplication from spec
 	install -dDm 0750 $(PROXY_CONFDIR)
 	install -dDm 0700 $(PROXY_LOGDIR)
@@ -65,7 +65,7 @@ install-dev: $(GENERATED)
 	find setup/plugins setup/ovirt_engine_setup -name '*.py' -exec install -Dm 0644 {} $(ENGINE_PREFIX)/share/ovirt-engine/{} \;
 
 clean:
-	python setup.py clean --all
+	python2 setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -rf build

@@ -1,3 +1,10 @@
+# Hack to require python2-* packages on Fedora, and python-* on RHEL.
+%if 0%{?rhel}
+%global python python
+%else
+%global python python2
+%endif
+
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
 Release:   0%{?release_suffix}%{?dist}
@@ -10,12 +17,12 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 BuildArch: noarch
 
 # NOTE: keep in sync with automation/check.packages
-Requires:  python
-Requires:  python-six
-Requires:  python-webob
+Requires:  %{python}
+Requires:  %{python}-six
+Requires:  %{python}-webob
 
 # NOTE: keep in sync with automation/build-artifacts.packages
-BuildRequires: python-devel
+BuildRequires: %{python}-devel
 
 %description
 Common library for use in oVirt image transfer daemon and proxy.
@@ -24,10 +31,10 @@ Common library for use in oVirt image transfer daemon and proxy.
 %setup -q
 
 %build
-python setup.py build
+%{python} setup.py build
 
 %install
-python setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+%{python} setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 
 %clean
 rm -rf $RPM_BUILD_ROOT

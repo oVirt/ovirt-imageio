@@ -1,8 +1,8 @@
 m2crypto
+openssl
 python-devel
 python-pip
 python-requests
 python-six
 python-webob
 systemd-python
-openssl

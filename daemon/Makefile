@@ -1,5 +1,5 @@
 PACKAGE_NAME=ovirt-imageio-daemon
-PACKAGE_VERSION=$(shell python ovirt_imageio_daemon/version.py)
+PACKAGE_VERSION=$(shell python2 ovirt_imageio_daemon/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -22,7 +22,7 @@ check:
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
-	python setup.py sdist
+	python2 setup.py sdist
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
@@ -36,7 +36,7 @@ rpm: srpm
 	mv $(RPM_TOPDIR)/RPMS/noarch/* dist/
 
 clean:
-	python setup.py clean --all
+	python2 setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -rf build
