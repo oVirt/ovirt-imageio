@@ -1,0 +1,6 @@
+distributions:
+  - el7
+  - fc28
+  - fcraw
+release-branches:
+  master: ['ovirt-master', 'ovirt-4.2']
