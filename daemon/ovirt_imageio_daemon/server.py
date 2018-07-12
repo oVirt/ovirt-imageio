@@ -107,11 +107,7 @@ class Service(object):
     name = None
 
     def start(self):
-        log.debug("Starting %s", self.name)
-        util.start_thread(
-            self._server.serve_forever,
-            kwargs={"poll_interval": self._config.daemon.poll_interval},
-            name=self.name)
+        util.start_thread(self._run, name=self.name)
 
     def stop(self):
         log.debug("Stopping %s", self.name)
@@ -124,6 +120,12 @@ class Service(object):
     @property
     def address(self):
         return self._server.server_address
+
+    def _run(self):
+        log.debug("Starting %s", self.name)
+        self._server.serve_forever(
+            poll_interval=self._config.daemon.poll_interval)
+        log.debug("%s terminated normally", self.name)
 
 
 class RemoteService(Service):
