@@ -99,10 +99,10 @@ class UnixWSGIRequestHandler(wsgi.WSGIRequestHandler):
 
     def address_string(self):
         """
-        Override to avoid pointless code in WSGIRequestHandler assuming AF_INET
-        socket address (host, port).
+        Override to return meaningfull string instead of the first character of
+        the unix socket path.
         """
-        return "localhost"
+        return "local"
 
 
 def _create_unix_socket(timeout):
