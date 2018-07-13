@@ -245,7 +245,7 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info(
-            "Writing %d bytes at offset %d flush %s to %s for ticket %s",
+            "WRITE size=%d offset=%d flush=%s path=%s ticket=%s",
             size, offset, flush, ticket.url.path, ticket_id)
         op = directio.Receive(
             ticket.url.path,
@@ -277,7 +277,7 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "read", offset, size)
         if size is None:
             size = ticket.size - offset
-        self.log.info("Reading %d bytes at offset %d from %s for ticket %s",
+        self.log.info("READ size=%d offset=%d path=%s ticket=%s",
                       size, offset, ticket.url.path, ticket_id)
         op = directio.Send(
             ticket.url.path,
@@ -327,7 +327,7 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
 
         self.log.info(
-            "Zeroing %d bytes at offset %d flush %s to %s for ticket %s",
+            "ZERO size=%d offset=%d flush=%s path=%s ticket=%s",
             size, offset, flush, ticket.url.path, ticket_id)
         op = directio.Zero(
             ticket.url.path,
@@ -344,7 +344,7 @@ class Images(object):
 
     def _flush(self, ticket_id, msg):
         ticket = tickets.authorize(ticket_id, "write", 0, 0)
-        self.log.info("Flushing %s for ticket %s", ticket.url.path, ticket_id)
+        self.log.info("FLUSH path=%s ticket=%s", ticket.url.path, ticket_id)
         op = directio.Flush(ticket.url.path, clock=self.clock)
         ticket.run(op)
         return web.response()
@@ -401,7 +401,7 @@ class Tickets(object):
             ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
-        self.log.info("Retrieving ticket %s", ticket_id)
+        self.log.info("GET ticket=%s", ticket_id)
         return web.response(payload=ticket.info())
 
     def put(self, ticket_id):

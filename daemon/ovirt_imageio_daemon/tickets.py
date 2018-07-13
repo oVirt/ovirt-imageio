@@ -165,8 +165,8 @@ class Ticket(object):
 
     def extend(self, timeout):
         expires = int(util.monotonic_time()) + timeout
-        log.info("Extending ticket %s, new expiration in %d",
-                 self._uuid, expires)
+        log.info("EXTEND ticket=%s timeout=%d expires=%d",
+                 self._uuid, timeout, expires)
         self._expires = expires
 
     def __repr__(self):
@@ -231,17 +231,17 @@ def add(ticket_dict):
     Raises errors.InvalidTicket if ticket dict is invalid.
     """
     ticket = Ticket(ticket_dict)
-    log.info("Adding ticket %s", ticket)
+    log.info("ADD ticket=%s", ticket)
     _tickets[ticket.uuid] = ticket
 
 
 def remove(ticket_id):
-    log.info("Removing ticket %s", ticket_id)
+    log.info("REMOVE ticket=%s", ticket_id)
     del _tickets[ticket_id]
 
 
 def clear():
-    log.info("Clearing all tickets")
+    log.info("CLEAR all tickets")
     _tickets.clear()
 
 
@@ -257,7 +257,7 @@ def authorize(ticket_id, op, offset, size):
     """
     Authorizing a ticket operation
     """
-    log.debug("Authorizing op=%r, offset=%r, size=%r, for ticket %s",
+    log.debug("AUTH op=%s offset=%s size=%s ticket=%s",
               op, offset, size, ticket_id)
     try:
         ticket = _tickets[ticket_id]
