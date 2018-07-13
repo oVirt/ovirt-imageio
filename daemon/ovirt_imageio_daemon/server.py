@@ -401,8 +401,9 @@ class Tickets(object):
             ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
-        self.log.info("GET ticket=%s", ticket_id)
-        return web.response(payload=ticket.info())
+        ticket_info = ticket.info()
+        self.log.debug("GET ticket=%s", ticket_info)
+        return web.response(payload=ticket_info)
 
     def put(self, ticket_id):
         # TODO
