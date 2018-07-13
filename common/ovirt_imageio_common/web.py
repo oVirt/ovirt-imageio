@@ -35,7 +35,9 @@ class RequestInfo(object):
     """
 
     def __init__(self, request):
-        self.client_addr = request.client_addr
+        # Our WSGI server set REMOTE_HOST only if different from REMOTE_ADDR.
+        self.client_addr = (request.environ.get("REMOTE_HOST") or
+                            request.remote_addr)
         self.method = request.method
         self.path = request.path
 
