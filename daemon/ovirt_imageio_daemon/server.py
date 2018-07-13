@@ -92,11 +92,11 @@ def start(config):
     remote_service = RemoteService(config)
     remote_service.start()
 
-    log.debug("Starting local service on socket %s", config.images.socket)
+    log.debug("Starting local service on socket %r", config.images.socket)
     local_service = LocalService(config)
     local_service.start()
 
-    log.debug("Starting control service on socket %s", config.tickets.socket)
+    log.debug("Starting control service on socket %r", config.tickets.socket)
     control_service = ControlService(config)
     control_service.start()
 
@@ -188,7 +188,7 @@ class LocalService(Service):
             config.images.socket = self.address
         app = web.Application(config, [(r"/images/(.*)", Images)])
         self._server.set_app(app)
-        log.debug("%s listening on %s", self.name, self.address)
+        log.debug("%s listening on %r", self.name, self.address)
 
 
 class ControlService(Service):
@@ -212,7 +212,7 @@ class ControlService(Service):
             (r"/profile/", profile.Handler),
         ])
         self._server.set_app(app)
-        log.debug("%s listening on %s", self.name, self.address)
+        log.debug("%s listening on %r", self.name, self.address)
 
 
 class Images(object):
