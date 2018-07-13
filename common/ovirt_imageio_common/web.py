@@ -76,7 +76,7 @@ class LoggingAppIter(object):
         if hasattr(self.app_iter, "close"):
             self.app_iter.close()
         self.clock.stop("request")
-        log.info("FINISH %s: %s %s", self.req, self.res, self.clock)
+        log.info("FINISH %s %s %s", self.req, self.res, self.clock)
 
 
 class Application(object):
@@ -96,7 +96,7 @@ class Application(object):
         clock.start("request")
         request = webob.Request(env)
         req = RequestInfo(request)
-        log.info("START: %s", req)
+        log.info("START %s", req)
         try:
             resp = self.dispatch(request, clock)
         except Exception as e:
@@ -135,7 +135,7 @@ class Application(object):
         # Show exceptions only for internal errors (bugs in proxy), and warn
         # about anthing else (client error).
         meth = log.exception if resp.status_code >= 500 else log.warning
-        meth("ERROR %s: [%s] %s %s", req, resp.status_code, error, clock)
+        meth("ERROR %s [%s] %s %s", req, resp.status_code, error, clock)
 
 
 def error_response(e):
