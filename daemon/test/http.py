@@ -35,8 +35,8 @@ class Client:
             pki.cert_file(cfg),
             pki.key_file(cfg))
         self.con = http_client.HTTPSConnection(
-            cfg.images.host,
-            cfg.images.port,
+            cfg.remote.host,
+            cfg.remote.port,
             context=context)
 
     def get(self, uri, headers=None):

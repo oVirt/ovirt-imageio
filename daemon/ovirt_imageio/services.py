@@ -62,12 +62,12 @@ class RemoteService(Service):
     def __init__(self, config, auth):
         self._config = config
         self._server = http.Server(
-            (config.images.host, config.images.port),
+            (config.remote.host, config.remote.port),
             http.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
-        if config.images.port == 0:
-            config.images.port = self.port
+        if config.remote.port == 0:
+            config.remote.port = self.port
         self._secure_server()
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
@@ -99,11 +99,11 @@ class LocalService(Service):
 
     def __init__(self, config, auth):
         self._config = config
-        self._server = uhttp.Server(config.images.socket, uhttp.Connection)
+        self._server = uhttp.Server(config.local.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
-        if config.images.socket == "":
-            config.images.socket = self.address
+        if config.local.socket == "":
+            config.local.socket = self.address
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),

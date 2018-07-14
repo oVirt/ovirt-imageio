@@ -28,18 +28,21 @@ class daemon:
     enable_tls1_1 = False
 
 
-class images:
+class remote:
 
-    # Image service interface. Use empty string to listen on any
+    # Remote service interface. Use empty string to listen on any
     # interface.
     host = u""
 
-    # Image service port. Changing this value require change in the
+    # Remote service port. Changing this value require change in the
     # firewall rules on the host, and changing this value in engine
     # configuration.
     port = 54322
 
-    # Unix socket for accessing images locally.
+
+class local:
+
+    # Local service unix socket for accessing images locally.
     socket = u"\u0000/org/ovirt/imageio"
 
 
@@ -62,7 +65,8 @@ class Config:
 
     def __init__(self):
         self.daemon = daemon()
-        self.images = images()
+        self.remote = remote()
+        self.local = local()
         self.control = control()
         self.profile = profile()
 

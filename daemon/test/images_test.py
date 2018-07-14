@@ -692,7 +692,7 @@ def test_options_all(srv):
         assert set(res.getheader("allow").split(',')) == allows
         options = json.loads(res.read())
         assert set(options["features"]) == features
-        assert options["unix_socket"] == srv.config.images.socket
+        assert options["unix_socket"] == srv.config.local.socket
 
 
 def test_options_read_write(srv):

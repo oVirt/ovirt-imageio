@@ -80,12 +80,12 @@ class Server:
         self.running = True
 
         log.debug("Starting remote service on port %d",
-                  self.config.images.port)
+                  self.config.remote.port)
         self.remote_service = services.RemoteService(self.config, self.auth)
         self.remote_service.start()
 
         log.debug("Starting local service on socket %r",
-                  self.config.images.socket)
+                  self.config.local.socket)
         self.local_service = services.LocalService(self.config, self.auth)
         self.local_service.start()
 

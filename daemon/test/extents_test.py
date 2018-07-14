@@ -51,7 +51,7 @@ def http_client(cfg):
 
 
 def local_client(cfg):
-    return http.UnixClient(cfg.images.socket)
+    return http.UnixClient(cfg.local.socket)
 
 
 @pytest.fixture(params=[
