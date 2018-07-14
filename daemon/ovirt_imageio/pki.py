@@ -10,8 +10,8 @@ import os
 
 
 def key_file(config):
-    return os.path.join(config.daemon.pki_dir, "keys", "vdsmkey.pem")
+    return os.path.join(config.tls.pki_dir, "keys", "vdsmkey.pem")
 
 
 def cert_file(config):
-    return os.path.join(config.daemon.pki_dir, "certs", "vdsmcert.pem")
+    return os.path.join(config.tls.pki_dir, "certs", "vdsmcert.pem")

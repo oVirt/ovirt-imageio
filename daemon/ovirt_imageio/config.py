@@ -11,9 +11,6 @@ from . import configloader
 
 class daemon:
 
-    # Directory where vdsm pki files are stored.
-    pki_dir = u"/etc/pki/vdsm"
-
     # Interval in seconds for checking termination conditions.
     poll_interval = 1.0
 
@@ -22,6 +19,12 @@ class daemon:
     # using iSCSI and FC. Larger values may increase throughput
     # slightly, but may also decrease it significantly.
     buffer_size = 8388608
+
+
+class tls:
+
+    # Directory where vdsm pki files are stored.
+    pki_dir = "/etc/pki/vdsm"
 
     # Enable TLSv1.1, for legacy user applications that do not support
     # TLSv1.2.
@@ -65,6 +68,7 @@ class Config:
 
     def __init__(self):
         self.daemon = daemon()
+        self.tls = tls()
         self.remote = remote()
         self.local = local()
         self.control = control()
