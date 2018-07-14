@@ -20,7 +20,6 @@ from pprint import pprint
 
 from six.moves import http_client
 
-from ovirt_imageio import pki
 from ovirt_imageio import ssl
 from ovirt_imageio import uhttp
 
@@ -31,9 +30,9 @@ class Client:
 
     def __init__(self, cfg):
         context = ssl.client_context(
-            pki.cert_file(cfg),
-            pki.cert_file(cfg),
-            pki.key_file(cfg))
+            cfg.tls.cert_file,
+            cfg.tls.cert_file,
+            cfg.tls.key_file)
         self.con = http_client.HTTPSConnection(
             cfg.remote.host,
             cfg.remote.port,

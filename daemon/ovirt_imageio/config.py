@@ -27,8 +27,14 @@ class tls:
     # transferred in clear text.
     enable = True
 
-    # Directory where vdsm pki files are stored.
-    pki_dir = "/etc/pki/vdsm"
+    # Private key file.
+    key_file = "/etc/pki/vdsm/keys/vdsmkey.pem"
+
+    # Certificate file.
+    cert_file = "/etc/pki/vdsm/certs/vdsmcert.pem"
+
+    # CA certificate file.
+    ca_file = "/etc/pki/vdsm/certs/cacert.pem"
 
     # Enable TLSv1.1, for legacy user applications that do not support
     # TLSv1.2.

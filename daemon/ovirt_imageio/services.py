@@ -13,7 +13,6 @@ import logging
 from . import extents
 from . import http
 from . import images
-from . import pki
 from . import profile
 from . import ssl
 from . import tickets
@@ -77,12 +76,14 @@ class RemoteService(Service):
         log.debug("%s listening on port %d", self.name, self.port)
 
     def _secure_server(self):
-        key_file = pki.key_file(self._config)
-        cert_file = pki.cert_file(self._config)
-        log.debug("Securing server (certfile=%s, keyfile=%s)",
-                  cert_file, key_file)
+        log.debug("Securing server (cafile=%s, certfile=%s, keyfile=%s)",
+                  self._config.tls.ca_file,
+                  self._config.tls.cert_file,
+                  self._config.tls.key_file)
         context = ssl.server_context(
-            cert_file, cert_file, key_file,
+            self._config.tls.ca_file,
+            self._config.tls.cert_file,
+            self._config.tls.key_file,
             enable_tls1_1=self._config.tls.enable_tls1_1)
         self._server.socket = context.wrap_socket(
             self._server.socket, server_side=True)
