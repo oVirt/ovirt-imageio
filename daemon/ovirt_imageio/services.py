@@ -123,11 +123,11 @@ class ControlService(Service):
 
     def __init__(self, config, auth):
         self._config = config
-        self._server = uhttp.Server(config.tickets.socket, uhttp.Connection)
+        self._server = uhttp.Server(config.control.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
-        if config.tickets.socket == "":
-            config.tickets.socket = self.address
+        if config.control.socket == "":
+            config.control.socket = self.address
         self._server.app = http.Router([
             (r"/tickets/(.*)", tickets.Handler(config, auth)),
             (r"/profile/", profile.Handler(config, auth)),

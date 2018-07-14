@@ -90,7 +90,7 @@ class Server:
         self.local_service.start()
 
         log.debug("Starting control service on socket %r",
-                  self.config.tickets.socket)
+                  self.config.control.socket)
         self.control_service = services.ControlService(self.config, self.auth)
         self.control_service.start()
 

@@ -43,9 +43,9 @@ class images:
     socket = u"\u0000/org/ovirt/imageio"
 
 
-class tickets:
+class control:
 
-    # tickets service socket path. This socket is used to control the
+    # Control service socket path. This socket is used to control the
     # daemon and must be accessible only to the program controlling the
     # daemon.
     socket = u"/run/ovirt-imageio/sock"
@@ -63,7 +63,7 @@ class Config:
     def __init__(self):
         self.daemon = daemon()
         self.images = images()
-        self.tickets = tickets()
+        self.control = control()
         self.profile = profile()
 
 

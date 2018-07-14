@@ -46,19 +46,19 @@ def srv():
 
 
 def test_method_not_allowed(srv):
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("NO_SUCH_METHO", "/tickets/")
         assert res.status == http_client.METHOD_NOT_ALLOWED
 
 
 def test_no_resource(srv):
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("GET", "/no/such/resource")
         assert res.status == 404
 
 
 def test_no_method(srv):
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("FOO", "/tickets/")
         assert res.status == 405
 
@@ -68,7 +68,7 @@ def test_get(srv, fake_time):
         ops=["read"], sparse=False, dirty=False, transfer_id="123")
     srv.auth.add(ticket)
     fake_time.now += 200
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("GET", "/tickets/%(uuid)s" % ticket)
         assert res.status == 200
         server_ticket = json.loads(res.read())
@@ -81,7 +81,7 @@ def test_get(srv, fake_time):
 
 
 def test_get_not_found(srv):
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("GET", "/tickets/%s" % uuid.uuid4())
         assert res.status == 404
 
@@ -89,7 +89,7 @@ def test_get_not_found(srv):
 def test_put(srv, fake_time):
     ticket = testutil.create_ticket(sparse=False, dirty=False)
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         # Server adds expires key
         ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
@@ -104,7 +104,7 @@ def test_put(srv, fake_time):
 def test_put_bad_url_value(srv, fake_time):
     ticket = testutil.create_ticket(url='http://[1.2.3.4:33')
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -114,7 +114,7 @@ def test_general_exception(srv, monkeypatch):
     def fail(*a, **kw):
         raise Exception("SECRET")
     monkeypatch.setattr(tickets.Handler, "get", fail)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("GET", "/tickets/%s" % uuid.uuid4())
         error = res.read()
         assert res.status == http_client.INTERNAL_SERVER_ERROR
@@ -124,7 +124,7 @@ def test_general_exception(srv, monkeypatch):
 def test_put_no_ticket_id(srv):
     ticket = testutil.create_ticket()
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/", body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -132,7 +132,7 @@ def test_put_no_ticket_id(srv):
 
 def test_put_invalid_json(srv):
     ticket = testutil.create_ticket()
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request(
             "PUT",
             "/tickets/%(uuid)s" % ticket,
@@ -148,7 +148,7 @@ def test_put_mandatory_fields(srv, missing):
     ticket = testutil.create_ticket()
     del ticket[missing.strip("-")]
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -158,7 +158,7 @@ def test_put_invalid_timeout(srv):
     ticket = testutil.create_ticket()
     ticket["timeout"] = "invalid"
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -168,7 +168,7 @@ def test_put_url_type_error(srv):
     ticket = testutil.create_ticket()
     ticket["url"] = 1
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -178,7 +178,7 @@ def test_put_url_scheme_not_supported(srv):
     ticket = testutil.create_ticket()
     ticket["url"] = "notsupported:path"
     body = json.dumps(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
@@ -190,7 +190,7 @@ def test_extend(srv, fake_time):
     patch = {"timeout": 300}
     body = json.dumps(patch)
     fake_time.now += 240
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         ticket["expires"] = int(fake_time.now + ticket["timeout"])
         ticket["active"] = False
@@ -206,7 +206,7 @@ def test_extend_negative_timeout(srv):
     srv.auth.add(ticket)
     patch = {"timeout": -1}
     body = json.dumps(patch)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
 
@@ -216,7 +216,7 @@ def test_get_expired_ticket(srv, fake_time):
     srv.auth.add(ticket)
     # Make the ticket expire.
     fake_time.now += 500
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("GET", "/tickets/%(uuid)s" % ticket)
         assert res.status == 200
 
@@ -229,7 +229,7 @@ def test_extend_expired_ticket(srv, fake_time):
     server_ticket = srv.auth.get(ticket["uuid"]).info()
     # Extend the expired ticket.
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 200
         server_ticket = srv.auth.get(ticket["uuid"]).info()
@@ -241,7 +241,7 @@ def test_extend_no_ticket_id(srv, fake_time):
     srv.auth.add(ticket)
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/", body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
@@ -252,7 +252,7 @@ def test_extend_invalid_json(srv, fake_time):
     ticket = testutil.create_ticket()
     srv.auth.add(ticket)
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, "{invalid}")
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
@@ -264,7 +264,7 @@ def test_extend_no_timeout(srv, fake_time):
     srv.auth.add(ticket)
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"not-a-timeout": 300})
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
@@ -276,7 +276,7 @@ def test_extend_invalid_timeout(srv, fake_time):
     srv.auth.add(ticket)
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": "invalid"})
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
@@ -286,7 +286,7 @@ def test_extend_invalid_timeout(srv, fake_time):
 def test_extend_not_found(srv):
     ticket_id = str(uuid.uuid4())
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("PATCH", "/tickets/%s" % ticket_id, body)
         assert res.status == 404
 
@@ -381,7 +381,7 @@ def test_idle_time_options(srv, fake_time):
 def test_delete_one(srv):
     ticket = testutil.create_ticket()
     srv.auth.add(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("DELETE", "/tickets/%(uuid)s" % ticket)
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
@@ -390,7 +390,7 @@ def test_delete_one(srv):
 
 
 def test_delete_one_not_found(srv):
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("DELETE", "/tickets/no-such-ticket")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
@@ -403,7 +403,7 @@ def test_delete_all(srv):
         ticket = testutil.create_ticket(
             url="file:///tmp/foo%s" % i)
         srv.auth.add(ticket)
-    with http.UnixClient(srv.config.tickets.socket) as c:
+    with http.UnixClient(srv.config.control.socket) as c:
         res = c.request("DELETE", "/tickets/")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
