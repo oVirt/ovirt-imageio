@@ -12,7 +12,6 @@ from __future__ import print_function
 import io
 import json
 import logging
-import ssl
 import time
 
 from six.moves import http_client
@@ -29,12 +28,6 @@ from . marks import requires_python3
 
 pytestmark = requires_python3
 
-# Disable client certificate verification introduced in Python > 2.7.9. We
-# trust our certificates.
-try:
-    ssl._create_default_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass  # Older Python, not required
 
 logging.basicConfig(
     level=logging.DEBUG,

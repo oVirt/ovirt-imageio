@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import json
 import os
-import ssl
 import subprocess
 
 import userstorage
@@ -36,14 +35,6 @@ BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 def user_file(request):
     with storage.Backend(request.param) as backend:
         yield backend
-
-
-# Disable client certificate verification introduced in Python > 2.7.9. We
-# trust our certificates.
-try:
-    ssl._create_default_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass  # Older Python, not required
 
 
 @pytest.fixture(scope="module")

@@ -21,6 +21,7 @@ from pprint import pprint
 from six.moves import http_client
 
 from ovirt_imageio import pki
+from ovirt_imageio import ssl
 from ovirt_imageio import uhttp
 
 log = logging.getLogger("test")
@@ -29,11 +30,14 @@ log = logging.getLogger("test")
 class Client:
 
     def __init__(self, cfg):
+        context = ssl.client_context(
+            pki.cert_file(cfg),
+            pki.cert_file(cfg),
+            pki.key_file(cfg))
         self.con = http_client.HTTPSConnection(
             cfg.images.host,
             cfg.images.port,
-            pki.key_file(cfg),
-            pki.cert_file(cfg))
+            context=context)
 
     def get(self, uri, headers=None):
         return self.request("GET", uri, headers=headers)
