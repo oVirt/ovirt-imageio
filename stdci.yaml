@@ -3,4 +3,5 @@ distributions:
   - fc28
   - fcraw
 release-branches:
-  master: ['ovirt-master', 'ovirt-4.2']
+  master: ['ovirt-master']
+  ovirt-4.2: ['ovirt-4.2']
