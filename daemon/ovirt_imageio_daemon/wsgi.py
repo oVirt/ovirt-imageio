@@ -126,11 +126,65 @@ class WSGIRequestHandler(simple_server.WSGIRequestHandler):
 
 class ServerHandler(simple_server.ServerHandler):
 
+    def run(self, application):
+        """
+        Run WSGI application.
+
+        Override to ensure that close is called exactly once.
+
+        Based on wsgiref/handlers.BaseHandler.run(), modifying error handling.
+        """
+        try:
+            self.setup_environ()
+            self.result = application(self.environ, self.start_response)
+            self.finish_response()
+        except Exception:
+            self.handle_error()
+        finally:
+            self.close()
+
+    def finish_response(self):
+        """
+        Send any iterable data.
+
+        Override to remove double closing; we close now in run().
+
+        Based on wsgiref/handlers.BaseHandler.finish_response(), removing
+        try-finally block closing the handler.
+        """
+        if not self.result_is_file() or not self.sendfile():
+            for data in self.result:
+                self.write(data)
+            self.finish_content()
+
+    def handle_error(self):
+        """
+        Log current error, and send error output to client if possible.
+
+        Override to ensure that self.result is closed before replace it with
+        the standard error output. If we don't replace result, it will closed
+        in close().
+
+        Also use our logger to the get the traceback in our log.
+
+        Based on wsgiref/handlers.BaseHandler.handle_error(), changing logging
+        and closing result before replacing it.
+        """
+        log.exception("Unhandled error processing request")
+        if not self.headers_sent:
+            if hasattr(self.result, "close"):
+                log.debug("Closing result")
+                self.result.close()
+
+            self.result = self.error_output(self.environ, self.start_response)
+            self.finish_response()
+
     def write(self, data):
         """
         Override to allow writing buffer object.
 
-        Copied from wsgiref/handlers.py, removing the check for StringType.
+        Based on wsgiref/handlers.BaseHandler.write(), removing the check for
+        StringType.
         """
         if not self.status:
             raise AssertionError("write() before start_response()")
@@ -154,10 +208,13 @@ class ServerHandler(simple_server.ServerHandler):
         cannot recover from this, the only thing we can do is closing
         the connection.
         """
+        log.debug("Closing handler")
+
         if self.status:
             status = int(self.status[:3])
             if status >= 400 and self.environ["CONTENT_LENGTH"]:
-                log.debug("Closing the connection")
+                log.debug("Request failed, possibly before reading the "
+                          "entire request body, closing connection")
                 self.request_handler.close_connection = 1
 
         simple_server.ServerHandler.close(self)
