@@ -6,13 +6,15 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import bisect
 import logging
 import threading
+
 from webob.exc import HTTPForbidden
 
-from ovirt_imageio_daemon import measure
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
+from ovirt_imageio_daemon import measure
 
 from six.moves import urllib_parse
 
@@ -53,8 +55,13 @@ class Ticket(object):
                 "Unsupported url scheme: %s" % self._url.scheme)
 
         self._filename = ticket_dict.get("filename")
-        self._operations = []
         self._lock = threading.Lock()
+
+        # Set holding ongoing operations.
+        self._ongoing = set()
+
+        # Ranges transferred by completed operations.
+        self._completed = []
 
     @property
     def uuid(self):
@@ -97,7 +104,7 @@ class Ticket(object):
         try:
             operation.run()
         finally:
-            self.touch()
+            self._remove_operation(operation)
 
     def bind(self, operation):
         """
@@ -106,7 +113,6 @@ class Ticket(object):
 
         The caller must close the bound operation when done.
         """
-        self._add_operation(operation)
         return BoundOperation(self, operation)
 
     def touch(self):
@@ -116,13 +122,20 @@ class Ticket(object):
         """
         self._access_time = int(util.monotonic_time())
 
-    def _add_operation(self, operation):
+    def _add_operation(self, op):
         with self._lock:
-            self._operations.append(operation)
+            self._ongoing.add(op)
+
+    def _remove_operation(self, op):
+        with self._lock:
+            self._ongoing.remove(op)
+            r = measure.Range(op.offset, op.offset + op.done)
+            bisect.insort(self._completed, r)
+            self._completed = measure.merge_ranges(self._completed)
+        self.touch()
 
     def active(self):
-        with self._lock:
-            return any(op.active for op in self._operations)
+        return bool(self._ongoing)
 
     def transferred(self):
         """
@@ -133,10 +146,15 @@ class Ticket(object):
             return None
 
         with self._lock:
-            ranges = [measure.Range(op.offset, op.offset + op.done)
-                      for op in self._operations]
-        merged_ranges = measure.merge_ranges(ranges)
-        return sum(len(range) for range in merged_ranges)
+            # NOTE: this must not modify the ticket state.
+            completed = [measure.Range(r.start, r.end)
+                         for r in self._completed]
+            ongoing = [measure.Range(op.offset, op.offset + op.done)
+                       for op in self._ongoing]
+
+        ranges = sorted(completed + ongoing)
+        ranges = measure.merge_ranges(ranges)
+        return sum(len(r) for r in ranges)
 
     def may(self, op):
         if op == "read":
@@ -200,6 +218,7 @@ class BoundOperation(object):
     def __init__(self, ticket, operation):
         self._ticket = ticket
         self._operation = operation
+        ticket._add_operation(operation)
 
     # WebOB.Response.app_iter interface.
 
@@ -212,9 +231,9 @@ class BoundOperation(object):
 
     def close(self):
         """
-        Close the underlying operation and update the ticket access time.
+        Unbind the opeation from the ticket, and close it.
         """
-        self._ticket.touch()
+        self._ticket._remove_operation(self._operation)
         self._operation.close()
 
 
