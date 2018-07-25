@@ -1,0 +1,282 @@
+# ovirt-imageio
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+
+"""
+client - helpers for uploading and downloading disks
+"""
+
+from __future__ import absolute_import
+
+import errno
+import io
+import json
+import os
+import socket
+import ssl
+import subprocess
+
+from contextlib import closing
+
+import six
+from six.moves import http_client
+from six.moves.urllib.parse import urlparse
+
+
+def upload(filename, url, cafile, buffer_size=128 * 1024,
+           use_unix_socket=False, secure=True):
+    """
+    Upload filename to url
+
+    Args:
+        filename (str): File name for upload
+        url (str): Transfer url in this format:
+            https://host:port/images/ticket-uuid
+        cafile (str): Certificate file name, for example "ca.pem"
+        buffer_size (int): Buffer size in bytes for reading from storage and
+            sending data over HTTP connection. The efault value of 128 kB seems
+            to give good performance in our tests, you may like to tweak it.
+        use_unix_socket (bool): If True, use unix socket for the transfer.
+            Can be used only if you run upload on the same host mentioned in
+            transfer url. Default is False.
+        secure (bool): True for verifying server certificate and hostname.
+            Default is True.
+    """
+    url = urlparse(url)
+
+    context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=cafile)
+
+    if not secure:
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
+    transfer = {
+        "buffer_size": buffer_size,
+        "path": url.path,
+        "con": HTTPSConnection(url.netloc, context=context)
+    }
+
+    # Check the server capabilities for this image.
+    with closing(transfer["con"]):
+        server_options = _options(transfer)
+        transfer["can_zero"] = "zero" in server_options["features"]
+        transfer["can_flush"] = "flush" in server_options["features"]
+
+    # Open connection for transferring data. If the server supports unix
+    # socket and use_unix_socket is True, we can transfer data faster using
+    # less resources.
+    if use_unix_socket and "unix_socket" in server_options:
+        transfer["con"] = UnixHTTPConnection(server_options["unix_socket"])
+    else:
+        transfer["con"] = HTTPSConnection(url.netloc, context=context)
+
+    # Upload the data. If the server supports "zero", we can upload sparse
+    # files more efficiently.
+    with closing(transfer["con"]), io.open(filename, "rb") as src:
+        transfer["file"] = src
+        if transfer["can_zero"]:
+            _upload_sparse(transfer)
+        else:
+            _upload(transfer)
+
+
+class HTTPSConnection(http_client.HTTPSConnection):
+    """
+    HTTPS connection using TCP_NO_DELAY on python 2.
+    """
+
+    if six.PY2:
+        def connect(self):
+            """
+            Using TCP_NO_DELAY avoids delays when sending small payload, such
+            as an ovirt PATCH requests.
+
+            This issue was fixed in python 3.5, see:
+            https://bugs.python.org/issue23302
+            """
+            http_client.HTTPSConnection.connect(self)
+            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+
+class UnixHTTPConnection(http_client.HTTPConnection):
+    """
+    HTTP connection over unix domain socket.
+    """
+
+    def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+        self.path = path
+        extra = {}
+        if six.PY2:
+            extra['strict'] = True
+        http_client.HTTPConnection.__init__(
+            self, "localhost", timeout=timeout, **extra)
+
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+            self.sock.settimeout(self.timeout)
+        self.sock.connect(self.path)
+
+
+def _upload_sparse(transfer):
+    """
+    Upload a possibly sparse file by sending the data portions using PUT
+    request, and reconstructing the holes on the server side using
+    PATCH/zero, without reading the zeros from the disk, or sending them
+    over the wire.
+
+    This works with ovirt-imageio 1.3 or later.
+    """
+    out = subprocess.check_output([
+        "qemu-img",
+        "map",
+        "--format", "raw",
+        "--output", "json",
+        transfer["file"].name
+    ])
+    chunks = json.loads(out.decode("utf-8"))
+
+    # If the server supports "flush", these requests are not waiting
+    # until the data is flushed the underlying storage.
+    for chunk in chunks:
+        if chunk["data"]:
+            _put(transfer, chunk["start"], chunk["length"])
+        else:
+            _zero(transfer, chunk["start"], chunk["length"])
+
+    #  If flush option is supported flush once after sending all the data.
+    if transfer["can_flush"]:
+        _flush(transfer)
+
+
+def _upload(transfer):
+    """
+    Upload a file using dumb PUT request. Holes in the file are read
+    from disk and sent over the wire, and converted to allocated sectors
+    full with zeros on the server.
+
+    This works with older versions of ovirt-imageio proxy and daemon.
+    """
+    _put(transfer, 0, os.path.getsize(transfer["file"].name))
+    # If flush option is supported flush once after sending all the data.
+    if transfer["can_flush"]:
+        _flush(transfer)
+
+
+def _put(transfer, start, length):
+    """
+    Send a byte range from path to the server using a PUT request.
+
+    If the server supports the "flush" feature, disable flushing for
+    this request.
+    """
+    path = transfer["path"]
+    if transfer["can_flush"]:
+        path += "?flush=n"
+
+    transfer["con"].putrequest("PUT", path)
+    transfer["con"].putheader("content-type", "application/octet-stream")
+    transfer["con"].putheader("content-length", "%d" % length)
+    transfer["con"].putheader(
+        "content-range", "bytes %d-%d/*" % (start, start + length - 1))
+    transfer["con"].endheaders()
+
+    transfer["file"].seek(start)
+
+    pos = 0
+    while pos < length:
+        n = min(length - pos, transfer["buffer_size"])
+        chunk = transfer["file"].read(n)
+        if not chunk:
+            raise RuntimeError(
+                "Unexpected end of file, sent %d of %d bytes"
+                % (pos, length))
+        try:
+            transfer["con"].send(chunk)
+        except socket.error as e:
+            if e[0] != errno.EPIPE:
+                raise
+            # Server closed the socket.
+            break
+        pos += len(chunk)
+
+    res = transfer["con"].getresponse()
+    error = res.read()
+    if res.status != http_client.OK:
+        raise RuntimeError("put chunk failed: %s" % error)
+
+
+def _zero(transfer, start, length):
+    """
+    Zero a byte range on the server using a PATCH request.
+
+    If the server supports "flush" feature, disable flushing for this
+    request.
+    """
+    msg = {"op": "zero",
+           "offset": start,
+           "size": length,
+           "flush": not transfer["can_flush"]}
+    _patch(transfer, msg)
+
+
+def _flush(transfer):
+    """
+    Flush data to underlying storage using a PATCH request.
+    """
+    msg = {"op": "flush"}
+    _patch(transfer, msg)
+
+
+def _patch(transfer, msg):
+    """
+    Send a PATCH request with specified message.
+    """
+    body = json.dumps(msg).encode("utf-8")
+    headers = {"content-type": "application/json",
+               "content-length": "%d" % len(body)}
+    transfer["con"].request(
+        "PATCH", transfer["path"], body=body, headers=headers)
+    res = transfer["con"].getresponse()
+    error = res.read()
+
+    if res.status != http_client.OK:
+        raise RuntimeError("patch %s failed: %s" % (msg, error))
+
+
+def _options(transfer):
+    """
+    Send an OPTIONS request and return the features supported by the
+    server for the specified path.
+    """
+    transfer["con"].request("OPTIONS", transfer["path"])
+    res = transfer["con"].getresponse()
+    body = res.read()
+
+    default = {"features": []}
+
+    if res.status == http_client.METHOD_NOT_ALLOWED:
+        # Older daemon did not implement OPTIONS
+        return default
+    elif res.status == http_client.NO_CONTENT:
+        # Older proxy did implement OPTIONS but does not return any content.
+        return default
+    elif res.status != http_client.OK:
+        raise RuntimeError(
+            "options %s failed: %s" % (transfer["path"], body))
+
+    # New daemon or proxy provide a features list.
+    try:
+        msg = json.loads(body.decode("utf-8"))
+    except ValueError:
+        # Bad response, we must assume we don't support any features or unix
+        # socket.
+        return default
+
+    return msg

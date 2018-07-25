@@ -20,6 +20,12 @@ Requires:  %{python}
 Requires:  %{python}-six
 Requires:  %{python}-webob
 
+%if 0%{?rhel}
+Requires: qemu-img-rhev
+%else # fedora
+Requires: qemu-img
+%endif
+
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires: %{python}-devel
 
