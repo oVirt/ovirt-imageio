@@ -1,0 +1,130 @@
+# ovirt-imageio
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+from __future__ import absolute_import
+
+import logging
+import os
+import subprocess
+import time
+
+from contextlib import contextmanager
+
+import pytest
+
+from ovirt_imageio_common import nbd
+
+log = logging.getLogger("test")
+
+
+@contextmanager
+def nbd_server(image_path, image_format, sock, export_name="",
+               read_only=False):
+    cmd = ["qemu-nbd",
+           "--socket", sock,
+           "--persistent",
+           "--cache", "none",
+           "--format", image_format,
+           "--export-name", export_name.encode("utf-8")]
+
+    if read_only:
+        cmd.append("--read-only")
+
+    cmd.append(image_path)
+
+    log.debug("Strating qemu-nbd")
+    deadline = time.time() + 1
+    p = subprocess.Popen(cmd)
+    try:
+        while True:
+            time.sleep(0.02)
+            if os.path.exists(sock):
+                break
+            if time.time() > deadline:
+                raise RuntimeError("Timeout waiting for qemu-nbd socket")
+        log.debug("qemu-nbd socket ready")
+        yield
+    finally:
+        log.debug("Terminating qemu-nbd")
+        p.terminate()
+        p.wait()
+        log.debug("qemu-nbd terminated with exit code %r", p.returncode)
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("export", [
+    "",
+    "ascii",
+    pytest.param(u"\u05d0", id="unicode"),
+])
+def test_handshake(tmpdir, export, fmt):
+    image = str(tmpdir.join("image"))
+    subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
+    sock = str(tmpdir.join("sock"))
+
+    with nbd_server(image, fmt, sock, export_name=export):
+        if export:
+            c = nbd.Client(sock, export)
+        else:
+            c = nbd.Client(sock)
+        with c:
+            # TODO: test transmission_flags?
+            assert c.export_size == 1024**3
+            assert c.minimum_block_size == 1
+            assert c.preferred_block_size == 4096
+            assert c.maximum_block_size == 32 * 1024**2
+
+
+def test_raw_read(tmpdir):
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+    offset = 1024**2
+    data = b"can read from raw"
+
+    with open(image, "wb") as f:
+        f.truncate(1024**3)
+        f.seek(offset)
+        f.write(data)
+
+    with nbd_server(image, "raw", sock):
+        with nbd.Client(sock) as c:
+            assert c.read(offset, len(data)) == data
+
+
+def test_raw_write(tmpdir):
+    image = str(tmpdir.join("image"))
+    with open(image, "wb") as f:
+        f.truncate(1024**3)
+    sock = str(tmpdir.join("sock"))
+    offset = 1024**2
+    data = b"can write to raw"
+
+    with nbd_server(image, "raw", sock):
+        with nbd.Client(sock) as c:
+            c.write(offset, data)
+            c.flush()
+
+    with open(image, "rb") as f:
+        f.seek(offset)
+        assert f.read(len(data)) == data
+
+
+def test_qcow2_write_read(tmpdir):
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+    offset = 1024**2
+    data = b"can read and write qcow2"
+    subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
+
+    with nbd_server(image, "qcow2", sock):
+        with nbd.Client(sock) as c:
+            c.write(offset, data)
+            c.flush()
+
+        with nbd.Client(sock) as c:
+            assert c.read(offset, len(data)) == data
