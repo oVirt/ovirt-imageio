@@ -1,0 +1,97 @@
+#!/usr/bin/python
+# ovirt-imageio
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+"""
+nbd client example
+
+Show how to use nbd module to upload images to nbd server.
+
+Usage
+-----
+
+Start qemu-nbd with a destination image in any format supported by
+qemu-img.  To access raw images, you can also use nbdkit or nbd-server.
+
+    $ qemu-nbd \
+        --socket /tmp/nbd.sock \
+        --format qcow2 \
+        --export-name=export \
+        --persistent \
+        --cache=none \
+        --aio=native \
+        --discard=unmap \
+        --detect-zeroes=unmap \
+        dest.qcow2
+
+Upload source image to destination image via qemu-nbd:
+
+    $ ./nbd-client -e export upload src.raw /tmp/nbb.sock
+
+"""
+
+import argparse
+import io
+import os
+import sys
+
+from ovirt_imageio_common import nbd
+from ovirt_imageio_common import ui
+
+
+def upload(args):
+    size = os.path.getsize(args.filename)
+    with io.open(args.filename, "rb") as f, \
+            nbd.Client(args.socket, args.export) as c, \
+            ui.ProgressBar(size) as pb:
+        if c.export_size < size:
+            raise Exception("Destination size {} is smaller than source file "
+                            "size {}".format(c.export_size, todo))
+        offset = 0
+        while offset < size:
+            chunk = f.read(min(size - offset, args.block_size))
+            if not chunk:
+                raise Exception("Unexpected end of file, expecting {} bytes"
+                                .format(todo))
+
+            c.write(offset, chunk)
+            offset += len(chunk)
+            pb.update(len(chunk))
+
+        c.flush()
+
+
+def kib(s):
+    return int(s) * 1024
+
+
+parser = argparse.ArgumentParser(description="nbd example")
+parser.add_argument(
+    "-e", "--export",
+    default="", help="export name")
+parser.add_argument(
+    "-b", "--block-size",
+    default=1024**2,
+    type=kib,
+    help="block size in KiB")
+
+commands = parser.add_subparsers(title="commands")
+
+upload_parser = commands.add_parser(
+    "upload",
+    help="upload image data to nbd server")
+upload_parser.set_defaults(command=upload)
+upload_parser.add_argument(
+    "filename",
+    help="filename to copy")
+upload_parser.add_argument(
+    "socket",
+    help="nbd socket")
+
+args = parser.parse_args()
+args.command(args)
