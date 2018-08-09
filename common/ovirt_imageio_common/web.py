@@ -76,7 +76,7 @@ class LoggingAppIter(object):
         if hasattr(self.app_iter, "close"):
             self.app_iter.close()
         self.clock.stop("request")
-        log.info("FINISH %s %s %s", self.req, self.res, self.clock)
+        log.debug("FINISH %s %s %s", self.req, self.res, self.clock)
 
 
 class Application(object):
@@ -96,7 +96,7 @@ class Application(object):
         clock.start("request")
         request = webob.Request(env)
         req = RequestInfo(request)
-        log.info("START %s", req)
+        log.debug("START %s", req)
         try:
             resp = self.dispatch(request, clock)
         except Exception as e:
