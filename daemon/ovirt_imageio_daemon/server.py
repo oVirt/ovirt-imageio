@@ -353,6 +353,7 @@ class Images(object):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
 
+        self.log.info("OPTIONS ticket=%s", ticket_id)
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
