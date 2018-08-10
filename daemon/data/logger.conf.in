@@ -14,7 +14,7 @@ propagate=0
 
 [handler_logfile]
 class=logging.handlers.RotatingFileHandler
-args=('@LOGDIR@/daemon.log', 'a', 10485760, 10)
+args=('@LOGDIR@/daemon.log', 'a', 20971520, 10)
 level=DEBUG
 formatter=long
 
