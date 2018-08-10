@@ -245,8 +245,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info(
-            "WRITE size=%d offset=%d flush=%s path=%s ticket=%s",
-            size, offset, flush, ticket.url.path, ticket_id)
+            "WRITE size=%d offset=%d flush=%s ticket=%s",
+            size, offset, flush, ticket_id)
         op = directio.Receive(
             ticket.url.path,
             self.request.body_file_raw,
@@ -277,8 +277,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "read", offset, size)
         if size is None:
             size = ticket.size - offset
-        self.log.info("READ size=%d offset=%d path=%s ticket=%s",
-                      size, offset, ticket.url.path, ticket_id)
+        self.log.info("READ size=%d offset=%d ticket=%s",
+                      size, offset, ticket_id)
         op = directio.Send(
             ticket.url.path,
             None,
@@ -327,8 +327,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
 
         self.log.info(
-            "ZERO size=%d offset=%d flush=%s path=%s ticket=%s",
-            size, offset, flush, ticket.url.path, ticket_id)
+            "ZERO size=%d offset=%d flush=%s ticket=%s",
+            size, offset, flush, ticket_id)
         op = directio.Zero(
             ticket.url.path,
             size,
@@ -344,7 +344,7 @@ class Images(object):
 
     def _flush(self, ticket_id, msg):
         ticket = tickets.authorize(ticket_id, "write", 0, 0)
-        self.log.info("FLUSH path=%s ticket=%s", ticket.url.path, ticket_id)
+        self.log.info("FLUSH ticket=%s", ticket_id)
         op = directio.Flush(ticket.url.path, clock=self.clock)
         ticket.run(op)
         return web.response()
