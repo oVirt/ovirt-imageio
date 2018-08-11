@@ -245,8 +245,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
         # TODO: cancel copy if ticket expired or revoked
         self.log.info(
-            "WRITE size=%d offset=%d flush=%s ticket=%s",
-            size, offset, flush, ticket_id)
+            "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
+            web.client_address(self.request), size, offset, flush, ticket_id)
         op = directio.Receive(
             ticket.url.path,
             self.request.body_file_raw,
@@ -277,8 +277,9 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "read", offset, size)
         if size is None:
             size = ticket.size - offset
-        self.log.info("READ size=%d offset=%d ticket=%s",
-                      size, offset, ticket_id)
+        self.log.info(
+            "[%s] READ size=%d offset=%d ticket=%s",
+            web.client_address(self.request), size, offset, ticket_id)
         op = directio.Send(
             ticket.url.path,
             None,
@@ -327,8 +328,8 @@ class Images(object):
         ticket = tickets.authorize(ticket_id, "write", offset, size)
 
         self.log.info(
-            "ZERO size=%d offset=%d flush=%s ticket=%s",
-            size, offset, flush, ticket_id)
+            "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
+            web.client_address(self.request), size, offset, flush, ticket_id)
         op = directio.Zero(
             ticket.url.path,
             size,
@@ -344,7 +345,8 @@ class Images(object):
 
     def _flush(self, ticket_id, msg):
         ticket = tickets.authorize(ticket_id, "write", 0, 0)
-        self.log.info("FLUSH ticket=%s", ticket_id)
+        self.log.info("[%s] FLUSH ticket=%s",
+                      web.client_address(self.request), ticket_id)
         op = directio.Flush(ticket.url.path, clock=self.clock)
         ticket.run(op)
         return web.response()
@@ -353,7 +355,8 @@ class Images(object):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
 
-        self.log.info("OPTIONS ticket=%s", ticket_id)
+        self.log.info("[%s] OPTIONS ticket=%s",
+                      web.client_address(self.request), ticket_id)
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
@@ -403,7 +406,8 @@ class Tickets(object):
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         ticket_info = ticket.info()
-        self.log.debug("GET ticket=%s", ticket_info)
+        self.log.debug("[%s] GET ticket=%s",
+                       web.client_address(self.request), ticket_info)
         return web.response(payload=ticket_info)
 
     def put(self, ticket_id):

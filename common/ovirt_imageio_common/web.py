@@ -35,9 +35,7 @@ class RequestInfo(object):
     """
 
     def __init__(self, request):
-        # Our WSGI server set REMOTE_HOST only if different from REMOTE_ADDR.
-        self.client_addr = (request.environ.get("REMOTE_HOST") or
-                            request.remote_addr)
+        self.client_addr = client_address(request)
         self.method = request.method
         self.path = request.path
 
@@ -179,6 +177,11 @@ def content_range(request):
     if content_range is None:
         raise HTTPBadRequest("Invalid content-range: %r" % header)
     return content_range
+
+
+def client_address(request):
+    # Our WSGI server set REMOTE_HOST only if different from REMOTE_ADDR.
+    return request.environ.get("REMOTE_HOST") or request.remote_addr
 
 
 class CappedStream(object):
