@@ -422,6 +422,8 @@ class Tickets(object):
         except ValueError as e:
             raise HTTPBadRequest("Ticket is not in a json format: %s" % e)
 
+        self.log.info("[%s] ADD ticket=%s",
+                      web.client_address(self.request), ticket_dict)
         try:
             tickets.add(ticket_dict)
         except errors.InvalidTicket as e:
@@ -449,6 +451,9 @@ class Tickets(object):
             ticket = tickets.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
+
+        self.log.info("[%s] EXTEND timeout=%s ticket=%s",
+                      web.client_address(self.request), timeout, ticket_id)
         ticket.extend(timeout)
         return web.response()
 
@@ -461,6 +466,8 @@ class Tickets(object):
         https://tools.ietf.org/html/rfc7231#section-4.2.2.
         """
         # TODO: cancel requests using deleted tickets
+        self.log.info("[%s] REMOVE ticket=%s",
+                      web.client_address(self.request), ticket_id)
         if ticket_id:
             try:
                 tickets.remove(ticket_id)

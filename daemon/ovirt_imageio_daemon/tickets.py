@@ -183,8 +183,6 @@ class Ticket(object):
 
     def extend(self, timeout):
         expires = int(util.monotonic_time()) + timeout
-        log.info("EXTEND ticket=%s timeout=%d expires=%d",
-                 self._uuid, timeout, expires)
         self._expires = expires
 
     def __repr__(self):
@@ -250,17 +248,14 @@ def add(ticket_dict):
     Raises errors.InvalidTicket if ticket dict is invalid.
     """
     ticket = Ticket(ticket_dict)
-    log.info("ADD ticket=%s", ticket)
     _tickets[ticket.uuid] = ticket
 
 
 def remove(ticket_id):
-    log.info("REMOVE ticket=%s", ticket_id)
     del _tickets[ticket_id]
 
 
 def clear():
-    log.info("CLEAR all tickets")
     _tickets.clear()
 
 
