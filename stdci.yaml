@@ -1,7 +1,14 @@
-distributions:
-  - el7
-  - fc28
-  - fcraw
+arch:
+- x86_64:
+    distributions:
+    - el7
+    - fc28
+    - fcraw
+- ppc64le:
+    distributions:
+    - el7
 release-branches:
-  master: ['ovirt-master']
-  ovirt-4.2: ['ovirt-4.2']
+  master:
+  - ovirt-master
+  ovirt-4.2:
+  - ovirt-4.2
