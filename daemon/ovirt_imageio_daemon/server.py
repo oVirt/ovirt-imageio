@@ -20,7 +20,6 @@ import webob
 
 from webob.exc import (
     HTTPBadRequest,
-    HTTPForbidden,
     HTTPNotFound,
 )
 
@@ -364,10 +363,8 @@ class Images(object):
             features = ["zero", "flush"]
         else:
             # Reporting real image capabilities per ticket.
-            try:
-                ticket = tickets.get(ticket_id)
-            except KeyError:
-                raise HTTPForbidden("No such ticket %r" % ticket_id)
+            # This check will fail if the ticket has expired.
+            ticket = tickets.authorize(ticket_id, "read", 0, 0)
 
             # Accessing ticket options considered as client activity.
             ticket.touch()
