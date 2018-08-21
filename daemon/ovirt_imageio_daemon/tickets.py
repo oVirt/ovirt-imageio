@@ -35,9 +35,9 @@ class Ticket(object):
         self._size = _required(ticket_dict, "size", six.integer_types)
         self._ops = _required(ticket_dict, "ops", list)
 
-        timeout = _required(ticket_dict, "timeout", six.integer_types)
+        self._timeout = _required(ticket_dict, "timeout", six.integer_types)
         now = int(util.monotonic_time())
-        self._expires = now + timeout
+        self._expires = now + self._timeout
         self._access_time = now
 
         url_str = _required(ticket_dict, "url", six.string_types)
@@ -119,10 +119,13 @@ class Ticket(object):
 
     def touch(self):
         """
-        Update the ticket access time. Must be called when an operation is
-        completed.
+        Extend the ticket and update the last access time.
+
+        Must be called when an operation is completed.
         """
-        self._access_time = int(util.monotonic_time())
+        now = int(util.monotonic_time())
+        self._expires = now + self._timeout
+        self._access_time = now
 
     def _add_operation(self, op):
         with self._lock:
@@ -173,7 +176,7 @@ class Ticket(object):
             "ops": list(self._ops),
             "size": self._size,
             "sparse": self._sparse,
-            "timeout": self.expires - int(util.monotonic_time()),
+            "timeout": self._timeout,
             "url": urllib_parse.urlunparse(self._url),
             "uuid": self._uuid,
         }

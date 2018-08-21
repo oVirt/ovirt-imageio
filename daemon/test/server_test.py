@@ -97,7 +97,6 @@ def test_tickets_get(fake_time):
     del server_ticket["expires"]
     ticket["active"] = False
     ticket["transferred"] = 0
-    ticket["timeout"] = 100
     ticket["idle_time"] = 200
     assert server_ticket == ticket
 
@@ -230,8 +229,6 @@ def test_tickets_get_expired_ticket(fake_time):
     res = http.unix_request(
         config.tickets.socket, "GET", "/tickets/%(uuid)s" % ticket)
     assert res.status == 200
-    server_ticket = json.loads(res.read())
-    assert server_ticket["timeout"] == -200
 
 
 def test_tickets_extend_expired_ticket(fake_time):
@@ -240,18 +237,13 @@ def test_tickets_extend_expired_ticket(fake_time):
     # Make the ticket expire.
     fake_time.now += 500
     server_ticket = tickets.get(ticket["uuid"]).info()
-    assert server_ticket["timeout"] == -200
     # Extend the expired ticket.
     body = json.dumps({"timeout": 300})
     res = http.unix_request(
         config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
     assert res.status == 200
     server_ticket = tickets.get(ticket["uuid"]).info()
-    assert server_ticket["timeout"] == 300
-    fake_time.now += 100
-    server_ticket = tickets.get(ticket["uuid"]).info()
-    # Timeout is still ticking.
-    assert server_ticket["timeout"] == 200
+    assert server_ticket["expires"] == 800
 
 
 def test_tickets_extend_no_ticket_id(fake_time):
@@ -483,6 +475,22 @@ def test_images_upload_no_content(tmpdir):
     assert res.status == 200
 
 
+def test_images_upload_extends_ticket(tmpdir, fake_time):
+    image = testutils.create_tempfile(tmpdir, "image", "before")
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    fake_time.now += 200
+    res = http.put("/images/" + ticket["uuid"], "")
+    assert res.status == 200
+
+    res.read()
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 500
+
+
 # TODO: test that flush actually flushes data. Current tests just verify that
 # the server does not reject the query string.
 @pytest.mark.parametrize("flush", [None, "y", "n"])
@@ -626,6 +634,23 @@ def test_images_download_no_range(tmpdir):
     assert res.status == 200
     received = res.read()
     assert received == "\0" * size
+
+
+def test_images_download_extends_ticket(tmpdir, fake_time):
+    size = 1024
+    image = testutils.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=size)
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    fake_time.now += 200
+    res = http.get("/images/" + ticket["uuid"])
+    assert res.status == 200
+
+    res.read()
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 500
 
 
 def test_images_download_empty(tmpdir):
@@ -801,6 +826,24 @@ def test_images_zero(tmpdir, msg):
         assert f.read() == data[offset + size:]
 
 
+def test_images_zero_extends_ticket(tmpdir, fake_time):
+    data = "x" * 512
+    image = testutils.create_tempfile(tmpdir, "image", data)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    fake_time.now += 200
+    body = json.dumps({"op": "zero", "size": 512}).encode("ascii")
+    res = http.patch("/images/" + ticket["uuid"], body)
+    assert res.status == 200
+
+    res.read()
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 500
+
+
 @pytest.mark.parametrize("msg", [
     {"op": "zero"},
     {"op": "zero", "size": "not an integer"},
@@ -851,6 +894,24 @@ def test_images_flush(tmpdir, msg):
 
     assert res.status == 200
     assert res.getheader("content-length") == "0"
+
+
+def test_images_flush_extends_ticket(tmpdir, fake_time):
+    data = "x" * 512
+    image = testutils.create_tempfile(tmpdir, "image", data)
+    ticket = testutils.create_ticket(url="file://" + str(image))
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    fake_time.now += 200
+    body = json.dumps({"op": "flush"}).encode("ascii")
+    res = http.patch("/images/" + ticket["uuid"], body)
+    assert res.status == 200
+
+    res.read()
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 500
 
 
 def test_images_flush_no_ticket_id():
@@ -919,6 +980,21 @@ def test_images_options_write():
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
+
+
+def test_images_options_extends_ticket(fake_time):
+    ticket = testutils.create_ticket()
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    fake_time.now += 200
+    res = http.options("/images/" + ticket["uuid"])
+    assert res.status == 200
+
+    res.read()
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 500
 
 
 def test_images_options_for_no_ticket():
