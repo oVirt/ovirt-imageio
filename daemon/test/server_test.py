@@ -931,6 +931,22 @@ def test_images_options_for_nonexistent_ticket():
     assert res.status == 403
 
 
+@pytest.mark.xfail(reason="options should fail if ticket expired")
+def test_images_options_ticket_expired(fake_time):
+    ticket = testutils.create_ticket(timeout=300)
+    tickets.add(ticket)
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+    # Make the ticket expire
+    fake_time.now += 300
+    res = http.options("/images/" + ticket["uuid"])
+    assert res.status == 403
+
+    server_ticket = tickets.get(ticket["uuid"]).info()
+    assert server_ticket["expires"] == 300
+
+
 # HTTP correctness
 
 def test_images_response_version_success(tmpdir):
