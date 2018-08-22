@@ -328,7 +328,7 @@ class Plugin(plugin.PluginBase):
                     'name': 'ImageProxyAddress',
                     'value': '%s:%s' % (
                         self.environment[osetupcons.ConfigEnv.FQDN],
-                        oipcons.ConfigEnv.DEFAULT_IMAGEIO_PROXY_PORT,
+                        self.environment[oipcons.ConfigEnv.IMAGEIO_PROXY_PORT],
                     ),
                 },
             ),
