@@ -21,7 +21,7 @@ args=('/dev/log', handlers.SysLogHandler.LOG_USER)
 [handler_logfile]
 class=logging.handlers.TimedRotatingFileHandler
 args=('@PROXY_LOGDIR@/image-proxy.log', 'd', 1, 7)
-level=INFO
+level=DEBUG
 formatter=long
 
 [formatter_long]
