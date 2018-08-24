@@ -201,3 +201,21 @@ def test_clock_stop_missing():
     c = util.Clock()
     with pytest.raises(RuntimeError):
         c.stop("missing")
+
+
+def test_clock_run(fake_time):
+    c = util.Clock()
+    with c.run("total"):
+        with c.run("a"):
+            fake_time.value += 4
+        with c.run("b"):
+            fake_time.value += 3
+    assert str(c) == "[total=7.000000, a=4.000000, b=3.000000]"
+
+
+def test_clock_run_recursive():
+    c = util.Clock()
+    with c.run("started"):
+        with pytest.raises(RuntimeError):
+            with c.run("started"):
+                pass

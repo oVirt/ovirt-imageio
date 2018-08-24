@@ -14,6 +14,8 @@ import os
 import threading
 import time
 
+from contextlib import contextmanager
+
 
 def uninterruptible(func, *args):
     while True:
@@ -94,6 +96,14 @@ class Clock(object):
         elapsed = time.time() - started
         self._timers[name] = (total + elapsed, None)
         return elapsed
+
+    @contextmanager
+    def run(self, name):
+        self.start(name)
+        try:
+            yield
+        finally:
+            self.stop(name)
 
     def __repr__(self):
         now = time.time()
