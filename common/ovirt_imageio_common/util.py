@@ -116,3 +116,29 @@ class Clock(object):
                 running = ""
             timers.append("%s=%.6f%s" % (name, total, running))
         return "[%s]" % ", ".join(timers)
+
+
+class NullClock(object):
+    """
+    Clock that does nothing.
+
+    This avoids checking for None clock, so users can do:
+
+        with clock.run("name"):
+            stuff to measure...
+
+    Even if timing is disabled.
+    """
+
+    def start(self, name):
+        pass
+
+    def stop(self, name):
+        return 0
+
+    @contextmanager
+    def run(self, name):
+        yield
+
+    def __repr__(self):
+        return "[]"
