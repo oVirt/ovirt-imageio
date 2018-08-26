@@ -16,6 +16,7 @@ import socket
 import six
 from six.moves import BaseHTTPServer
 from six.moves import socketserver
+from six.moves import urllib
 
 from . import util
 
@@ -158,6 +159,11 @@ class Request(object):
 
     def __init__(self, con):
         self._con = con
+        if "?" in con.path:
+            self._path, self._query_string = con.path.split("?", 1)
+        else:
+            self._path, self._query_string = con.path, ""
+        self._query = None  # Parsed lazily.
 
     @property
     def context(self):
@@ -195,7 +201,24 @@ class Request(object):
 
     @property
     def path(self):
-        return self._con.path
+        return self._path
+
+    @property
+    def query(self):
+        """
+        Return parsed query string dict.
+
+        If key appears multiple times, the last key=value pair wins:
+
+            key=1&key=2&key -> {"key": ""}
+
+        Both keys and values are decoded to unicode on python 2 and str on
+        python 3. Value that cannot be decoded to utf-8 are dropped silently.
+        """
+        if self._query is None:
+            self._query = dict(parse_qsl(
+                self._query_string, keep_blank_values=True))
+        return self._query
 
     @property
     def client_addr(self):
@@ -337,3 +360,20 @@ class Router(object):
         resp.status_code = code
         resp.headers["content-length"] = len(body)
         resp.write(body)
+
+
+# Compatibility hacks
+
+if six.PY2:
+    def parse_qsl(qs, keep_blank_values=False, strict_parsing=False):
+        for k, v in urllib.parse.parse_qsl(
+                qs,
+                keep_blank_values=keep_blank_values,
+                strict_parsing=strict_parsing):
+            try:
+                yield k.decode("utf-8"), v.decode("utf-8")
+            except UnicodeDecodeError:
+                if strict_parsing:
+                    raise
+else:
+    parse_qsl = urllib.parse.parse_qsl

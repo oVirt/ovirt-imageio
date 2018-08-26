@@ -9,11 +9,13 @@
 from __future__ import absolute_import
 
 import io
+import json
 import logging
 import time
 
 from contextlib import closing
 
+import six
 from six.moves import http_client
 
 import pytest
@@ -55,6 +57,34 @@ class Echo(object):
                 raise http.Error(400, "Client disconnected")
             resp.write(chunk)
             count -= len(chunk)
+
+
+class RequestInfo(object):
+
+    def get(self, req, resp):
+        # Python 2.7 returns lowercase keys, Python 3.6 keeps original
+        # case. Since headers are case insensitive, lets normalize both to
+        # lowercase.
+        headers = dict((k.lower(), req.headers[k]) for k in req.headers)
+
+        # Ensure that req.query return decoded values. This is hard to test
+        # using json response, since json accepts both text and bytes and
+        # generate a bytestream that decodes to unicode on the other side.
+        for k, v in six.iteritems(req.query):
+            assert type(k) == six.text_type
+            assert type(v) == six.text_type
+
+        info = {
+            "method": req.method,
+            "path": req.path,
+            "query": req.query,
+            "version": req.version,
+            "headers": headers,
+            "client_addr": req.client_addr,
+        }
+        body = json.dumps(info).encode("utf-8")
+        resp.headers["content-length"] = str(len(body))
+        resp.write(body)
 
 
 class Context(object):
@@ -143,6 +173,7 @@ def server():
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
         (r"/echo/(.*)", Echo()),
+        (r"/request-info/", RequestInfo()),
         (r"/context/(.*)", Context()),
         (r"/close-context/(.*)", CloseContext()),
         (r"/server-error/(.*)", ServerError()),
@@ -239,6 +270,50 @@ def test_echo_100_continue(server):
         r = con.getresponse()
         assert r.status == 200
         assert r.read() == data
+
+
+def test_request_info(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/request-info/")
+        r = con.getresponse()
+        assert r.status == 200
+        info = json.loads(r.read())
+
+    assert info["method"] == "GET"
+    assert info["path"] == "/request-info/"
+    assert info["query"] == {}
+    assert info["version"] == "HTTP/1.1"
+    assert info["headers"]["host"] == "localhost:%d" % server.server_port
+    assert info["headers"]["accept-encoding"] == "identity"
+    assert info["client_addr"] == "127.0.0.1"
+
+
+@pytest.mark.parametrize("query_string,parsed_query", [
+    # Keep blank values.
+    ("a", {"a": ""}),
+    # Simple query.
+    ("a=1&b=2", {"a": "1", "b": "2"}),
+    # Multiple values, last wins.
+    ("a=1&a=2", {"a": "2"}),
+    # Multiple values, last empty.
+    ("a=1&a=2&a", {"a": ""}),
+    # Quoted keys and values.
+    ("%61=%31", {"a": "1"}),
+    # Decoded keys and values {Hebrew Letter Alef: Hebrew Leter Bet}
+    # http://unicode.org/charts/PDF/U0590.pdf
+    ("%d7%90=%d7%91", {u"\u05d0": u"\u05d1"}),
+])
+def test_request_info_query_string(server, query_string, parsed_query):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/request-info/?" + query_string)
+        r = con.getresponse()
+        assert r.status == 200
+        info = json.loads(r.read())
+
+    assert info["path"] == "/request-info/"
+    assert info["query"] == parsed_query
 
 
 def test_context(server):
