@@ -8,3 +8,4 @@ python-requests
 python-six
 python-webob
 systemd-python
+qemu-img-rhev
