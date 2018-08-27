@@ -16,6 +16,8 @@
 #
 
 import httplib
+import logging
+import os
 import SocketServer
 import threading
 from wsgiref import simple_server
@@ -23,11 +25,14 @@ from wsgiref import simple_server
 import webob
 
 from ovirt_imageio_common import ssl
+from ovirt_imageio_common import version
 from ovirt_imageio_common import web
 
 from . import images
 from . import info
 from . import tickets
+
+log = logging.getLogger("server")
 
 
 class Server:
@@ -37,6 +42,7 @@ class Server:
         pass
 
     def start(self, config):
+        log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
         server = ThreadedWSGIServer((config.host, config.port),
                                     WSGIRequestHandler)
         if config.use_ssl:
