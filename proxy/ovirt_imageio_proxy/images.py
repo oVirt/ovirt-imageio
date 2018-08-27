@@ -36,6 +36,8 @@ class RequestHandler(object):
         """
         Proxy OPTIONS request to daemon.
         """
+        logging.info("[%s] OPTIONS", web.client_address(self.request))
+
         allow = {"GET", "PUT", "PATCH", "OPTIONS"}
         features = {"zero", "flush"}
         # Reporting the meta-capabilities for all images
@@ -98,6 +100,9 @@ class RequestHandler(object):
         body = ""
         stream = True  # Don't let Requests read entire body into memory
 
+        logging.info("[%s] READ ticket=%s",
+                     web.client_address(self.request), self.ticket.id)
+
         imaged_response = self.make_imaged_request(
             self.request.method, imaged_url, headers, body, stream,
             connection_timeout=self.config.imaged_connection_timeout_sec,
@@ -145,8 +150,14 @@ class RequestHandler(object):
         max_transfer_bytes = int(headers['Content-Length'])
         body = web.CappedStream(self.request.body_file, max_transfer_bytes)
         stream = False
-        logging.debug("Resource %s: transferring %d bytes to host",
-                      res_id, max_transfer_bytes)
+
+        content_range = web.content_range(self.request)
+        offset = content_range.start or 0
+        flush = self.request.params.get("flush", "y") == "y"
+        logging.info("[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
+                     web.client_address(self.request), max_transfer_bytes, offset,
+                     flush, self.ticket.id)
+
         imaged_response = self.make_imaged_request(
             self.request.method, imaged_url, headers, body, stream,
             connection_timeout=self.config.imaged_connection_timeout_sec,
@@ -164,6 +175,9 @@ class RequestHandler(object):
         """
         if not self.request.content_length:
             raise exc.HTTPBadRequest("Content-Length is required")
+
+        logging.info("[%s] PATCH ticket=%s",
+                     web.client_address(self.request), self.ticket.id)
 
         # Notes:
         # - PATCH response is not cachable, no need for cache-control.
