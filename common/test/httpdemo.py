@@ -53,7 +53,7 @@ class Echo(object):
         if req.headers.get("expect") == "100-continue":
             resp.send_info(100)
 
-        count = int(req.headers["content-length"])
+        count = req.content_length
         resp.headers["content-length"] = str(count)
 
         while count:

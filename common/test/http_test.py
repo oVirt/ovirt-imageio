@@ -48,7 +48,7 @@ class Echo(object):
         if req.headers.get("expect") == "100-continue":
             resp.send_info(100)
 
-        count = int(req.headers["content-length"])
+        count = req.content_length
         resp.headers["content-length"] = str(count)
 
         while count:
@@ -62,6 +62,13 @@ class Echo(object):
 class RequestInfo(object):
 
     def get(self, req, resp):
+        self.send_response(req, resp)
+
+    def put(self, req, resp):
+        body = req.read(req.content_length).decode("utf-8")
+        self.send_response(req, resp, body)
+
+    def send_response(self, req, resp, content=None):
         # Python 2.7 returns lowercase keys, Python 3.6 keeps original
         # case. Since headers are case insensitive, lets normalize both to
         # lowercase.
@@ -79,6 +86,8 @@ class RequestInfo(object):
             "path": req.path,
             "query": req.query,
             "version": req.version,
+            "content_length": req.content_length,
+            "content": content,
             "headers": headers,
             "client_addr": req.client_addr,
         }
@@ -93,8 +102,7 @@ class Context(object):
     """
 
     def put(self, req, resp, name):
-        count = int(req.headers["content-length"])
-        value = req.read(count)
+        value = req.read(req.content_length)
         req.context[name] = value
         resp.status_code = 200
         resp.headers["content-length"] = "0"
@@ -272,7 +280,7 @@ def test_echo_100_continue(server):
         assert r.read() == data
 
 
-def test_request_info(server):
+def test_request_info_get(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
         con.request("GET", "/request-info/")
@@ -284,9 +292,42 @@ def test_request_info(server):
     assert info["path"] == "/request-info/"
     assert info["query"] == {}
     assert info["version"] == "HTTP/1.1"
+    assert info["content_length"] is None
+    assert info["content"] is None
     assert info["headers"]["host"] == "localhost:%d" % server.server_port
     assert info["headers"]["accept-encoding"] == "identity"
     assert info["client_addr"] == "127.0.0.1"
+
+
+def test_request_info_put(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        content = "it works!"
+        con.request("PUT", "/request-info/", body=content.encode("utf-8"))
+        r = con.getresponse()
+        assert r.status == 200
+        info = json.loads(r.read())
+
+    assert info["method"] == "PUT"
+    assert info["path"] == "/request-info/"
+    assert info["query"] == {}
+    assert info["version"] == "HTTP/1.1"
+    assert info["content_length"] == len(content)
+    assert info["content"] == content
+    assert info["headers"]["accept-encoding"] == "identity"
+    assert info["headers"]["content-length"] == str(len(content))
+
+
+@pytest.mark.parametrize("content_length", ["not an int", "-1"])
+def test_request_invalid_content_length(server, content_length):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request(
+            "GET",
+            "/request-info/",
+            headers={"content-length": content_length})
+        r = con.getresponse()
+        assert r.status == 400
 
 
 @pytest.mark.parametrize("query_string,parsed_query", [

@@ -167,6 +167,7 @@ class Request(object):
         else:
             self._path, self._query_string = con.path, ""
         self._query = _UNKNOWN
+        self._content_length = _UNKNOWN
 
     @property
     def context(self):
@@ -222,6 +223,31 @@ class Request(object):
             self._query = dict(parse_qsl(
                 self._query_string, keep_blank_values=True))
         return self._query
+
+    @property
+    def content_length(self):
+        """
+        Return parsed Content-Length header value, or None if the header is
+        missing.
+
+        Raises:
+            http.Error if Content-Length is not a positive integer.
+        """
+        if self._content_length is _UNKNOWN:
+            value = self._con.headers.get("content-length")
+            if value is not None:
+                # Requiring valid value here avoid this error handling code
+                # from application code.
+                try:
+                    value = int(value)
+                except ValueError:
+                    raise Error(
+                        400, "Invalid Content-Length: {!r}".format(value))
+                if value < 0:
+                    raise Error(
+                        400, "Negative Content-Length: {!r}".format(value))
+            self._content_length = value
+        return self._content_length
 
     @property
     def client_addr(self):
