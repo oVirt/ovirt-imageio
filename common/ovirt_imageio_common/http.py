@@ -33,6 +33,9 @@ _DISCONNECTED = frozenset((
     errno.EPIPE
 ))
 
+# Sentinel for lazy initialization, ensuring that we initialize only once.
+_UNKNOWN = object()
+
 
 class Error(Exception):
 
@@ -163,7 +166,7 @@ class Request(object):
             self._path, self._query_string = con.path.split("?", 1)
         else:
             self._path, self._query_string = con.path, ""
-        self._query = None  # Parsed lazily.
+        self._query = _UNKNOWN
 
     @property
     def context(self):
@@ -215,7 +218,7 @@ class Request(object):
         Both keys and values are decoded to unicode on python 2 and str on
         python 3. Value that cannot be decoded to utf-8 are dropped silently.
         """
-        if self._query is None:
+        if self._query is _UNKNOWN:
             self._query = dict(parse_qsl(
                 self._query_string, keep_blank_values=True))
         return self._query
