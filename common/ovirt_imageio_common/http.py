@@ -168,6 +168,7 @@ class Request(object):
             self._path, self._query_string = con.path, ""
         self._query = _UNKNOWN
         self._content_length = _UNKNOWN
+        self._length = _UNKNOWN
 
     @property
     def context(self):
@@ -238,23 +239,40 @@ class Request(object):
             if value is not None:
                 # Requiring valid value here avoid this error handling code
                 # from application code.
+                # Note: set to None on errors to avoid failures when handling
+                # the error.
                 try:
                     value = int(value)
                 except ValueError:
+                    self._content_length = None
                     raise Error(
                         400, "Invalid Content-Length: {!r}".format(value))
                 if value < 0:
+                    self._content_length = None
                     raise Error(
                         400, "Negative Content-Length: {!r}".format(value))
             self._content_length = value
         return self._content_length
 
     @property
+    def length(self):
+        """
+        Return the number of unread bytes left in the request body, or None if
+        the request does not have valid content length.
+        """
+        if self._length is _UNKNOWN:
+            self._length = self.content_length
+        return self._length
+
+    @property
     def client_addr(self):
         return self._con.address_string()
 
     def read(self, n=None):
-        return self._con.rfile.read(n)
+        data = self._con.rfile.read(n)
+        if self.length is not None:
+            self._length -= len(data)
+        return data
 
 
 class Response(object):
@@ -364,6 +382,10 @@ class Router(object):
                     log.exception("Server error")
                 elif e.code >= 400:
                     log.warning("Client error: %s", e)
+                if req.length is not None and req.length > 0:
+                    log.debug("Request failed before reading entire content, "
+                              "closing connection")
+                    resp.headers["connection"] = "close"
                 self.send_error(resp, e.code, str(e))
 
     def dispatch(self, req, resp):

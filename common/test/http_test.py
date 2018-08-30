@@ -8,9 +8,11 @@
 
 from __future__ import absolute_import
 
+import errno
 import io
 import json
 import logging
+import socket
 import time
 
 from contextlib import closing
@@ -173,6 +175,15 @@ class ClientError(object):
         raise http.Error(403, "No data for you!")
 
 
+class KeepConnection(object):
+
+    def put(self, req, resp):
+        # Fail after reading the entire request payload, so the server
+        # should keep the connection open.
+        req.read(req.content_length)
+        raise http.Error(403, "No data for you!")
+
+
 @pytest.fixture(scope="module")
 def server():
     server = http.Server(("", 0), http.Connection)
@@ -186,6 +197,7 @@ def server():
         (r"/close-context/(.*)", CloseContext()),
         (r"/server-error/(.*)", ServerError()),
         (r"/client-error/(.*)", ClientError()),
+        (r"/keep-connection/", KeepConnection()),
     ])
 
     t = util.start_thread(
@@ -524,7 +536,11 @@ def test_client_error_get(server):
 def test_client_error_put(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
-        con.request("PUT", "/client-error/", body=b"x" * 1024**2)
+        try:
+            con.request("PUT", "/client-error/", body=b"x" * 1024**2)
+        except socket.error as e:
+            if e.args[0] not in (errno.EPIPE, errno.ESHUTDOWN):
+                raise
         r = con.getresponse()
         assert r.status == 403
 
@@ -539,11 +555,59 @@ def test_internal_error_get(server):
         assert "secret" not in r.read().decode("utf-8")
 
 
-def test_internal_error(server):
+def test_internal_error_put(server):
     # Internal error should not expose secret data in client response.
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
-        con.request("PUT", "/server-error/", body=b"x" * 1024**2)
+        try:
+            con.request("PUT", "/server-error/", body=b"x" * 1024**2)
+        except socket.error as e:
+            if e.args[0] not in (errno.EPIPE, errno.ESHUTDOWN):
+                raise
         r = con.getresponse()
         assert r.status == 500
         assert "secret" not in r.read().decode("utf-8")
+
+
+@pytest.mark.parametrize("data", [b"", b"read me"])
+def test_keep_connection_on_error(server, data):
+    # When a request does not have a payload, the server can keep the
+    # connection open after and error.
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
+
+        # Send couple of requests - all should fail, without closing the
+        # connection.
+        for i in range(3):
+            con.request("PUT", "/keep-connection/", body=data)
+            r = con.getresponse()
+            r.read()
+            assert r.status == 403
+
+
+def test_close_connection_on_error(server):
+    # When payload was not read completely, the server must close the
+    # connection.
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
+
+        # Send a request - it should fail without reading the request,
+        # so the server will close the connection.
+        con.request("PUT", "/client-error/", body=b"read me")
+        r = con.getresponse()
+        r.read()
+        assert r.status == 403
+
+        # Try to send another request. This will fail since we disabled
+        # auto_open.  Fails in request() or in getresponse(), probably
+        # depends on timing.
+        with pytest.raises(
+                (http_client.NotConnected, http_client.BadStatusLine)):
+            con.request("GET", "/client-error/")
+            con.getresponse()
