@@ -54,7 +54,7 @@ class Echo(object):
         resp.headers["content-length"] = str(count)
 
         while count:
-            chunk = req.read(min(count, 1024 * 1024))
+            chunk = req.read(1024 * 1024)
             if not chunk:
                 raise http.Error(400, "Client disconnected")
             resp.write(chunk)
@@ -67,7 +67,7 @@ class RequestInfo(object):
         self.send_response(req, resp)
 
     def put(self, req, resp):
-        body = req.read(req.content_length).decode("utf-8")
+        body = req.read().decode("utf-8")
         self.send_response(req, resp, body)
 
     def send_response(self, req, resp, content=None):
@@ -104,7 +104,7 @@ class Context(object):
     """
 
     def put(self, req, resp, name):
-        value = req.read(req.content_length)
+        value = req.read()
         req.context[name] = value
         resp.status_code = 200
         resp.headers["content-length"] = "0"
@@ -180,7 +180,7 @@ class KeepConnection(object):
     def put(self, req, resp):
         # Fail after reading the entire request payload, so the server
         # should keep the connection open.
-        req.read(req.content_length)
+        req.read()
         raise http.Error(403, "No data for you!")
 
 
@@ -569,7 +569,7 @@ def test_internal_error_put(server):
         assert "secret" not in r.read().decode("utf-8")
 
 
-@pytest.mark.parametrize("data", [b"", b"read me"])
+@pytest.mark.parametrize("data", [None, b"", b"read me"])
 def test_keep_connection_on_error(server, data):
     # When a request does not have a payload, the server can keep the
     # connection open after and error.

@@ -269,9 +269,16 @@ class Request(object):
         return self._con.address_string()
 
     def read(self, n=None):
+        # TODO: support chunked encoding.
+        if not self.length:
+            return b""
+
+        if n is None or n > self._length:
+            n = self._length
+
         data = self._con.rfile.read(n)
-        if self.length is not None:
-            self._length -= len(data)
+        self._length -= len(data)
+
         return data
 
 

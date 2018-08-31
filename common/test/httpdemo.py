@@ -58,7 +58,7 @@ class Echo(object):
 
         while count:
             with req.clock.run("read"):
-                chunk = req.read(min(count, 1024 * 1024))
+                chunk = req.read(1024 * 1024)
             if not chunk:
                 raise http.Error(400, "Client disconnected")
             with req.clock.run("write"):
