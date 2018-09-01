@@ -54,7 +54,7 @@ class Echo(object):
             resp.send_info(100)
 
         count = req.content_length
-        resp.headers["content-length"] = str(count)
+        resp.headers["content-length"] = count
 
         while count:
             with req.clock.run("read"):
@@ -70,7 +70,7 @@ class Bench(object):
 
     def get(self, req, resp, name):
         body = b"%s\n" % name.encode("utf-8")
-        resp.headers["content-length"] = str(len(body))
+        resp.headers["content-length"] = len(body)
         with req.clock.run("write"):
             resp.write(body)
 
@@ -79,7 +79,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-7s (%(threadName)s) %(message)s")
 
-log.info("Starting echo server on port %s", 8000)
+log.info("Starting server on port %s", 8000)
 
 server = http.Server(("", 8000), http.Connection)
 

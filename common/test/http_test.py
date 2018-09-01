@@ -32,7 +32,7 @@ class Demo(object):
 
     def get(self, req, resp, name):
         body = b"%s\n" % name.encode("utf-8")
-        resp.headers["content-length"] = str(len(body))
+        resp.headers["content-length"] = len(body)
         resp.write(body)
 
     def delete(self, req, resp, name):
@@ -40,7 +40,7 @@ class Demo(object):
 
     def options(self, req, resp, name):
         resp.status_code = 200
-        resp.headers["content-length"] = "0"
+        resp.headers["content-length"] = 0
         resp.headers["allow"] = "GET,DELETE,OPTIONS"
 
 
@@ -51,7 +51,7 @@ class Echo(object):
             resp.send_info(100)
 
         count = req.content_length
-        resp.headers["content-length"] = str(count)
+        resp.headers["content-length"] = count
 
         while count:
             chunk = req.read(1024 * 1024)
@@ -94,7 +94,7 @@ class RequestInfo(object):
             "client_addr": req.client_addr,
         }
         body = json.dumps(info).encode("utf-8")
-        resp.headers["content-length"] = str(len(body))
+        resp.headers["content-length"] = len(body)
         resp.write(body)
 
 
@@ -107,7 +107,7 @@ class Context(object):
         value = req.read()
         req.context[name] = value
         resp.status_code = 200
-        resp.headers["content-length"] = "0"
+        resp.headers["content-length"] = 0
 
     def get(self, req, resp, name):
         if name not in req.context:
@@ -144,7 +144,7 @@ class CloseContext(object):
     def put(self, req, resp, name):
         req.context[name] = Closeable(name, self.log)
         resp.status_code = 200
-        resp.headers["content-length"] = "0"
+        resp.headers["content-length"] = 0
 
     def get(self, req, resp, *args):
         value = self.log.getvalue().encode("utf-8")
