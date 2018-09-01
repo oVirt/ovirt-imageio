@@ -288,7 +288,7 @@ class Response(object):
     def __init__(self, con):
         self._con = con
         self.status_code = 200
-        self.headers = {}
+        self.headers = Headers()
         self._started = False
 
     @property
@@ -373,10 +373,8 @@ class Response(object):
         """
         Update connection based on response headers.
         """
-        connection = (self.headers.get("connection") or
-                      self.headers.get("Connection"))
+        connection = self.headers.get("connection")
         if connection:
-            connection = connection.lower()
             if connection == "close":
                 self._con.close_connection = 1
             elif connection == "keep-alive":
@@ -395,6 +393,23 @@ class Context(dict):
                     v.close()
                 except Exception:
                     log.exception("Error closing %s", v)
+
+
+class Headers(dict):
+    """
+    Dictionarry optimized for keeping HTTP headers.
+    """
+
+    def __setitem__(self, name, value):
+        """
+        Override to enforce lowercase keys and lowercase values for certain
+        keys. This make it easier to get and use values from response headers
+        when processing the response.
+        """
+        name = name.lower()
+        if name == "connection":
+            value = value.lower()
+        dict.__setitem__(self, name, value)
 
 
 class Router(object):
