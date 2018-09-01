@@ -163,10 +163,12 @@ class Request(object):
 
     def __init__(self, con):
         self._con = con
+        self._uri = con.path
         if "?" in con.path:
-            self._path, self._query_string = con.path.split("?", 1)
+            path, self._query_string = con.path.split("?", 1)
         else:
-            self._path, self._query_string = con.path, ""
+            path, self._query_string = con.path, ""
+        self._path = urllib.parse.unquote(path)
         self._query = _UNKNOWN
         self._content_length = _UNKNOWN
         self._length = _UNKNOWN
@@ -206,7 +208,18 @@ class Request(object):
         return self._con.command
 
     @property
+    def uri(self):
+        """
+        Return raw request URI including path and query string. This is mostly
+        useful for logging.
+        """
+        return self._uri
+
+    @property
     def path(self):
+        """
+        Return unquoted path component from the request URI.
+        """
         return self._path
 
     @property

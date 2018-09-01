@@ -63,14 +63,14 @@ class Echo(object):
 
 class RequestInfo(object):
 
-    def get(self, req, resp):
-        self.send_response(req, resp)
+    def get(self, req, resp, arg=None):
+        self.send_response(req, resp, arg)
 
-    def put(self, req, resp):
+    def put(self, req, resp, arg=None):
         body = req.read().decode("utf-8")
-        self.send_response(req, resp, body)
+        self.send_response(req, resp, arg, body)
 
-    def send_response(self, req, resp, content=None):
+    def send_response(self, req, resp, arg, content=None):
         # Python 2.7 returns lowercase keys, Python 3.6 keeps original
         # case. Since headers are case insensitive, lets normalize both to
         # lowercase.
@@ -85,6 +85,8 @@ class RequestInfo(object):
 
         info = {
             "method": req.method,
+            "uri": req.uri,
+            "arg": arg,
             "path": req.path,
             "query": req.query,
             "version": req.version,
@@ -192,7 +194,7 @@ def server():
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
         (r"/echo/(.*)", Echo()),
-        (r"/request-info/", RequestInfo()),
+        (r"/request-info/(.*)", RequestInfo()),
         (r"/context/(.*)", Context()),
         (r"/close-context/(.*)", CloseContext()),
         (r"/server-error/(.*)", ServerError()),
@@ -295,13 +297,15 @@ def test_echo_100_continue(server):
 def test_request_info_get(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
-        con.request("GET", "/request-info/")
+        con.request("GET", "/request-info/arg")
         r = con.getresponse()
         assert r.status == 200
         info = json.loads(r.read())
 
     assert info["method"] == "GET"
-    assert info["path"] == "/request-info/"
+    assert info["uri"] == "/request-info/arg"
+    assert info["path"] == "/request-info/arg"
+    assert info["arg"] == "arg"
     assert info["query"] == {}
     assert info["version"] == "HTTP/1.1"
     assert info["content_length"] is None
@@ -315,13 +319,15 @@ def test_request_info_put(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
         content = "it works!"
-        con.request("PUT", "/request-info/", body=content.encode("utf-8"))
+        con.request("PUT", "/request-info/arg", body=content.encode("utf-8"))
         r = con.getresponse()
         assert r.status == 200
         info = json.loads(r.read())
 
     assert info["method"] == "PUT"
-    assert info["path"] == "/request-info/"
+    assert info["uri"] == "/request-info/arg"
+    assert info["path"] == "/request-info/arg"
+    assert info["arg"] == "arg"
     assert info["query"] == {}
     assert info["version"] == "HTTP/1.1"
     assert info["content_length"] == len(content)
@@ -340,6 +346,23 @@ def test_request_invalid_content_length(server, content_length):
             headers={"content-length": content_length})
         r = con.getresponse()
         assert r.status == 400
+
+
+@pytest.mark.parametrize("uri,path,arg", [
+    ("/request-info/%d7%90", u"/request-info/\u05d0", u"\u05d0"),
+    ("/request-info%2farg", u"/request-info/arg", u"arg"),
+])
+def test_request_info_uri(server, uri, path, arg):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", uri)
+        r = con.getresponse()
+        assert r.status == 200
+        info = json.loads(r.read())
+
+    assert info["uri"] == uri
+    assert info["path"] == path
+    assert info["arg"] == arg
 
 
 @pytest.mark.parametrize("query_string,parsed_query", [
