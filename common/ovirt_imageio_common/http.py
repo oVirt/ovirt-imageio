@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import errno
+import io
 import logging
 import re
 import socket
@@ -316,25 +317,70 @@ class Response(object):
         """
         Write data to the response body.
 
-        The first call to write will send the HTTP header.
-        """
-        self._write(data)
-
-    def _write(self, data):
-        """
-        The initial write to the client, sending the status line and
-        headers.
-
-        This method is replaced by the underlying output file write
-        method after the first call.
+        NOTE: This method is replaced with the underlying file write method on
+        the first call. Do not try to cache this method!
         """
         self._started = True
-        self._con.send_response(self.status_code)
-        for name, value in six.iteritems(self.headers):
-            self._con.send_header(name, value)
-        self._con.end_headers()
+        header = self._format_header()
+        self._update_connection()
+
+        # TODO: Check if saving one syscall for small payloads (e.g. < 1460) by
+        # merging header and data improves performance. Note that data may be a
+        # buffer or memoryview object wrapping a mmap object.
+        self._con.wfile.write(header)
         self._con.wfile.write(data)
-        self._write = self._con.wfile.write
+        self._con.wfile.flush()
+
+        # This avoids name lookup on the next calls to write.
+        self.write = self._con.wfile.write
+
+    def _format_header(self):
+        """
+        Format HTTP header using temporary buffer, avoiding one syscall per
+        line in python 2.7.
+        """
+        if self.status_code in self._con.responses:
+            msg = self._con.responses[self.status_code][0].encode("latin1")
+        else:
+            msg = b""
+
+        header = io.BytesIO()
+
+        # Write response line.
+        header.write(b"%s %d %s\r\n" % (
+                     self._con.protocol_version.encode("latin1"),
+                     self.status_code,
+                     msg))
+
+        # Write default headers.
+        header.write(b"server: %s\r\n" %
+                     self._con.version_string().encode("latin1"))
+        header.write(b"date: %s\r\n" %
+                     self._con.date_time_string().encode("latin1"))
+
+        # Write user headers.
+        for name, value in six.iteritems(self.headers):
+            # Encoding entire line to allow using integer value, for example
+            # content-length.
+            header.write(("%s: %s\r\n" % (name, value)).encode("latin1"))
+
+        # End header.
+        header.write(b"\r\n")
+
+        return header.getvalue()
+
+    def _update_connection(self):
+        """
+        Update connection based on response headers.
+        """
+        connection = (self.headers.get("connection") or
+                      self.headers.get("Connection"))
+        if connection:
+            connection = connection.lower()
+            if connection == "close":
+                self._con.close_connection = 1
+            elif connection == "keep-alive":
+                self._con.close_connection = 0
 
 
 class Context(dict):
@@ -380,7 +426,8 @@ class Router(object):
                 else:
                     log.exception("Server error")
                     # Likely to fail, but lets try anyway.
-                    self.send_error(resp, 500, "Internal server error")
+                    if not resp.started:
+                        self.send_error(resp, 500, "Internal server error")
             except Exception as e:
                 if not isinstance(e, Error):
                     # Don't expose internal errors to client.
@@ -393,7 +440,8 @@ class Router(object):
                     log.debug("Request failed before reading entire content, "
                               "closing connection")
                     resp.headers["connection"] = "close"
-                self.send_error(resp, e.code, str(e))
+                if not resp.started:
+                    self.send_error(resp, e.code, str(e))
 
     def dispatch(self, req, resp):
         if req.method not in self.ALLOWED_METHODS:
