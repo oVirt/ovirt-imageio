@@ -23,6 +23,20 @@ from . import util
 
 log = logging.getLogger("http")
 
+# Common HTTP status codes
+# See https://tools.ietf.org/html/rfc2616#section-6.1.1
+CONTINUE = 100
+OK = 200
+NO_CONTENT = 204
+PARTIAL_CONTENT = 206
+BAD_REQUEST = 400
+FORBIDDEN = 403
+NOT_FOUND = 404
+METHOD_NOT_ALLOWED = 405
+NOT_ACCEPTABLE = 406
+REQUEST_URI_TOO_LARGE = 414
+REQUESTED_RANGE_NOT_SATISFIABLE = 416
+INTERNAL_SERVER_ERROR = 500
 
 # Taken from asyncore.py. Treat these as expected error when reading or writing
 # to client connection.
@@ -124,7 +138,7 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.requestline = ''
                 self.request_version = ''
                 self.command = ''
-                self.send_error(414)
+                self.send_error(REQUEST_URI_TOO_LARGE)
                 return
 
             if not self.raw_requestline:
@@ -259,12 +273,12 @@ class Request(object):
                     value = int(value)
                 except ValueError:
                     self._content_length = None
-                    raise Error(
-                        400, "Invalid Content-Length: {!r}".format(value))
+                    raise Error(BAD_REQUEST,
+                                "Invalid Content-Length: {!r}".format(value))
                 if value < 0:
                     self._content_length = None
-                    raise Error(
-                        400, "Negative Content-Length: {!r}".format(value))
+                    raise Error(BAD_REQUEST,
+                                "Negative Content-Length: {!r}".format(value))
             self._content_length = value
         return self._content_length
 
@@ -300,7 +314,7 @@ class Response(object):
 
     def __init__(self, con):
         self._con = con
-        self.status_code = 200
+        self.status_code = OK
         self.headers = Headers()
         self._started = False
 
@@ -455,14 +469,17 @@ class Router(object):
                     log.exception("Server error")
                     # Likely to fail, but lets try anyway.
                     if not resp.started:
-                        self.send_error(resp, 500, "Internal server error")
+                        self.send_error(
+                            resp, INTERNAL_SERVER_ERROR, "Socket error")
             except Exception as e:
                 if not isinstance(e, Error):
                     # Don't expose internal errors to client.
-                    e = Error(500, "Internal server error")
-                if e.code >= 500:
+                    e = Error(
+                        INTERNAL_SERVER_ERROR,
+                        "Server failed to perform the request, check logs")
+                if e.code >= INTERNAL_SERVER_ERROR:
                     log.exception("Server error")
-                elif e.code >= 400:
+                elif e.code >= BAD_REQUEST:
                     log.warning("Client error: %s", e)
                 if req.length is not None and req.length > 0:
                     log.debug("Request failed before reading entire content, "
@@ -473,7 +490,8 @@ class Router(object):
 
     def dispatch(self, req, resp):
         if req.method not in self.ALLOWED_METHODS:
-            raise Error(405, "Invalid method {!r}".format(req.method))
+            raise Error(METHOD_NOT_ALLOWED,
+                        "Invalid method {!r}".format(req.method))
 
         path = req.path
         for route, handler in self._routes:
@@ -482,11 +500,12 @@ class Router(object):
                 try:
                     method = getattr(handler, req.method.lower())
                 except AttributeError:
-                    raise Error(405, "Method {!r} not defined for {!r}"
+                    raise Error(METHOD_NOT_ALLOWED,
+                                "Method {!r} not defined for {!r}"
                                 .format(req.method, path))
                 return method(req, resp, *match.groups())
 
-        raise Error(404, "No handler for {!r}".format(path))
+        raise Error(NOT_FOUND, "No handler for {!r}".format(path))
 
     def send_error(self, resp, code, message):
         # TODO: return json errors.

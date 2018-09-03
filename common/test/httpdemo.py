@@ -51,7 +51,7 @@ class Echo(object):
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
-            resp.send_info(100)
+            resp.send_info(http.CONTINUE)
 
         count = req.content_length
         resp.headers["content-length"] = count

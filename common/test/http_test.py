@@ -36,10 +36,9 @@ class Demo(object):
         resp.write(body)
 
     def delete(self, req, resp, name):
-        resp.status_code = 204
+        resp.status_code = http.NO_CONTENT
 
     def options(self, req, resp, name):
-        resp.status_code = 200
         resp.headers["content-length"] = 0
         resp.headers["allow"] = "GET,DELETE,OPTIONS"
 
@@ -48,7 +47,7 @@ class Echo(object):
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
-            resp.send_info(100)
+            resp.send_info(http.CONTINUE)
 
         count = req.content_length
         resp.headers["content-length"] = count
@@ -56,7 +55,7 @@ class Echo(object):
         while count:
             chunk = req.read(1024 * 1024)
             if not chunk:
-                raise http.Error(400, "Client disconnected")
+                raise http.Error(http.BAD_REQUEST, "Client disconnected")
             resp.write(chunk)
             count -= len(chunk)
 
@@ -108,19 +107,18 @@ class Context(object):
     def put(self, req, resp, name):
         value = req.read()
         req.context[name] = value
-        resp.status_code = 200
         resp.headers["content-length"] = 0
 
     def get(self, req, resp, name):
         if name not in req.context:
-            raise http.Error(404, "No such name {!r}".format(name))
+            raise http.Error(http.NOT_FOUND, "No such name {!r}".format(name))
         value = req.context[name]
         resp.headers["content-length"] = len(value)
         resp.write(value)
 
     def delete(self, req, resp, name):
         req.context.pop(name, None)
-        resp.status_code = 204
+        resp.status_code = http.NO_CONTENT
 
 
 class Closeable(object):
@@ -145,7 +143,6 @@ class CloseContext(object):
 
     def put(self, req, resp, name):
         req.context[name] = Closeable(name, self.log)
-        resp.status_code = 200
         resp.headers["content-length"] = 0
 
     def get(self, req, resp, *args):
@@ -169,12 +166,12 @@ class ServerError(object):
 class ClientError(object):
 
     def get(self, req, resp, name):
-        raise http.Error(403, "No data for you!")
+        raise http.Error(http.FORBIDDEN, "No data for you!")
 
     def put(self, req, resp, name):
         # Raising without reading payload wil fail with EPIPE on the
         # client side. If the client is careful, it will get error 403.
-        raise http.Error(403, "No data for you!")
+        raise http.Error(http.FORBIDDEN, "No data for you!")
 
 
 class KeepConnection(object):
@@ -183,7 +180,7 @@ class KeepConnection(object):
         # Fail after reading the entire request payload, so the server
         # should keep the connection open.
         req.read()
-        raise http.Error(403, "No data for you!")
+        raise http.Error(http.FORBIDDEN, "No data for you!")
 
 
 @pytest.fixture(scope="module")
@@ -217,7 +214,7 @@ def test_demo_get(server):
     with closing(con):
         con.request("GET", "/demo/name")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == b"name\n"
 
 
@@ -228,7 +225,7 @@ def test_demo_max_request_length(server):
         name = "x" * 4075
         con.request("GET", "/demo/" + name)
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read().decode("ascii") == name + "\n"
 
 
@@ -238,7 +235,7 @@ def test_demo_request_length_too_long(server):
         # GET /demo/xxxxxxxxxx... HTTP/1.1\r\n
         con.request("GET", "/demo/" + "x" * 4076)
         r = con.getresponse()
-        assert r.status == 414
+        assert r.status == http.REQUEST_URI_TOO_LARGE
         r.read()
 
 
@@ -247,7 +244,7 @@ def test_demo_get_empty(server):
     with closing(con):
         con.request("GET", "/demo/")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == b"\n"
 
 
@@ -256,7 +253,7 @@ def test_demo_delete(server):
     with closing(con):
         con.request("DELETE", "/demo/name")
         r = con.getresponse()
-        assert r.status == 204
+        assert r.status == http.NO_CONTENT
         assert r.read() == b""
 
 
@@ -265,7 +262,7 @@ def test_demo_options(server):
     with closing(con):
         con.request("OPTIONS", "/demo/name")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.getheader("allow") == "GET,DELETE,OPTIONS"
         assert r.read() == b""
 
@@ -276,7 +273,7 @@ def test_echo(server, data):
     with closing(con):
         con.request("PUT", "/echo/test", body=data)
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == data
 
 
@@ -290,7 +287,7 @@ def test_echo_100_continue(server):
             body=data,
             headers={"expect": "100-continue"})
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == data
 
 
@@ -299,7 +296,7 @@ def test_request_info_get(server):
     with closing(con):
         con.request("GET", "/request-info/arg")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         info = json.loads(r.read())
 
     assert info["method"] == "GET"
@@ -321,7 +318,7 @@ def test_request_info_put(server):
         content = "it works!"
         con.request("PUT", "/request-info/arg", body=content.encode("utf-8"))
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         info = json.loads(r.read())
 
     assert info["method"] == "PUT"
@@ -345,7 +342,7 @@ def test_request_invalid_content_length(server, content_length):
             "/request-info/",
             headers={"content-length": content_length})
         r = con.getresponse()
-        assert r.status == 400
+        assert r.status == http.BAD_REQUEST
 
 
 @pytest.mark.parametrize("uri,path,arg", [
@@ -357,7 +354,7 @@ def test_request_info_uri(server, uri, path, arg):
     with closing(con):
         con.request("GET", uri)
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         info = json.loads(r.read())
 
     assert info["uri"] == uri
@@ -385,7 +382,7 @@ def test_request_info_query_string(server, query_string, parsed_query):
     with closing(con):
         con.request("GET", "/request-info/?" + query_string)
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         info = json.loads(r.read())
 
     assert info["path"] == "/request-info/"
@@ -398,31 +395,31 @@ def test_context(server):
         # No context yet.
         con.request("GET", "/context/this")
         r = con.getresponse()
-        assert r.status == 404
+        assert r.status == http.NOT_FOUND
         r.read()
 
         # Set value for "this".
         con.request("PUT", "/context/this", body=b"value")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
         # Should have value now.
         con.request("GET", "/context/this")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == b"value"
 
         # Remove value for "this".
         con.request("DELETE", "/context/this")
         r = con.getresponse()
-        assert r.status == 204
+        assert r.status == http.NO_CONTENT
         r.read()
 
         # No context now.
         con.request("GET", "/context/this")
         r = con.getresponse()
-        assert r.status == 404
+        assert r.status == http.NOT_FOUND
         r.read()
 
 
@@ -433,25 +430,25 @@ def test_context_per_connection(server):
         # Set value for "this" in connection 1.
         con1.request("PUT", "/context/this", body=b"con1 value")
         r = con1.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
         # Connection 1 should have no value.
         con2.request("GET", "/context/this")
         r = con2.getresponse()
-        assert r.status == 404
+        assert r.status == http.NOT_FOUND
         r.read()
 
         # Set value for "this" in connection 2.
         con2.request("PUT", "/context/this", body=b"con2 value")
         r = con2.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
         # Connection 1 value did not change.
         con1.request("GET", "/context/this")
         r = con1.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         assert r.read() == b"con1 value"
 
 
@@ -461,7 +458,7 @@ def test_context_deleted_on_close(server):
         # Set value for "this".
         con.request("PUT", "/context/this", body=b"con value")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
     con = http_client.HTTPConnection("localhost", server.server_port)
@@ -469,7 +466,7 @@ def test_context_deleted_on_close(server):
         # Should have no value.
         con.request("GET", "/context/this")
         r = con.getresponse()
-        assert r.status == 404
+        assert r.status == http.NOT_FOUND
         r.read()
 
 
@@ -479,7 +476,7 @@ def test_context_close(server):
         # Add a closable object to the connection context
         con.request("PUT", "/close-context/foo")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
     # Run server thread to detect the close.
@@ -490,7 +487,7 @@ def test_context_close(server):
     with closing(con):
         con.request("GET", "/close-context/")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         log = r.read().decode("utf-8")
         assert "foo was closed" in log
 
@@ -501,13 +498,13 @@ def test_context_close_multiple_objects(server):
         # Add a closable object to the connection context
         con.request("PUT", "/close-context/foo")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
         # Add another
         con.request("PUT", "/close-context/bar")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         r.read()
 
     # Run server thread to detect the close.
@@ -518,7 +515,7 @@ def test_context_close_multiple_objects(server):
     with closing(con):
         con.request("GET", "/close-context/")
         r = con.getresponse()
-        assert r.status == 200
+        assert r.status == http.OK
         log = r.read().decode("utf-8")
         assert "foo was closed" in log
         assert "bar was closed" in log
@@ -529,7 +526,7 @@ def test_not_found(server):
     with closing(con):
         con.request("GET", "/no/such/path")
         r = con.getresponse()
-        assert r.status == 404
+        assert r.status == http.NOT_FOUND
 
 
 def test_method_not_allowed(server):
@@ -537,7 +534,7 @@ def test_method_not_allowed(server):
     with closing(con):
         con.request("POST", "/demo/name")
         r = con.getresponse()
-        assert r.status == 405
+        assert r.status == http.METHOD_NOT_ALLOWED
 
 
 def test_invalid_method(server):
@@ -545,7 +542,7 @@ def test_invalid_method(server):
     with closing(con):
         con.request("FOO", "/demo/name")
         r = con.getresponse()
-        assert r.status == 405
+        assert r.status == http.METHOD_NOT_ALLOWED
 
 
 def test_client_error_get(server):
@@ -553,7 +550,7 @@ def test_client_error_get(server):
     with closing(con):
         con.request("GET", "/client-error/")
         r = con.getresponse()
-        assert r.status == 403
+        assert r.status == http.FORBIDDEN
 
 
 def test_client_error_put(server):
@@ -565,7 +562,7 @@ def test_client_error_put(server):
             if e.args[0] not in (errno.EPIPE, errno.ESHUTDOWN):
                 raise
         r = con.getresponse()
-        assert r.status == 403
+        assert r.status == http.FORBIDDEN
 
 
 def test_internal_error_get(server):
@@ -574,7 +571,7 @@ def test_internal_error_get(server):
     with closing(con):
         con.request("GET", "/server-error/")
         r = con.getresponse()
-        assert r.status == 500
+        assert r.status == http.INTERNAL_SERVER_ERROR
         assert "secret" not in r.read().decode("utf-8")
 
 
@@ -588,7 +585,7 @@ def test_internal_error_put(server):
             if e.args[0] not in (errno.EPIPE, errno.ESHUTDOWN):
                 raise
         r = con.getresponse()
-        assert r.status == 500
+        assert r.status == http.INTERNAL_SERVER_ERROR
         assert "secret" not in r.read().decode("utf-8")
 
 
@@ -608,7 +605,7 @@ def test_keep_connection_on_error(server, data):
             con.request("PUT", "/keep-connection/", body=data)
             r = con.getresponse()
             r.read()
-            assert r.status == 403
+            assert r.status == http.FORBIDDEN
 
 
 def test_close_connection_on_error(server):
@@ -625,7 +622,7 @@ def test_close_connection_on_error(server):
         con.request("PUT", "/client-error/", body=b"read me")
         r = con.getresponse()
         r.read()
-        assert r.status == 403
+        assert r.status == http.FORBIDDEN
 
         # Try to send another request. This will fail since we disabled
         # auto_open.  Fails in request() or in getresponse(), probably
