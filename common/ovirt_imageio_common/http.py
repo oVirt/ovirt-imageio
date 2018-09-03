@@ -73,6 +73,13 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
     # Avoids possible delays when sending very small response.
     disable_nagle_algorithm = True
 
+    # The maximum length of the request line:
+    # https://tools.ietf.org/html/rfc2616#section-5.1. This limit the size of
+    # the request URI. The spec does not define this length, and common
+    # browsers support up to 65536 bytes. For imageio purposes, we don't need
+    # to support long URIs, so we use small value.
+    max_request_line = 4096
+
     def setup(self):
         log.info("OPEN client=%s", self.address_string())
         BaseHTTPServer.BaseHTTPRequestHandler.setup(self)
@@ -103,11 +110,12 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
         https://github.com/python/cpython/blob/master/Lib/http/server.py
         """
         try:
-            self.raw_requestline = self.rfile.readline(65537)
-            if len(self.raw_requestline) > 65536:
-                log.warning("Request line too long: %d > 65536, closing "
+            self.raw_requestline = self.rfile.readline(
+                self.max_request_line + 1)
+            if len(self.raw_requestline) > self.max_request_line:
+                log.warning("Request line too long: %d > %d, closing "
                             "connection",
-                            len(self.raw_requestline))
+                            len(self.raw_requestline), self.max_request_line)
                 self.requestline = ''
                 self.request_version = ''
                 self.command = ''

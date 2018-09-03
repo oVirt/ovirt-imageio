@@ -168,6 +168,27 @@ def test_demo_get(server):
         assert r.read() == b"name\n"
 
 
+def test_demo_max_request_length(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # GET /demo/xxxxxxxxxx... HTTP/1.1\r\n
+        name = "x" * 4075
+        con.request("GET", "/demo/" + name)
+        r = con.getresponse()
+        assert r.status == 200
+        assert r.read().decode("ascii") == name + "\n"
+
+
+def test_demo_request_length_too_long(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # GET /demo/xxxxxxxxxx... HTTP/1.1\r\n
+        con.request("GET", "/demo/" + "x" * 4076)
+        r = con.getresponse()
+        assert r.status == 414
+        r.read()
+
+
 def test_demo_get_empty(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
