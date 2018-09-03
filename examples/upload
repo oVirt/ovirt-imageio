@@ -36,245 +36,56 @@ How to use:
 
 4. Upload an image:
 
-    ./upload /path/to/image https://server.address:54322/images/test
+    ./upload --insecure /path/to/image https://host:54322/images/test
 
 """
 
-import errno
-import io
-import json
-import os
-import socket
-import ssl
-import subprocess
-import sys
+import argparse
+from ovirt_imageio_common import client
 
-from contextlib import closing
+parser = argparse.ArgumentParser(description="Upload images")
 
-import six
-from six.moves import http_client
-from six.moves.urllib.parse import urlparse
+parser.add_argument(
+    "filename",
+    help="path to image.")
 
-# You may need to modify the path if you run this on a host which is not
-# connected to ovirt engine.
-CERTFILE = "/etc/pki/vdsm/certs/cacert.pem"
+parser.add_argument(
+    "url",
+    help="transfer URL.")
 
-# This seems to give good perfromance in our tests, you may like to tweek it.
-BLOCKSIZE = 128 * 1024
+parser.add_argument(
+    "-u", "--use-unix-socket",
+    action="store_true",
+    default=False,
+    help=("optimize upload using unix socket if the local imageio daemon "
+          "supports unix socket. Should be used only if the transfer was "
+          "started on the same host."))
 
-# Set to True later if the server supports the "zero" feature.
-can_zero = False
+parser.add_argument(
+    "-c", "--cafile",
+    help="path to oVirt engine certificate for verifying server.")
 
-# Set to True later if the server supports the "flush" feature.
-can_flush = False
+parser.add_argument(
+    "--insecure",
+    dest="secure",
+    action="store_false",
+    default=True,
+    help=("do not verify server certificates and host name (not "
+          "recommened)."))
 
+parser.add_argument(
+    "-b", "--buffer-size",
+    type=lambda v: int(v) * 1024,
+    default=128 * 1024,
+    help=("buffer size in kB for upload. The default (128 kB) provides best "
+          "results in our tests, but you may like to tune this."))
 
-class HTTPSConnection(http_client.HTTPSConnection):
-    """
-    HTTPS connection using TCP_NO_DELAY on python 2.
-    """
+args = parser.parse_args()
 
-    if six.PY2:
-        def connect(self):
-            """
-            Using TCP_NO_DELAY avoids delays when sending small payload, such
-            as ovirt PATCH requests.
-
-            This issue was fixed in python 3.5, see:
-            https://bugs.python.org/issue23302
-            """
-            http_client.HTTPSConnection.connect(self)
-            self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-
-
-class UnixHTTPConnection(http_client.HTTPConnection):
-    """
-    HTTP connection over unix domain socket.
-    """
-
-    def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
-        self.path = path
-        extra = {}
-        if six.PY2:
-            extra['strict'] = True
-        http_client.HTTPConnection.__init__(
-            self, "localhost", timeout=timeout, **extra)
-
-    def connect(self):
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
-            self.sock.settimeout(self.timeout)
-        self.sock.connect(self.path)
-
-
-def upload_sparse(con, src):
-    """
-    Upload a possibly sparse file by sending the data portions using PUT
-    request, and reconstructing the holes on the server side using
-    PATCH/zero, without reading the zeros from the disk, or sending them
-    over the wire.
-
-    This works with ovirt-imageio 1.3 or later.
-    """
-    out = subprocess.check_output(
-        ["qemu-img", "map", "--format", "raw", "--output", "json", filename])
-    chunks = json.loads(out.decode("utf-8"))
-
-    # If the server supports "flush", these requests are not waiting
-    # until the data is flushed the underlying storage.
-    for chunk in chunks:
-        if chunk["data"]:
-            put(con, url.path, chunk["start"], chunk["length"], src)
-        else:
-            zero(con, url.path, chunk["start"], chunk["length"])
-
-    # So we flush once after sending all the data.
-    if can_flush:
-        flush(con, url.path)
-
-
-def upload(con, src):
-    """
-    Upload a file using dumb PUT request. Holes in the file are read
-    from disk and sent over the wire, and converted to allocated sectors
-    full with zeros on the server.
-
-    This works with older versions of ovirt-imageio proxy and daemon.
-    """
-    put(con, url.path, 0, os.path.getsize(src.name), src)
-
-
-def put(con, path, start, length, src):
-    """
-    Send a byte range from path to the server using a PUT request.
-
-    If the server supports the "flush" feature, disable flushing for
-    this request.
-    """
-    if can_flush:
-        path += "?flush=n"
-    con.putrequest("PUT", path)
-    con.putheader("content-type", "application/octet-stream")
-    con.putheader("content-length", "%d" %  length)
-    con.putheader("content-range", "bytes %d-%d/*"
-                  % (start, start + length - 1))
-    con.endheaders()
-
-    src.seek(start)
-
-    pos = 0
-    while pos < length:
-        n = min(length - pos, BLOCKSIZE)
-        chunk = src.read(n)
-        if not chunk:
-            break
-        try:
-            con.send(chunk)
-        except socket.error as e:
-            if e[0] != errno.EPIPE:
-                raise
-            # Server closed the socket.
-            break
-        pos += len(chunk)
-
-    res = con.getresponse()
-    error = res.read()
-    if res.status != http_client.OK:
-        raise RuntimeError("put chunk failed: %s" % error)
-
-
-def zero(con, path, start, length):
-    """
-    Zero a byte range on the server using a PATCH request.
-
-    If the server supports "flush" feature, disable flushing for this
-    request.
-    """
-    msg = {"op": "zero",
-           "offset": start,
-           "size": length,
-           "flush": not can_flush}
-    patch(con, path, msg)
-
-
-def flush(con, path):
-    """
-    Flush data to underlying storage using a PATCH request.
-    """
-    msg = {"op": "flush"}
-    patch(con, path, msg)
-
-
-def patch(con, path, msg):
-    """
-    Send a PATCH request with specified message.
-    """
-    body = json.dumps(msg).encode("utf-8")
-    headers = {"content-type": "application/json",
-               "content-length": "%d" %  len(body)}
-    con.request("PATCH", path, body=body, headers=headers)
-    res = con.getresponse()
-    error = res.read()
-    if res.status != http_client.OK:
-        raise RuntimeError("patch %s failed: %s" % (msg, error))
-
-
-def options(con, path):
-    """
-    Send an OPTIONS request and return the features supported by the
-    server for the specified path.
-    """
-    con.request("OPTIONS", path)
-    res = con.getresponse()
-    body = res.read()
-
-    default = {"features": []}
-
-    if res.status == http_client.METHOD_NOT_ALLOWED:
-        # Older daemon did not implement OPTIONS
-        return default
-    elif res.status == http_client.NO_CONTENT:
-        # Older proxy did implement OPTIONS but does not return any content.
-        return default
-    elif res.status != http_client.OK:
-        raise RuntimeError("options %s failed: %s" % (path, body))
-
-    # New daemon or proxy provide a features list.
-    try:
-        msg = json.loads(body.decode("utf-8"))
-    except ValueError:
-        # Bad response, we must assume we don't support any features or unix
-        # socket.
-        return default
-
-    return msg
-
-
-# Get input from the user.
-filename = sys.argv[1]
-url = urlparse(sys.argv[2])
-
-context = ssl.create_default_context(
-    purpose=ssl.Purpose.SERVER_AUTH, cafile=CERTFILE)
-
-# Check the server capabilities for this image.
-con = HTTPSConnection(url.netloc, context=context)
-with closing(con):
-    server_options = options(con, url.path)
-    can_flush = "flush" in server_options["features"]
-    can_zero = "zero" in server_options["features"]
-
-# Open connection for transfering data. If the server supports unix
-# socket, we can transfer data faster using less resources.
-if "unix_socket" in server_options:
-    con = UnixHTTPConnection(server_options["unix_socket"])
-else:
-    con = HTTPSConnection(url.netloc, context=context)
-
-# Upload the data. If the server supports "zero", we can upload sparse
-# files more efficiently.
-with closing(con), io.open(filename, "rb") as src:
-    if can_zero:
-        upload_sparse(con, src)
-    else:
-        upload(con, src)
+client.upload(
+    args.filename,
+    args.url,
+    args.cafile,
+    buffer_size=args.buffer_size,
+    use_unix_socket=args.use_unix_socket,
+    secure=args.secure)
