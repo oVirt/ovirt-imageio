@@ -86,7 +86,8 @@ def test_tickets_no_method():
 
 
 def test_tickets_get(fake_time):
-    ticket = testutils.create_ticket(ops=["read"], sparse=False)
+    ticket = testutils.create_ticket(
+        ops=["read"], sparse=False, transfer_id="123")
     tickets.add(ticket)
     fake_time.now += 200
     res = http.unix_request(

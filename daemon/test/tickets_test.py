@@ -298,6 +298,7 @@ def test_invalid_argument(arg):
     {"ops": "not a list"},
     {"timeout": "not an int"},
     {"url": 1},
+    {"transfer_id": 1},
     {"filename": 1},
     {"sparse": 1},
 ])
@@ -314,6 +315,16 @@ def test_sparse_unset():
 def test_sparse():
     ticket = Ticket(testutils.create_ticket(sparse=True))
     assert ticket.sparse
+
+
+def test_transfer_id_unset():
+    ticket = Ticket(testutils.create_ticket())
+    assert ticket.transfer_id is None
+
+
+def test_transfer_id():
+    ticket = Ticket(testutils.create_ticket(transfer_id="123"))
+    assert ticket.transfer_id == "123"
 
 
 def test_repr():

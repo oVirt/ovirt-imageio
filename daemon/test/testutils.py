@@ -12,8 +12,8 @@ import uuid
 
 
 def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
-                  url="file:///var/run/vdsm/storage/foo", filename=None,
-                  sparse=None):
+                  url="file:///var/run/vdsm/storage/foo", transfer_id=None,
+                  filename=None, sparse=None):
     d = {
         "uuid": uuid,
         "timeout": timeout,
@@ -21,6 +21,8 @@ def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
         "size": size,
         "url": url,
     }
+    if transfer_id is not None:
+        d["transfer_id"] = transfer_id
     if filename is not None:
         d["filename"] = filename
     if sparse is not None:
