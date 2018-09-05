@@ -14,7 +14,7 @@ TEST_DIR = os.path.dirname(__file__)
 
 
 SingedTicket = collections.namedtuple(
-    "SingedTicket", "data, id, url")
+    "SingedTicket", "data, id, url, transfer_id")
 
 
 @pytest.fixture(scope="module")
@@ -41,4 +41,5 @@ def signed_ticket():
     return SingedTicket(
         data,
         "f6fe1b31-1c90-4dc3-a4b9-7b02938c8b41",
-        "https://localhost:54322")
+        "https://localhost:54322",
+        "123")
