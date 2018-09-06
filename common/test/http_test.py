@@ -183,6 +183,16 @@ class KeepConnection(object):
         raise http.Error(http.FORBIDDEN, "No data for you!")
 
 
+class PartialResponse(object):
+
+    def get(self, req, resp):
+        # Fail after sending the first part of the response. The
+        # connection shold be closed.
+        resp.headers["content-length"] = 1000
+        resp.write(b"Starting response...")
+        raise http.Error(http.INTERNAL_SERVER_ERROR, "No more data for you!")
+
+
 @pytest.fixture(scope="module")
 def server():
     server = http.Server(("", 0), http.Connection)
@@ -197,6 +207,7 @@ def server():
         (r"/server-error/(.*)", ServerError()),
         (r"/client-error/(.*)", ClientError()),
         (r"/keep-connection/", KeepConnection()),
+        (r"/partial-response/", PartialResponse()),
     ])
 
     t = util.start_thread(
@@ -623,6 +634,32 @@ def test_close_connection_on_error(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.FORBIDDEN
+
+        # Try to send another request. This will fail since we disabled
+        # auto_open.  Fails in request() or in getresponse(), probably
+        # depends on timing.
+        with pytest.raises(
+                (http_client.NotConnected, http_client.BadStatusLine)):
+            con.request("GET", "/client-error/")
+            con.getresponse()
+
+
+def test_close_connection_on_partial_response(server):
+    # When the response was not sent completely, the server must close
+    # the connection.
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # Disabling auto_open so we can test if a connection was closed.
+        con.auto_open = False
+        con.connect()
+
+        # Send a request - it should failed because the server
+        # closed the connection before sending the entire response.
+        con.request("GET", "/partial-response/")
+        r = con.getresponse()
+        assert r.status == http.OK
+        with pytest.raises(http_client.IncompleteRead):
+            r.read()
 
         # Try to send another request. This will fail since we disabled
         # auto_open.  Fails in request() or in getresponse(), probably

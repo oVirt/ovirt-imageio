@@ -340,6 +340,26 @@ class Response(object):
         self._con.wfile.write(b"HTTP/1.1 %d %s\r\n\r\n" % (status_code, msg))
         self._con.wfile.flush()
 
+    def send_error(self, e):
+        """
+        Send an error response for error e.
+        """
+        if self._started:
+            raise AssertionError("Response already sent")
+
+        # TODO: return json errors.
+        self.status_code = e.code
+        body = str(e).encode("utf-8")
+        self.headers["content-length"] = len(body)
+        self.write(body)
+
+    def close_connection(self):
+        """
+        Mark the connection for closing when the request completes.
+        """
+        self.headers["connection"] = "close"
+        self._con.close_connection = True
+
     def write(self, data):
         """
         Write data to the response body.
@@ -349,7 +369,6 @@ class Response(object):
         """
         self._started = True
         header = self._format_header()
-        self._update_connection()
 
         # TODO: Check if saving one syscall for small payloads (e.g. < 1460) by
         # merging header and data improves performance. Note that data may be a
@@ -396,17 +415,6 @@ class Response(object):
 
         return header.getvalue()
 
-    def _update_connection(self):
-        """
-        Update connection based on response headers.
-        """
-        connection = self.headers.get("connection")
-        if connection:
-            if connection == "close":
-                self._con.close_connection = 1
-            elif connection == "keep-alive":
-                self._con.close_connection = 0
-
 
 class Context(dict):
     """
@@ -429,14 +437,11 @@ class Headers(dict):
 
     def __setitem__(self, name, value):
         """
-        Override to enforce lowercase keys and lowercase values for certain
-        keys. This make it easier to get and use values from response headers
-        when processing the response.
+        Override to enforce lowercase keys. This make it easier to get
+        and use values from response headers when processing the
+        response.
         """
-        name = name.lower()
-        if name == "connection":
-            value = value.lower()
-        dict.__setitem__(self, name, value)
+        dict.__setitem__(self, name.lower(), value)
 
 
 class Router(object):
@@ -461,32 +466,32 @@ class Router(object):
                 if not resp.started:
                     resp.write(b"")
             except socket.error as e:
+                # We cannot return a response, close the connection.
                 # TODO: Verify that error is in the connection socket.
-                if e.args[0] in _DISCONNECTED:
-                    # We cannot send a response.
-                    log.warning("Client disconnected: %s", e)
-                else:
-                    log.exception("Server error")
-                    # Likely to fail, but lets try anyway.
-                    if not resp.started:
-                        self.send_error(
-                            resp, INTERNAL_SERVER_ERROR, "Socket error")
+                if e.args[0] not in _DISCONNECTED:
+                    raise
+                log.debug("Client disconnected: %s", e)
+                resp.close_connection()
             except Exception as e:
-                if not isinstance(e, Error):
+                if resp.started:
+                    # Already started the response, close the connection.
+                    log.exception("Request aborted after starting response")
+                    resp.close_connection()
+                else:
                     # Don't expose internal errors to client.
-                    e = Error(
-                        INTERNAL_SERVER_ERROR,
-                        "Server failed to perform the request, check logs")
-                if e.code >= INTERNAL_SERVER_ERROR:
-                    log.exception("Server error")
-                elif e.code >= BAD_REQUEST:
-                    log.warning("Client error: %s", e)
-                if req.length is not None and req.length > 0:
-                    log.debug("Request failed before reading entire content, "
-                              "closing connection")
-                    resp.headers["connection"] = "close"
-                if not resp.started:
-                    self.send_error(resp, e.code, str(e))
+                    if not isinstance(e, Error):
+                        e = Error(
+                            INTERNAL_SERVER_ERROR,
+                            "Server failed to perform the request, check logs")
+                    # Log the error.
+                    if e.code >= INTERNAL_SERVER_ERROR:
+                        log.exception("Server error")
+                    elif e.code >= BAD_REQUEST:
+                        log.error("Client error: %s", e)
+                    # Did we read the entire request content?
+                    if req.length and req.length > 0:
+                        resp.close_connection()
+                    resp.send_error(e)
 
     def dispatch(self, req, resp):
         if req.method not in self.ALLOWED_METHODS:
@@ -506,13 +511,6 @@ class Router(object):
                 return method(req, resp, *match.groups())
 
         raise Error(NOT_FOUND, "No handler for {!r}".format(path))
-
-    def send_error(self, resp, code, message):
-        # TODO: return json errors.
-        body = message.encode("utf-8")
-        resp.status_code = code
-        resp.headers["content-length"] = len(body)
-        resp.write(body)
 
 
 # Compatibility hacks
