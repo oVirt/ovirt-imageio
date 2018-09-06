@@ -47,13 +47,14 @@ def check_content(src, dst):
         assert s.read() == d.read()
 
 
-def prepare_upload(dst, sparse=True):
+def prepare_upload(dst, sparse=True, size=IMAGE_SIZE):
     with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
+        if not sparse:
+            f.write(b"a" * size)
 
     ticket = testutils.create_ticket(
         url="file://" + dst,
-        size=IMAGE_SIZE,
+        size=size,
         sparse=sparse)
 
     tickets.add(ticket)
@@ -173,3 +174,51 @@ def test_upload_unix_socket(tmpdir, use_unix_socket):
                   use_unix_socket=use_unix_socket)
 
     check_content(src, dst)
+
+
+def test_progress(tmpdir):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.write(b"b" * 4096)
+        f.seek(IMAGE_SIZE // 2)
+        f.write(b"b" * 4096)
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+    url = prepare_upload(dst, sparse=True)
+
+    progress = []
+    client.upload(src, url, pki.cert_file(config), secure=False,
+                  progress=progress.append)
+
+    assert progress == [
+        # First write.
+        4096,
+        # First zero.
+        IMAGE_SIZE // 2 - 4096,
+        # Second write.
+        4096,
+        # Second zero
+        IMAGE_SIZE // 2 - 4096,
+    ]
+
+
+def test_split_big_zero(tmpdir):
+    # Large zero ranges shhould be splitted to smaller chunks.
+    size = client.MAX_ZERO_SIZE * 2 + client.MAX_ZERO_SIZE // 2
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(size)
+
+    dst = str(tmpdir.join("dst"))
+    url = prepare_upload(dst, size=size, sparse=True)
+
+    progress = []
+    client.upload(src, url, pki.cert_file(config), secure=False,
+                  progress=progress.append)
+
+    assert progress == [
+        client.MAX_ZERO_SIZE,
+        client.MAX_ZERO_SIZE,
+        client.MAX_ZERO_SIZE // 2,
+    ]

@@ -41,25 +41,31 @@ How to use:
 """
 
 import argparse
+import os
+import sys
+
 from ovirt_imageio_common import client
+from ovirt_imageio_common import ui
 
 parser = argparse.ArgumentParser(description="Upload images")
 
 parser.add_argument(
     "filename",
-    help="path to image.")
+    help="path to image (e.g. /path/to/image.qcow2)")
 
 parser.add_argument(
     "url",
-    help="transfer URL.")
+    help="transfer URL (e.g. https://host:port/images/uuid)")
 
+# Note: unix socket works only when running this tool on the same host serving
+# the image.
 parser.add_argument(
     "-u", "--use-unix-socket",
     action="store_true",
     default=False,
     help=("optimize upload using unix socket if the local imageio daemon "
-          "supports unix socket. Should be used only if the transfer was "
-          "started on the same host."))
+          "supports unix socket. Should be used only when transferring data"
+          "to the host running this tool."))
 
 parser.add_argument(
     "-c", "--cafile",
@@ -82,10 +88,14 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-client.upload(
-    args.filename,
-    args.url,
-    args.cafile,
-    buffer_size=args.buffer_size,
-    use_unix_socket=args.use_unix_socket,
-    secure=args.secure)
+image_size = os.path.getsize(args.filename)
+
+with ui.ProgressBar(image_size) as pb:
+    client.upload(
+        args.filename,
+        args.url,
+        args.cafile,
+        buffer_size=args.buffer_size,
+        use_unix_socket=args.use_unix_socket,
+        secure=args.secure,
+        progress=pb.update)

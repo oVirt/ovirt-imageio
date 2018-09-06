@@ -27,9 +27,15 @@ import six
 from six.moves import http_client
 from six.moves.urllib.parse import urlparse
 
+# Higher values are more efficient, sending less requests, but may cause large
+# delays in progress updates when storage does not support efficient zeroing.
+# This will take about 6 second with LIO storage, and about 25 milliseconds
+# for high end FC storage.
+MAX_ZERO_SIZE = 1024**3
+
 
 def upload(filename, url, cafile, buffer_size=128 * 1024,
-           use_unix_socket=False, secure=True):
+           use_unix_socket=False, secure=True, progress=None):
     """
     Upload filename to url
 
@@ -46,6 +52,9 @@ def upload(filename, url, cafile, buffer_size=128 * 1024,
             transfer url. Default is False.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
+        progress (function): Function accepting one integer argument for
+            updating upload progress. The function will be called after every
+            write or zero operation with the number bytes transferred.
     """
     url = urlparse(url)
 
@@ -58,8 +67,9 @@ def upload(filename, url, cafile, buffer_size=128 * 1024,
 
     transfer = {
         "buffer_size": buffer_size,
+        "con": HTTPSConnection(url.netloc, context=context),
         "path": url.path,
-        "con": HTTPSConnection(url.netloc, context=context)
+        "progress": progress,
     }
 
     # Check the server capabilities for this image.
@@ -206,6 +216,9 @@ def _put(transfer, start, length):
             break
         pos += len(chunk)
 
+        if transfer["progress"]:
+            transfer["progress"](len(chunk))
+
     res = transfer["con"].getresponse()
     error = res.read()
     if res.status != http_client.OK:
@@ -219,11 +232,19 @@ def _zero(transfer, start, length):
     If the server supports "flush" feature, disable flushing for this
     request.
     """
-    msg = {"op": "zero",
-           "offset": start,
-           "size": length,
-           "flush": not transfer["can_flush"]}
-    _patch(transfer, msg)
+    while length:
+        step = min(MAX_ZERO_SIZE, length)
+        msg = {"op": "zero",
+               "offset": start,
+               "size": step,
+               "flush": not transfer["can_flush"]}
+        _patch(transfer, msg)
+
+        start += step
+        length -= step
+
+        if transfer["progress"]:
+            transfer["progress"](step)
 
 
 def _flush(transfer):
