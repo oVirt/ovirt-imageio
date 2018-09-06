@@ -368,52 +368,53 @@ class Response(object):
         the first call. Do not try to cache this method!
         """
         self._started = True
-        header = self._format_header()
 
-        # TODO: Check if saving one syscall for small payloads (e.g. < 1460) by
-        # merging header and data improves performance. Note that data may be a
-        # buffer or memoryview object wrapping a mmap object.
-        self._con.wfile.write(header)
-        self._con.wfile.write(data)
-        self._con.wfile.flush()
+        b = io.BytesIO()
+        self._write_header(b)
+
+        # For small payload, it is faster to copy the data and write in one
+        # syscall.
+        # TODO: 4096 is a guess, measure what is the best value.
+        if len(data) < 4096:
+            b.write(data)
+            self._con.wfile.write(b.getvalue())
+        else:
+            self._con.wfile.write(b.getvalue())
+            self._con.wfile.write(data)
 
         # This avoids name lookup on the next calls to write.
         self.write = self._con.wfile.write
 
-    def _format_header(self):
+    def _write_header(self, b):
         """
-        Format HTTP header using temporary buffer, avoiding one syscall per
-        line in python 2.7.
+        Write HTTP header to buffer b, avoiding one syscall per line in python
+        2.7.
         """
         if self.status_code in self._con.responses:
             msg = self._con.responses[self.status_code][0].encode("latin1")
         else:
             msg = b""
 
-        header = io.BytesIO()
-
         # Write response line.
-        header.write(b"%s %d %s\r\n" % (
-                     self._con.protocol_version.encode("latin1"),
-                     self.status_code,
-                     msg))
+        b.write(b"%s %d %s\r\n" % (
+                self._con.protocol_version.encode("latin1"),
+                self.status_code,
+                msg))
 
         # Write default headers.
-        header.write(b"server: %s\r\n" %
-                     self._con.version_string().encode("latin1"))
-        header.write(b"date: %s\r\n" %
-                     self._con.date_time_string().encode("latin1"))
+        b.write(b"server: %s\r\n" %
+                self._con.version_string().encode("latin1"))
+        b.write(b"date: %s\r\n" %
+                self._con.date_time_string().encode("latin1"))
 
         # Write user headers.
         for name, value in six.iteritems(self.headers):
             # Encoding entire line to allow using integer value, for example
             # content-length.
-            header.write(("%s: %s\r\n" % (name, value)).encode("latin1"))
+            b.write(("%s: %s\r\n" % (name, value)).encode("latin1"))
 
         # End header.
-        header.write(b"\r\n")
-
-        return header.getvalue()
+        b.write(b"\r\n")
 
 
 class Context(dict):
