@@ -132,9 +132,6 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
             self.raw_requestline = self.rfile.readline(
                 self.max_request_line + 1)
             if len(self.raw_requestline) > self.max_request_line:
-                log.warning("Request line too long: %d > %d, closing "
-                            "connection",
-                            len(self.raw_requestline), self.max_request_line)
                 self.requestline = ''
                 self.request_version = ''
                 self.command = ''
@@ -169,8 +166,15 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def log_request(self, msg):
         """
-        Override to disable server logs.
+        Override to disable request logs from send_response().
         """
+
+    def log_error(self, fmt, *args):
+        """
+        Override to log errors from send_error() to our log instead of
+        stderr. Since these are always client errors, log a warning.
+        """
+        log.warning(fmt, *args)
 
 
 class Request(object):
