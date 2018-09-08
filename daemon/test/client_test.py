@@ -17,7 +17,7 @@ from ovirt_imageio_common import configloader
 from ovirt_imageio_common import client
 from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import server
-from ovirt_imageio_daemon import tickets
+from ovirt_imageio_daemon import auth
 from ovirt_imageio_daemon import pki
 
 from . import testutils
@@ -39,7 +39,7 @@ def teardown_module(m):
 
 
 def setup_function(f):
-    tickets.clear()
+    auth.clear()
 
 
 def check_content(src, dst):
@@ -57,7 +57,7 @@ def prepare_upload(dst, sparse=True, size=IMAGE_SIZE):
         size=size,
         sparse=sparse)
 
-    tickets.add(ticket)
+    auth.add(ticket)
 
     return "https://localhost:{}/images/{}".format(
         server.remote_service.port, ticket["uuid"])

@@ -18,7 +18,7 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common import validate
 from ovirt_imageio_common import web
 
-from . import tickets
+from . import auth
 
 log = logging.getLogger("images")
 
@@ -49,7 +49,7 @@ class Handler(object):
                               default="y")
         flush = (flush == "y")
 
-        ticket = tickets.authorize(ticket_id, "write", offset, size)
+        ticket = auth.authorize(ticket_id, "write", offset, size)
         # TODO: cancel copy if ticket expired or revoked
         log.info(
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
@@ -81,7 +81,7 @@ class Handler(object):
             if self.request.range.end is not None:
                 size = self.request.range.end - offset
 
-        ticket = tickets.authorize(ticket_id, "read", offset, size)
+        ticket = auth.authorize(ticket_id, "read", offset, size)
         if size is None:
             size = ticket.size - offset
         log.info(
@@ -132,7 +132,7 @@ class Handler(object):
         offset = validate.integer(msg, "offset", minval=0, default=0)
         flush = validate.boolean(msg, "flush", default=False)
 
-        ticket = tickets.authorize(ticket_id, "write", offset, size)
+        ticket = auth.authorize(ticket_id, "write", offset, size)
 
         log.info(
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
@@ -152,7 +152,7 @@ class Handler(object):
         return web.response()
 
     def _flush(self, ticket_id, msg):
-        ticket = tickets.authorize(ticket_id, "write", 0, 0)
+        ticket = auth.authorize(ticket_id, "write", 0, 0)
         log.info("[%s] FLUSH ticket=%s",
                  web.client_address(self.request), ticket_id)
         op = directio.Flush(ticket.url.path, clock=self.clock)
@@ -172,7 +172,7 @@ class Handler(object):
         else:
             # Reporting real image capabilities per ticket.
             # This check will fail if the ticket has expired.
-            ticket = tickets.authorize(ticket_id, "read", 0, 0)
+            ticket = auth.authorize(ticket_id, "read", 0, 0)
 
             # Accessing ticket options considered as client activity.
             ticket.touch()

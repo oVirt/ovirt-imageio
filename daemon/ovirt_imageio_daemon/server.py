@@ -33,7 +33,7 @@ from . import config
 from . import images
 from . import pki
 from . import profile
-from . import tickets
+from . import auth
 from . import uhttp
 from . import wsgi
 
@@ -227,7 +227,7 @@ class Tickets(object):
         if not ticket_id:
             raise HTTPBadRequest("Ticket id is required")
         try:
-            ticket = tickets.get(ticket_id)
+            ticket = auth.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket %r" % ticket_id)
         ticket_info = ticket.info()
@@ -250,7 +250,7 @@ class Tickets(object):
         self.log.info("[%s] ADD ticket=%s",
                       web.client_address(self.request), ticket_dict)
         try:
-            tickets.add(ticket_dict)
+            auth.add(ticket_dict)
         except errors.InvalidTicket as e:
             raise HTTPBadRequest("Invalid ticket: %s" % e)
 
@@ -273,7 +273,7 @@ class Tickets(object):
         except ValueError as e:
             raise HTTPBadRequest("Invalid timeout value: %s" % e)
         try:
-            ticket = tickets.get(ticket_id)
+            ticket = auth.get(ticket_id)
         except KeyError:
             raise HTTPNotFound("No such ticket: %s" % ticket_id)
 
@@ -295,9 +295,9 @@ class Tickets(object):
                       web.client_address(self.request), ticket_id)
         if ticket_id:
             try:
-                tickets.remove(ticket_id)
+                auth.remove(ticket_id)
             except KeyError:
                 log.debug("Ticket %s does not exists", ticket_id)
         else:
-            tickets.clear()
+            auth.clear()
         return web.response(status=204)

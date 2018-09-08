@@ -21,7 +21,7 @@ from ovirt_imageio_common import configloader
 
 from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import server
-from ovirt_imageio_daemon import tickets
+from ovirt_imageio_daemon import auth
 
 from . import http
 from . import testutils
@@ -42,7 +42,7 @@ def service():
 
 
 def setup_function(f):
-    tickets.clear()
+    auth.clear()
 
 
 def test_method_not_allowed(service):
@@ -76,7 +76,7 @@ def test_no_ticket(service, method, body):
 def test_put_forbidden(service):
     ticket = testutils.create_ticket(
         url="file:///no/such/image", ops=["read"])
-    tickets.add(ticket)
+    auth.add(ticket)
     res = http.unix_request(
         service.address, "PUT", "/images/" + ticket["uuid"], "content")
     assert res.status == http_client.FORBIDDEN
@@ -85,7 +85,7 @@ def test_put_forbidden(service):
 def test_put(service, tmpdir):
     image = testutils.create_tempfile(tmpdir, "image", "-------|after")
     ticket = testutils.create_ticket(url="file://" + str(image))
-    tickets.add(ticket)
+    auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
     res = http.unix_request(service.address, "PUT", uri, "content")
     assert res.status == http_client.OK
@@ -97,7 +97,7 @@ def test_put(service, tmpdir):
 def test_get_forbidden(service):
     ticket = testutils.create_ticket(
         url="file:///no/such/image", ops=[])
-    tickets.add(ticket)
+    auth.add(ticket)
     res = http.unix_request(
         service.address, "GET", "/images/" + ticket["uuid"], "content")
     assert res.status == http_client.FORBIDDEN
@@ -108,7 +108,7 @@ def test_get(service, tmpdir):
     image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=1024)
-    tickets.add(ticket)
+    auth.add(ticket)
     res = http.unix_request(
         service.address, "GET", "/images/" + ticket["uuid"])
     assert res.status == http_client.OK
@@ -119,7 +119,7 @@ def test_images_zero(service, tmpdir):
     data = "x" * 512
     image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
-    tickets.add(ticket)
+    auth.add(ticket)
     msg = {"op": "zero", "size": 20, "offset": 10, "future": True}
     size = msg["size"]
     offset = msg.get("offset", 0)
