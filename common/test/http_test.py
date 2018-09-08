@@ -665,3 +665,49 @@ def test_close_connection_on_partial_response(server):
                 (http_client.NotConnected, http_client.BadStatusLine)):
             con.request("GET", "/client-error/")
             con.getresponse()
+
+
+@pytest.mark.parametrize("header,first,last", [
+    # Both first and last
+    ("bytes=0-99", 0, 99),
+    # One byte range.
+    ("bytes=42-42", 42, 42),
+    # From 99 to end.
+    ("bytes=99-", 99, None),
+    # Last 99 byts
+    ("bytes=-99", -99, None),
+])
+def test_range_parse(header, first, last):
+    r = http.Range.parse(header)
+    assert r.first == first
+    assert r.last is last
+
+
+@pytest.mark.parametrize("header", [
+    # Missing bytes
+    "cats=0-99",
+    # Wrong case
+    "BYTES=0-99",
+    # Extra spaces
+    "bytes =0-99",
+    "bytes= 0-99",
+    "bytes=0 -99",
+    "bytes=0- 99",
+    "bytes=0-99 ",
+    # Missing =
+    "bytes 0-99",
+    # Missing -
+    "bytes=99",
+    # first > last
+    "bytes=99-98",
+    # negative first
+    "bytes=-42-",
+    # first and negative last (conflict)
+    "bytes=42--99",
+    # ultiple ranges not supported yet.
+    "bytes=0-499,500-599",
+])
+def test_range_parse_not_satisfiable(header):
+    with pytest.raises(http.Error) as e:
+        http.Range.parse(header)
+    assert e.value.code == http.REQUESTED_RANGE_NOT_SATISFIABLE

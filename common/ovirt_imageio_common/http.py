@@ -449,6 +449,86 @@ class Headers(dict):
         dict.__setitem__(self, name.lower(), value)
 
 
+class Range(object):
+    """
+    HTTP Range header.
+
+    See https://tools.ietf.org/html/rfc7233#section-2.1 for details.
+    """
+
+    _rx = re.compile(r"bytes=(\d*)-(\d*)$")
+
+    def __init__(self, first, last):
+        self.first = first
+        self.last = last
+
+    @classmethod
+    def parse(cls, header):
+        """
+        Parse Range header.
+
+        Based on webob.byterange.Range, with several modifications to
+        suite our our use case:
+
+        - Raises on invalid or unsupported range so server code does not
+          need to do error checking. This also ensure that invalid range will
+          not be considered as non-range request which can lead to image
+          corruption when the server return the wrong data to the client.
+
+        - Matches better the HTTP spec, using "first" and "last" instead of
+          "start" and "stop". The last byte position is kept as is, and not
+          incremented by one.
+
+        - Reject invalid range without first or last byte positions, negative
+          first, or junk at the end.
+
+        - Does not support case insensitive unit or extra space, since the HTTP
+          spec does not specify them.
+
+        - Does not accept None header, only string. We don't want to
+          help sloppy programmers.
+
+        Like webob, multiple ranges are not supported, but unlike webob, this
+        will reject the entire request, instead of using only the first range.
+
+        Raise:
+            http.Error(REQUESTED_RANGE_NOT_SATISFIABLE) if the range is
+            invalid, or contain multiple ranges.
+        """
+        m = cls._rx.match(header)
+        if not m:
+            raise Error(
+                REQUESTED_RANGE_NOT_SATISFIABLE,
+                "Cannot satisfy range {!r}, invalid range or multiple ranges"
+                .format(header))
+
+        first, last = m.groups()
+        if not first:
+            if not last:
+                # "bytes=-"
+                raise Error(
+                    REQUESTED_RANGE_NOT_SATISFIABLE,
+                    "Cannot satisfy range {!r}, no first or last"
+                    .format(header))
+            # "bytes=-99"
+            return cls(-int(last), None)
+
+        first = int(first)
+        if not last:
+            # "bytes=0-"
+            return cls(first, None)
+
+        last = int(last)
+        if first > last:
+            raise Error(
+                REQUESTED_RANGE_NOT_SATISFIABLE,
+                "Cannot satisfy range {!r}, first > last"
+                .format(header))
+
+        # "bytes=0-99"
+        return cls(first, last)
+
+
 class Router(object):
     """
     Route requests to registered requests handlers.
