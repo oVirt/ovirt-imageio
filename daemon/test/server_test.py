@@ -26,9 +26,10 @@ import pytest
 
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import util
+from ovirt_imageio_daemon import auth
 from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import server
-from ovirt_imageio_daemon import auth
+from ovirt_imageio_daemon import tickets
 
 from . import testutils
 from . import http
@@ -135,7 +136,7 @@ def test_tickets_put_bad_url_value(fake_time):
 def test_tickets_general_exception(monkeypatch):
     def fail(x, y):
         raise Exception("EXPECTED FAILURE")
-    monkeypatch.setattr(server.Tickets, "get", fail)
+    monkeypatch.setattr(tickets.Handler, "get", fail)
     res = http.unix_request(
         config.tickets.socket, "GET", "/tickets/%s" % uuid.uuid4())
     error = json.loads(res.read())

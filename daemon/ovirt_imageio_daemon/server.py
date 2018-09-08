@@ -17,13 +17,7 @@ import time
 
 import systemd.daemon
 
-from webob.exc import (
-    HTTPBadRequest,
-    HTTPNotFound,
-)
-
 from ovirt_imageio_common import configloader
-from ovirt_imageio_common import errors
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
@@ -33,7 +27,7 @@ from . import config
 from . import images
 from . import pki
 from . import profile
-from . import auth
+from . import tickets
 from . import uhttp
 from . import wsgi
 
@@ -205,99 +199,8 @@ class ControlService(Service):
         if config.tickets.socket == "":
             config.tickets.socket = self.address
         app = web.Application(config, [
-            (r"/tickets/(.*)", Tickets),
+            (r"/tickets/(.*)", tickets.Handler),
             (r"/profile/", profile.Handler),
         ])
         self._server.set_app(app)
         log.debug("%s listening on %r", self.name, self.address)
-
-
-class Tickets(object):
-    """
-    Request handler for the /tickets/ resource.
-    """
-    log = logging.getLogger("tickets")
-
-    def __init__(self, config, request, clock=None):
-        self.config = config
-        self.request = request
-        self.clock = clock
-
-    def get(self, ticket_id):
-        if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
-        try:
-            ticket = auth.get(ticket_id)
-        except KeyError:
-            raise HTTPNotFound("No such ticket %r" % ticket_id)
-        ticket_info = ticket.info()
-        self.log.debug("[%s] GET ticket=%s",
-                       web.client_address(self.request), ticket_info)
-        return web.response(payload=ticket_info)
-
-    def put(self, ticket_id):
-        # TODO
-        # - reject invalid or expired ticket
-        # - start expire timer
-        if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
-
-        try:
-            ticket_dict = self.request.json
-        except ValueError as e:
-            raise HTTPBadRequest("Ticket is not in a json format: %s" % e)
-
-        self.log.info("[%s] ADD ticket=%s",
-                      web.client_address(self.request), ticket_dict)
-        try:
-            auth.add(ticket_dict)
-        except errors.InvalidTicket as e:
-            raise HTTPBadRequest("Invalid ticket: %s" % e)
-
-        return web.response()
-
-    def patch(self, ticket_id):
-        # TODO: restart expire timer
-        if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
-        try:
-            patch = self.request.json
-        except ValueError as e:
-            raise HTTPBadRequest("Invalid patch: %s" % e)
-        try:
-            timeout = patch["timeout"]
-        except KeyError:
-            raise HTTPBadRequest("Missing timeout key")
-        try:
-            timeout = int(timeout)
-        except ValueError as e:
-            raise HTTPBadRequest("Invalid timeout value: %s" % e)
-        try:
-            ticket = auth.get(ticket_id)
-        except KeyError:
-            raise HTTPNotFound("No such ticket: %s" % ticket_id)
-
-        self.log.info("[%s] EXTEND timeout=%s ticket=%s",
-                      web.client_address(self.request), timeout, ticket_id)
-        ticket.extend(timeout)
-        return web.response()
-
-    def delete(self, ticket_id):
-        """
-        Delete a ticket if exists.
-
-        Note that DELETE is idempotent;  the client can issue multiple DELETE
-        requests in case of network failures. See
-        https://tools.ietf.org/html/rfc7231#section-4.2.2.
-        """
-        # TODO: cancel requests using deleted tickets
-        self.log.info("[%s] REMOVE ticket=%s",
-                      web.client_address(self.request), ticket_id)
-        if ticket_id:
-            try:
-                auth.remove(ticket_id)
-            except KeyError:
-                log.debug("Ticket %s does not exists", ticket_id)
-        else:
-            auth.clear()
-        return web.response(status=204)
