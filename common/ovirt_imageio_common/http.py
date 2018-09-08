@@ -529,6 +529,79 @@ class Range(object):
         return cls(first, last)
 
 
+class ContentRange(object):
+    """
+    HTTP ContentRange header.
+
+    See https://tools.ietf.org/html/rfc7233#section-4.2 for details.
+    """
+
+    _rx = re.compile(r"bytes (\d+)-(\d+|\*)/(\d+|\*)$")
+
+    def __init__(self, first, last, complete):
+        self.first = first
+        self.last = last
+        self.complete = complete
+
+    @classmethod
+    def parse(cls, header):
+        """
+        Parse ContentRange header.
+
+        This is similar to webob.byterange.ContentRange, with this
+        differences:
+
+        - Raises on invalid content range, so server code does not need
+          to repeat the error checking. This also ensures that invalid
+          header will not be ignored, which will write data to the wrong
+          position in an image, corrupting the image.
+
+        - Matches better HTTP spec, using "first", "last", and
+          "complete", instead of "start", "stop", and "length", which is
+          confusing with content-length.
+
+        - Does not implement the unsatisfied-range format (*/complete)
+          which we don't support in a PUT request.
+
+        - Does not accept None, only string. We don't want to help
+          sloppy programmers.
+
+        Raise:
+            http.Error(BAD_REQUEST) if the range is invalid.
+        """
+        m = cls._rx.match(header)
+        if not m:
+            raise Error(
+                BAD_REQUEST,
+                "Invalid Content-Range {!r}".format(header))
+
+        first, last, complete = m.groups()
+
+        first = int(first)
+
+        if last == "*":
+            last = None
+        else:
+            last = int(last)
+            if last < first:
+                raise Error(
+                    BAD_REQUEST,
+                    "Invalid Content-Range {!r}, first > last"
+                    .format(header))
+
+        if complete == "*":
+            complete = None
+        else:
+            complete = int(complete)
+            if last is not None and last >= complete:
+                raise Error(
+                    BAD_REQUEST,
+                    "Invalid Content-Range {!r}, last >= complete"
+                    .format(header))
+
+        return cls(first, last, complete)
+
+
 class Router(object):
     """
     Route requests to registered requests handlers.

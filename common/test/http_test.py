@@ -711,3 +711,54 @@ def test_range_parse_not_satisfiable(header):
     with pytest.raises(http.Error) as e:
         http.Range.parse(header)
     assert e.value.code == http.REQUESTED_RANGE_NOT_SATISFIABLE
+
+
+@pytest.mark.parametrize("header,first,last,complete", [
+    # First 100 bytes of 200 bytes.
+    ("bytes 0-99/200", 0, 99, 200),
+    # First byte of 200 bytes.
+    ("bytes 0-0/200", 0, 0, 200),
+    # Last byte of 200 bytes.
+    ("bytes 199-199/200", 199, 199, 200),
+    # Last unspeficied
+    ("bytes 100-*/200", 100, None, 200),
+    # Complete unspecified
+    ("bytes 100-199/*", 100, 199, None),
+    # Last and complete unspecified
+    ("bytes 100-*/*", 100, None, None),
+])
+def test_content_range_parse(header, first, last, complete):
+    r = http.ContentRange.parse(header)
+    assert r.first == first
+    assert r.last is last
+    assert r.complete is complete
+
+
+@pytest.mark.parametrize("header", [
+    # Unsupported unit
+    "cats 0-99/200",
+    # Missing element
+    "bytes 0-99/",
+    "bytes 0-99",
+    "bytes -99/200",
+    "bytes 99-/200",
+    "bytes 99/200",
+    "bytes /200",
+    # Invalid numberic values
+    "bytes invalid-99/200",
+    "bytes 0-invalid/200",
+    "bytes 0-99/invalid",
+    # Unspecified first
+    "bytes *-99/200",
+    # first > last
+    "bytes 99-98/200",
+    # last >= complete
+    "bytes 0-200/200",
+    "bytes 0-201/200",
+    # Unsatisfied range (valid, but unsupported)
+    "bytes */200",
+])
+def test_content_range_parse_invalid(header):
+    with pytest.raises(http.Error) as e:
+        http.ContentRange.parse(header)
+    assert e.value.code == http.BAD_REQUEST
