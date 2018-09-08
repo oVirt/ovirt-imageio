@@ -12,6 +12,7 @@ import errno
 import io
 import json
 import logging
+import os
 import socket
 import time
 
@@ -59,6 +60,54 @@ class Echo(object):
             count -= len(chunk)
 
 
+class RangeDemo(object):
+    """
+    Demonstrate using Range and Content-Range headers.
+    """
+
+    def __init__(self):
+        self.file = io.BytesIO()
+
+    def get(self, req, resp):
+        complete = self.file.seek(0, os.SEEK_END)
+        offset = 0
+        size = complete
+
+        # Handle range request.
+        if req.range:
+            offset = req.range.first
+            if offset < 0:
+                offset += complete
+                size = complete - offset
+            elif req.range.last is not None:
+                size = req.range.last - offset + 1
+            else:
+                size = complete - offset
+
+        if offset + size > complete:
+            raise http.Error(
+                http.REQUESTED_RANGE_NOT_SATISFIABLE,
+                "Requested {} bytes, available {} bytes"
+                .format(size, complete - offset))
+
+        resp.headers["content-length"] = size
+
+        if req.range:
+            resp.status_code = http.PARTIAL_CONTENT
+            resp.headers["content-range"] = "bytes %d-%d/%d" % (
+                offset, offset + size - 1, complete)
+
+        self.file.seek(offset)
+        resp.write(self.file.read(size))
+
+    def put(self, req, resp):
+        offset = req.content_range.first if req.content_range else 0
+        self.file.seek(offset)
+        self.file.write(req.read())
+        if req.length != 0:
+            raise http.Error(http.BAD_REQUEST, "Unexpected EOF")
+
+
 class RequestInfo(object):
 
     def get(self, req, resp, arg=None):
@@ -81,6 +130,7 @@ class RequestInfo(object):
             assert type(k) == six.text_type
             assert type(v) == six.text_type
 
+        # Simple values
         info = {
             "method": req.method,
             "uri": req.uri,
@@ -93,6 +143,20 @@ class RequestInfo(object):
             "headers": headers,
             "client_addr": req.client_addr,
         }
+
+        # Complex values
+        if req.range:
+            info["range"] = {"first": req.range.first,
+                             "last": req.range.last}
+        else:
+            info["range"] = req.range
+        if req.content_range:
+            info["content_range"] = {"first": req.content_range.first,
+                                     "last": req.content_range.last,
+                                     "complete": req.content_range.complete}
+        else:
+            info["content_range"] = req.content_range
+
         body = json.dumps(info).encode("utf-8")
         resp.headers["content-length"] = len(body)
         resp.write(body)
@@ -198,6 +262,7 @@ def server():
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
         (r"/echo/(.*)", Echo()),
+        (r"/range-demo/", RangeDemo()),
         (r"/request-info/(.*)", RequestInfo()),
         (r"/context/(.*)", Context()),
         (r"/close-context/(.*)", CloseContext()),
@@ -299,6 +364,51 @@ def test_echo_100_continue(server):
         assert r.read() == data
 
 
+def test_range_demo(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        # Get complete resource, should return 0 bytes.
+        con.request("GET", "/range-demo/")
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.OK
+        assert body == b""
+
+        # Put some data.
+        con.request("PUT", "/range-demo/", body=b"it works!")
+        r = con.getresponse()
+        r.read()
+        assert r.status == http.OK
+
+        # Get part of the resource.
+        con.request("GET", "/range-demo/", headers={"range": "bytes=3-"})
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.PARTIAL_CONTENT
+        assert body == b"works!"
+
+        # Replace part of the resource.
+        con.request("PUT", "/range-demo/",
+                    body=b"really works!",
+                    headers={"content-range": "bytes 3-*/*"})
+        r = con.getresponse()
+        r.read()
+        assert r.status == http.OK
+
+        # Get last bytes of the resource.
+        con.request("GET", "/range-demo/", headers={"range": "bytes=-13"})
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.PARTIAL_CONTENT
+        assert body == b"really works!"
+
+        # Get invalid range after the last byte.
+        con.request("GET", "/range-demo/", headers={"range": "bytes=0-100"})
+        r = con.getresponse()
+        r.read()
+        assert r.status == http.REQUESTED_RANGE_NOT_SATISFIABLE
+
+
 def test_request_info_get(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
@@ -318,6 +428,43 @@ def test_request_info_get(server):
     assert info["headers"]["host"] == "localhost:%d" % server.server_port
     assert info["headers"]["accept-encoding"] == "identity"
     assert info["client_addr"] == "127.0.0.1"
+    assert info["range"] is None
+
+
+def test_request_info_get_range(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/request-info/arg",
+                    headers={"range": "bytes=0-99"})
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.OK
+
+    info = json.loads(body)
+    assert info["range"] == {"first": 0, "last": 99}
+
+
+def test_request_info_get_range_last_specified(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/request-info/arg",
+                    headers={"range": "bytes=0-"})
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.OK
+
+    info = json.loads(body)
+    assert info["range"] == {"first": 0, "last": None}
+
+
+def test_request_info_get_unsatisfiable_range(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/request-info/arg",
+                    headers={"range": "bytes=invalid-99"})
+        r = con.getresponse()
+        r.read()
+        assert r.status == http.REQUESTED_RANGE_NOT_SATISFIABLE
 
 
 def test_request_info_put(server):
@@ -339,6 +486,7 @@ def test_request_info_put(server):
     assert info["content"] == content
     assert info["headers"]["accept-encoding"] == "identity"
     assert info["headers"]["content-length"] == str(len(content))
+    assert info["content_range"] is None
 
 
 @pytest.mark.parametrize("content_length", ["not an int", "-1"])
@@ -350,6 +498,33 @@ def test_request_invalid_content_length(server, content_length):
             "/request-info/",
             headers={"content-length": content_length})
         r = con.getresponse()
+        assert r.status == http.BAD_REQUEST
+
+
+def test_request_info_put_content_range(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        content = "it works!"
+        con.request("PUT", "/request-info/arg",
+                    body=content.encode("utf-8"),
+                    headers={"content-range": "bytes 0-8/100"})
+        r = con.getresponse()
+        body = r.read()
+        assert r.status == http.OK
+
+    info = json.loads(body)
+    assert info["content_range"] == {"first": 0, "last": 8, "complete": 100}
+
+
+def test_request_info_put_content_range_invalid(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        content = "it works!"
+        con.request("PUT", "/request-info/arg",
+                    body=content.encode("utf-8"),
+                    headers={"content-range": "bytes 0-invalid/*"})
+        r = con.getresponse()
+        r.read()
         assert r.status == http.BAD_REQUEST
 
 

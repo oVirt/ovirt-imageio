@@ -190,6 +190,8 @@ class Request(object):
         self._query = _UNKNOWN
         self._content_length = _UNKNOWN
         self._length = _UNKNOWN
+        self._range = _UNKNOWN
+        self._content_range = _UNKNOWN
 
     @property
     def context(self):
@@ -295,6 +297,26 @@ class Request(object):
         if self._length is _UNKNOWN:
             self._length = self.content_length
         return self._length
+
+    @property
+    def range(self):
+        if self._range is _UNKNOWN:
+            value = self.headers.get("range")
+            if value is not None:
+                self._range = Range.parse(value)
+            else:
+                self._range = None
+        return self._range
+
+    @property
+    def content_range(self):
+        if self._content_range is _UNKNOWN:
+            value = self.headers.get("content-range")
+            if value is not None:
+                self._content_range = ContentRange.parse(value)
+            else:
+                self._content_range = None
+        return self._content_range
 
     @property
     def client_addr(self):
