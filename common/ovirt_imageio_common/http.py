@@ -319,7 +319,7 @@ class Response(object):
     def __init__(self, con):
         self._con = con
         self.status_code = OK
-        self.headers = Headers()
+        self.headers = Headers({"content-length": 0})
         self._started = False
 
     @property

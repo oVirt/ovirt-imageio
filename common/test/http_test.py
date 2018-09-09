@@ -39,7 +39,6 @@ class Demo(object):
         resp.status_code = http.NO_CONTENT
 
     def options(self, req, resp, name):
-        resp.headers["content-length"] = 0
         resp.headers["allow"] = "GET,DELETE,OPTIONS"
 
 
@@ -107,7 +106,6 @@ class Context(object):
     def put(self, req, resp, name):
         value = req.read()
         req.context[name] = value
-        resp.headers["content-length"] = 0
 
     def get(self, req, resp, name):
         if name not in req.context:
@@ -143,7 +141,6 @@ class CloseContext(object):
 
     def put(self, req, resp, name):
         req.context[name] = Closeable(name, self.log)
-        resp.headers["content-length"] = 0
 
     def get(self, req, resp, *args):
         value = self.log.getvalue().encode("utf-8")
