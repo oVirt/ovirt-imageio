@@ -66,8 +66,13 @@ def prepare_upload(dst, sparse=True, size=IMAGE_SIZE):
 # TODO:
 # - All tests use secure=False to workaround our bad certificates. Once we fix
 #   the certificates we need to test with the default secure=True.
-# - test server not supporting unix socket. We don't have a way to disable unix
-#   socket currently.
+# - verify that upload optimized the upload using unix socket. Need a way to
+#   enable only OPTIONS on the remote server.
+# - verify that upload fall back to HTTPS if server does not support unix
+#   socket. We don't have a way to disable unix socket currently.
+# - verify that upload fall back to HTTPS if server support unix socket but is
+#   not the local host. Probbly not feasble for these tests, unless we can
+#   start a daemon on another host.
 # - Test negative flows
 
 
@@ -170,8 +175,7 @@ def test_upload_unix_socket(tmpdir, use_unix_socket):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(dst)
 
-    client.upload(src, url, pki.cert_file(config), secure=False,
-                  use_unix_socket=use_unix_socket)
+    client.upload(src, url, pki.cert_file(config), secure=False)
 
     check_content(src, dst)
 

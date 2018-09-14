@@ -21,8 +21,6 @@ import socket
 import ssl
 import subprocess
 
-from contextlib import closing
-
 import six
 from six.moves import http_client
 from six.moves.urllib.parse import urlparse
@@ -34,8 +32,8 @@ from six.moves.urllib.parse import urlparse
 MAX_ZERO_SIZE = 1024**3
 
 
-def upload(filename, url, cafile, buffer_size=128 * 1024,
-           use_unix_socket=False, secure=True, progress=None):
+def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
+           progress=None):
     """
     Upload filename to url
 
@@ -47,9 +45,6 @@ def upload(filename, url, cafile, buffer_size=128 * 1024,
         buffer_size (int): Buffer size in bytes for reading from storage and
             sending data over HTTP connection. The efault value of 128 kB seems
             to give good performance in our tests, you may like to tweak it.
-        use_unix_socket (bool): If True, use unix socket for the transfer.
-            Can be used only if you run upload on the same host mentioned in
-            transfer url. Default is False.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
         progress (function): Function accepting one integer argument for
@@ -72,28 +67,28 @@ def upload(filename, url, cafile, buffer_size=128 * 1024,
         "progress": progress,
     }
 
-    # Check the server capabilities for this image.
-    with closing(transfer["con"]):
+    try:
+        # Check the server capabilities for this image.
         server_options = _options(transfer)
         transfer["can_zero"] = "zero" in server_options["features"]
         transfer["can_flush"] = "flush" in server_options["features"]
 
-    # Open connection for transferring data. If the server supports unix
-    # socket and use_unix_socket is True, we can transfer data faster using
-    # less resources.
-    if use_unix_socket and "unix_socket" in server_options:
-        transfer["con"] = UnixHTTPConnection(server_options["unix_socket"])
-    else:
-        transfer["con"] = HTTPSConnection(url.netloc, context=context)
+        # Optimize using unix socket if possible.
+        if ("unix_socket" in server_options and
+                transfer["con"].is_local()):
+            transfer["con"].close()
+            transfer["con"] = UnixHTTPConnection(server_options["unix_socket"])
 
-    # Upload the data. If the server supports "zero", we can upload sparse
-    # files more efficiently.
-    with closing(transfer["con"]), io.open(filename, "rb") as src:
-        transfer["file"] = src
-        if transfer["can_zero"]:
-            _upload_sparse(transfer)
-        else:
-            _upload(transfer)
+        # Upload the data. If the server supports "zero", we can upload
+        # sparse files more efficiently.
+        with io.open(filename, "rb") as src:
+            transfer["file"] = src
+            if transfer["can_zero"]:
+                _upload_sparse(transfer)
+            else:
+                _upload(transfer)
+    finally:
+        transfer["con"].close()
 
 
 class HTTPSConnection(http_client.HTTPSConnection):
@@ -112,6 +107,18 @@ class HTTPSConnection(http_client.HTTPSConnection):
             """
             http_client.HTTPSConnection.connect(self)
             self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+    def is_local(self):
+        """
+        Return True if connected to the local host.
+        """
+        # Hack for daemon versions 1.4.0 and 1.4.1 that supported unix
+        # socket but not keep alive connections. With these versions the
+        # socket is closed after calling getresponse().
+        if self.sock is None:
+            self.connect()
+
+        return self.sock.getsockname()[0] == self.sock.getpeername()[0]
 
 
 class UnixHTTPConnection(http_client.HTTPConnection):

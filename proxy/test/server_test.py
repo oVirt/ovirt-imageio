@@ -486,7 +486,10 @@ def test_images_options_newer_daemon(proxy_server, signed_ticket):
     daemon_allow = {"OPTIONS", "GET", "PUT", "PATCH", "POST"}
     daemon_features = {"zero", "flush", "trim"}
 
-    daemon_options = {"features": list(daemon_features)}
+    # New daemon support unix socket - proxy must not report this since it does
+    # not support unix socket now.
+    daemon_options = {"features": list(daemon_features),
+                      "unix_socket": "\0org.ovirt.imageio"}
     daemon_body = json.dumps(daemon_options).encode("ascii")
     daemon_headers = {"Content-Type": "application/json",
                       "Content-Length": "%d" % len(daemon_body),
@@ -506,7 +509,10 @@ def test_images_options_newer_daemon(proxy_server, signed_ticket):
     # Validate the request.
     assert res.status == 200
     assert set(res.getheader("Allow").split(",")) == proxy_allow
-    assert set(json.loads(res.read())["features"]) == proxy_features
+
+    proxy_options = json.loads(res.read())
+    assert set(proxy_options["features"]) == proxy_features
+    assert "unix_socket" not in proxy_options
 
 
 def test_images_options_old_daemon_without_options(proxy_server, signed_ticket):

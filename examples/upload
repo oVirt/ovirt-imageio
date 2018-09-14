@@ -60,14 +60,6 @@ parser.add_argument(
 # Note: unix socket works only when running this tool on the same host serving
 # the image.
 parser.add_argument(
-    "-u", "--use-unix-socket",
-    action="store_true",
-    default=False,
-    help=("optimize upload using unix socket if the local imageio daemon "
-          "supports unix socket. Should be used only when transferring data"
-          "to the host running this tool."))
-
-parser.add_argument(
     "-c", "--cafile",
     help="path to oVirt engine certificate for verifying server.")
 
@@ -96,6 +88,5 @@ with ui.ProgressBar(image_size) as pb:
         args.url,
         args.cafile,
         buffer_size=args.buffer_size,
-        use_unix_socket=args.use_unix_socket,
         secure=args.secure,
         progress=pb.update)
