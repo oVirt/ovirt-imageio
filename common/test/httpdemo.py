@@ -41,8 +41,10 @@ Transfer/sec:    578.34KB
 """
 
 from __future__ import absolute_import
+import argparse
 import logging
 from ovirt_imageio_common import http
+from ovirt_imageio_common import util
 
 log = logging.getLogger("httpdemo")
 
@@ -75,13 +77,26 @@ class Bench(object):
             resp.write(body)
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-d", "--debug",
+    action="store_true",
+    help="Debug mode")
+parser.add_argument(
+    "-p", "--port",
+    default=8000,
+    help="listen port (default 8000)")
+args = parser.parse_args()
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG if args.debug else logging.INFO,
     format="%(asctime)s %(levelname)-7s (%(threadName)s) %(message)s")
 
-log.info("Starting server on port %s", 8000)
+log.info("Starting server on port %s", args.port)
 
-server = http.Server(("", 8000), http.Connection)
+server = http.Server(("", args.port), http.Connection)
+if args.debug:
+    server.clock_class = util.Clock
 
 server.app = http.Router([
     (r"/bench/(.*)", Bench()),
