@@ -145,7 +145,8 @@ def test_clock_measure(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "[total=3.000000, read=1.000000, write=1.000000, sync=1.000000]")
+        "[total=3.000000/1, read=1.000000/1, write=1.000000/1, "
+        "sync=1.000000/1]")
 
 
 def test_clock_measure_multiple(fake_time):
@@ -168,7 +169,8 @@ def test_clock_measure_multiple(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "[total=5.000000, read=2.000000, write=2.000000, sync=1.000000]")
+        "[total=5.000000/1, read=2.000000/2, write=2.000000/2, "
+        "sync=1.000000/1]")
 
 
 def test_clock_running(fake_time):
@@ -178,7 +180,7 @@ def test_clock_running(fake_time):
     c.start("read")
     fake_time.value += 4
     c.stop("read")
-    assert str(c) == "[total=7.000000*, read=4.000000]"
+    assert str(c) == "[total=7.000000/1, read=4.000000/1]"
 
 
 # Inccorrect usage
@@ -211,7 +213,7 @@ def test_clock_run(fake_time):
             fake_time.value += 4
         with c.run("b"):
             fake_time.value += 3
-    assert str(c) == "[total=7.000000, a=4.000000, b=3.000000]"
+    assert str(c) == "[total=7.000000/1, a=4.000000/1, b=3.000000/1]"
 
 
 def test_clock_run_recursive():

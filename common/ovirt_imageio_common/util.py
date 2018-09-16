@@ -81,20 +81,28 @@ class Clock(object):
         self._timers = collections.OrderedDict()
 
     def start(self, name):
-        total, started = self._timers.get(name, (0, None))
-        if started is not None:
+        t = self._timers.get(name)
+        if t is None:
+            t = self._timers[name] = Timer(name)
+
+        if t.started is not None:
             raise RuntimeError("Timer %r is running" % name)
-        self._timers[name] = (total, time.time())
+
+        t.started = time.time()
+        t.count += 1
 
     def stop(self, name):
-        try:
-            total, started = self._timers[name]
-        except KeyError:
+        t = self._timers.get(name)
+        if t is None:
             raise RuntimeError("No such timer %r" % name)
-        if started is None:
+
+        if t.started is None:
             raise RuntimeError("Timer %r is not running" % name)
-        elapsed = time.time() - started
-        self._timers[name] = (total + elapsed, None)
+
+        elapsed = time.time() - t.started
+        t.total += elapsed
+        t.started = None
+
         return elapsed
 
     @contextmanager
@@ -108,13 +116,12 @@ class Clock(object):
     def __repr__(self):
         now = time.time()
         timers = []
-        for name, (total, started) in self._timers.items():
-            if started is not None:
-                running = "*"
-                total += now - started
+        for t in self._timers.values():
+            if t.started is not None:
+                total = now - t.started
             else:
-                running = ""
-            timers.append("%s=%.6f%s" % (name, total, running))
+                total = t.total
+            timers.append("%s=%.6f/%d" % (t.name, total, t.count))
         return "[%s]" % ", ".join(timers)
 
 
@@ -142,3 +149,12 @@ class NullClock(object):
 
     def __repr__(self):
         return "[]"
+
+
+class Timer(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.total = 0.0
+        self.count = 0
+        self.started = None
