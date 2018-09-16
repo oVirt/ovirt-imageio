@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import os
 import signal
@@ -219,3 +220,19 @@ def test_clock_run_recursive():
         with pytest.raises(RuntimeError):
             with c.run("started"):
                 pass
+
+
+@pytest.mark.benchmark
+def test_benchmark():
+    c = util.Clock()
+    c.start("connection")
+    # We have seen 66,000 requests per single upload with virt-v2v.
+    for i in range(50000):
+        c.start("request")
+        c.start("read")
+        c.stop("read")
+        c.start("write")
+        c.stop("write")
+        c.stop("request")
+    c.stop("connection")
+    print(c)
