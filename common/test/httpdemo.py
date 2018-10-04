@@ -77,6 +77,32 @@ class Bench(object):
             resp.write(body)
 
 
+class Stream(object):
+
+    def get(self, req, resp, count):
+        count = int(count) * 1024**2
+        resp.headers["content-length"] = count
+        with open("/dev/zero", "rb") as f:
+            while count:
+                with req.clock.run("read"):
+                    chunk = f.read(min(count, 1024**2))
+                with req.clock.run("write"):
+                    resp.write(chunk)
+                count -= len(chunk)
+
+    def put(self, req, resp, name):
+        count = req.content_length
+        with open("/dev/null", "wb") as f:
+            while count:
+                with req.clock.run("read"):
+                    chunk = req.read(1024 * 1024)
+                if not chunk:
+                    raise http.Error(400, "Client disconnected")
+                with req.clock.run("write"):
+                    f.write(chunk)
+                count -= len(chunk)
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "-d", "--debug",
@@ -100,6 +126,7 @@ if args.debug:
 
 server.app = http.Router([
     (r"/bench/(.*)", Bench()),
+    (r"/stream/(.*)", Stream()),
     (r"/echo/(.*)", Echo()),
 ])
 
