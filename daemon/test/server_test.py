@@ -488,6 +488,10 @@ def test_images_upload_extends_ticket(tmpdir, fake_time):
     assert res.status == 200
 
     res.read()
+
+    # Yield to server thread - will close the opreration and extend the ticket.
+    time.sleep(0.1)
+
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 500
 
@@ -650,6 +654,10 @@ def test_images_download_extends_ticket(tmpdir, fake_time):
     assert res.status == 200
 
     res.read()
+
+    # Yield to server thread - will close the opreration and extend the ticket.
+    time.sleep(0.1)
+
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 500
 
@@ -841,6 +849,10 @@ def test_images_zero_extends_ticket(tmpdir, fake_time):
     assert res.status == 200
 
     res.read()
+
+    # Yield to server thread - will close the opreration and extend the ticket.
+    time.sleep(0.1)
+
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 500
 
@@ -911,6 +923,10 @@ def test_images_flush_extends_ticket(tmpdir, fake_time):
     assert res.status == 200
 
     res.read()
+
+    # Yield to server thread - will close the opreration and extend the ticket.
+    time.sleep(0.1)
+
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 500
 
@@ -994,6 +1010,10 @@ def test_images_options_extends_ticket(fake_time):
     assert res.status == 200
 
     res.read()
+
+    # Yield to server thread - will close the opreration and extend the ticket.
+    time.sleep(0.1)
+
     server_ticket = tickets.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 500
 
