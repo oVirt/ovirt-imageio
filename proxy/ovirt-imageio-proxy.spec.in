@@ -15,7 +15,7 @@
 
 Name:       %{package_name}
 Version:    %{package_version}
-Release:    0%{?release_suffix}%{?dist}
+Release:    1%{?release_suffix}%{?dist}
 Summary:    oVirt imageio proxy
 
 Group:      Applications/System
