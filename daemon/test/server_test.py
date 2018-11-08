@@ -531,8 +531,8 @@ def test_images_upload_invalid_flush(tmpdir):
 
 @pytest.mark.parametrize("crange,before,after", [
     ("bytes 7-13/20", "before|-------|after", "before|content|after"),
-    ("bytes */20", "-------|after", "content|after"),
-    ("bytes */*", "-------|after", "content|after"),
+    ("bytes 0-6/*", "-------|after", "content|after"),
+    ("bytes 0-*/*", "-------|after", "content|after"),
 ])
 def test_images_upload_with_range(tmpdir, crange, before, after):
     image = testutils.create_tempfile(tmpdir, "image", before)
@@ -777,6 +777,7 @@ def test_images_download_out_of_range(tmpdir, rng, end):
     auth.add(ticket)
     res = http.get("/images/" + ticket["uuid"],
                    headers={"Range": rng})
+    res.read()
     assert res.status == 403
 
 
@@ -1094,8 +1095,14 @@ def test_keep_alive_connection_on_success(tmpdir, method, body):
             assert r1.status == 200
 
 
-@pytest.mark.parametrize("method", ["OPTIONS", "GET"])
-def test_keep_alive_connection_on_error(tmpdir, method):
+@pytest.mark.parametrize("method,body", [
+    ("OPTIONS", None),
+    ("GET", None),
+    # Patch reads entire body before checking ticket, so connection should be
+    # kept alive.
+    ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
+])
+def test_keep_alive_connection_on_error(tmpdir, method, body):
     # When a request does not have a payload, the server can keep the
     # connection open after and error.
     uri = "/images/no-such-ticket"
@@ -1108,7 +1115,7 @@ def test_keep_alive_connection_on_error(tmpdir, method):
         # Send couple of requests - all should fail, without closing the
         # connection.
         for i in range(3):
-            con.request(method, uri)
+            con.request(method, uri, body=body)
             r1 = http.response(con)
             r1.read()
             assert r1.status == 403
@@ -1116,7 +1123,6 @@ def test_keep_alive_connection_on_error(tmpdir, method):
 
 @pytest.mark.parametrize("method, body", [
     ("PUT", "data"),
-    ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
 ])
 def test_close_connection_on_errors(tmpdir, method, body):
     # When a request have a payload, the server must close the

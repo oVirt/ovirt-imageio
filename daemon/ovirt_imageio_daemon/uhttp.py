@@ -15,7 +15,7 @@ import socket
 import six
 from six.moves import http_client
 
-from . import wsgi
+from ovirt_imageio_common import http
 
 PUT = "PUT"
 DELETE = "DELETE"
@@ -51,9 +51,9 @@ class UnixHTTPConnection(_UnixMixin, http_client.HTTPConnection):
         self.sock.connect(self.path)
 
 
-class UnixWSGIServer(wsgi.WSGIServer):
+class Server(http.Server):
     """
-    WSGI HTTP server over unix domain socket.
+    HTTP server over unix domain socket.
     """
 
     address_family = socket.AF_UNIX
@@ -78,7 +78,6 @@ class UnixWSGIServer(wsgi.WSGIServer):
 
         self.socket.bind(self.server_address)
         self.server_address = self.socket.getsockname()
-        self.setup_environ()
 
     def get_request(self):
         """
@@ -89,9 +88,9 @@ class UnixWSGIServer(wsgi.WSGIServer):
         return sock, self.server_address
 
 
-class UnixWSGIRequestHandler(wsgi.WSGIRequestHandler):
+class Connection(http.Connection):
     """
-    WSGI HTTP request handler over unix domain socket.
+    HTTP connection over unix domain socket.
     """
 
     # Not needed for unix socket.

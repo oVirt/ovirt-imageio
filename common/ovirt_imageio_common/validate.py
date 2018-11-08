@@ -8,7 +8,7 @@
 
 from __future__ import absolute_import
 
-from webob.exc import HTTPBadRequest
+from . import http
 
 
 def enum(d, name, values, default=None):
@@ -17,10 +17,15 @@ def enum(d, name, values, default=None):
     except KeyError:
         if default is not None:
             return default
-        raise HTTPBadRequest("Missing required value for %r" % name)
+        raise http.Error(
+            http.BAD_REQUEST, "Missing required value for {}".format(name))
+
     if val not in values:
-        raise HTTPBadRequest("Unsupported value %r for %r, expecting %s"
-                             % (val, name, values))
+        raise http.Error(
+            http.BAD_REQUEST,
+            "Unsupported value {!r} for {!r}, expecting {}"
+            .format(val, name, values))
+
     return val
 
 
@@ -30,13 +35,21 @@ def integer(d, name, minval=None, maxval=None, default=None):
     except KeyError:
         if default is not None:
             return default
-        raise HTTPBadRequest("Missing required value for %r" % name)
+        raise http.Error(
+            http.BAD_REQUEST, "Missing required value for {!r}".format(name))
+
     if not isinstance(val, int):
-        raise HTTPBadRequest("Integer required %r" % val)
+        raise http.Error(
+            http.BAD_REQUEST, "Integer required {!r}".format(val))
+
     if minval is not None and val < minval:
-        raise HTTPBadRequest("Invalid value %d < %d" % (val, minval))
+        raise http.Error(
+            http.BAD_REQUEST, "Invalid value {} < {}".format(val, minval))
+
     if maxval is not None and val > maxval:
-        raise HTTPBadRequest("Invalid value %d > %d" % (val, maxval))
+        raise http.Error(
+            http.BAD_REQUEST, "Invalid value {} > {}".format(val, maxval))
+
     return val
 
 
@@ -46,7 +59,11 @@ def boolean(d, name, default=False):
     except KeyError:
         if default is not None:
             return default
-        raise HTTPBadRequest("Missing required value for %r" % name)
+        raise http.Error(
+            http.BAD_REQUEST, "Missing required value for {!r}".format(name))
+
     if not isinstance(val, bool):
-        raise HTTPBadRequest("Boolean required %r" % val)
+        raise http.Error(
+            http.BAD_REQUEST, "Boolean required {!r}".format(val))
+
     return val

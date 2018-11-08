@@ -8,16 +8,12 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 
-from webob.exc import (
-    HTTPBadRequest,
-    HTTPNotFound,
-)
-
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import http
 from ovirt_imageio_common import validate
-from ovirt_imageio_common import web
 
 from . import auth
 
@@ -29,64 +25,72 @@ class Handler(object):
     Handle requests for the /tickets/ resource.
     """
 
-    def __init__(self, config, request, clock=None):
+    def __init__(self, config):
         self.config = config
-        self.request = request
-        self.clock = clock
 
-    def get(self, ticket_id):
+    def get(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
+
         try:
             ticket = auth.get(ticket_id)
         except KeyError:
-            raise HTTPNotFound("No such ticket %r" % ticket_id)
+            raise http.Error(
+                http.NOT_FOUND, "No such ticket {!r}".format(ticket_id))
+
         ticket_info = ticket.info()
-        log.debug("[%s] GET ticket=%s",
-                  web.client_address(self.request), ticket_info)
-        return web.response(payload=ticket_info)
+        log.debug("[%s] GET ticket=%s", req.client_addr, ticket_info)
 
-    def put(self, ticket_id):
-        # TODO
-        # - reject invalid or expired ticket
-        # - start expire timer
+        body = json.dumps(ticket_info).encode("utf-8")
+        resp.headers["content-length"] = len(body)
+        resp.headers["content-type"] = "application/json"
+        resp.write(body)
+
+    def put(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
+        # TODO: Reject too big ticket json. We know the size of a ticket based
+        # on the size of the keys and values.
         try:
-            ticket_dict = self.request.json
+            ticket_dict = json.loads(req.read())
         except ValueError as e:
-            raise HTTPBadRequest("Ticket is not in a json format: %s" % e)
+            raise http.Error(
+                http.BAD_REQUEST,
+                "Ticket is not in a json format: {}".format(e))
 
-        log.info("[%s] ADD ticket=%s",
-                 web.client_address(self.request), ticket_dict)
+        log.info("[%s] ADD ticket=%s", req.client_addr, ticket_dict)
         try:
             auth.add(ticket_dict)
         except errors.InvalidTicket as e:
-            raise HTTPBadRequest("Invalid ticket: %s" % e)
+            raise http.Error(
+                http.BAD_REQUEST, "Invalid ticket: {}".format(e))
 
-        return web.response()
-
-    def patch(self, ticket_id):
-        # TODO: restart expire timer
+    def patch(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
+
+        # TODO: Reject requests with too big payload. We know the size of a
+        # ticket patch message based on the keys and values.
         try:
-            patch = self.request.json
+            patch = json.loads(req.read())
         except ValueError as e:
-            raise HTTPBadRequest("Invalid patch: %s" % e)
+            raise http.Error(
+                http.BAD_REQUEST, "Invalid patch: {}".format(e))
+
         timeout = validate.integer(patch, "timeout", minval=0)
+
         try:
             ticket = auth.get(ticket_id)
         except KeyError:
-            raise HTTPNotFound("No such ticket: %s" % ticket_id)
+            raise http.Error(
+                http.NOT_FOUND, "No such ticket: {}".format(ticket_id))
 
         log.info("[%s] EXTEND timeout=%s ticket=%s",
-                 web.client_address(self.request), timeout, ticket_id)
+                 req.client_addr, timeout, ticket_id)
         ticket.extend(timeout)
-        return web.response()
 
-    def delete(self, ticket_id):
+    def delete(self, req, resp, ticket_id):
         """
         Delete a ticket if exists.
 
@@ -94,9 +98,8 @@ class Handler(object):
         requests in case of network failures. See
         https://tools.ietf.org/html/rfc7231#section-4.2.2.
         """
-        # TODO: cancel requests using deleted tickets
-        log.info("[%s] REMOVE ticket=%s",
-                 web.client_address(self.request), ticket_id)
+        log.info("[%s] REMOVE ticket=%s", req.client_addr, ticket_id)
+
         if ticket_id:
             try:
                 auth.remove(ticket_id)
@@ -104,4 +107,5 @@ class Handler(object):
                 log.debug("Ticket %s does not exists", ticket_id)
         else:
             auth.clear()
-        return web.response(status=204)
+
+        resp.status_code = http.NO_CONTENT

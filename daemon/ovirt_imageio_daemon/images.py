@@ -8,19 +8,13 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
-
-import webob
-
-from webob.exc import (
-    HTTPBadRequest,
-    HTTPForbidden,
-)
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import http
 from ovirt_imageio_common import validate
-from ovirt_imageio_common import web
 
 from . import auth
 
@@ -32,114 +26,123 @@ class Handler(object):
     Handle requests for the /images/ resource.
     """
 
-    def __init__(self, config, request, clock=None):
+    def __init__(self, config):
         self.config = config
-        self.request = request
-        self.clock = clock
 
-    def put(self, ticket_id):
+    def put(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
-        size = self.request.content_length
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
+
+        size = req.content_length
         if size is None:
-            raise HTTPBadRequest("Content-Length header is required")
-        if size < 0:
-            raise HTTPBadRequest("Invalid Content-Length header: %r" % size)
-        content_range = web.content_range(self.request)
-        offset = content_range.start or 0
+            raise http.Error(
+                http.BAD_REQUEST, "Content-Length header is required")
+
+        offset = req.content_range.first if req.content_range else 0
 
         # For backward compatibility, we flush by default.
-        flush = validate.enum(self.request.params, "flush", ("y", "n"),
-                              default="y")
+        flush = validate.enum(req.query, "flush", ("y", "n"), default="y")
         flush = (flush == "y")
 
         try:
             ticket = auth.authorize(ticket_id, "write", offset, size)
         except errors.AuthorizationError as e:
-            raise HTTPForbidden(str(e))
+            raise http.Error(http.FORBIDDEN, str(e))
 
-        # TODO: cancel copy if ticket expired or revoked
         log.info(
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
-            web.client_address(self.request), size, offset, flush, ticket_id)
+            req.client_addr, size, offset, flush, ticket_id)
+
         op = directio.Receive(
             ticket.url.path,
-            self.request.body_file_raw,
+            req,
             size,
             offset=offset,
             flush=flush,
             buffersize=self.config.daemon.buffer_size,
-            clock=self.clock)
+            clock=req.clock)
         try:
             ticket.run(op)
         except errors.PartialContent as e:
-            raise HTTPBadRequest(str(e))
-        return web.response()
+            raise http.Error(http.BAD_REQUEST, str(e))
 
-    def get(self, ticket_id):
-        # TODO: cancel copy if ticket expired or revoked
+    def get(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
-        # TODO: support partial range (e.g. bytes=0-*)
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
         offset = 0
         size = None
-        if self.request.range:
-            offset = self.request.range.start
-            if self.request.range.end is not None:
-                size = self.request.range.end - offset
+        if req.range:
+            offset = req.range.first
+            if offset < 0:
+                # TODO: support suffix-byte-range-spec "bytes=-last".
+                # See https://tools.ietf.org/html/rfc7233#section-2.1.
+                raise http.Error(
+                    http.REQUESTED_RANGE_NOT_SATISFIABLE,
+                    "suffix-byte-range-spec not supported yet")
+
+            if req.range.last is not None:
+                size = req.range.last - offset + 1
+                # TODO: validate size with actual image size.
 
         try:
             ticket = auth.authorize(ticket_id, "read", offset, size)
         except errors.AuthorizationError as e:
-            raise HTTPForbidden(str(e))
+            raise http.Error(http.FORBIDDEN, str(e))
 
         if size is None:
             size = ticket.size - offset
+
         log.info(
             "[%s] READ size=%d offset=%d ticket=%s",
-            web.client_address(self.request), size, offset, ticket_id)
+            req.client_addr, size, offset, ticket_id)
+
+        content_disposition = "attachment"
+        if ticket.filename:
+            content_disposition += "; filename=%s" % ticket.filename
+
+        resp.headers["content-length"] = size
+        resp.headers["content-type"] = "application/octet-stream"
+        resp.headers["content-disposition"] = content_disposition
+
+        if req.range:
+            resp.status_code = http.PARTIAL_CONTENT
+            resp.headers["content-range"] = "bytes %d-%d/%d" % (
+                offset, offset + size - 1, ticket.size)
+
         op = directio.Send(
             ticket.url.path,
-            None,
+            resp,
             size,
             offset=offset,
             buffersize=self.config.daemon.buffer_size,
-            clock=self.clock)
-        content_disposition = "attachment"
-        if ticket.filename:
-            filename = ticket.filename.encode("utf-8")
-            content_disposition += "; filename=%s" % filename
-        resp = webob.Response(
-            status=206 if self.request.range else 200,
-            app_iter=ticket.bind(op),
-            content_type="application/octet-stream",
-            content_length=str(size),
-            content_disposition=content_disposition,
-        )
-        if self.request.range:
-            content_range = self.request.range.content_range(ticket.size)
-            resp.headers["content-range"] = str(content_range)
-
-        return resp
-
-    def patch(self, ticket_id):
-        if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
+            clock=req.clock)
         try:
-            msg = self.request.json
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
+
+    def patch(self, req, resp, ticket_id):
+        if not ticket_id:
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
+
+        # TODO: Reject requests with too big payloads. We know the maximum size
+        # of a payload based on the keys and the size of offset and size.
+        try:
+            msg = json.loads(req.read())
         except ValueError as e:
-            raise HTTPBadRequest("Invalid JSON message: %s" % e)
+            raise http.Error(
+                http.BAD_REQUEST, "Invalid JSON message {}" .format(e))
 
         op = validate.enum(msg, "op", ("zero", "flush"))
         if op == "zero":
-            return self._zero(ticket_id, msg)
+            return self._zero(req, resp, ticket_id, msg)
         elif op == "flush":
-            return self._flush(ticket_id, msg)
+            return self._flush(req, resp, ticket_id, msg)
         else:
             raise RuntimeError("Unreachable")
 
-    def _zero(self, ticket_id, msg):
+    def _zero(self, req, resp, ticket_id, msg):
         size = validate.integer(msg, "size", minval=0)
         offset = validate.integer(msg, "offset", minval=0, default=0)
         flush = validate.boolean(msg, "flush", default=False)
@@ -147,54 +150,51 @@ class Handler(object):
         try:
             ticket = auth.authorize(ticket_id, "write", offset, size)
         except errors.AuthorizationError as e:
-            raise HTTPForbidden(str(e))
+            raise http.Error(http.FORBIDDEN, str(e))
 
         log.info(
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
-            web.client_address(self.request), size, offset, flush, ticket_id)
+            req.client_addr, size, offset, flush, ticket_id)
+
         op = directio.Zero(
             ticket.url.path,
             size,
             offset=offset,
             flush=flush,
             buffersize=self.config.daemon.buffer_size,
-            clock=self.clock,
+            clock=req.clock,
             sparse=ticket.sparse)
         try:
             ticket.run(op)
         except errors.PartialContent as e:
-            raise HTTPBadRequest(str(e))
-        return web.response()
+            raise http.Error(http.BAD_REQUEST, str(e))
 
-    def _flush(self, ticket_id, msg):
+    def _flush(self, req, resp, ticket_id, msg):
         try:
             ticket = auth.authorize(ticket_id, "write", 0, 0)
         except errors.AuthorizationError as e:
-            raise HTTPForbidden(str(e))
+            raise http.Error(http.FORBIDDEN, str(e))
 
-        log.info("[%s] FLUSH ticket=%s",
-                 web.client_address(self.request), ticket_id)
-        op = directio.Flush(ticket.url.path, clock=self.clock)
+        log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
+        op = directio.Flush(ticket.url.path, clock=req.clock)
         ticket.run(op)
-        return web.response()
 
-    def options(self, ticket_id):
+    def options(self, req, resp, ticket_id):
         if not ticket_id:
-            raise HTTPBadRequest("Ticket id is required")
+            raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
-        log.info("[%s] OPTIONS ticket=%s",
-                 web.client_address(self.request), ticket_id)
+        log.info("[%s] OPTIONS ticket=%s", req.client_addr, ticket_id)
+
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
             features = ["zero", "flush"]
         else:
             # Reporting real image capabilities per ticket.
-            # This check will fail if the ticket has expired.
             try:
                 ticket = auth.authorize(ticket_id, "read", 0, 0)
             except errors.AuthorizationError as e:
-                raise HTTPForbidden(str(e))
+                raise http.Error(http.FORBIDDEN, str(e))
 
             # Accessing ticket options considered as client activity.
             ticket.touch()
@@ -207,9 +207,10 @@ class Handler(object):
                 allow.extend(("PUT", "PATCH"))
                 features = ["zero", "flush"]
 
-        return web.response(
-            payload={
-                "features": features,
-                "unix_socket": self.config.images.socket,
-            },
-            allow=",".join(allow))
+        msg = {"features": features, "unix_socket": self.config.images.socket}
+        body = json.dumps(msg).encode("utf-8")
+
+        resp.headers["content-length"] = len(body)
+        resp.headers["content-type"] = "application/json"
+        resp.headers["allow"] = ",".join(allow)
+        resp.write(body)

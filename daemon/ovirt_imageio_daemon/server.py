@@ -18,10 +18,10 @@ import time
 import systemd.daemon
 
 from ovirt_imageio_common import configloader
+from ovirt_imageio_common import http
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
-from ovirt_imageio_common import web
 
 from . import config
 from . import images
@@ -29,7 +29,6 @@ from . import pki
 from . import profile
 from . import tickets
 from . import uhttp
-from . import wsgi
 
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 
@@ -139,14 +138,17 @@ class RemoteService(Service):
 
     def __init__(self, config):
         self._config = config
-        self._server = wsgi.WSGIServer(
+        self._server = http.Server(
             (config.images.host, config.images.port),
-            wsgi.WSGIRequestHandler)
+            http.Connection)
+        # TODO: Make clock configurable, disabled by default.
+        self._server.clock_class = util.Clock
         if config.images.port == 0:
             config.images.port = self.port
         self._secure_server()
-        app = web.Application(config, [(r"/images/(.*)", images.Handler)])
-        self._server.set_app(app)
+        self._server.app = http.Router([
+            (r"/images/(.*)", images.Handler(config)),
+        ])
         log.debug("%s listening on port %d", self.name, self.port)
 
     def _secure_server(self):
@@ -173,12 +175,14 @@ class LocalService(Service):
 
     def __init__(self, config):
         self._config = config
-        self._server = uhttp.UnixWSGIServer(
-            config.images.socket, uhttp.UnixWSGIRequestHandler)
+        self._server = uhttp.Server(config.images.socket, uhttp.Connection)
+        # TODO: Make clock configurable, disabled by default.
+        self._server.clock_class = util.Clock
         if config.images.socket == "":
             config.images.socket = self.address
-        app = web.Application(config, [(r"/images/(.*)", images.Handler)])
-        self._server.set_app(app)
+        self._server.app = http.Router([
+            (r"/images/(.*)", images.Handler(config)),
+        ])
         log.debug("%s listening on %r", self.name, self.address)
 
 
@@ -194,13 +198,13 @@ class ControlService(Service):
 
     def __init__(self, config):
         self._config = config
-        self._server = uhttp.UnixWSGIServer(
-            config.tickets.socket, uhttp.UnixWSGIRequestHandler)
+        self._server = uhttp.Server(config.tickets.socket, uhttp.Connection)
+        # TODO: Make clock configurable, disabled by default.
+        self._server.clock_class = util.Clock
         if config.tickets.socket == "":
             config.tickets.socket = self.address
-        app = web.Application(config, [
-            (r"/tickets/(.*)", tickets.Handler),
-            (r"/profile/", profile.Handler),
+        self._server.app = http.Router([
+            (r"/tickets/(.*)", tickets.Handler(config)),
+            (r"/profile/", profile.Handler(config)),
         ])
-        self._server.set_app(app)
         log.debug("%s listening on %r", self.name, self.address)

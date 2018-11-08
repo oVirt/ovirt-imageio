@@ -12,7 +12,6 @@ from __future__ import print_function
 import os
 import pprint
 import tempfile
-import wsgiref.util
 
 from contextlib import closing
 from contextlib import contextmanager
@@ -30,7 +29,7 @@ CERT_FILE = os.path.join(PKI_DIR, "pki/certs/vdsmcert.pem")
 @pytest.fixture(scope="session")
 def uhttpserver(request):
     tmp = tempfile.NamedTemporaryFile()
-    server = uhttp.UnixWSGIServer(tmp.name, RequestHandler)
+    server = uhttp.Server(tmp.name, uhttp.Connection)
     util.start_thread(server.serve_forever, kwargs={"poll_interval": 0.1})
     request.addfinalizer(server.shutdown)
     request.addfinalizer(tmp.close)
@@ -38,7 +37,7 @@ def uhttpserver(request):
 
 
 def test_get(uhttpserver):
-    uhttpserver.set_app(get)
+    uhttpserver.app = get
     with make_connection(uhttpserver) as con:
         con.request("GET", "/")
         resp = con.getresponse()
@@ -49,7 +48,7 @@ def test_get(uhttpserver):
 
 
 def test_put(uhttpserver):
-    uhttpserver.set_app(echo)
+    uhttpserver.app = echo
     with make_connection(uhttpserver) as con:
         con.request("PUT", "/", body=b"it works")
         resp = con.getresponse()
@@ -63,7 +62,7 @@ def test_file(tmpdir, uhttpserver):
     data = b"x" * 1048576
     tmp = tmpdir.join("data")
     tmp.write(data)
-    uhttpserver.set_app(sendfile)
+    uhttpserver.app = sendfile
     with make_connection(uhttpserver) as con:
         con.request("GET", str(tmp))
         resp = con.getresponse()
@@ -89,51 +88,35 @@ def test_server_bind_error(tmpdir):
     try:
         sock = str(tmpdir.join('sock'))
         with pytest.raises(OSError):
-            uhttp.UnixWSGIServer(sock, RequestHandler)
+            uhttp.Server(sock, uhttp.Connection)
     finally:
         tmpdir.chmod(0o755)
 
 
-def get(env, start_response):
-    pprint.pprint(env)
-    start_response("200 OK", [("content-type", "text/plain")])
-    return [b"it works"]
+def get(req, resp):
+    body = b"it works"
+    resp.headers["content-length"] = len(body)
+    resp.headers["content-type"] = "text/plain"
+    resp.write(body)
 
 
-def echo(env, start_response):
-    pprint.pprint(env)
-    content_length = env["CONTENT_LENGTH"]
-    body = env["wsgi.input"].read(int(content_length))
-    start_response("200 OK", [
-        ("content-type", "text/plain"),
-        ("content-length", content_length),
-    ])
-    return [body]
+def echo(req, resp):
+    body = req.read()
+    resp.headers["content-length"] = len(body)
+    resp.headers["content-type"] = "text/plain"
+    resp.write(body)
 
 
-def sendfile(env, start_response):
-    pprint.pprint(env)
-    path = env["PATH_INFO"]
-    start_response("200 OK", [
-        ("content-type", "text/plain"),
-        ("content-length", str(os.path.getsize(path)))
-    ])
-    return wsgiref.util.FileWrapper(open(path, "rb"))
+def sendfile(req, resp):
+    path = req.path
+    resp.headers["content-length"] = os.path.getsize(path)
+    resp.headers["content-type"] = "text/plain"
+    with open(path, "rb") as f:
+        resp.write(f.read())
 
 
 def log_response(resp):
     pprint.pprint((resp.status, resp.reason, resp.getheaders()))
-
-
-class RequestHandler(uhttp.UnixWSGIRequestHandler):
-
-    protocol_version = "HTTP/1.1"
-
-    def log_request(self, code, size):
-        pass
-
-    def log_message(self, fmt, *args):
-        print(fmt % args)
 
 
 @contextmanager
