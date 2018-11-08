@@ -10,8 +10,6 @@ import bisect
 import logging
 import threading
 
-from webob.exc import HTTPForbidden
-
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_daemon import measure
@@ -310,12 +308,17 @@ def authorize(ticket_id, op, offset, size):
     try:
         ticket = _tickets[ticket_id]
     except KeyError:
-        raise HTTPForbidden("No such ticket %r" % ticket_id)
+        raise errors.AuthorizationError("No such ticket {}".format(ticket_id))
+
     if ticket.expires <= util.monotonic_time():
-        raise HTTPForbidden("Ticket %r expired" % ticket_id)
+        raise errors.AuthorizationError("Ticket {} expired".format(ticket_id))
+
     if not ticket.may(op):
-        raise HTTPForbidden("Ticket %r forbids %r" % (ticket_id, op))
+        raise errors.AuthorizationError(
+            "Ticket {} forbids {}".format(ticket_id, op))
+
     end = (offset + size) if size else offset
     if end > ticket.size:
-        raise HTTPForbidden("Requested range out of allowed range")
+        raise errors.AuthorizationError("Requested range out of allowed range")
+
     return ticket

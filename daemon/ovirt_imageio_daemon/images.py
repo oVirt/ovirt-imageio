@@ -11,7 +11,11 @@ from __future__ import absolute_import
 import logging
 
 import webob
-from webob.exc import HTTPBadRequest
+
+from webob.exc import (
+    HTTPBadRequest,
+    HTTPForbidden,
+)
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
@@ -49,7 +53,11 @@ class Handler(object):
                               default="y")
         flush = (flush == "y")
 
-        ticket = auth.authorize(ticket_id, "write", offset, size)
+        try:
+            ticket = auth.authorize(ticket_id, "write", offset, size)
+        except errors.AuthorizationError as e:
+            raise HTTPForbidden(str(e))
+
         # TODO: cancel copy if ticket expired or revoked
         log.info(
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
@@ -81,7 +89,11 @@ class Handler(object):
             if self.request.range.end is not None:
                 size = self.request.range.end - offset
 
-        ticket = auth.authorize(ticket_id, "read", offset, size)
+        try:
+            ticket = auth.authorize(ticket_id, "read", offset, size)
+        except errors.AuthorizationError as e:
+            raise HTTPForbidden(str(e))
+
         if size is None:
             size = ticket.size - offset
         log.info(
@@ -132,7 +144,10 @@ class Handler(object):
         offset = validate.integer(msg, "offset", minval=0, default=0)
         flush = validate.boolean(msg, "flush", default=False)
 
-        ticket = auth.authorize(ticket_id, "write", offset, size)
+        try:
+            ticket = auth.authorize(ticket_id, "write", offset, size)
+        except errors.AuthorizationError as e:
+            raise HTTPForbidden(str(e))
 
         log.info(
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
@@ -152,7 +167,11 @@ class Handler(object):
         return web.response()
 
     def _flush(self, ticket_id, msg):
-        ticket = auth.authorize(ticket_id, "write", 0, 0)
+        try:
+            ticket = auth.authorize(ticket_id, "write", 0, 0)
+        except errors.AuthorizationError as e:
+            raise HTTPForbidden(str(e))
+
         log.info("[%s] FLUSH ticket=%s",
                  web.client_address(self.request), ticket_id)
         op = directio.Flush(ticket.url.path, clock=self.clock)
@@ -172,7 +191,10 @@ class Handler(object):
         else:
             # Reporting real image capabilities per ticket.
             # This check will fail if the ticket has expired.
-            ticket = auth.authorize(ticket_id, "read", 0, 0)
+            try:
+                ticket = auth.authorize(ticket_id, "read", 0, 0)
+            except errors.AuthorizationError as e:
+                raise HTTPForbidden(str(e))
 
             # Accessing ticket options considered as client activity.
             ticket.touch()

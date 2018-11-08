@@ -43,3 +43,10 @@ class InvalidTicketParameter(InvalidTicket):
         self.parameter = parameter
         self.value = value
         self.reason = reason
+
+
+class AuthorizationError(Error):
+    msg = "You are not allowed to access this resource: {self.reason}"
+
+    def __init__(self, reason):
+        self.reason = reason
