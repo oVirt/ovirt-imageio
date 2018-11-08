@@ -437,7 +437,9 @@ class Response(object):
         for name, value in six.iteritems(self.headers):
             # Encoding entire line to allow using integer value, for example
             # content-length.
-            b.write(("%s: %s\r\n" % (name, value)).encode("latin1"))
+            # Note: content-disposition may contain unicode values, so we must
+            # encode headers using utf-8.
+            b.write(("%s: %s\r\n" % (name, value)).encode("utf-8"))
 
         # End header.
         b.write(b"\r\n")

@@ -34,6 +34,12 @@ class Demo(object):
     def get(self, req, resp, name):
         body = b"%s\n" % name.encode("utf-8")
         resp.headers["content-length"] = len(body)
+        # Test handling for UTF-8 values (Hebrew Alef). This usage is not
+        # correct according to HTTP RFCs, but it seems to be supported by the
+        # browsers we tested.  See https://tools.ietf.org/html/rfc5987 for a
+        # more correct way to do this.
+        cd = b"attachment; filename=\xd7\x90".decode("utf-8")
+        resp.headers["content-disposition"] = cd
         resp.write(body)
 
     def delete(self, req, resp, name):
@@ -289,6 +295,22 @@ def test_demo_get(server):
         r = con.getresponse()
         assert r.status == http.OK
         assert r.read() == b"name\n"
+
+
+def test_demo_get_utf8_headers(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/demo/name")
+        r = con.getresponse()
+        r.read()
+        assert r.status == http.OK
+        cd = r.getheader("content-disposition")
+        # HTTP permit only ASCII for headers content, so python 3 decode
+        # headers using latin1. This fixes the bad decoding.
+        if six.PY3:
+            cd = cd.encode("latin1")
+        cd = cd.decode("utf-8")
+        assert cd == b"attachment; filename=\xd7\x90".decode("utf-8")
 
 
 def test_demo_max_request_length(server):
