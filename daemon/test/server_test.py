@@ -223,6 +223,16 @@ def test_tickets_extend(fake_time):
     assert server_ticket == ticket
 
 
+def test_tickets_extend_negative_timeout():
+    ticket = testutils.create_ticket(sparse=False)
+    auth.add(ticket)
+    patch = {"timeout": -1}
+    body = json.dumps(patch)
+    res = http.unix_request(
+        config.tickets.socket, "PATCH", "/tickets/%(uuid)s" % ticket, body)
+    assert res.status == 400
+
+
 def test_tickets_get_expired_ticket(fake_time):
     ticket = testutils.create_ticket()
     auth.add(ticket)

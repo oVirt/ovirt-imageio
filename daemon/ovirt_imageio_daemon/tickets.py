@@ -16,6 +16,7 @@ from webob.exc import (
 )
 
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import validate
 from ovirt_imageio_common import web
 
 from . import auth
@@ -74,14 +75,7 @@ class Handler(object):
             patch = self.request.json
         except ValueError as e:
             raise HTTPBadRequest("Invalid patch: %s" % e)
-        try:
-            timeout = patch["timeout"]
-        except KeyError:
-            raise HTTPBadRequest("Missing timeout key")
-        try:
-            timeout = int(timeout)
-        except ValueError as e:
-            raise HTTPBadRequest("Invalid timeout value: %s" % e)
+        timeout = validate.integer(patch, "timeout", minval=0)
         try:
             ticket = auth.get(ticket_id)
         except KeyError:
