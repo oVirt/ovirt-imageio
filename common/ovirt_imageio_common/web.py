@@ -99,7 +99,8 @@ class Application(object):
             resp = self.dispatch(request, clock)
         except Exception as e:
             if not isinstance(e, HTTPException):
-                e = HTTPInternalServerError(detail=str(e))
+                # Don't expose internal errors to client.
+                e = HTTPInternalServerError(detail="Internal server error")
             resp = error_response(e)
             self.log_error(req, resp, e, clock)
             return resp(env, start_response)

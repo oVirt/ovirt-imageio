@@ -135,13 +135,13 @@ def test_tickets_put_bad_url_value(fake_time):
 
 def test_tickets_general_exception(monkeypatch):
     def fail(*a, **kw):
-        raise Exception("REASON")
+        raise Exception("SECRET")
     monkeypatch.setattr(tickets.Handler, "get", fail)
     res = http.unix_request(
         config.tickets.socket, "GET", "/tickets/%s" % uuid.uuid4())
     error = res.read()
     assert res.status == http_client.INTERNAL_SERVER_ERROR
-    assert b"REASON" in error
+    assert b"SECRET" not in error
 
 
 def test_tickets_put_no_ticket_id():
