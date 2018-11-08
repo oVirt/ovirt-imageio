@@ -348,8 +348,8 @@ def test_images_patch_error(proxy_server, signed_ticket):
     auth.add_signed_ticket(signed_ticket.data)
 
     response_code = 403
-    response_body = "daemon response"
-    response_headers = {"Content-Type": "application/json"}
+    response_body = b"daemon response"
+    response_headers = {"Content-Type": "text/plain"}
 
     with requests_mock.Mocker() as m:
         # Don't check anything, match errors are useless.
@@ -367,8 +367,8 @@ def test_images_patch_error(proxy_server, signed_ticket):
     assert res.status == response_code
     # Note: requests adds charset=UTF-8 on RHEL 7.
     assert response_headers["Content-Type"] in res.getheader("Content-Type")
-    error = json.loads(res.read().decode("utf-8"))
-    assert response_body in error["detail"]
+    error = res.read()
+    assert response_body in error
 
 
 def test_images_patch_no_ticket(proxy_server):

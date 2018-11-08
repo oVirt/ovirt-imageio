@@ -134,15 +134,14 @@ def test_tickets_put_bad_url_value(fake_time):
 
 
 def test_tickets_general_exception(monkeypatch):
-    def fail(x, y):
-        raise Exception("EXPECTED FAILURE")
+    def fail(*a, **kw):
+        raise Exception("REASON")
     monkeypatch.setattr(tickets.Handler, "get", fail)
     res = http.unix_request(
         config.tickets.socket, "GET", "/tickets/%s" % uuid.uuid4())
-    error = json.loads(res.read())
+    error = res.read()
     assert res.status == http_client.INTERNAL_SERVER_ERROR
-    assert "application/json" in res.getheader('content-type')
-    assert "EXPECTED FAILURE" in error["detail"]
+    assert b"REASON" in error
 
 
 def test_tickets_put_no_ticket_id():
@@ -779,9 +778,6 @@ def test_images_download_out_of_range(tmpdir, rng, end):
     res = http.get("/images/" + ticket["uuid"],
                    headers={"Range": rng})
     assert res.status == 403
-    error = json.loads(res.read())
-    assert error["code"] == 403
-    assert error["title"] == "Forbidden"
 
 
 def test_download_progress(tmpdir):

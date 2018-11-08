@@ -140,14 +140,11 @@ def error_response(e):
     """
     Return WSGI application for sending error response using JSON format.
     """
-    payload = {
-        "code": e.code,
-        "title": e.title,
-        "explanation": e.explanation
-    }
-    if e.detail:
-        payload["detail"] = e.detail
-    return response(status=e.code, payload=payload)
+    body = e.detail.encode("utf-8")
+    return webob.Response(status=e.code,
+                          body=body,
+                          content_type="text/plain",
+                          content_length=len(body))
 
 
 def response(status=http_client.OK, payload=None, **kwargs):
