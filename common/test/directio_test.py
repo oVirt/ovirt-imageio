@@ -264,26 +264,6 @@ def test_recv_repr_active():
     assert "active" not in repr(op)
 
 
-@pytest.mark.parametrize("size,rounded", [
-    (0, 0),
-    (1, directio.BLOCKSIZE),
-    (directio.BLOCKSIZE, directio.BLOCKSIZE),
-    (directio.BLOCKSIZE + 1, directio.BLOCKSIZE * 2),
-])
-def test_round_up(size, rounded):
-    assert directio.round_up(size) == rounded
-
-
-@pytest.mark.parametrize("size,rounded", [
-    (0, 0),
-    (1, 0),
-    (directio.BLOCKSIZE, directio.BLOCKSIZE),
-    (directio.BLOCKSIZE + 1, directio.BLOCKSIZE),
-])
-def test_round_down(size, rounded):
-    assert directio.round_down(size) == rounded
-
-
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
 def test_receive_unbuffered_stream(tmpdir, bufsize):
     chunks = ["1" * 1024,

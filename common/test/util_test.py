@@ -238,3 +238,23 @@ def test_benchmark():
         c.stop("request")
     c.stop("connection")
     print(c)
+
+
+@pytest.mark.parametrize("size,rounded", [
+    (0, 0),
+    (1, 512),
+    (512, 512),
+    (512 + 1, 512 * 2),
+])
+def test_round_up(size, rounded):
+    assert util.round_up(size, 512) == rounded
+
+
+@pytest.mark.parametrize("size,rounded", [
+    (0, 0),
+    (1, 0),
+    (512, 512),
+    (512 + 1, 512),
+])
+def test_round_down(size, rounded):
+    assert util.round_down(size, 512) == rounded

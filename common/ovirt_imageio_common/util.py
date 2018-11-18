@@ -158,3 +158,12 @@ class Timer(object):
         self.total = 0.0
         self.count = 0
         self.started = None
+
+
+def round_up(n, size):
+    n = n + size - 1
+    return n - (n % size)
+
+
+def round_down(n, size):
+    return n - (n % size)

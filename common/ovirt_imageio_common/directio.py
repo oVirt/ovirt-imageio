@@ -45,7 +45,7 @@ class Operation(object):
         self._size = size
         self._offset = offset
         if self._size:
-            self._buffersize = min(round_up(size), buffersize)
+            self._buffersize = min(util.round_up(size, BLOCKSIZE), buffersize)
         else:
             self._buffersize = buffersize
         self._done = 0
@@ -245,7 +245,7 @@ class Zero(Operation):
                     dst.seek(self._offset)
 
             # Zero complete blocks (likely).
-            count = round_down(self._todo)
+            count = util.round_down(self._todo, BLOCKSIZE)
             if count:
                 self.zero_aligned(dst, count)
 
@@ -349,15 +349,6 @@ def open(path, mode, direct=True, buffer_size=BUFFERSIZE):
     except:
         fio.close()
         raise
-
-
-def round_up(n, size=BLOCKSIZE):
-    n = n + size - 1
-    return n - (n % size)
-
-
-def round_down(n, size=BLOCKSIZE):
-    return n - (n % size)
 
 
 def aligned_buffer(size):
