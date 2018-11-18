@@ -82,6 +82,7 @@ class Handler(object):
                     "suffix-byte-range-spec not supported yet")
 
             if req.range.last is not None:
+                # Add 1 to include the last byte in the payload.
                 size = req.range.last - offset + 1
                 # TODO: validate size with actual image size.
 
