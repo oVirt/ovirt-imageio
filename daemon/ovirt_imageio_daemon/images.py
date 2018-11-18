@@ -11,7 +11,7 @@ from __future__ import absolute_import
 import json
 import logging
 
-from ovirt_imageio_common import directio
+from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import http
 from ovirt_imageio_common import validate
@@ -53,7 +53,7 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        op = directio.Receive(
+        op = ops.Receive(
             ticket.url.path,
             req,
             size,
@@ -111,7 +111,7 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        op = directio.Send(
+        op = ops.Send(
             ticket.url.path,
             resp,
             size,
@@ -157,7 +157,7 @@ class Handler(object):
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        op = directio.Zero(
+        op = ops.Zero(
             ticket.url.path,
             size,
             offset=offset,
@@ -177,7 +177,7 @@ class Handler(object):
             raise http.Error(http.FORBIDDEN, str(e))
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
-        op = directio.Flush(ticket.url.path, clock=req.clock)
+        op = ops.Flush(ticket.url.path, clock=req.clock)
         ticket.run(op)
 
     def options(self, req, resp, ticket_id):

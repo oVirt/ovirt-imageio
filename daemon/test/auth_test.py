@@ -25,7 +25,7 @@ CHUNK_SIZE = 8 * 1024**2
 
 class Operation(object):
     """
-    Used to fake a directio.Operation object.
+    Used to fake a ops.Operation object.
     """
 
     def __init__(self, offset=0, size=0):
