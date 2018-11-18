@@ -14,13 +14,13 @@ import six
 import pytest
 
 from ovirt_imageio_common import compat
-from ovirt_imageio_common import directio
+from ovirt_imageio_common import util
 
 require_py3 = pytest.mark.skipif(six.PY2, reason="Requires python 3")
 
 buffer_types = pytest.mark.parametrize("buftype", [
     bytearray,
-    pytest.param(directio.aligned_buffer, id="aligned_buffer")
+    pytest.param(util.aligned_buffer, id="aligned_buffer")
 ])
 
 

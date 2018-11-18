@@ -12,7 +12,6 @@ import errno
 import fcntl
 import io
 import logging
-import mmap
 import os
 import stat
 
@@ -115,7 +114,7 @@ class Send(Operation):
 
     def __iter__(self):
         with open(self._path, "r") as src, \
-                closing(aligned_buffer(self._buffersize)) as buf:
+                closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
                 if self._offset:
                     skip = self._seek_to_first_block(src)
@@ -162,7 +161,7 @@ class Receive(Operation):
 
     def _run(self):
         with open(self._path, "r+") as dst, \
-                closing(aligned_buffer(self._buffersize)) as buf:
+                closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
                 if self._offset:
                     remaining = self._seek_before_first_block(dst)
@@ -277,7 +276,7 @@ class Zero(Operation):
         """
         Zero count bytes at offset from current dst position.
         """
-        buf = aligned_buffer(BLOCKSIZE)
+        buf = util.aligned_buffer(BLOCKSIZE)
         with closing(buf):
             # 1. Read complete block from storage.
             with self._clock.run("read"):
@@ -349,20 +348,6 @@ def open(path, mode, direct=True, buffer_size=BUFFERSIZE):
     except:
         fio.close()
         raise
-
-
-def aligned_buffer(size):
-    """
-    Return buffer aligned to page size, which work for doing direct I/O.
-
-    Note: we use shared map to make direct io safe if fork is invoked in
-    another thread concurrently with the direct io.
-
-    Using private maps with direct io can cause data corruption and undefined
-    behavior in the parent or the child processes. This restriction does not
-    apply to memory buffer created with MAP_SHARED. See open(2) for more info.
-    """
-    return mmap.mmap(-1, size, mmap.MAP_SHARED)
 
 
 def enable_directio(fd):
@@ -611,7 +596,7 @@ class FileIO(BaseIO):
         Write zeros manually.
         """
         if self._buf is None:
-            self._buf = aligned_buffer(self._buffer_size)
+            self._buf = util.aligned_buffer(self._buffer_size)
         while count:
             step = min(self._buffer_size, count)
             wbuf = buffer(self._buf, 0, step)

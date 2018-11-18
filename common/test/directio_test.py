@@ -20,6 +20,7 @@ import pytest
 
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import util
 
 from . import testutil
 
@@ -488,7 +489,7 @@ def test_flush_repr_active():
 def test_open_write_only(tmpdir):
     path = str(tmpdir.join("path"))
     with directio.open(path, "w") as f, \
-            closing(directio.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(512)) as buf:
         buf.write(b"x" * 512)
         f.write(buf)
     with io.open(path, "rb") as f:
@@ -510,7 +511,7 @@ def test_open_read_only(tmpdir):
     with io.open(path, "wb") as f:
         f.write(b"x" * 512)
     with directio.open(path, "r") as f, \
-            closing(directio.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(512)) as buf:
         f.readinto(buf)
         assert buf[:] == b"x" * 512
 
@@ -520,7 +521,7 @@ def test_open_read_write(tmpdir):
     with io.open(path, "wb") as f:
         f.write(b"a" * 512)
     with directio.open(path, "r+") as f, \
-            closing(directio.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(512)) as buf:
         f.readinto(buf)
         buf[:] = b"b" * 512
         f.seek(0)
