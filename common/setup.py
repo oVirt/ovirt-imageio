@@ -18,7 +18,10 @@ setup(
     description="oVirt imageio common library",
     license="GNU GPLv2+",
     name="ovirt-imageio-common",
-    packages=["ovirt_imageio_common"],
+    packages=[
+        "ovirt_imageio_common",
+        "ovirt_imageio_common.backends"
+    ],
     platforms=["Linux"],
     url="https://gerrit.ovirt.org/ovirt-imageio",
     version=version.string,

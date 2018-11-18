@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 """
-Test script for directio.BlockIO() and directio.FileIO(), simulating fallocate
+Test script for file.BlockIO() and file.FileIO(), simulating fallocate
 and blkdiscard --zeroout.
 """
 
@@ -17,7 +17,7 @@ import os
 import stat
 import time
 
-from ovirt_imageio_common import directio
+from ovirt_imageio_common.backends import file
 
 
 def humansize(s):
@@ -73,7 +73,7 @@ args = parser.parse_args()
 
 start_time = time.time()
 
-with directio.open(args.filename, "r+") as f:
+with file.open(args.filename, "r+") as f:
     if args.length is None:
         st = os.stat(args.filename)
         if stat.S_ISBLK(st.st_mode):

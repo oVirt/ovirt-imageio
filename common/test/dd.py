@@ -19,8 +19,8 @@ import time
 
 from contextlib import closing
 
-from ovirt_imageio_common import directio
 from ovirt_imageio_common import ioutil
+from ovirt_imageio_common.backends import file
 
 
 def kibibyte(s):
@@ -74,8 +74,8 @@ start = time.time()
 
 buf = mmap.mmap(-1, args.blocksize)
 with closing(buf), \
-        directio.open(args.input, "r", direct=args.direct_input) as src, \
-        directio.open(args.output, "w", direct=args.direct_output) as dst:
+        file.open(args.input, "r", direct=args.direct_input) as src, \
+        file.open(args.output, "w", direct=args.direct_output) as dst:
     try:
         dst.truncate(args.size)
     except EnvironmentError as e:
