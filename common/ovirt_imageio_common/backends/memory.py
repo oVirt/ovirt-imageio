@@ -26,9 +26,9 @@ class Backend(object):
     Memory backend for testing.
     """
 
-    def __init__(self, mode):
+    def __init__(self, mode, data=None):
         self._mode = mode
-        self._buf = io.BytesIO()
+        self._buf = io.BytesIO(data)
 
     # io.BaseIO interface
 

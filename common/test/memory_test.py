@@ -140,3 +140,13 @@ def test_propagate_user_error():
         with memory.open("r+") as m:
             m.close = close
             raise UserError("user error")
+
+
+def test_create_with_bytes():
+    m = memory.Backend("r", b"data")
+    assert m.readable()
+    assert not m.writable()
+
+    b = bytearray(5)
+    assert m.readinto(b) == 4
+    assert b[:] == b"data\0"
