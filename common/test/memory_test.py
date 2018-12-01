@@ -15,6 +15,9 @@ from ovirt_imageio_common.backends import memory
 
 def test_open_read_write():
     m = memory.open("r+")
+    assert m.readable()
+    assert m.writable()
+
     data = b"data"
     m.write(data)
     assert m.tell() == len(data)
@@ -44,6 +47,9 @@ def test_open_read_write():
 
 def test_open_readonly():
     m = memory.open("r")
+    assert m.readable()
+    assert not m.writable()
+
     with pytest.raises(IOError):
         m.write(b"data")
     with pytest.raises(IOError):
@@ -61,6 +67,9 @@ def test_open_readonly():
 
 def test_open_writeonly():
     m = memory.open("w")
+    assert not m.readable()
+    assert m.writable()
+
     data = b"data"
     m.write(data)
     assert m.tell() == len(data)

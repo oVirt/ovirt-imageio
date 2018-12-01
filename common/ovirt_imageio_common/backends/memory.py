@@ -33,12 +33,12 @@ class Backend(object):
     # io.BaseIO interface
 
     def readinto(self, buf):
-        if not self._readable():
+        if not self.readable():
             raise IOError("Unsupproted operation: read")
         return self._buf.readinto(buf)
 
     def write(self, buf):
-        if not self._writable():
+        if not self.writable():
             raise IOError("Unsupproted operation: write")
         return self._buf.write(buf)
 
@@ -49,7 +49,7 @@ class Backend(object):
         return self._buf.seek(pos, how)
 
     def truncate(self, size):
-        if not self._writable():
+        if not self.writable():
             raise IOError("Unsupproted operation: truncate")
         self._buf.truncate(size)
 
@@ -74,19 +74,17 @@ class Backend(object):
                 raise
             log.exception("Error closing")
 
+    def readable(self):
+        return self._mode in ("r", "r+")
+
+    def writable(self):
+        return self._mode in ("w", "r+")
+
     # Backend interface.
 
     def zero(self, count):
-        if not self._writable():
+        if not self.writable():
             raise IOError("Unsupproted operation: truncate")
         self._buf.write(b"\0" * count)
 
     trim = zero
-
-    # Private
-
-    def _readable(self):
-        return self._mode in ("r", "r+")
-
-    def _writable(self):
-        return self._mode in ("w", "r+")
