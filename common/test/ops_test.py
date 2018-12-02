@@ -86,13 +86,6 @@ def send(tmpdir, data, size, offset=0):
     return dst.getvalue()
 
 
-@pytest.fixture
-def tmpfile(tmpdir):
-    f = tmpdir.join("tmpfile")
-    f.write(b"x" * file.BLOCKSIZE)
-    return f
-
-
 def test_send_busy(tmpfile):
     op = ops.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
     next(iter(op))
