@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import io
 import os
-import string
 import sys
 
 import pytest
@@ -25,18 +24,18 @@ pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
 
 
-def fill(s, size):
-    count, rest = divmod(size, len(s))
-    return s * count + s[:rest]
+def fill(b, size):
+    count, rest = divmod(size, len(b))
+    return b * count + b[:rest]
 
 
-BUFFER = fill(string.ascii_uppercase, ops.BUFFERSIZE)
-PARTIAL = fill(string.ascii_lowercase, file.BLOCKSIZE)
-BYTES = fill(string.digits, 42)
+BUFFER = fill(b"ABCDEFGHIJ", ops.BUFFERSIZE)
+PARTIAL = fill(b"abcdefghij", file.BLOCKSIZE)
+BYTES = fill(b"0123456789", 42)
 
 
-def head(str):
-    return str[:10]
+def head(b):
+    return b[:10]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
