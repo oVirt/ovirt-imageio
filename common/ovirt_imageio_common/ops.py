@@ -91,13 +91,14 @@ class Operation(object):
 
 class Send(Operation):
     """
-    Send data from path to file object using direct I/O.
+    Send data source backend to file object.
     """
 
-    def __init__(self, path, dst, size=None, offset=0, buffersize=BUFFERSIZE,
+    def __init__(self, src, dst, size=None, offset=0, buffersize=BUFFERSIZE,
                  clock=util.NullClock()):
-        super(Send, self).__init__(path, size=size, offset=offset,
+        super(Send, self).__init__("<src>", size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
+        self._src = src
         self._dst = dst
 
     def _run(self):
@@ -106,30 +107,25 @@ class Send(Operation):
                 self._dst.write(chunk)
 
     def __iter__(self):
-        with file.open(self._path, "r") as src, \
-                closing(util.aligned_buffer(self._buffersize)) as buf:
+        with closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
-                if self._offset:
-                    skip = self._seek_to_first_block(src)
-                    yield self._next_chunk(src, buf, skip)
+                skip = self._offset % file.BLOCKSIZE
+                self._src.seek(self._offset - skip)
+                if skip:
+                    yield self._next_chunk(buf, skip)
                 while self._todo:
-                    yield self._next_chunk(src, buf)
+                    yield self._next_chunk(buf)
             except EOF:
                 pass
 
-    def _seek_to_first_block(self, src):
-        skip = self._offset % file.BLOCKSIZE
-        src.seek(self._offset - skip)
-        return skip
-
-    def _next_chunk(self, src, buf, skip=0):
-        if src.tell() % file.BLOCKSIZE:
+    def _next_chunk(self, buf, skip=0):
+        if self._src.tell() % file.BLOCKSIZE:
             if self._size is None:
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
         with self._clock.run("read"):
-            count = src.readinto(buf)
+            count = self._src.readinto(buf)
         if count == 0:
             if self._size is None:
                 raise EOF

@@ -17,6 +17,7 @@ import pytest
 from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
 from ovirt_imageio_common.backends import file
+from ovirt_imageio_common.backends import memory
 
 from . import testutil
 
@@ -32,10 +33,10 @@ pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
     testutil.BLOCK * 2,
     testutil.BLOCK + testutil.BYTES,
 ], ids=testutil.head)
-def test_send(tmpdir, data, offset):
+def test_send_full(data, offset):
     size = len(data) - offset
     expected = data[offset:]
-    assert send(tmpdir, data, size, offset=offset) == expected
+    assert send(data, size, offset=offset) == expected
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -45,10 +46,10 @@ def test_send(tmpdir, data, offset):
     len(testutil.BUFFER) + 511,
     len(testutil.BUFFER) + 513,
 ])
-def test_send_partial(tmpdir, size, offset):
+def test_send_partial(size, offset):
     data = testutil.BUFFER * 2
     expected = data[offset:offset + size]
-    assert send(tmpdir, data, size, offset=offset) == expected
+    assert send(data, size, offset=offset) == expected
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -59,57 +60,100 @@ def test_send_partial(tmpdir, size, offset):
     testutil.BLOCK * 2,
     testutil.BLOCK + testutil.BYTES,
 ], ids=testutil.head)
-def test_send_partial_content(tmpdir, data, offset):
+def test_send_partial_content(data, offset):
     size = len(data) - offset
     with pytest.raises(errors.PartialContent) as e:
-        send(tmpdir, data[:-1], size, offset=offset)
+        send(data[:-1], size, offset=offset)
     assert e.value.requested == size
     assert e.value.available == size - 1
 
 
-def send(tmpdir, data, size, offset=0):
-    src = tmpdir.join("src")
-    src.write(data)
+def send(data, size, offset=0):
+    src = memory.Backend("r", data)
     dst = io.BytesIO()
-    op = ops.Send(str(src), dst, size, offset=offset)
+    op = ops.Send(src, dst, size, offset=offset)
     op.run()
     return dst.getvalue()
 
 
-def test_send_busy(tmpfile):
-    op = ops.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+def test_send_seek():
+    src = memory.Backend("r", b"0123456789")
+    src.seek(8)
+    dst = io.BytesIO()
+    op = ops.Send(src, dst, 5)
+    op.run()
+    assert dst.getvalue() == b"01234"
+
+
+def test_send_busy():
+    src = memory.Backend("r", b"data")
+    op = ops.Send(src, io.BytesIO(), 4)
     next(iter(op))
     assert op.active
 
 
-def test_send_close_on_success(tmpfile):
-    op = ops.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+def test_send_close_on_success():
+    src = memory.Backend("r", b"data")
+    op = ops.Send(src, io.BytesIO(), 4)
     op.run()
     assert not op.active
 
 
-def test_send_close_on_error(tmpfile):
-    op = ops.Send(str(tmpfile), io.BytesIO(), tmpfile.size() + 1)
+def test_send_close_on_error():
+    src = memory.Backend("r", b"data")
+    op = ops.Send(src, io.BytesIO(), 5)
     with pytest.raises(errors.PartialContent):
         op.run()
     assert not op.active
 
 
-def test_send_close_twice(tmpfile):
-    op = ops.Send(str(tmpfile), io.BytesIO(), tmpfile.size())
+def test_send_close_twice():
+    src = memory.Backend("r", b"data")
+    op = ops.Send(src, io.BytesIO(), 4)
     op.run()
     op.close()  # Should do nothing
     assert not op.active
 
 
-def test_send_iterate_and_close(tmpfile):
+def test_send_iterate_and_close():
     # Used when passing operation as app_iter on GET request.
+    src = memory.Backend("r", testutil.BUFFER)
     dst = io.BytesIO()
-    op = ops.Send(str(tmpfile), dst, tmpfile.size())
+    op = ops.Send(src, dst, len(testutil.BUFFER))
     for chunk in op:
         dst.write(chunk)
     op.close()
     assert not op.active
+
+
+@pytest.mark.parametrize("offset", [0, 42, 512])
+@pytest.mark.parametrize("data", [
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+], ids=testutil.head)
+def test_send_no_size(data, offset):
+    src = memory.Backend("r", data)
+    dst = io.BytesIO()
+    op = ops.Send(src, dst, offset=offset)
+    op.run()
+    assert dst.getvalue() == data[offset:]
+
+
+def test_send_repr():
+    op = ops.Send(None, None, 200, offset=24)
+    rep = repr(op)
+    assert "Send" in rep
+    assert "size=200 offset=24 buffersize=512 done=0" in rep
+    assert "active" in rep
+
+
+def test_send_repr_active():
+    op = ops.Send(None, None)
+    op.close()
+    assert "active" not in repr(op)
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -238,20 +282,6 @@ def test_receive_flush(tmpdir, monkeypatch, extra, calls):
     assert fsync_calls[0] == calls
 
 
-def test_send_repr():
-    op = ops.Send("/path", None, 200, offset=24)
-    rep = repr(op)
-    assert "Send" in rep
-    assert "path='/path' size=200 offset=24 buffersize=512 done=0" in rep
-    assert "active" in rep
-
-
-def test_send_repr_active():
-    op = ops.Send("/path", None)
-    op.close()
-    assert "active" not in repr(op)
-
-
 def test_recv_repr():
     op = ops.Receive("/path", None, 100, offset=42)
     rep = repr(op)
@@ -312,23 +342,6 @@ def test_receive_no_size(tmpdir, data, offset):
     with io.open(str(dst), "rb") as f:
         f.seek(offset)
         assert f.read(len(data)) == data
-
-
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-], ids=testutil.head)
-def test_send_no_size(tmpdir, data, offset):
-    src = tmpdir.join("src")
-    src.write(data)
-    dst = io.BytesIO()
-    op = ops.Send(str(src), dst, offset=offset)
-    op.run()
-    assert dst.getvalue() == data[offset:]
 
 
 @pytest.mark.parametrize("sparse", [True, False])

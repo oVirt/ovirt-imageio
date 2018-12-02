@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import json
 import logging
 
+from ovirt_imageio_common import backends
 from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import http
@@ -111,17 +112,18 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        op = ops.Send(
-            ticket.url.path,
-            resp,
-            size,
-            offset=offset,
-            buffersize=self.config.daemon.buffer_size,
-            clock=req.clock)
-        try:
-            ticket.run(op)
-        except errors.PartialContent as e:
-            raise http.Error(http.BAD_REQUEST, str(e))
+        with backends.open(ticket) as src:
+            op = ops.Send(
+                src,
+                resp,
+                size,
+                offset=offset,
+                buffersize=self.config.daemon.buffer_size,
+                clock=req.clock)
+            try:
+                ticket.run(op)
+            except errors.PartialContent as e:
+                raise http.Error(http.BAD_REQUEST, str(e))
 
     def patch(self, req, resp, ticket_id):
         if not ticket_id:
