@@ -11,6 +11,20 @@ from __future__ import absolute_import
 import collections
 
 
+def fill(b, size):
+    count, rest = divmod(size, len(b))
+    return b * count + b[:rest]
+
+
+BUFFER = fill(b"ABCDEFGHIJ", 1024**2)
+BLOCK = fill(b"abcdefghij", 512)
+BYTES = fill(b"0123456789", 42)
+
+
+def head(b):
+    return b[:10]
+
+
 class UnbufferedStream(object):
     """
     Unlike regular file object, read may return any amount of bytes up to the

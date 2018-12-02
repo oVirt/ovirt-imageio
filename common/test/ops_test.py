@@ -24,28 +24,14 @@ pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
 
 
-def fill(b, size):
-    count, rest = divmod(size, len(b))
-    return b * count + b[:rest]
-
-
-BUFFER = fill(b"ABCDEFGHIJ", ops.BUFFERSIZE)
-PARTIAL = fill(b"abcdefghij", file.BLOCKSIZE)
-BYTES = fill(b"0123456789", 42)
-
-
-def head(b):
-    return b[:10]
-
-
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+], ids=testutil.head)
 def test_send(tmpdir, data, offset):
     size = len(data) - offset
     expected = data[offset:]
@@ -53,22 +39,26 @@ def test_send(tmpdir, data, offset):
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize(
-    "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
+@pytest.mark.parametrize("size", [
+    511,
+    513,
+    len(testutil.BUFFER) + 511,
+    len(testutil.BUFFER) + 513,
+])
 def test_send_partial(tmpdir, size, offset):
-    data = BUFFER * 2
+    data = testutil.BUFFER * 2
     expected = data[offset:offset + size]
     assert send(tmpdir, data, size, offset=offset) == expected
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+], ids=testutil.head)
 def test_send_partial_content(tmpdir, data, offset):
     size = len(data) - offset
     with pytest.raises(errors.PartialContent) as e:
@@ -124,34 +114,38 @@ def test_send_iterate_and_close(tmpfile):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-    BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+    testutil.BYTES,
+], ids=testutil.head)
 def test_receive(tmpdir, data, offset):
     assert receive(tmpdir, data, len(data), offset=offset) == data
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize(
-    "size", [511, 513, len(BUFFER) + 511, len(BUFFER) + 513])
+@pytest.mark.parametrize("size", [
+    511,
+    513,
+    len(testutil.BUFFER) + 511,
+    len(testutil.BUFFER) + 513,
+])
 def test_receive_partial(tmpdir, size, offset):
-    data = BUFFER * 2
+    data = testutil.BUFFER * 2
     assert receive(tmpdir, data, size, offset=offset) == data[:size]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-    BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+    testutil.BYTES,
+], ids=testutil.head)
 def test_receive_partial_content(tmpdir, data, offset):
     with pytest.raises(errors.PartialContent) as e:
         receive(tmpdir, data[:-1], len(data), offset=offset)
@@ -285,12 +279,12 @@ def receive_unbuffered(tmpdir, chunks, size, bufsize):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+], ids=testutil.head)
 def test_receive_no_size(tmpdir, data, offset):
     dst = tmpdir.join("dst")
     dst.write("x" * offset)
@@ -302,12 +296,12 @@ def test_receive_no_size(tmpdir, data, offset):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    BUFFER * 2,
-    BUFFER + PARTIAL * 2,
-    BUFFER + PARTIAL + BYTES,
-    PARTIAL * 2,
-    PARTIAL + BYTES,
-], ids=head)
+    testutil.BUFFER * 2,
+    testutil.BUFFER + testutil.BLOCK * 2,
+    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
+    testutil.BLOCK * 2,
+    testutil.BLOCK + testutil.BYTES,
+], ids=testutil.head)
 def test_send_no_size(tmpdir, data, offset):
     src = tmpdir.join("src")
     src.write(data)
