@@ -50,6 +50,7 @@ def open(path, mode, direct=True, buffer_size=1024**2):
     fd = os.open(path, flags)
     fio = io.FileIO(fd, mode, closefd=True)
     try:
+        fio.name = path
         mode = os.fstat(fd).st_mode
         if stat.S_ISBLK(mode):
             return BlockIO(fio)
@@ -82,6 +83,8 @@ class BaseIO(object):
         Arguments:
             fio (io.FileIO): underlying file object.
         """
+        log.debug("Opening file backend path=%s mode=%s)",
+                  fio.name, fio.mode)
         self._fio = fio
 
     # io.FileIO interface
@@ -118,6 +121,7 @@ class BaseIO(object):
 
     def close(self):
         if self._fio:
+            log.debug("Closing file backend path=%s", self._fio.name)
             try:
                 self._fio.close()
             finally:
