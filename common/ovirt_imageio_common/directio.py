@@ -16,4 +16,29 @@ Changes to this module must be tested with /usr/libexec/vdsm/kvm2ovirt.
 """
 
 from __future__ import absolute_import
-from . ops import Receive  # NOQA: F401 (unused import)
+
+from . import ops
+from . import util
+from . backends import file
+
+
+class Receive(ops.Receive):
+    """
+    ops.Receive accepts a backend instead of path, but vdsm is using the old
+    interface. Provide a backward comptible version accepting a path.
+    """
+
+    def __init__(self, path, src, size=None, offset=0, flush=True,
+                 buffersize=ops.BUFFERSIZE, clock=util.NullClock()):
+        self._dst = file.open(path, "r+")
+        super(Receive, self).__init__(self._dst, src, size=size, offset=offset,
+                                      flush=flush, buffersize=buffersize,
+                                      clock=clock)
+
+    def close(self):
+        if self._dst:
+            try:
+                self._dst.close()
+            finally:
+                self._dst = None
+            super(Receive, self).close()

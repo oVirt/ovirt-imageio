@@ -138,42 +138,42 @@ class Send(Operation):
 
 class Receive(Operation):
     """
-    Receive data from file object to path using direct I/O.
+    Receive data from file object to destination backend.
     """
 
-    def __init__(self, path, src, size=None, offset=0, flush=True,
+    def __init__(self, dst, src, size=None, offset=0, flush=True,
                  buffersize=BUFFERSIZE, clock=util.NullClock()):
-        super(Receive, self).__init__(path, size=size, offset=offset,
+        super(Receive, self).__init__("<dst>", size=size, offset=offset,
                                       buffersize=buffersize, clock=clock)
         self._src = src
+        self._dst = dst
         self._flush = flush
 
     def _run(self):
-        with file.open(self._path, "r+") as dst, \
-                closing(util.aligned_buffer(self._buffersize)) as buf:
+        with closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
-                dst.seek(self._offset)
+                self._dst.seek(self._offset)
 
                 # If offset is not aligned to block size, receive partial chunk
                 # until the start of the next block.
                 unaligned = self._offset % file.BLOCKSIZE
                 if unaligned:
                     count = min(self._todo, file.BLOCKSIZE - unaligned)
-                    self._receive_chunk(dst, buf, count)
+                    self._receive_chunk(buf, count)
 
                 # Now current file position is aligned to block size and we can
                 # receive full chunks.
                 while self._todo:
                     count = min(self._todo, self._buffersize)
-                    self._receive_chunk(dst, buf, count)
+                    self._receive_chunk(buf, count)
             except EOF:
                 pass
             finally:
                 if self._flush:
                     with self._clock.run("sync"):
-                        dst.flush()
+                        self._dst.flush()
 
-    def _receive_chunk(self, dst, buf, count):
+    def _receive_chunk(self, buf, count):
         buf.seek(0)
         toread = count
         while toread:
@@ -190,7 +190,7 @@ class Receive(Operation):
             size = buf.tell() - offset
             wbuf = buffer(buf, offset, size)
             with self._clock.run("write"):
-                written = dst.write(wbuf)
+                written = self._dst.write(wbuf)
             towrite -= written
 
         self._done += buf.tell()

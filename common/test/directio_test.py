@@ -133,16 +133,16 @@ def test_receive_flush(tmpdir, monkeypatch, extra, calls):
     assert fsync_calls[0] == calls
 
 
-def test_recv_repr():
-    op = directio.Receive("/path", None, 100, offset=42)
+def test_recv_repr(tmpfile):
+    op = directio.Receive(str(tmpfile), None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "path='/path' size=100 offset=42 buffersize=512 done=0" in rep
+    assert "size=100 offset=42 buffersize=512 done=0" in rep
     assert "active" in rep
 
 
-def test_recv_repr_active():
-    op = directio.Receive("/path", None)
+def test_recv_repr_active(tmpfile):
+    op = directio.Receive(str(tmpfile), None)
     op.close()
     assert "active" not in repr(op)
 

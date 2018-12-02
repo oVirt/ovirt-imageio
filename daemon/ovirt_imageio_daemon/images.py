@@ -54,18 +54,19 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        op = ops.Receive(
-            ticket.url.path,
-            req,
-            size,
-            offset=offset,
-            flush=flush,
-            buffersize=self.config.daemon.buffer_size,
-            clock=req.clock)
-        try:
-            ticket.run(op)
-        except errors.PartialContent as e:
-            raise http.Error(http.BAD_REQUEST, str(e))
+        with backends.open(ticket) as dst:
+            op = ops.Receive(
+                dst,
+                req,
+                size,
+                offset=offset,
+                flush=flush,
+                buffersize=self.config.daemon.buffer_size,
+                clock=req.clock)
+            try:
+                ticket.run(op)
+            except errors.PartialContent as e:
+                raise http.Error(http.BAD_REQUEST, str(e))
 
     def get(self, req, resp, ticket_id):
         if not ticket_id:

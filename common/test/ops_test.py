@@ -198,26 +198,28 @@ def test_receive_partial_content(tmpdir, data, offset):
 
 
 def receive(tmpdir, data, size, offset=0):
-    dst = tmpdir.join("dst")
-    dst.write("x" * offset)
-    src = io.BytesIO(data)
-    op = ops.Receive(str(dst), src, size, offset=offset)
-    op.run()
-    with open(str(dst), "rb") as f:
+    dst_file = tmpdir.join("dst")
+    dst_file.write("x" * offset)
+    with file.open(str(dst_file), "r+") as dst:
+        src = io.BytesIO(data)
+        op = ops.Receive(dst, src, size, offset=offset)
+        op.run()
+    with open(str(dst_file), "rb") as f:
         f.seek(offset)
         return f.read(size)
 
 
 def test_receive_padd_to_block_size(tmpdir):
-    dst = tmpdir.join("dst")
-    dst.write("x" * 400)
+    dst_file = tmpdir.join("dst")
+    dst_file.write("x" * 400)
     size = 200
     offset = 300
     padding = file.BLOCKSIZE - size - offset
     src = io.BytesIO(b"y" * size)
-    op = ops.Receive(str(dst), src, size, offset=offset)
-    op.run()
-    with open(str(dst), "rb") as f:
+    with file.open(str(dst_file), "r+") as dst:
+        op = ops.Receive(dst, src, size, offset=offset)
+        op.run()
+    with open(str(dst_file), "rb") as f:
         # Data before offset is not modified.
         assert f.read(300) == b"x" * offset
         # Data after offset is modifed, flie extended.
@@ -226,33 +228,50 @@ def test_receive_padd_to_block_size(tmpdir):
         assert f.read() == b"\0" * padding
 
 
+def test_receive_seek():
+    dst = memory.Backend("r+", b"a" * 10)
+    dst.seek(8)
+    src = io.BytesIO(b"b" * 5)
+    op = ops.Receive(dst, src, 5)
+    op.run()
+    dst.seek(0)
+    b = bytearray(11)
+    n = dst.readinto(b)
+    assert n == 10
+    assert b == b"bbbbbaaaaa\0"
+
+
 def test_receive_busy(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = ops.Receive(str(tmpfile), src, file.BLOCKSIZE)
-    assert op.active
+    with file.open(str(tmpfile), "r+") as dst:
+        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = ops.Receive(str(tmpfile), src, file.BLOCKSIZE)
-    op.run()
-    assert not op.active
+    with file.open(str(tmpfile), "r+") as dst:
+        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        op.run()
+        assert not op.active
 
 
 def test_receive_close_on_error(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = ops.Receive(str(tmpfile), src, file.BLOCKSIZE + 1)
-    with pytest.raises(errors.PartialContent):
-        op.run()
-    assert not op.active
+    with file.open(str(tmpfile), "r+") as dst:
+        op = ops.Receive(dst, src, file.BLOCKSIZE + 1)
+        with pytest.raises(errors.PartialContent):
+            op.run()
+        assert not op.active
 
 
 def test_receive_close_twice(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = ops.Receive(str(tmpfile), src, file.BLOCKSIZE)
-    op.run()
-    op.close()  # should do nothing
-    assert not op.active
+    with file.open(str(tmpfile), "r+") as dst:
+        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        op.run()
+        op.close()  # should do nothing
+        assert not op.active
 
 
 @pytest.mark.parametrize("extra, calls", [
@@ -270,28 +289,29 @@ def test_receive_flush(tmpdir, monkeypatch, extra, calls):
         fsync(fd)
 
     monkeypatch.setattr("os.fsync", counted_fsync)
-    dst = tmpdir.join("src")
+    dst_file = tmpdir.join("src")
     data = b"x" * ops.BUFFERSIZE * 2
-    dst.write(data)
+    dst_file.write(data)
     size = len(data)
     src = io.BytesIO(b"X" * size)
-    op = ops.Receive(str(dst), src, size, **extra)
-    op.run()
-    with io.open(str(dst), "rb") as f:
-        assert f.read() == src.getvalue()
-    assert fsync_calls[0] == calls
+    with file.open(str(dst_file), "r+") as dst:
+        op = ops.Receive(dst, src, size, **extra)
+        op.run()
+        with io.open(str(dst_file), "rb") as f:
+            assert f.read() == src.getvalue()
+        assert fsync_calls[0] == calls
 
 
 def test_recv_repr():
-    op = ops.Receive("/path", None, 100, offset=42)
+    op = ops.Receive(None, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "path='/path' size=100 offset=42 buffersize=512 done=0" in rep
+    assert "size=100 offset=42 buffersize=512 done=0" in rep
     assert "active" in rep
 
 
 def test_recv_repr_active():
-    op = ops.Receive("/path", None)
+    op = ops.Receive(memory.Backend("r+"), None)
     op.close()
     assert "active" not in repr(op)
 
@@ -317,12 +337,14 @@ def test_receive_unbuffered_stream_partial_content(tmpdir):
 
 
 def receive_unbuffered(tmpdir, chunks, size, bufsize):
-    dst = tmpdir.join("dst")
-    dst.write("")
+    dst_file = tmpdir.join("dst")
+    dst_file.write("")
     src = testutil.UnbufferedStream(chunks)
-    op = ops.Receive(str(dst), src, size, buffersize=bufsize)
-    op.run()
-    return dst.read()
+    with file.open(str(dst_file), "r+") as dst:
+        op = ops.Receive(dst, src, size, buffersize=bufsize)
+        op.run()
+        with open(str(dst_file), "rb") as f:
+            return f.read()
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -334,12 +356,13 @@ def receive_unbuffered(tmpdir, chunks, size, bufsize):
     testutil.BLOCK + testutil.BYTES,
 ], ids=testutil.head)
 def test_receive_no_size(tmpdir, data, offset):
-    dst = tmpdir.join("dst")
-    dst.write("x" * offset)
+    dst_file = tmpdir.join("dst")
+    dst_file.write("x" * offset)
     src = io.BytesIO(data)
-    op = ops.Receive(str(dst), src, offset=offset)
-    op.run()
-    with io.open(str(dst), "rb") as f:
+    with file.open(str(dst_file), "r+") as dst:
+        op = ops.Receive(dst, src, offset=offset)
+        op.run()
+    with io.open(str(dst_file), "rb") as f:
         f.seek(offset)
         assert f.read(len(data)) == data
 
