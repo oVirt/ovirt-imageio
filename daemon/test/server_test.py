@@ -510,14 +510,16 @@ def test_images_upload_extends_ticket(tmpdir, fake_time):
 # the server does not reject the query string.
 @pytest.mark.parametrize("flush", [None, "y", "n"])
 def test_images_upload(tmpdir, flush):
-    image = testutils.create_tempfile(tmpdir, "image", "-------|after")
+    data = b"-------|after"
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
     auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
     if flush:
         uri += "?flush=" + flush
     res = http.put(uri, "content")
-    assert image.read() == "content|after"
+    with io.open(str(image), "rb") as f:
+        assert f.read(len(data)) == b"content|after"
     assert res.status == 200
     assert res.getheader("content-length") == "0"
 
@@ -530,9 +532,9 @@ def test_images_upload_invalid_flush(tmpdir):
 
 
 @pytest.mark.parametrize("crange,before,after", [
-    ("bytes 7-13/20", "before|-------|after", "before|content|after"),
-    ("bytes 0-6/*", "-------|after", "content|after"),
-    ("bytes 0-*/*", "-------|after", "content|after"),
+    ("bytes 7-13/20", b"before|-------|after", b"before|content|after"),
+    ("bytes 0-6/*", b"-------|after", b"content|after"),
+    ("bytes 0-*/*", b"-------|after", b"content|after"),
 ])
 def test_images_upload_with_range(tmpdir, crange, before, after):
     image = testutils.create_tempfile(tmpdir, "image", before)
@@ -540,20 +542,22 @@ def test_images_upload_with_range(tmpdir, crange, before, after):
     auth.add(ticket)
     res = http.put("/images/" + ticket["uuid"], "content",
                    headers={"Content-Range": crange})
-    assert image.read() == after
+    with io.open(str(image), "rb") as f:
+        assert f.read(len(after)) == after
     assert res.status == 200
 
 
 def test_images_upload_max_size(tmpdir):
     image_size = 100
-    content = "b" * image_size
+    content = b"b" * image_size
     image = testutils.create_tempfile(tmpdir, "image", "")
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     auth.add(ticket)
     res = http.put("/images/" + ticket["uuid"], content)
     assert res.status == 200
-    assert image.read() == content
+    with io.open(str(image), "rb") as f:
+        assert f.read(len(content)) == content
 
 
 def test_images_upload_too_big(tmpdir):
@@ -569,14 +573,15 @@ def test_images_upload_too_big(tmpdir):
 
 def test_images_upload_last_byte(tmpdir):
     image_size = 100
-    image = testutils.create_tempfile(tmpdir, "image", "a" * image_size)
+    image = testutils.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=image_size)
     auth.add(ticket)
     res = http.put("/images/" + ticket["uuid"], "b",
                    headers={"Content-Range": "bytes 99-100/*"})
     assert res.status == 200
-    assert image.read() == "a" * 99 + "b"
+    with io.open(str(image), "rb") as f:
+        assert f.read(image_size) == b"a" * 99 + b"b"
 
 
 def test_images_upload_after_last_byte(tmpdir):

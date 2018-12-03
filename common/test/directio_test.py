@@ -74,7 +74,7 @@ def receive(tmpdir, data, size, offset=0):
     op.run()
     with open(str(dst), "rb") as f:
         f.seek(offset)
-        return f.read()
+        return f.read(size)
 
 
 def test_receive_busy(tmpfile):
@@ -190,4 +190,24 @@ def test_receive_no_size(tmpdir, data, offset):
     src = io.BytesIO(data)
     op = directio.Receive(str(dst), src, offset=offset)
     op.run()
-    assert dst.read()[offset:] == data
+    with io.open(str(dst), "rb") as f:
+        f.seek(offset)
+        assert f.read(len(data)) == data
+
+
+def test_receive_padd_to_block_size(tmpdir):
+    dst = tmpdir.join("dst")
+    dst.write("x" * 400)
+    size = 200
+    offset = 300
+    padding = file.BLOCKSIZE - size - offset
+    src = io.BytesIO(b"y" * size)
+    op = directio.Receive(str(dst), src, size, offset=offset)
+    op.run()
+    with open(str(dst), "rb") as f:
+        # Data before offset is not modified.
+        assert f.read(300) == b"x" * offset
+        # Data after offset is modifed, flie extended.
+        assert f.read(200) == b"y" * size
+        # File padded to block size with zeroes.
+        assert f.read() == b"\0" * padding

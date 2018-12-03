@@ -83,7 +83,8 @@ def test_put_forbidden(service):
 
 
 def test_put(service, tmpdir):
-    image = testutils.create_tempfile(tmpdir, "image", "-------|after")
+    data = b"-------|after"
+    image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
     auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
@@ -91,7 +92,7 @@ def test_put(service, tmpdir):
     assert res.status == http_client.OK
     assert res.getheader("content-length") == "0"
     with io.open(str(image)) as f:
-        assert f.read() == "content|after"
+        assert f.read(len(data)) == "content|after"
 
 
 def test_get_forbidden(service):

@@ -15,6 +15,9 @@ import logging
 import os
 import stat
 
+from contextlib import closing
+
+from .. import compat
 from .. import ioutil
 from .. import util
 
@@ -93,7 +96,16 @@ class BaseIO(object):
         return util.uninterruptible(self._fio.readinto, buf)
 
     def write(self, buf):
-        return util.uninterruptible(self._fio.write, buf)
+        if (not self._aligned(self.tell()) or len(buf) < BLOCKSIZE):
+            # The slow path.
+            return self._write_unaligned(buf)
+        else:
+            # The fast path.
+            if not self._aligned(len(buf)):
+                count = util.round_down(len(buf), BLOCKSIZE)
+                buf = compat.bufview(buf, 0, count)
+
+            return util.uninterruptible(self._fio.write, buf)
 
     def tell(self):
         return self._fio.tell()
@@ -144,6 +156,57 @@ class BaseIO(object):
 
     def flush(self):
         return os.fsync(self.fileno())
+
+    # Private
+
+    def _aligned(self, n):
+        """
+        Return True if number n is aligned to block size.
+        """
+        return not (n & (BLOCKSIZE - 1))
+
+    def _write_unaligned(self, buf):
+        """
+        Write up to BLOCKSIZE bytes from buf into the current block.
+
+        If position is not aligned to block size, writes only up to end of
+        current block.
+
+        Perform a read-modify-write on the current block:
+        1. Read the current block
+        2. copy bytes from buf into the block
+        3. write the block back to storage.
+
+        Returns:
+            Number of bytes written
+        """
+        start = self.tell()
+        offset = start % BLOCKSIZE
+        count = min(len(buf), BLOCKSIZE - offset)
+
+        log.debug("Unaligned write start=%s offset=%s count=%s",
+                  start, offset, count)
+
+        block = util.aligned_buffer(BLOCKSIZE)
+        with closing(block):
+            # 1. Read available bytes in current block.
+            self.seek(start - offset)
+            self.readinto(block)
+
+            # 2. Write new bytes into buffer.
+            block[offset:offset + count] = buf[:count]
+
+            # 3. Write block back to storage. This aligns the file to block
+            # size by padding zeros if needed.
+            # TODO: When writing to file system, block size may be wrong, so we
+            # need to take care of short writes.
+            self.seek(start - offset)
+            util.uninterruptible(self._fio.write, block)
+
+            # 4. Update position.
+            self.seek(start + count)
+
+        return count
 
 
 class BlockIO(BaseIO):
