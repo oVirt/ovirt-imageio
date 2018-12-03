@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import collections
 import errno
+import io
 import mmap
 import os
 import threading
@@ -182,3 +183,26 @@ def aligned_buffer(size):
     apply to memory buffer created with MAP_SHARED. See open(2) for more info.
     """
     return mmap.mmap(-1, size, mmap.MAP_SHARED)
+
+
+def open(path, mode, direct=True):
+    """
+    Open a file for direct I/O.
+
+    Writing or reading from the file requires an aligned buffer. Only
+    readinto() can be used to read from the file.
+    """
+    if mode == "r":
+        flags = os.O_RDONLY
+    elif mode == "w":
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    elif mode == "r+":
+        flags = os.O_RDWR
+    else:
+        raise ValueError("Unsupported mode %r" % mode)
+
+    if direct:
+        flags |= os.O_DIRECT
+
+    fd = os.open(path, flags)
+    return io.FileIO(fd, mode, closefd=True)

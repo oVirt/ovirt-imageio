@@ -72,38 +72,6 @@ def test_open_no_create(tmpdir, mode):
     assert e.value.errno == errno.ENOENT
 
 
-def test_open_no_direct_read_only(tmpdir):
-    path = str(tmpdir.join("path"))
-    with io.open(path, "wb") as f:
-        f.write(b"x" * 512)
-    with file.open(path, "r", direct=False) as f:
-        buf = bytearray(512)
-        n = f.readinto(buf)
-        assert n == 512
-        assert buf == b"x" * n
-
-
-def test_open_no_direct_read_write(tmpdir):
-    path = str(tmpdir.join("path"))
-    with io.open(path, "wb") as f:
-        f.write(b"a" * 512)
-    with file.open(path, "r+", direct=False) as f:
-        f.write(b"b" * 512)
-        f.seek(0)
-        buf = bytearray(512)
-        n = f.readinto(buf)
-        assert n == 512
-        assert buf == b"b" * n
-
-
-def test_open_no_direct_write_only(tmpdir):
-    path = str(tmpdir.join("path"))
-    with file.open(path, "w", direct=False) as f:
-        f.write(b"x" * 512)
-    with io.open(path, "rb") as f:
-        assert f.read() == b"x" * 512
-
-
 def test_write_unaligned_offset_complete(tmpdir):
     path = str(tmpdir.join("path"))
     with io.open(path, "wb") as f:

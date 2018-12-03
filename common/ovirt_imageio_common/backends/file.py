@@ -9,7 +9,6 @@
 from __future__ import absolute_import
 
 import errno
-import io
 import logging
 import os
 import stat
@@ -27,30 +26,14 @@ BLOCKSIZE = 512
 log = logging.getLogger("file")
 
 
-def open(path, mode, direct=True, buffer_size=1024**2):
+def open(path, mode, buffer_size=1024**2):
     """
-    Open a file for direct I/O.
-
-    Writing or reading from the file requires an aligned buffer. Only
-    readinto() can be used to read from the file.
+    Open a file backend.
     """
-    if mode == "r":
-        flags = os.O_RDONLY
-    elif mode == "w":
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    elif mode == "r+":
-        flags = os.O_RDWR
-    else:
-        raise ValueError("Unsupported mode %r" % mode)
-
-    if direct:
-        flags |= os.O_DIRECT
-
-    fd = os.open(path, flags)
-    fio = io.FileIO(fd, mode, closefd=True)
+    fio = util.open(path, mode, direct=True)
     try:
         fio.name = path
-        mode = os.fstat(fd).st_mode
+        mode = os.fstat(fio.fileno()).st_mode
         if stat.S_ISBLK(mode):
             return BlockIO(fio)
         else:
