@@ -83,12 +83,6 @@ def test_invalid_mode():
         memory.open("invalid")
 
 
-def test_fileno():
-    m = memory.open("r")
-    with pytest.raises(IOError):
-        m.fileno()
-
-
 def test_zero_middle():
     m = memory.open("r+")
     m.write(b"xxxxxxxxxxxx")

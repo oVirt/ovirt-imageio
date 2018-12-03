@@ -19,7 +19,6 @@ import pytest
 
 from ovirt_imageio_common import ioutil
 from ovirt_imageio_common import util
-from ovirt_imageio_common.backends import file
 
 BLOCKSIZE = 4096
 
@@ -29,7 +28,7 @@ requires_root = pytest.mark.skipif(os.geteuid() != 0, reason="Requires root")
 @pytest.fixture
 def loop_device(tmpdir):
     backing_file = str(tmpdir.join("backing_file"))
-    with file.open(backing_file, "w") as f:
+    with util.open(backing_file, "w") as f:
         buf = util.aligned_buffer(BLOCKSIZE * 3)
         with closing(buf):
             buf[:] = b"x" * BLOCKSIZE * 3
@@ -45,10 +44,10 @@ def loop_device(tmpdir):
 
 @requires_root
 def test_zeroout_start(loop_device):
-    with file.open(loop_device, "r+") as f:
+    with util.open(loop_device, "r+") as f:
         ioutil.blkzeroout(f.fileno(), 0, BLOCKSIZE)
 
-    with file.open(loop_device, "r") as f:
+    with util.open(loop_device, "r") as f:
         buf = util.aligned_buffer(BLOCKSIZE * 3)
         with closing(buf):
             f.readinto(buf)
@@ -58,10 +57,10 @@ def test_zeroout_start(loop_device):
 
 @requires_root
 def test_zeroout_middle(loop_device):
-    with file.open(loop_device, "r+") as f:
+    with util.open(loop_device, "r+") as f:
         ioutil.blkzeroout(f.fileno(), BLOCKSIZE, BLOCKSIZE)
 
-    with file.open(loop_device, "r") as f:
+    with util.open(loop_device, "r") as f:
         buf = util.aligned_buffer(BLOCKSIZE * 3)
         with closing(buf):
             f.readinto(buf)
@@ -72,10 +71,10 @@ def test_zeroout_middle(loop_device):
 
 @requires_root
 def test_zeroout_end(loop_device):
-    with file.open(loop_device, "r+") as f:
+    with util.open(loop_device, "r+") as f:
         ioutil.blkzeroout(f.fileno(), BLOCKSIZE * 2, BLOCKSIZE)
 
-    with file.open(loop_device, "r") as f:
+    with util.open(loop_device, "r") as f:
         buf = util.aligned_buffer(BLOCKSIZE * 3)
         with closing(buf):
             f.readinto(buf)
@@ -249,7 +248,7 @@ def test_fallocate_zero_start(tmpdir, mode):
         f.write(b"x" * BLOCKSIZE * 3)
 
     buf = util.aligned_buffer(BLOCKSIZE * 3)
-    with closing(buf), file.open(path, "r+") as f:
+    with closing(buf), util.open(path, "r+") as f:
         try_fallocate(f.fileno(), mode, 0, BLOCKSIZE)
 
         n = f.readinto(buf)
@@ -266,7 +265,7 @@ def test_fallocate_zero_middle(tmpdir, mode):
         f.write(b"x" * BLOCKSIZE * 3)
 
     buf = util.aligned_buffer(BLOCKSIZE * 3)
-    with closing(buf), file.open(path, "r+") as f:
+    with closing(buf), util.open(path, "r+") as f:
         try_fallocate(f.fileno(), mode, BLOCKSIZE, BLOCKSIZE)
 
         n = f.readinto(buf)
@@ -284,7 +283,7 @@ def test_fallocate_zero_end(tmpdir, mode):
         f.write(b"x" * BLOCKSIZE * 3)
 
     buf = util.aligned_buffer(BLOCKSIZE * 3)
-    with closing(buf), file.open(path, "r+") as f:
+    with closing(buf), util.open(path, "r+") as f:
         try_fallocate(f.fileno(), mode, BLOCKSIZE * 2, BLOCKSIZE)
 
         n = f.readinto(buf)
@@ -300,7 +299,7 @@ def test_fallocate_zero_after_end(tmpdir):
         f.write(b"x" * BLOCKSIZE * 3)
 
     buf = util.aligned_buffer(BLOCKSIZE * 4)
-    with closing(buf), file.open(path, "r+") as f:
+    with closing(buf), util.open(path, "r+") as f:
         # Will allocate more space that will return zeros when read.
         mode = ioutil.FALLOC_FL_ZERO_RANGE
         try_fallocate(f.fileno(), mode, BLOCKSIZE * 3, BLOCKSIZE)
@@ -318,7 +317,7 @@ def test_fallocate_punch_hole_after_end(tmpdir):
         f.write(b"x" * BLOCKSIZE * 3)
 
     buf = util.aligned_buffer(BLOCKSIZE * 3)
-    with closing(buf), file.open(path, "r+") as f:
+    with closing(buf), util.open(path, "r+") as f:
         # This does not change file contents or size.
         mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
         try_fallocate(f.fileno(), mode, BLOCKSIZE * 3, BLOCKSIZE)

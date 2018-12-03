@@ -53,9 +53,6 @@ class Backend(object):
             raise IOError("Unsupproted operation: truncate")
         self._buf.truncate(size)
 
-    def fileno(self):
-        return self._buf.fileno()
-
     def flush(self):
         self._buf.flush()
 

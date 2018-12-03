@@ -85,9 +85,6 @@ class BaseIO(object):
     def truncate(self, size):
         util.uninterruptible(self._fio.truncate, size)
 
-    def fileno(self):
-        return self._fio.fileno()
-
     def __enter__(self):
         return self
 
@@ -124,7 +121,7 @@ class BaseIO(object):
         raise NotImplementedError
 
     def flush(self):
-        return os.fsync(self.fileno())
+        return os.fsync(self._fio.fileno())
 
     # Private
 
@@ -207,8 +204,8 @@ class BlockIO(BaseIO):
         if self._can_fallocate:
             mode = ioutil.FALLOC_FL_ZERO_RANGE
             try:
-                util.uninterruptible(ioutil.fallocate, self.fileno(), mode,
-                                     offset, count)
+                util.uninterruptible(ioutil.fallocate, self._fio.fileno(),
+                                     mode, offset, count)
             except EnvironmentError as e:
                 # On RHEL 7.5 (kenerl 3.10.0) this will fail with ENODEV.
                 if e.errno not in (errno.EOPNOTSUPP, errno.ENODEV):
@@ -225,7 +222,7 @@ class BlockIO(BaseIO):
         # If we reach this, this kernel does not support fallocate() for block
         # devices, so we fallback to BLKZEROOUT.
         util.uninterruptible(
-            ioutil.blkzeroout, self.fileno(), offset, count)
+            ioutil.blkzeroout, self._fio.fileno(), offset, count)
         self.seek(offset + count)
 
     # Emulate trim using zero.
@@ -289,7 +286,7 @@ class FileIO(BaseIO):
 
         # If we are writing after the end of the file, we can allocate.
         if self._can_fallocate:
-            size = os.fstat(self.fileno()).st_size
+            size = os.fstat(self._fio.fileno()).st_size
             if offset >= size:
                 if self._fallocate(0, offset, count):
                     self.seek(offset + count)
@@ -307,7 +304,7 @@ class FileIO(BaseIO):
             offset = self.tell()
 
             # Extend file size if needed.
-            size = os.fstat(self.fileno()).st_size
+            size = os.fstat(self._fio.fileno()).st_size
             if offset + count > size:
                 self.truncate(offset + count)
 
@@ -330,7 +327,7 @@ class FileIO(BaseIO):
         """
         try:
             util.uninterruptible(
-                ioutil.fallocate, self.fileno(), mode, offset, count)
+                ioutil.fallocate, self._fio.fileno(), mode, offset, count)
             return True
         except EnvironmentError as e:
             if e.errno != errno.EOPNOTSUPP:
