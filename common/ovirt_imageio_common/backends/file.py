@@ -9,7 +9,6 @@
 from __future__ import absolute_import
 
 import errno
-import fcntl
 import io
 import logging
 import os
@@ -34,9 +33,6 @@ def open(path, mode, direct=True, buffer_size=1024**2):
 
     Writing or reading from the file requires an aligned buffer. Only
     readinto() can be used to read from the file.
-
-    If direct is False, open the file for buffered I/O. You can enable direct
-    I/O later using enable_directio().
     """
     if mode == "r":
         flags = os.O_RDONLY
@@ -62,16 +58,6 @@ def open(path, mode, direct=True, buffer_size=1024**2):
     except:
         fio.close()
         raise
-
-
-def enable_directio(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_DIRECT)
-
-
-def disable_directio(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags & ~os.O_DIRECT)
 
 
 class BaseIO(object):
