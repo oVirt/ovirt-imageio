@@ -156,12 +156,17 @@ class Receive(Operation):
         with file.open(self._path, "r+") as dst, \
                 closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
-                if self._offset:
-                    remaining = self._seek_before_first_block(dst)
-                    if remaining:
-                        file.disable_directio(dst.fileno())
-                        self._receive_chunk(dst, buf, remaining)
-                        file.enable_directio(dst.fileno())
+                dst.seek(self._offset)
+
+                # If offset is not aligned to block size, receive partial chunk
+                # until the start of the next block.
+                unaligned = self._offset % file.BLOCKSIZE
+                if unaligned:
+                    count = min(self._todo, file.BLOCKSIZE - unaligned)
+                    self._receive_chunk(dst, buf, count)
+
+                # Now current file position is aligned to block size and we can
+                # receive full chunks.
                 while self._todo:
                     count = min(self._todo, self._buffersize)
                     self._receive_chunk(dst, buf, count)
@@ -171,13 +176,6 @@ class Receive(Operation):
                 if self._flush:
                     with self._clock.run("sync"):
                         dst.flush()
-
-    def _seek_before_first_block(self, dst):
-        dst.seek(self._offset)
-        reminder = self._offset % file.BLOCKSIZE
-        if reminder:
-            return min(self._todo, file.BLOCKSIZE - reminder)
-        return 0
 
     def _receive_chunk(self, dst, buf, count):
         buf.seek(0)
@@ -195,8 +193,6 @@ class Receive(Operation):
             offset = buf.tell() - towrite
             size = buf.tell() - offset
             wbuf = buffer(buf, offset, size)
-            if size % file.BLOCKSIZE:
-                file.disable_directio(dst.fileno())
             with self._clock.run("write"):
                 written = dst.write(wbuf)
             towrite -= written
