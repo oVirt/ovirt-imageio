@@ -14,5 +14,5 @@ import pytest
 @pytest.fixture
 def tmpfile(tmpdir):
     f = tmpdir.join("tmpfile")
-    f.write(b"x" * 4096)
+    f.write("")
     return str(f)
