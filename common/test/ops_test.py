@@ -427,43 +427,43 @@ def test_zero_flush(tmpdir, monkeypatch, flush, calls):
 
 
 def test_zero_busy():
-    op = ops.Zero("/no/such/file", 100)
+    op = ops.Zero("/no/such/file", 4096)
     assert op.active
 
 
 def test_zero_close_on_success(tmpfile):
-    op = ops.Zero(tmpfile, 100)
+    op = ops.Zero(tmpfile, 4096)
     op.run()
     assert not op.active
 
 
 def test_zero_close_on_error():
-    op = ops.Zero("/no/such/file", 100)
+    op = ops.Zero("/no/such/file", 4096)
     with pytest.raises(OSError):
         op.run()
     assert not op.active
 
 
 def test_zero_close_twice(tmpfile):
-    op = ops.Zero(tmpfile, 100)
+    op = ops.Zero(tmpfile, 4096)
     op.run()
     op.close()  # should do nothing
     assert not op.active
 
 
 def test_zero_repr():
-    op = ops.Zero("/path", 100)
+    op = ops.Zero("/path", 4096)
     rep = repr(op)
     assert "Zero" in rep
     assert "path='/path'" in rep
     assert "offset=0" in rep
-    assert "size=100" in rep
+    assert "size=4096" in rep
     assert "done=0" in rep
     assert "active" in rep
 
 
 def test_zero_repr_active():
-    op = ops.Zero("/path", 100)
+    op = ops.Zero("/path", 4096)
     op.close()
     assert "active" not in repr(op)
 
