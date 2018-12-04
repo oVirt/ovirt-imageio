@@ -79,20 +79,20 @@ def receive(tmpdir, data, size, offset=0):
 
 def test_receive_busy(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(str(tmpfile), src, file.BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
     assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(str(tmpfile), src, file.BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
     op.run()
     assert not op.active
 
 
 def test_receive_close_on_error(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(str(tmpfile), src, file.BLOCKSIZE + 1)
+    op = directio.Receive(tmpfile, src, file.BLOCKSIZE + 1)
     with pytest.raises(errors.PartialContent):
         op.run()
     assert not op.active
@@ -100,7 +100,7 @@ def test_receive_close_on_error(tmpfile):
 
 def test_receive_close_twice(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(str(tmpfile), src, file.BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
     op.run()
     op.close()  # should do nothing
     assert not op.active
@@ -134,7 +134,7 @@ def test_receive_flush(tmpdir, monkeypatch, extra, calls):
 
 
 def test_recv_repr(tmpfile):
-    op = directio.Receive(str(tmpfile), None, 100, offset=42)
+    op = directio.Receive(tmpfile, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
     assert "size=100 offset=42 buffersize=512 done=0" in rep
@@ -142,7 +142,7 @@ def test_recv_repr(tmpfile):
 
 
 def test_recv_repr_active(tmpfile):
-    op = directio.Receive(str(tmpfile), None)
+    op = directio.Receive(tmpfile, None)
     op.close()
     assert "active" not in repr(op)
 

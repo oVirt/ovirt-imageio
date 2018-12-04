@@ -243,14 +243,14 @@ def test_receive_seek():
 
 def test_receive_busy(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    with file.open(str(tmpfile), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, file.BLOCKSIZE)
         assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    with file.open(str(tmpfile), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, file.BLOCKSIZE)
         op.run()
         assert not op.active
@@ -258,7 +258,7 @@ def test_receive_close_on_success(tmpfile):
 
 def test_receive_close_on_error(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    with file.open(str(tmpfile), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, file.BLOCKSIZE + 1)
         with pytest.raises(errors.PartialContent):
             op.run()
@@ -267,7 +267,7 @@ def test_receive_close_on_error(tmpfile):
 
 def test_receive_close_twice(tmpfile):
     src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    with file.open(str(tmpfile), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, file.BLOCKSIZE)
         op.run()
         op.close()  # should do nothing
@@ -432,7 +432,7 @@ def test_zero_busy():
 
 
 def test_zero_close_on_success(tmpfile):
-    op = ops.Zero(str(tmpfile), 100)
+    op = ops.Zero(tmpfile, 100)
     op.run()
     assert not op.active
 
@@ -445,7 +445,7 @@ def test_zero_close_on_error():
 
 
 def test_zero_close_twice(tmpfile):
-    op = ops.Zero(str(tmpfile), 100)
+    op = ops.Zero(tmpfile, 100)
     op.run()
     op.close()  # should do nothing
     assert not op.active
@@ -491,7 +491,7 @@ def test_flush_busy():
 
 
 def test_flush_close_on_success(tmpfile):
-    op = ops.Flush(str(tmpfile))
+    op = ops.Flush(tmpfile)
     op.run()
     assert not op.active
 
@@ -504,7 +504,7 @@ def test_flush_close_on_error():
 
 
 def test_flush_close_twice(tmpfile):
-    op = ops.Flush(str(tmpfile))
+    op = ops.Flush(tmpfile)
     op.run()
     op.close()  # should do nothing
     assert not op.active
