@@ -9,7 +9,6 @@
 from __future__ import absolute_import
 
 import logging
-import os
 
 from contextlib import closing
 
@@ -203,85 +202,32 @@ class Receive(Operation):
 class Zero(Operation):
     """
     Zero byte range.
-
-    TODO: Use more efficient backend specific method if available.
     """
 
-    def __init__(self, path, size, offset=0, flush=False,
-                 buffersize=BUFFERSIZE, clock=util.NullClock(), sparse=False):
-        super(Zero, self).__init__(path, size=size, offset=offset,
+    def __init__(self, dst, size, offset=0, flush=False,
+                 buffersize=BUFFERSIZE, clock=util.NullClock()):
+        super(Zero, self).__init__("<dst>", size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
+        self._dst = dst
         self._flush = flush
-        self._sparse = sparse
 
     def _run(self):
-        with file.open(self._path, "r+", sparse=self._sparse,
-                       buffer_size=self._buffersize) as dst:
-            # Handle offset if specified.
-            if self._offset:
-                reminder = self._offset % file.BLOCKSIZE
-                if reminder:
-                    # Zero the end or middle of first block (unlikely).
-                    dst.seek(self._offset - reminder)
-                    count = min(self._size, file.BLOCKSIZE - reminder)
-                    self.zero_unaligned(dst, reminder, count)
-                else:
-                    # Offset is aligned (likely).
-                    dst.seek(self._offset)
+        self._dst.seek(self._offset)
 
-            # Zero complete blocks (likely).
-            count = util.round_down(self._todo, file.BLOCKSIZE)
-            if count:
-                self.zero_aligned(dst, count)
-
-            # Zero the start of last block if needed (unlikely).
-            if self._todo:
-                self.zero_unaligned(dst, 0, self._todo)
-
-            if self._flush:
-                self.flush(dst)
-
-    def zero_aligned(self, dst, count):
-        """
-        Zero count bytes at current file position.
-        """
-        while count:
+        while self._todo:
             # Use small steps so we update self._done regularly, and avoid
             # blocking in kernel for too long time. Zeroing 128 MiB take less
             # than 1 second on my poor LIO storage.
-            step = min(count, 128 * 1024**2)
+            step = min(self._todo, 128 * 1024**2)
             with self._clock.run("zero"):
-                n = dst.zero(step)
-            count -= n
-            self._done += n
+                self._done += self._dst.zero(step)
 
-    def zero_unaligned(self, dst, offset, count):
-        """
-        Zero count bytes at offset from current dst position.
-        """
-        buf = util.aligned_buffer(file.BLOCKSIZE)
-        with closing(buf):
-            # 1. Read complete block from storage.
-            with self._clock.run("read"):
-                read = dst.readinto(buf)
-            if read != file.BLOCKSIZE:
-                raise errors.PartialContent(file.BLOCKSIZE, read)
+        if self._flush:
+            self.flush()
 
-            # 2. Zero count bytes in the block.
-            buf[offset:offset + count] = b"\0" * count
-
-            # 3. Write the modified block back to storage.
-            dst.seek(-file.BLOCKSIZE, os.SEEK_CUR)
-            with self._clock.run("write"):
-                written = dst.write(buf)
-            if written != file.BLOCKSIZE:
-                raise errors.PartialContent(file.BLOCKSIZE, written)
-
-            self._done += count
-
-    def flush(self, dst):
+    def flush(self):
         with self._clock.run("flush"):
-            dst.flush()
+            self._dst.flush()
 
 
 class Flush(Operation):

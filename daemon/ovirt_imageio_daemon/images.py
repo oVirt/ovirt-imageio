@@ -160,18 +160,20 @@ class Handler(object):
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        op = ops.Zero(
-            ticket.url.path,
-            size,
-            offset=offset,
-            flush=flush,
-            buffersize=self.config.daemon.buffer_size,
-            clock=req.clock,
-            sparse=ticket.sparse)
-        try:
-            ticket.run(op)
-        except errors.PartialContent as e:
-            raise http.Error(http.BAD_REQUEST, str(e))
+        with backends.open(
+                ticket,
+                buffer_size=self.config.daemon.buffer_size) as dst:
+            op = ops.Zero(
+                dst,
+                size,
+                offset=offset,
+                flush=flush,
+                buffersize=self.config.daemon.buffer_size,
+                clock=req.clock)
+            try:
+                ticket.run(op)
+            except errors.PartialContent as e:
+                raise http.Error(http.BAD_REQUEST, str(e))
 
     def _flush(self, req, resp, ticket_id, msg):
         try:

@@ -392,86 +392,77 @@ def test_receive_no_size(tmpdir, data, offset):
     (ops.BUFFERSIZE + 42, ops.BUFFERSIZE - 42),
     (ops.BUFFERSIZE * 2 - 42, 42),
 ])
-def test_zero(tmpdir, offset, size, sparse):
-    dst = tmpdir.join("src")
+def test_zero(tmpfile, offset, size, sparse):
     data = "x" * ops.BUFFERSIZE * 2
-    dst.write(data)
-    op = ops.Zero(str(dst), size, offset=offset, sparse=sparse)
-    op.run()
-    with io.open(str(dst), "rb") as f:
+    with io.open(tmpfile, "wb") as f:
+        f.write(data)
+    with file.open(tmpfile, "r+", sparse=sparse) as dst:
+        op = ops.Zero(dst, size, offset=offset)
+        op.run()
+    with io.open(tmpfile, "rb") as f:
         assert f.read(offset) == data[:offset]
         assert f.read(size) == b"\0" * size
         assert f.read() == data[offset + size:]
 
 
+def test_zero_seek():
+    dst = memory.Backend("r+", b"a" * 10)
+    dst.seek(8)
+    op = ops.Zero(dst, 5)
+    op.run()
+    dst.seek(0)
+    b = bytearray(11)
+    n = dst.readinto(b)
+    assert n == 10
+    assert b == b"\0\0\0\0\0aaaaa\0"
+
+
 @pytest.mark.parametrize("flush, calls", [(True, 1), (False, 0)])
-def test_zero_flush(tmpdir, monkeypatch, flush, calls):
-    # This would be much cleaner when we add backend object implementing flush.
-    fsync = os.fsync
-    fsync_calls = [0]
+def test_zero_flush(flush, calls):
+    flush_calls = [0]
 
-    def counted_fsync(fd):
-        fsync_calls[0] += 1
-        fsync(fd)
+    def count():
+        flush_calls[0] += 1
 
-    monkeypatch.setattr("os.fsync", counted_fsync)
-    dst = tmpdir.join("src")
-    data = "x" * ops.BUFFERSIZE * 2
-    dst.write(data)
-    size = len(data)
-    op = ops.Zero(str(dst), size, flush=flush)
+    dst = memory.Backend("r+")
+    dst.flush = count
+
+    op = ops.Zero(dst, 4096, flush=flush)
     op.run()
-    with io.open(str(dst), "rb") as f:
-        assert f.read() == b"\0" * size
-    assert fsync_calls[0] == calls
-
-
-def test_zero_allocate_space(tmpfile):
-    size = 1024**2
-    op = ops.Zero(tmpfile, size, sparse=False)
-    op.run()
-    # File system can report more then file size.
-    assert os.stat(tmpfile).st_blocks * 512 >= size
-
-
-def test_zero_sparse_deallocate_space(tmpfile):
-    size = 1024**2
-    op = ops.Zero(tmpfile, size, sparse=True)
-    op.run()
-    # File system can report more then file size.
-    assert os.stat(tmpfile).st_blocks * 512 < size
+    assert flush_calls[0] == calls
 
 
 def test_zero_busy():
-    op = ops.Zero("/no/such/file", 4096)
+    op = ops.Zero(memory.open("r+"), 4096)
     assert op.active
 
 
-def test_zero_close_on_success(tmpfile):
-    op = ops.Zero(tmpfile, 4096)
+def test_zero_close_on_success():
+    op = ops.Zero(memory.open("r+"), 4096)
     op.run()
     assert not op.active
 
 
 def test_zero_close_on_error():
-    op = ops.Zero("/no/such/file", 4096)
-    with pytest.raises(OSError):
+    # Use readonly backend to trigger IOError on zero().
+    dst = memory.open("r")
+    op = ops.Zero(dst, 4096)
+    with pytest.raises(IOError):
         op.run()
     assert not op.active
 
 
-def test_zero_close_twice(tmpfile):
-    op = ops.Zero(tmpfile, 4096)
+def test_zero_close_twice():
+    op = ops.Zero(memory.open("r+"), 4096)
     op.run()
     op.close()  # should do nothing
     assert not op.active
 
 
 def test_zero_repr():
-    op = ops.Zero("/path", 4096)
+    op = ops.Zero(memory.open("r+"), 4096)
     rep = repr(op)
     assert "Zero" in rep
-    assert "path='/path'" in rep
     assert "offset=0" in rep
     assert "size=4096" in rep
     assert "done=0" in rep
@@ -479,7 +470,7 @@ def test_zero_repr():
 
 
 def test_zero_repr_active():
-    op = ops.Zero("/path", 4096)
+    op = ops.Zero(memory.open("r+"), 4096)
     op.close()
     assert "active" not in repr(op)
 
