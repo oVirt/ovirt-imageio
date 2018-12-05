@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import io
+import os
 
 from contextlib import closing
 
@@ -65,6 +66,88 @@ def test_open_no_create(mode):
         with file.open("/no/such/path", mode):
             pass
     assert e.value.errno == errno.ENOENT
+
+
+def test_readinto(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 4096)
+    with file.open(tmpfile, "r") as f, \
+            closing(util.aligned_buffer(4096)) as buf:
+        n = f.readinto(buf)
+        assert n == len(buf)
+        assert f.tell() == len(buf)
+        assert buf[:] == b"a" * 4096
+
+
+def test_readinto_short_ulinged(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 4096)
+    with file.open(tmpfile, "r") as f, \
+            closing(util.aligned_buffer(8192)) as buf:
+        n = f.readinto(buf)
+        assert n == 4096
+        assert f.tell() == 4096
+        assert buf[:4096] == b"a" * 4096
+        assert buf[4096:] == b"\0" * 4096
+
+
+def test_readinto_short_unaligned(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 42)
+    with file.open(tmpfile, "r") as f, \
+            closing(util.aligned_buffer(4096)) as buf:
+        n = f.readinto(buf)
+        assert n == 42
+        assert f.tell() == 42
+        assert buf[:42] == b"a" * 42
+        assert buf[42:] == b"\0" * (4096 - 42)
+
+
+def test_write_aligned_middle(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 4 * 4096)
+    with file.open(tmpfile, "r+") as f, \
+            closing(util.aligned_buffer(8192)) as buf:
+        buf.write(b"b" * 8192)
+        f.seek(4096)
+        n = f.write(buf)
+        assert n == len(buf)
+        assert f.tell() == 4096 + len(buf)
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"a" * 4096
+        assert f.read(8192) == b"b" * 8192
+        assert f.read() == b"a" * 4096
+
+
+def test_write_aligned_at_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 8192)
+    with file.open(tmpfile, "r+") as f, \
+            closing(util.aligned_buffer(8192)) as buf:
+        buf.write(b"b" * 8192)
+        f.seek(4096)
+        n = f.write(buf)
+        assert n == len(buf)
+        assert f.tell() == 4096 + len(buf)
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"a" * 4096
+        assert f.read() == b"b" * 8192
+
+
+def test_write_aligned_after_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"a" * 4096)
+    with file.open(tmpfile, "r+") as f, \
+            closing(util.aligned_buffer(8192)) as buf:
+        buf.write(b"b" * 8192)
+        f.seek(8192)
+        n = f.write(buf)
+        assert n == len(buf)
+        assert f.tell() == 8192 + len(buf)
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"a" * 4096
+        assert f.read(4096) == b"\0" * 4096
+        assert f.read() == b"b" * 8192
 
 
 def test_write_unaligned_offset_complete(tmpfile):
@@ -169,3 +252,106 @@ def test_write_unaligned_buffer_fast_path(tmpfile):
         assert f.read(512) == b"x" * 512
         assert f.read(3072) == b"y" * 3072
         assert f.read() == b"x" * 512
+
+
+def test_flush(tmpfile, monkeypatch):
+    count = [0]
+
+    def fsync(fd):
+        count[0] += 1
+
+    # This is ugly but probably the only way to test that we call fsync.
+    monkeypatch.setattr(os, "fsync", fsync)
+    with file.open(tmpfile, "r+") as f:
+        f.write(b"x")
+        f.flush()
+    assert count[0] == 1
+
+
+def test_zero_aligned_middle(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 3 * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(4096)
+        f.zero(4096)
+        assert f.tell() == 8192
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read(4096) == b"\0" * 4096
+        assert f.read() == b"x" * 4096
+
+
+def test_zero_aligned_at_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(4096)
+        f.zero(4096)
+        assert f.tell() == 8192
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read() == b"\0" * 4096
+
+
+def test_zero_aligned_after_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(8192)
+        f.zero(4096)
+        assert f.tell() == 12288
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read() == b"\0" * 8192
+
+
+def test_zero_allocate_space(tmpfile):
+    with file.open(tmpfile, "r+") as f:
+        f.zero(8192)
+    # File system may report more than file size.
+    assert os.stat(tmpfile).st_blocks * 512 >= 8192
+
+
+def test_trim_aligned_middle(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 3 * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(4096)
+        f.trim(4096)
+        assert f.tell() == 8192
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read(4096) == b"\0" * 4096
+        assert f.read() == b"x" * 4096
+
+
+def test_trim_aligned_at_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(4096)
+        f.trim(4096)
+        assert f.tell() == 8192
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read() == b"\0" * 4096
+
+
+def test_trim_aligned_after_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 4096)
+    with file.open(tmpfile, "r+") as f:
+        f.seek(8192)
+        f.trim(4096)
+        assert f.tell() == 12288
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(4096) == b"x" * 4096
+        assert f.read() == b"\0" * 8192
+
+
+def test_trim_deallocate_space(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 8192)
+    with file.open(tmpfile, "r+") as f:
+        f.trim(8192)
+    assert os.stat(tmpfile).st_blocks * 512 < 8192
