@@ -324,3 +324,102 @@ def test_zero_sparse_deallocate_space(tmpfile):
     with file.open(tmpfile, "r+", sparse=True) as f:
         f.zero(8192)
     assert os.stat(tmpfile).st_blocks * 512 < 8192
+
+
+def test_zero_unaligned_offset_complete(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 1024)
+
+    # Zero 10 bytes into the second block.
+    with file.open(tmpfile, "r+") as f:
+        f.seek(600)
+        n = f.zero(10)
+        assert n == 10
+        assert f.tell() == 610
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(600) == b"x" * 600
+        assert f.read(10) == b"\0" * 10
+        assert f.read() == b"x" * (1024 - 610)
+
+
+def test_zero_unaligned_offset_inside(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 1024)
+
+    # Zero 12 bytes into the first block.
+    with file.open(tmpfile, "r+") as f:
+        f.seek(500)
+        n = f.zero(100)
+        assert n == 12
+        assert f.tell() == 512
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(500) == b"x" * 500
+        assert f.read(12) == b"\0" * 12
+        assert f.read() == b"x" * 512
+
+
+def test_zero_unaligned_offset_at_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 1024)
+
+    # Zero 24 bytes into the last block.
+    with file.open(tmpfile, "r+") as f:
+        f.seek(1000)
+        n = f.zero(100)
+        assert n == 24
+        assert f.tell() == 1024
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(1000) == b"x" * 1000
+        assert f.read() == b"\0" * 24
+
+
+def test_zero_unaligned_offset_after_end(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 512)
+
+    with file.open(tmpfile, "r+") as f:
+        f.seek(600)
+        n = f.zero(10)
+        assert n == 10
+        assert f.tell() == 610
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(512) == b"x" * 512
+        assert f.read() == b"\0" * 512
+
+
+def test_zero_unaligned_buffer_slow_path(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 1024)
+
+    # Perform slow read-modify-write in the second block.
+    with file.open(tmpfile, "r+") as f:
+        f.seek(512)
+        n = f.zero(10)
+        assert n == 10
+        assert f.tell() == 522
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(512) == b"x" * 512
+        assert f.read(10) == b"\0" * 10
+        assert f.read() == b"x" * 502
+
+
+def test_zero_unaligned_buffer_fast_path(tmpfile):
+    with io.open(tmpfile, "wb") as f:
+        f.write(b"x" * 4096)
+
+    # Perform fast short zero of 6 blocks.
+    with file.open(tmpfile, "r+") as f:
+        f.seek(512)
+        n = f.zero(3073)
+        assert n == 3072
+        assert f.tell() == 3584
+
+    with io.open(tmpfile, "rb") as f:
+        assert f.read(512) == b"x" * 512
+        assert f.read(3072) == b"\0" * 3072
+        assert f.read() == b"x" * 512

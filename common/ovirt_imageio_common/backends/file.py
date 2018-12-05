@@ -117,15 +117,23 @@ class BaseIO(object):
 
     def zero(self, count):
         """
-        Zero count bytes starting at current file offset.
+        Zero up to count bytes starting at current file offset.
 
         If this backend is opened in sparse mode, the operation will deallocate
         space. Otherwise the operation allocates new space.
         """
-        if self._sparse:
-            return self._trim(count)
+        start = self.tell()
+        if (not self._aligned(start) or count < BLOCKSIZE):
+            # The slow path.
+            count = min(count, BLOCKSIZE - start % BLOCKSIZE)
+            return self._write_unaligned(b"\0" * count)
         else:
-            return self._zero(count)
+            # The fast path.
+            count = util.round_down(count, BLOCKSIZE)
+            if self._sparse:
+                return self._trim(count)
+            else:
+                return self._zero(count)
 
     def flush(self):
         return os.fsync(self._fio.fileno())
