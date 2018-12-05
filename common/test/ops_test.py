@@ -426,6 +426,22 @@ def test_zero_flush(tmpdir, monkeypatch, flush, calls):
     assert fsync_calls[0] == calls
 
 
+def test_zero_allocate_space(tmpfile):
+    size = 1024**2
+    op = ops.Zero(tmpfile, size, sparse=False)
+    op.run()
+    # File system can report more then file size.
+    assert os.stat(tmpfile).st_blocks * 512 >= size
+
+
+def test_zero_sparse_deallocate_space(tmpfile):
+    size = 1024**2
+    op = ops.Zero(tmpfile, size, sparse=True)
+    op.run()
+    # File system can report more then file size.
+    assert os.stat(tmpfile).st_blocks * 512 < size
+
+
 def test_zero_busy():
     op = ops.Zero("/no/such/file", 4096)
     assert op.active
