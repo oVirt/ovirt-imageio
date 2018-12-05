@@ -17,4 +17,4 @@ def open(ticket):
     """
     # TODO: use ticket.url.scheme to select the backend.
     mode = "r+" if "write" in ticket.ops else "r"
-    return file.open(ticket.url.path, mode)
+    return file.open(ticket.url.path, mode, sparse=ticket.sparse)

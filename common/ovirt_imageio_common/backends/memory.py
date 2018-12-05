@@ -15,7 +15,14 @@ import os
 log = logging.getLogger("memory")
 
 
-def open(mode):
+def open(mode, sparse=False):
+    """
+    Open a memory backend.
+
+    Arguments:
+        mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
+        sparse (bool): ignored, memory backend does not support sparseness.
+    """
     if mode not in ("r", "w", "r+"):
         raise ValueError("Unsupported mode %r" % mode)
     return Backend(mode)
@@ -84,5 +91,3 @@ class Backend(object):
             raise IOError("Unsupproted operation: truncate")
         self._buf.write(b"\0" * count)
         return count
-
-    trim = zero

@@ -215,7 +215,8 @@ class Zero(Operation):
         self._sparse = sparse
 
     def _run(self):
-        with file.open(self._path, "r+", buffer_size=self._buffersize) as dst:
+        with file.open(self._path, "r+", sparse=self._sparse,
+                       buffer_size=self._buffersize) as dst:
             # Handle offset if specified.
             if self._offset:
                 reminder = self._offset % file.BLOCKSIZE
@@ -250,10 +251,7 @@ class Zero(Operation):
             # than 1 second on my poor LIO storage.
             step = min(count, 128 * 1024**2)
             with self._clock.run("zero"):
-                if self._sparse:
-                    n = dst.trim(step)
-                else:
-                    n = dst.zero(step)
+                n = dst.zero(step)
             count -= n
             self._done += n
 

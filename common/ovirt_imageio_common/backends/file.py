@@ -26,18 +26,24 @@ BLOCKSIZE = 512
 log = logging.getLogger("file")
 
 
-def open(path, mode, buffer_size=1024**2):
+def open(path, mode, sparse=False, buffer_size=1024**2):
     """
     Open a file backend.
+
+    Arguments:
+        path (str): filename of underlying file.
+        mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
+        sparse (bool): deallocate space when zeroing if possible.
+        buffer_size (int): size of buffer to allocate if needed.
     """
     fio = util.open(path, mode, direct=True)
     try:
         fio.name = path
         mode = os.fstat(fio.fileno()).st_mode
         if stat.S_ISBLK(mode):
-            return BlockIO(fio)
+            return BlockIO(fio, sparse=sparse)
         else:
-            return FileIO(fio, buffer_size=buffer_size)
+            return FileIO(fio, sparse=sparse, buffer_size=buffer_size)
     except:
         fio.close()
         raise
@@ -48,16 +54,18 @@ class BaseIO(object):
     Abstract I/O backend.
     """
 
-    def __init__(self, fio):
+    def __init__(self, fio, sparse=False):
         """
         Initizlie an I/O backend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
+            sparse (bool): deallocate space when zeroing if possible.
         """
-        log.debug("Opening file backend path=%s mode=%s)",
-                  fio.name, fio.mode)
+        log.debug("Opening file backend path=%s mode=%s sparse=%s)",
+                  fio.name, fio.mode, sparse)
         self._fio = fio
+        self._sparse = sparse
 
     # io.FileIO interface
 
@@ -109,16 +117,15 @@ class BaseIO(object):
 
     def zero(self, count):
         """
-        Allocate and zero count bytes at current file position.
-        """
-        raise NotImplementedError
+        Zero count bytes starting at current file offset.
 
-    def trim(self, count):
+        If this backend is opened in sparse mode, the operation will deallocate
+        space. Otherwise the operation allocates new space.
         """
-        Deallocate count bytes at curent file position. After successful call,
-        reading from this range will return zeroes.
-        """
-        raise NotImplementedError
+        if self._sparse:
+            return self._trim(count)
+        else:
+            return self._zero(count)
 
     def flush(self):
         return os.fsync(self._fio.fileno())
@@ -180,19 +187,20 @@ class BlockIO(BaseIO):
     Block device I/O backend.
     """
 
-    def __init__(self, fio):
+    def __init__(self, fio, sparse=False):
         """
         Initialize a BlockIO backend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
+            sparse (bool): deallocate space when zeroing if possible.
         """
-        super(BlockIO, self).__init__(fio)
+        super(BlockIO, self).__init__(fio, sparse=sparse)
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
 
-    def zero(self, count):
+    def _zero(self, count):
         """
         Zero count bytes at current file position.
         """
@@ -227,7 +235,7 @@ class BlockIO(BaseIO):
         return count
 
     # Emulate trim using zero.
-    trim = zero
+    _trim = _zero
 
 
 class FileIO(BaseIO):
@@ -235,16 +243,17 @@ class FileIO(BaseIO):
     File I/O backend.
     """
 
-    def __init__(self, fio, buffer_size=1024**2):
+    def __init__(self, fio, sparse=False, buffer_size=1024**2):
         """
         Initialize a FileIO backend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
+            sparse (bool): deallocate space when zeroing if possible.
             buffer_size (int): size of buffer used in zero() if manual zeroing
                 is needed.
         """
-        super(FileIO, self).__init__(fio)
+        super(FileIO, self).__init__(fio, sparse=sparse)
         # These will be set to False if the first call to fallocate() reveal
         # that it is not supported on the current file system.
         self._can_zero_range = True
@@ -255,7 +264,7 @@ class FileIO(BaseIO):
         self._buffer_size = buffer_size
         self._buf = None
 
-    def zero(self, count):
+    def _zero(self, count):
         offset = self.tell()
 
         # First try the modern way. If this works, we can zero a range using
@@ -300,7 +309,7 @@ class FileIO(BaseIO):
         self._write_zeros(count)
         return count
 
-    def trim(self, count):
+    def _trim(self, count):
         # First try to punch a hole.
         if self._can_punch_hole:
             offset = self.tell()

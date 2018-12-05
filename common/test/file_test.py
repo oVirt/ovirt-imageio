@@ -268,10 +268,11 @@ def test_flush(tmpfile, monkeypatch):
     assert count[0] == 1
 
 
-def test_zero_aligned_middle(tmpfile):
+@pytest.mark.parametrize("sparse", [True, False])
+def test_zero_aligned_middle(tmpfile, sparse):
     with io.open(tmpfile, "wb") as f:
         f.write(b"x" * 3 * 4096)
-    with file.open(tmpfile, "r+") as f:
+    with file.open(tmpfile, "r+", sparse=sparse) as f:
         f.seek(4096)
         n = f.zero(4096)
         assert n == 4096
@@ -282,10 +283,11 @@ def test_zero_aligned_middle(tmpfile):
         assert f.read() == b"x" * 4096
 
 
-def test_zero_aligned_at_end(tmpfile):
+@pytest.mark.parametrize("sparse", [True, False])
+def test_zero_aligned_at_end(tmpfile, sparse):
     with io.open(tmpfile, "wb") as f:
         f.write(b"x" * 4096)
-    with file.open(tmpfile, "r+") as f:
+    with file.open(tmpfile, "r+", sparse=sparse) as f:
         f.seek(4096)
         n = f.zero(4096)
         assert n == 4096
@@ -295,10 +297,11 @@ def test_zero_aligned_at_end(tmpfile):
         assert f.read() == b"\0" * 4096
 
 
-def test_zero_aligned_after_end(tmpfile):
+@pytest.mark.parametrize("sparse", [True, False])
+def test_zero_aligned_after_end(tmpfile, sparse):
     with io.open(tmpfile, "wb") as f:
         f.write(b"x" * 4096)
-    with file.open(tmpfile, "r+") as f:
+    with file.open(tmpfile, "r+", sparse=sparse) as f:
         f.seek(8192)
         n = f.zero(4096)
         assert n == 4096
@@ -309,55 +312,15 @@ def test_zero_aligned_after_end(tmpfile):
 
 
 def test_zero_allocate_space(tmpfile):
-    with file.open(tmpfile, "r+") as f:
+    with file.open(tmpfile, "r+", sparse=False) as f:
         f.zero(8192)
     # File system may report more than file size.
     assert os.stat(tmpfile).st_blocks * 512 >= 8192
 
 
-def test_trim_aligned_middle(tmpfile):
-    with io.open(tmpfile, "wb") as f:
-        f.write(b"x" * 3 * 4096)
-    with file.open(tmpfile, "r+") as f:
-        f.seek(4096)
-        n = f.trim(4096)
-        assert n == 4096
-        assert f.tell() == 8192
-    with io.open(tmpfile, "rb") as f:
-        assert f.read(4096) == b"x" * 4096
-        assert f.read(4096) == b"\0" * 4096
-        assert f.read() == b"x" * 4096
-
-
-def test_trim_aligned_at_end(tmpfile):
-    with io.open(tmpfile, "wb") as f:
-        f.write(b"x" * 4096)
-    with file.open(tmpfile, "r+") as f:
-        f.seek(4096)
-        n = f.trim(4096)
-        assert n == 4096
-        assert f.tell() == 8192
-    with io.open(tmpfile, "rb") as f:
-        assert f.read(4096) == b"x" * 4096
-        assert f.read() == b"\0" * 4096
-
-
-def test_trim_aligned_after_end(tmpfile):
-    with io.open(tmpfile, "wb") as f:
-        f.write(b"x" * 4096)
-    with file.open(tmpfile, "r+") as f:
-        f.seek(8192)
-        n = f.trim(4096)
-        assert n == 4096
-        assert f.tell() == 12288
-    with io.open(tmpfile, "rb") as f:
-        assert f.read(4096) == b"x" * 4096
-        assert f.read() == b"\0" * 8192
-
-
-def test_trim_deallocate_space(tmpfile):
+def test_zero_sparse_deallocate_space(tmpfile):
     with io.open(tmpfile, "wb") as f:
         f.write(b"x" * 8192)
-    with file.open(tmpfile, "r+") as f:
-        f.trim(8192)
+    with file.open(tmpfile, "r+", sparse=True) as f:
+        f.zero(8192)
     assert os.stat(tmpfile).st_blocks * 512 < 8192
