@@ -273,7 +273,8 @@ def test_zero_aligned_middle(tmpfile):
         f.write(b"x" * 3 * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(4096)
-        f.zero(4096)
+        n = f.zero(4096)
+        assert n == 4096
         assert f.tell() == 8192
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096
@@ -286,7 +287,8 @@ def test_zero_aligned_at_end(tmpfile):
         f.write(b"x" * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(4096)
-        f.zero(4096)
+        n = f.zero(4096)
+        assert n == 4096
         assert f.tell() == 8192
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096
@@ -298,7 +300,8 @@ def test_zero_aligned_after_end(tmpfile):
         f.write(b"x" * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(8192)
-        f.zero(4096)
+        n = f.zero(4096)
+        assert n == 4096
         assert f.tell() == 12288
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096
@@ -317,7 +320,8 @@ def test_trim_aligned_middle(tmpfile):
         f.write(b"x" * 3 * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(4096)
-        f.trim(4096)
+        n = f.trim(4096)
+        assert n == 4096
         assert f.tell() == 8192
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096
@@ -330,7 +334,8 @@ def test_trim_aligned_at_end(tmpfile):
         f.write(b"x" * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(4096)
-        f.trim(4096)
+        n = f.trim(4096)
+        assert n == 4096
         assert f.tell() == 8192
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096
@@ -342,7 +347,8 @@ def test_trim_aligned_after_end(tmpfile):
         f.write(b"x" * 4096)
     with file.open(tmpfile, "r+") as f:
         f.seek(8192)
-        f.trim(4096)
+        n = f.trim(4096)
+        assert n == 4096
         assert f.tell() == 12288
     with io.open(tmpfile, "rb") as f:
         assert f.read(4096) == b"x" * 4096

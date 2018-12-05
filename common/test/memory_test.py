@@ -87,7 +87,8 @@ def test_zero_middle():
     m = memory.open("r+")
     m.write(b"xxxxxxxxxxxx")
     m.seek(4)
-    m.zero(4)
+    n = m.zero(4)
+    assert n == 4
     b = bytearray(13)
     m.seek(0)
     assert m.readinto(b) == 12

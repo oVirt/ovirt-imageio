@@ -251,11 +251,11 @@ class Zero(Operation):
             step = min(count, 128 * 1024**2)
             with self._clock.run("zero"):
                 if self._sparse:
-                    dst.trim(step)
+                    n = dst.trim(step)
                 else:
-                    dst.zero(step)
-            count -= step
-            self._done += step
+                    n = dst.zero(step)
+            count -= n
+            self._done += n
 
     def zero_unaligned(self, dst, offset, count):
         """

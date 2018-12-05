@@ -217,13 +217,14 @@ class BlockIO(BaseIO):
                 self._can_fallocate = False
             else:
                 self.seek(offset + count)
-                return
+                return count
 
         # If we reach this, this kernel does not support fallocate() for block
         # devices, so we fallback to BLKZEROOUT.
         util.uninterruptible(
             ioutil.blkzeroout, self._fio.fileno(), offset, count)
         self.seek(offset + count)
+        return count
 
     # Emulate trim using zero.
     trim = zero
@@ -263,7 +264,7 @@ class FileIO(BaseIO):
             mode = ioutil.FALLOC_FL_ZERO_RANGE
             if self._fallocate(mode, offset, count):
                 self.seek(offset + count)
-                return
+                return count
             else:
                 log.debug("Cannot zero range")
                 self._can_zero_range = False
@@ -276,7 +277,7 @@ class FileIO(BaseIO):
             if self._fallocate(mode, offset, count):
                 if self._fallocate(0, offset, count):
                     self.seek(offset + count)
-                    return
+                    return count
                 else:
                     log.debug("Cannot fallocate range")
                     self._can_fallocate = False
@@ -290,13 +291,14 @@ class FileIO(BaseIO):
             if offset >= size:
                 if self._fallocate(0, offset, count):
                     self.seek(offset + count)
-                    return
+                    return count
                 else:
                     log.debug("Cannot fallocate range")
                     self._can_fallocate = False
 
         # We have to write zeros manually.
         self._write_zeros(count)
+        return count
 
     def trim(self, count):
         # First try to punch a hole.
@@ -312,13 +314,14 @@ class FileIO(BaseIO):
             mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
             if self._fallocate(mode, offset, count):
                 self.seek(offset + count)
-                return
+                return count
             else:
                 log.debug("Cannot punch hole")
                 self._can_punch_hole = False
 
         # We have to write zeros manually.
         self._write_zeros(count)
+        return count
 
     def _fallocate(self, mode, offset, count):
         """

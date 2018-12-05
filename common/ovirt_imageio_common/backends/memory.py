@@ -83,5 +83,6 @@ class Backend(object):
         if not self.writable():
             raise IOError("Unsupproted operation: truncate")
         self._buf.write(b"\0" * count)
+        return count
 
     trim = zero
