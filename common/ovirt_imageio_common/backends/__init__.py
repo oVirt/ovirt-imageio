@@ -11,10 +11,14 @@ from __future__ import absolute_import
 from . import file
 
 
-def open(ticket):
+def open(ticket, buffer_size=1024**2):
     """
     Open a backend for this ticket.
     """
     # TODO: use ticket.url.scheme to select the backend.
     mode = "r+" if "write" in ticket.ops else "r"
-    return file.open(ticket.url.path, mode, sparse=ticket.sparse)
+    return file.open(
+        ticket.url.path,
+        mode,
+        sparse=ticket.sparse,
+        buffer_size=buffer_size)

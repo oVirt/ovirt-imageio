@@ -15,13 +15,14 @@ import os
 log = logging.getLogger("memory")
 
 
-def open(mode, sparse=False):
+def open(mode, sparse=False, buffer_size=0):
     """
     Open a memory backend.
 
     Arguments:
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): ignored, memory backend does not support sparseness.
+        buffer_size (int): ignored, memory backend does not allocate buffers.
     """
     if mode not in ("r", "w", "r+"):
         raise ValueError("Unsupported mode %r" % mode)
