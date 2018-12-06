@@ -11,14 +11,26 @@ from __future__ import absolute_import
 from . import file
 
 
-def open(ticket, buffer_size=1024**2):
+def get(req, ticket, buffer_size=1024**2):
     """
-    Open a backend for this ticket.
+    Return a connection backend for this ticket.
+
+    On the first call, open the backend and cache it in the connection context.
+    The backend will be closed when the connection is closed.
+
+    Thread safety: requests are accessed by the single connection thread, no
+    locking is needed.
     """
-    # TODO: use ticket.url.scheme to select the backend.
-    mode = "r+" if "write" in ticket.ops else "r"
-    return file.open(
-        ticket.url.path,
-        mode,
-        sparse=ticket.sparse,
-        buffer_size=buffer_size)
+    if ticket.uuid not in req.context:
+        # TODO: use ticket.url.scheme to select the backend.
+        mode = "r+" if "write" in ticket.ops else "r"
+
+        backend = file.open(
+            ticket.url.path,
+            mode,
+            sparse=ticket.sparse,
+            buffer_size=buffer_size)
+
+        req.context[ticket.uuid] = backend
+
+    return req.context[ticket.uuid]

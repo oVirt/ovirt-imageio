@@ -54,19 +54,18 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        with backends.open(ticket) as dst:
-            op = ops.Receive(
-                dst,
-                req,
-                size,
-                offset=offset,
-                flush=flush,
-                buffersize=self.config.daemon.buffer_size,
-                clock=req.clock)
-            try:
-                ticket.run(op)
-            except errors.PartialContent as e:
-                raise http.Error(http.BAD_REQUEST, str(e))
+        op = ops.Receive(
+            self._backend(req, ticket),
+            req,
+            size,
+            offset=offset,
+            flush=flush,
+            buffersize=self.config.daemon.buffer_size,
+            clock=req.clock)
+        try:
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
 
     def get(self, req, resp, ticket_id):
         if not ticket_id:
@@ -113,18 +112,17 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        with backends.open(ticket) as src:
-            op = ops.Send(
-                src,
-                resp,
-                size,
-                offset=offset,
-                buffersize=self.config.daemon.buffer_size,
-                clock=req.clock)
-            try:
-                ticket.run(op)
-            except errors.PartialContent as e:
-                raise http.Error(http.BAD_REQUEST, str(e))
+        op = ops.Send(
+            self._backend(req, ticket),
+            resp,
+            size,
+            offset=offset,
+            buffersize=self.config.daemon.buffer_size,
+            clock=req.clock)
+        try:
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
 
     def patch(self, req, resp, ticket_id):
         if not ticket_id:
@@ -160,20 +158,17 @@ class Handler(object):
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        with backends.open(
-                ticket,
-                buffer_size=self.config.daemon.buffer_size) as dst:
-            op = ops.Zero(
-                dst,
-                size,
-                offset=offset,
-                flush=flush,
-                buffersize=self.config.daemon.buffer_size,
-                clock=req.clock)
-            try:
-                ticket.run(op)
-            except errors.PartialContent as e:
-                raise http.Error(http.BAD_REQUEST, str(e))
+        op = ops.Zero(
+            self._backend(req, ticket),
+            size,
+            offset=offset,
+            flush=flush,
+            buffersize=self.config.daemon.buffer_size,
+            clock=req.clock)
+        try:
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
 
     def _flush(self, req, resp, ticket_id, msg):
         try:
@@ -183,9 +178,8 @@ class Handler(object):
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
 
-        with backends.open(ticket) as dst:
-            op = ops.Flush(dst, clock=req.clock)
-            ticket.run(op)
+        op = ops.Flush(self._backend(req, ticket), clock=req.clock)
+        ticket.run(op)
 
     def options(self, req, resp, ticket_id):
         if not ticket_id:
@@ -222,3 +216,7 @@ class Handler(object):
         resp.headers["content-type"] = "application/json"
         resp.headers["allow"] = ",".join(allow)
         resp.write(body)
+
+    def _backend(self, req, ticket):
+        return backends.get(
+            req, ticket, buffer_size=self.config.daemon.buffer_size)
