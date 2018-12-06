@@ -9,7 +9,6 @@
 from __future__ import absolute_import
 
 import io
-import os
 import sys
 
 import pytest
@@ -459,58 +458,54 @@ def test_zero_repr_active():
     assert "active" not in repr(op)
 
 
-def test_flush(tmpdir, monkeypatch):
-    # This would be much cleaner when we add backend object implementing flush.
-    fsync = os.fsync
-    fsync_calls = [0]
-
-    def counted_fsync(fd):
-        fsync_calls[0] += 1
-        fsync(fd)
-
-    monkeypatch.setattr("os.fsync", counted_fsync)
-    dst = tmpdir.join("src")
-    dst.write("x" * ops.BUFFERSIZE)
-    op = ops.Flush(str(dst))
+def test_flush():
+    dst = memory.open("r+")
+    dst.write(b"x")
+    op = ops.Flush(dst)
     op.run()
-    assert fsync_calls[0] == 1
+    assert not dst.dirty
 
 
 def test_flush_busy():
-    op = ops.Flush("/no/such/file")
+    op = ops.Flush(memory.open("r+"))
     assert op.active
 
 
-def test_flush_close_on_success(tmpfile):
-    op = ops.Flush(tmpfile)
+def test_flush_close_on_success():
+    op = ops.Flush(memory.open("r+"))
     op.run()
     assert not op.active
 
 
 def test_flush_close_on_error():
-    op = ops.Flush("/no/such/file")
+
+    def flush():
+        raise OSError
+
+    dst = memory.open("r")
+    dst.flush = flush
+    op = ops.Flush(dst)
     with pytest.raises(OSError):
         op.run()
     assert not op.active
 
 
-def test_flush_close_twice(tmpfile):
-    op = ops.Flush(tmpfile)
+def test_flush_close_twice():
+    op = ops.Flush(memory.open("r+"))
     op.run()
     op.close()  # should do nothing
     assert not op.active
 
 
 def test_flush_repr():
-    op = ops.Flush("/path")
+    op = ops.Flush(memory.open("r"))
     rep = repr(op)
     assert "Flush" in rep
-    assert "path='/path'" in rep
     assert "done=0" in rep
     assert "active" in rep
 
 
 def test_flush_repr_active():
-    op = ops.Flush("/path")
+    op = ops.Flush(memory.open("r"))
     op.close()
     assert "active" not in repr(op)

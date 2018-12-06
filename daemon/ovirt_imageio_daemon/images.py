@@ -182,8 +182,10 @@ class Handler(object):
             raise http.Error(http.FORBIDDEN, str(e))
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
-        op = ops.Flush(ticket.url.path, clock=req.clock)
-        ticket.run(op)
+
+        with backends.open(ticket) as dst:
+            op = ops.Flush(dst, clock=req.clock)
+            ticket.run(op)
 
     def options(self, req, resp, ticket_id):
         if not ticket_id:

@@ -235,10 +235,10 @@ class Flush(Operation):
     Flush received data to storage.
     """
 
-    def __init__(self, path, clock=util.NullClock()):
-        super(Flush, self).__init__(path, clock=clock)
+    def __init__(self, dst, clock=util.NullClock()):
+        super(Flush, self).__init__("<dst>", clock=clock)
+        self._dst = dst
 
     def _run(self):
-        with file.open(self._path, "r+") as dst:
-            with self._clock.run("flush"):
-                dst.flush()
+        with self._clock.run("flush"):
+            self._dst.flush()
