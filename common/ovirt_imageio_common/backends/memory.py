@@ -37,6 +37,7 @@ class Backend(object):
     def __init__(self, mode, data=None):
         self._mode = mode
         self._buf = io.BytesIO(data)
+        self._dirty = False
 
     # io.BaseIO interface
 
@@ -48,6 +49,7 @@ class Backend(object):
     def write(self, buf):
         if not self.writable():
             raise IOError("Unsupproted operation: write")
+        self._dirty = True
         return self._buf.write(buf)
 
     def tell(self):
@@ -58,6 +60,7 @@ class Backend(object):
 
     def flush(self):
         self._buf.flush()
+        self._dirty = False
 
     def close(self):
         self._buf.close()
@@ -85,5 +88,15 @@ class Backend(object):
     def zero(self, count):
         if not self.writable():
             raise IOError("Unsupproted operation: truncate")
+        self._dirty = True
         self._buf.write(b"\0" * count)
         return count
+
+    # Debugging interface
+
+    @property
+    def dirty(self):
+        """
+        Returns True if backend was modifed and needs flushing.
+        """
+        return self._dirty

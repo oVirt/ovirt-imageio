@@ -128,3 +128,26 @@ def test_create_with_bytes():
     b = bytearray(5)
     assert m.readinto(b) == 4
     assert b[:] == b"data\0"
+
+
+def test_dirty():
+    # backend created clean
+    m = memory.Backend("r+", b"data")
+    assert not m.dirty
+
+    # write ans zero dirty the backend
+    m.write(b"01234")
+    assert m.dirty
+    m.flush()
+    assert not m.dirty
+    m.zero(5)
+    assert m.dirty
+    m.flush()
+    assert not m.dirty
+
+    # readinto, seek do not affect dirty.
+    b = bytearray(10)
+    m.seek(0)
+    assert not m.dirty
+    m.readinto(b)
+    assert not m.dirty

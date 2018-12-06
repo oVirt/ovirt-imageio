@@ -66,6 +66,7 @@ class BaseIO(object):
                   fio.name, fio.mode, sparse)
         self._fio = fio
         self._sparse = sparse
+        self._dirty = False
 
     # io.FileIO interface
 
@@ -73,6 +74,7 @@ class BaseIO(object):
         return util.uninterruptible(self._fio.readinto, buf)
 
     def write(self, buf):
+        self._dirty = True
         if (not self._aligned(self.tell()) or len(buf) < BLOCKSIZE):
             # The slow path.
             return self._write_unaligned(buf)
@@ -119,6 +121,7 @@ class BaseIO(object):
         If this backend is opened in sparse mode, the operation will deallocate
         space. Otherwise the operation allocates new space.
         """
+        self._dirty = True
         start = self.tell()
         if (not self._aligned(start) or count < BLOCKSIZE):
             # The slow path.
@@ -133,7 +136,14 @@ class BaseIO(object):
                 return self._zero(count)
 
     def flush(self):
-        return os.fsync(self._fio.fileno())
+        os.fsync(self._fio.fileno())
+        self._dirty = False
+
+    # Debugging interface
+
+    @property
+    def dirty(self):
+        return self._dirty
 
     # Private
 

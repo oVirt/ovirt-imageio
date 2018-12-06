@@ -423,3 +423,28 @@ def test_zero_unaligned_buffer_fast_path(tmpfile):
         assert f.read(512) == b"x" * 512
         assert f.read(3072) == b"\0" * 3072
         assert f.read() == b"x" * 512
+
+
+def test_dirty(tmpfile):
+    # backend created clean
+    m = file.open(tmpfile, "r+")
+    assert not m.dirty
+
+    buf = util.aligned_buffer(4096)
+    with closing(buf):
+        # write ans zero dirty the backend
+        buf.write(b"x" * 4096)
+        m.write(buf)
+        assert m.dirty
+        m.flush()
+        assert not m.dirty
+        m.zero(4096)
+        assert m.dirty
+        m.flush()
+        assert not m.dirty
+
+        # readinto, seek do not affect dirty.
+        m.seek(0)
+        assert not m.dirty
+        m.readinto(buf)
+        assert not m.dirty
