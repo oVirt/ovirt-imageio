@@ -56,11 +56,6 @@ class Backend(object):
     def seek(self, pos, how=os.SEEK_SET):
         return self._buf.seek(pos, how)
 
-    def truncate(self, size):
-        if not self.writable():
-            raise IOError("Unsupproted operation: truncate")
-        self._buf.truncate(size)
-
     def flush(self):
         self._buf.flush()
 

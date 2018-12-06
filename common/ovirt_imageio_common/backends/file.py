@@ -90,9 +90,6 @@ class BaseIO(object):
     def seek(self, pos, how=os.SEEK_SET):
         return self._fio.seek(pos, how)
 
-    def truncate(self, size):
-        util.uninterruptible(self._fio.truncate, size)
-
     def __enter__(self):
         return self
 
@@ -325,7 +322,7 @@ class FileIO(BaseIO):
             # Extend file size if needed.
             size = os.fstat(self._fio.fileno()).st_size
             if offset + count > size:
-                self.truncate(offset + count)
+                self._truncate(offset + count)
 
             # And punch a hole.
             mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
@@ -353,6 +350,9 @@ class FileIO(BaseIO):
             if e.errno != errno.EOPNOTSUPP:
                 raise
             return False
+
+    def _truncate(self, size):
+        util.uninterruptible(self._fio.truncate, size)
 
     def _write_zeros(self, count):
         """

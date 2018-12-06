@@ -30,13 +30,6 @@ def test_open_read_write():
     assert m.readinto(b) == size
     assert b == data + b"\0" * 4
 
-    m.truncate(4)
-    b = bytearray(size)
-    m.seek(0)
-    assert m.readinto(b) == 4
-    assert b == data + b"\0" * 4
-    m.flush()
-
 
 def test_open_readonly():
     m = memory.open("r")
@@ -47,8 +40,6 @@ def test_open_readonly():
         m.write(b"data")
     with pytest.raises(IOError):
         m.zero(4)
-    with pytest.raises(IOError):
-        m.truncate(2)
     assert m.tell() == 0
     b = bytearray(b"before")
     assert m.readinto(b) == 0
