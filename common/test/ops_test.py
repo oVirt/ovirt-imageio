@@ -274,32 +274,18 @@ def test_receive_close_twice(tmpfile):
         assert not op.active
 
 
-@pytest.mark.parametrize("extra, calls", [
-    ({}, 1),  # Flushes by default.
-    ({"flush": True}, 1),
-    ({"flush": False}, 0),
+@pytest.mark.parametrize("extra, dirty", [
+    ({}, False),  # Flushes by default for backward compatibility.
+    ({"flush": True}, False),
+    ({"flush": False}, True),
 ])
-def test_receive_flush(tmpdir, monkeypatch, extra, calls):
-    # This would be much cleaner when we add backend object implementing flush.
-    fsync = os.fsync
-    fsync_calls = [0]
-
-    def counted_fsync(fd):
-        fsync_calls[0] += 1
-        fsync(fd)
-
-    monkeypatch.setattr("os.fsync", counted_fsync)
-    dst_file = tmpdir.join("src")
-    data = b"x" * ops.BUFFERSIZE * 2
-    dst_file.write(data)
-    size = len(data)
-    src = io.BytesIO(b"X" * size)
-    with file.open(str(dst_file), "r+") as dst:
-        op = ops.Receive(dst, src, size, **extra)
-        op.run()
-        with io.open(str(dst_file), "rb") as f:
-            assert f.read() == src.getvalue()
-        assert fsync_calls[0] == calls
+def test_receive_flush(extra, dirty):
+    size = 4096
+    dst = memory.open("r+", b"a" * size)
+    src = io.BytesIO(b"b" * size)
+    op = ops.Receive(dst, src, size, **extra)
+    op.run()
+    assert dst.dirty == dirty
 
 
 def test_recv_repr():
@@ -417,19 +403,17 @@ def test_zero_seek():
     assert b == b"\0\0\0\0\0aaaaa\0"
 
 
-@pytest.mark.parametrize("flush, calls", [(True, 1), (False, 0)])
-def test_zero_flush(flush, calls):
-    flush_calls = [0]
-
-    def count():
-        flush_calls[0] += 1
-
-    dst = memory.Backend("r+")
-    dst.flush = count
-
-    op = ops.Zero(dst, 4096, flush=flush)
+@pytest.mark.parametrize("extra, dirty", [
+    ({}, True),  # Does not flush by default.
+    ({"flush": True}, False),
+    ({"flush": False}, True),
+])
+def test_zero_flush(extra, dirty):
+    size = 4096
+    dst = memory.open("r+", b"a" * size)
+    op = ops.Zero(dst, size, **extra)
     op.run()
-    assert flush_calls[0] == calls
+    assert dst.dirty == dirty
 
 
 def test_zero_busy():
