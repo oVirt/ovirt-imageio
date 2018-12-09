@@ -1,3 +1,2 @@
-kvm-common,http://mirror.centos.org/centos/7/virt/x86_64/kvm-common/
-kvm-common-ppc64le,https://cbs.centos.org/repos/virt7-kvm-common-release/ppc64le/os/
-
+centos-ovirt43-testing,https://cbs.centos.org/repos/virt7-ovirt-43-testing/$basearch/os/
+kvm-common,https://cbs.centos.org/repos/virt7-kvm-common-release/$basearch/os/
