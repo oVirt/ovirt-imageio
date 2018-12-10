@@ -10,7 +10,7 @@
 """
 nbd client example
 
-Show how to use nbd module to upload images to nbd server.
+Show how to use nbd module to upload and download images to/from nbd server.
 
 Usage
 -----
@@ -27,12 +27,15 @@ qemu-img.  To access raw images, you can also use nbdkit or nbd-server.
         --aio=native \
         --discard=unmap \
         --detect-zeroes=unmap \
-        dest.qcow2
+        image.qcow2
 
-Upload source image to destination image via qemu-nbd:
+Upload raw file to qcow2 image via qemu-nbd:
 
-    $ ./nbd-client -e export upload src.raw /tmp/nbb.sock
+    $ ./nbd-client -e export upload file.raw /tmp/nbb.sock
 
+Download qcow2 image to raw file via qemu-nbd:
+
+    $ ./nbd-client -e export download /tmp/nbb.sock file.raw
 """
 
 import argparse
@@ -60,6 +63,23 @@ def upload(args):
             else:
                 _copy_range(dst, src, start, length, pb, args.block_size)
         dst.flush()
+
+
+def download(args):
+    with nbd.Client(args.socket, args.export) as src, \
+            io.open(args.filename, "wb") as dst:
+        with ui.ProgressBar(src.export_size) as pb:
+            max_step = min(src.maximum_block_size, args.block_size)
+            offset = 0
+
+            while offset < src.export_size:
+                step = min(src.export_size - offset, max_step)
+                chunk = src.read(offset, step)
+                dst.write(chunk)
+                offset += step
+                pb.update(step)
+
+            os.fsync(dst.fileno())
 
 
 def _map(path):
@@ -125,6 +145,17 @@ upload_parser.add_argument(
 upload_parser.add_argument(
     "socket",
     help="nbd socket")
+
+download_parser = commands.add_parser(
+    "download",
+    help="download image data from nbd server")
+download_parser.set_defaults(command=download)
+download_parser.add_argument(
+    "socket",
+    help="nbd socket")
+download_parser.add_argument(
+    "filename",
+    help="filename to write")
 
 args = parser.parse_args()
 args.command(args)
