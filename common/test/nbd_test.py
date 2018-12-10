@@ -25,12 +25,16 @@ log = logging.getLogger("test")
 @contextmanager
 def nbd_server(image_path, image_format, sock, export_name="",
                read_only=False):
-    cmd = ["qemu-nbd",
-           "--socket", sock,
-           "--persistent",
-           "--cache", "none",
-           "--format", image_format,
-           "--export-name", export_name.encode("utf-8")]
+    cmd = [
+        "qemu-nbd",
+        "--socket", sock,
+        "--format", image_format,
+        "--export-name", export_name.encode("utf-8"),
+        "--persistent",
+        "--cache=none",
+        "--aio=native",
+        "--discard=unmap",
+    ]
 
     if read_only:
         cmd.append("--read-only")
@@ -128,3 +132,75 @@ def test_qcow2_write_read(tmpdir):
 
         with nbd.Client(sock) as c:
             assert c.read(offset, len(data)) == data
+
+
+@pytest.mark.parametrize("format", ["raw", "qcow2"])
+def test_zero(tmpdir, format):
+    size = 2 * 1024**2
+    offset = 1024**2
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", format, image, str(size)])
+
+    with nbd_server(image, format, sock):
+        # Fill image with data
+        with nbd.Client(sock) as c:
+            c.write(0, b"x" * size)
+            c.flush()
+
+        # Zero a range
+        with nbd.Client(sock) as c:
+            c.zero(offset, 4096)
+            c.flush()
+
+        with nbd.Client(sock) as c:
+            assert c.read(offset, 4096) == b"\0" * 4096
+
+
+@pytest.mark.parametrize("format", ["raw", "qcow2"])
+def test_zero_max_block_size(tmpdir, format):
+    offset = 1024**2
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", format, image, "1g"])
+
+    with nbd_server(image, format, sock):
+        # Fill range with data
+        with nbd.Client(sock) as c:
+            size = c.maximum_block_size
+            c.write(offset, b"x" * size)
+            c.flush()
+
+        # Zero range using maximum block size
+        with nbd.Client(sock) as c:
+            c.zero(offset, size)
+            c.flush()
+
+        with nbd.Client(sock) as c:
+            assert c.read(offset, size) == b"\0" * size
+
+
+@pytest.mark.parametrize("format", ["raw", "qcow2"])
+def test_zero_min_block_size(tmpdir, format):
+    offset = 1024**2
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", format, image, "1g"])
+
+    with nbd_server(image, format, sock):
+        # Fill range with data
+        with nbd.Client(sock) as c:
+            size = c.minimum_block_size
+            c.write(offset, b"x" * size)
+            c.flush()
+
+        # Zero range using minimum block size
+        with nbd.Client(sock) as c:
+            c.zero(offset, size)
+            c.flush()
+
+        with nbd.Client(sock) as c:
+            assert c.read(offset, size) == b"\0" * size

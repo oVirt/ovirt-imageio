@@ -59,6 +59,7 @@ NBD_INFO_BLOCK_SIZE = 3
 NBD_CMD_READ = 0
 NBD_CMD_WRITE = 1
 NBD_CMD_FLUSH = 3
+NBD_CMD_WRITE_ZEROES = 6
 
 # Error replies
 ERR_BASE = 2**31
@@ -139,6 +140,13 @@ class Client(object):
         handle = next(self._counter)
         self._send_command(NBD_CMD_WRITE, handle, offset, len(data))
         self._send(data)
+        self._receive_simple_reply(handle)
+
+    def zero(self, offset, length):
+        if self.transmission_flags & NBD_FLAG_SEND_WRITE_ZEROES == 0:
+            raise Error("Server does not support NBD_CMD_WRITE_ZEROES")
+        handle = next(self._counter)
+        self._send_command(NBD_CMD_WRITE_ZEROES, handle, offset, length)
         self._receive_simple_reply(handle)
 
     def flush(self):

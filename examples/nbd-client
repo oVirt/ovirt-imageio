@@ -37,7 +37,9 @@ Upload source image to destination image via qemu-nbd:
 
 import argparse
 import io
+import json
 import os
+import subprocess
 import sys
 
 from ovirt_imageio_common import nbd
@@ -46,24 +48,55 @@ from ovirt_imageio_common import ui
 
 def upload(args):
     size = os.path.getsize(args.filename)
-    with io.open(args.filename, "rb") as f, \
-            nbd.Client(args.socket, args.export) as c, \
+    with io.open(args.filename, "rb") as src, \
+            nbd.Client(args.socket, args.export) as dst, \
             ui.ProgressBar(size) as pb:
-        if c.export_size < size:
+        if dst.export_size < size:
             raise Exception("Destination size {} is smaller than source file "
-                            "size {}".format(c.export_size, todo))
-        offset = 0
-        while offset < size:
-            chunk = f.read(min(size - offset, args.block_size))
-            if not chunk:
-                raise Exception("Unexpected end of file, expecting {} bytes"
-                                .format(todo))
+                            "size {}".format(dst.export_size, todo))
+        for zero, start, length in _map(args.filename):
+            if zero:
+                _zero_range(dst, start, length, pb)
+            else:
+                _copy_range(dst, src, start, length, pb, args.block_size)
+        dst.flush()
 
-            c.write(offset, chunk)
-            offset += len(chunk)
-            pb.update(len(chunk))
 
-        c.flush()
+def _map(path):
+    out = subprocess.check_output([
+        "qemu-img",
+        "map",
+        "--format", "raw",
+        "--output", "json",
+        path
+    ])
+    chunks = json.loads(out.decode("utf-8"))
+    for c in chunks:
+        yield c["zero"], c["start"], c["length"]
+
+
+def _zero_range(dst, start, length, pb):
+    while length:
+        step = min(dst.maximum_block_size, length)
+        dst.zero(start, step)
+        start += step
+        length -= step
+        pb.update(step)
+
+
+def _copy_range(dst, src, start, length, pb, block_size):
+    max_step = min(dst.maximum_block_size, block_size)
+    src.seek(start)
+    while length:
+        chunk = src.read(min(length, max_step))
+        if not chunk:
+            raise Exception("Unexpected end of file, expecting {} bytes"
+                            .format(length))
+        dst.write(start, chunk)
+        n = len(chunk)
+        start += n
+        length -= n
+        pb.update(n)
 
 
 def kib(s):
@@ -76,7 +109,7 @@ parser.add_argument(
     default="", help="export name")
 parser.add_argument(
     "-b", "--block-size",
-    default=1024**2,
+    default=8 * 1024**2,
     type=kib,
     help="block size in KiB")
 
