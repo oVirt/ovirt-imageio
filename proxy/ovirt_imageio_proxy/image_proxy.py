@@ -3,6 +3,14 @@ import logging
 import signal
 import time
 
+from M2Crypto import threading
+
+# M2Crypto.threading needs initialization.
+# See
+# - https://bugzilla.redhat.com/482420
+# - https://bugzilla.redhat.com/1576500
+threading.init()
+
 import systemd.daemon
 
 # import downloader
