@@ -9,6 +9,11 @@
 from __future__ import absolute_import
 
 import collections
+import logging
+import os
+import time
+
+log = logging.getLogger("test")
 
 
 def fill(b, size):
@@ -52,3 +57,17 @@ class UnbufferedStream(object):
         if chunk:
             self.chunks.appendleft(chunk)
         return res
+
+
+def wait_for_path(path, timeout, step=0.02):
+    start = time.time()
+    elapsed = 0.0
+
+    while elapsed < timeout:
+        if os.path.exists(path):
+            log.debug("Waited for %s %.3f seconds", path, elapsed)
+            return True
+        time.sleep(step)
+        elapsed = time.time() - start
+
+    return False

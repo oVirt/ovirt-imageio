@@ -9,55 +9,15 @@
 from __future__ import absolute_import
 
 import logging
-import os
 import subprocess
-import time
-
-from contextlib import contextmanager
 
 import pytest
 
 from ovirt_imageio_common import nbd
 
+from . import qemu_nbd
+
 log = logging.getLogger("test")
-
-
-@contextmanager
-def nbd_server(image_path, image_format, sock, export_name="",
-               read_only=False):
-    cmd = [
-        "qemu-nbd",
-        "--socket", sock,
-        "--format", image_format,
-        "--export-name", export_name.encode("utf-8"),
-        "--persistent",
-        "--cache=none",
-        "--aio=native",
-        "--discard=unmap",
-    ]
-
-    if read_only:
-        cmd.append("--read-only")
-
-    cmd.append(image_path)
-
-    log.debug("Strating qemu-nbd")
-    deadline = time.time() + 1
-    p = subprocess.Popen(cmd)
-    try:
-        while True:
-            time.sleep(0.02)
-            if os.path.exists(sock):
-                break
-            if time.time() > deadline:
-                raise RuntimeError("Timeout waiting for qemu-nbd socket")
-        log.debug("qemu-nbd socket ready")
-        yield
-    finally:
-        log.debug("Terminating qemu-nbd")
-        p.terminate()
-        p.wait()
-        log.debug("qemu-nbd terminated with exit code %r", p.returncode)
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -71,7 +31,7 @@ def test_handshake(tmpdir, export, fmt):
     subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
     sock = str(tmpdir.join("sock"))
 
-    with nbd_server(image, fmt, sock, export_name=export):
+    with qemu_nbd.run(image, fmt, sock, export_name=export):
         if export:
             c = nbd.Client(sock, export)
         else:
@@ -95,7 +55,7 @@ def test_raw_read(tmpdir):
         f.seek(offset)
         f.write(data)
 
-    with nbd_server(image, "raw", sock):
+    with qemu_nbd.run(image, "raw", sock):
         with nbd.Client(sock) as c:
             assert c.read(offset, len(data)) == data
 
@@ -108,7 +68,7 @@ def test_raw_write(tmpdir):
     offset = 1024**2
     data = b"can write to raw"
 
-    with nbd_server(image, "raw", sock):
+    with qemu_nbd.run(image, "raw", sock):
         with nbd.Client(sock) as c:
             c.write(offset, data)
             c.flush()
@@ -125,7 +85,7 @@ def test_qcow2_write_read(tmpdir):
     data = b"can read and write qcow2"
     subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
 
-    with nbd_server(image, "qcow2", sock):
+    with qemu_nbd.run(image, "qcow2", sock):
         with nbd.Client(sock) as c:
             c.write(offset, data)
             c.flush()
@@ -143,7 +103,7 @@ def test_zero(tmpdir, format):
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, str(size)])
 
-    with nbd_server(image, format, sock):
+    with qemu_nbd.run(image, format, sock):
         # Fill image with data
         with nbd.Client(sock) as c:
             c.write(0, b"x" * size)
@@ -166,7 +126,7 @@ def test_zero_max_block_size(tmpdir, format):
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, "1g"])
 
-    with nbd_server(image, format, sock):
+    with qemu_nbd.run(image, format, sock):
         # Fill range with data
         with nbd.Client(sock) as c:
             size = c.maximum_block_size
@@ -190,7 +150,7 @@ def test_zero_min_block_size(tmpdir, format):
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, "1g"])
 
-    with nbd_server(image, format, sock):
+    with qemu_nbd.run(image, format, sock):
         # Fill range with data
         with nbd.Client(sock) as c:
             size = c.minimum_block_size
