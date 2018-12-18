@@ -13,6 +13,8 @@ import subprocess
 
 from contextlib import contextmanager
 
+from ovirt_imageio_common import nbd
+
 from . import testutil
 
 log = logging.getLogger("qemu_nbd")
@@ -48,3 +50,14 @@ def run(image, fmt, sock, export_name="", read_only=False):
         p.terminate()
         p.wait()
         log.debug("qemu-nbd terminated with exit code %s", p.returncode)
+
+
+@contextmanager
+def open(image, fmt, read_only=False):
+    """
+    Open nbd client for accessing image using qemu-nbd.
+    """
+    sock = image + ".sock"
+    with run(image, fmt, sock, read_only=read_only):
+        with nbd.Client(sock) as c:
+            yield c
