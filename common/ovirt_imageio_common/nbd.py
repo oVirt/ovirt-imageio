@@ -13,10 +13,17 @@ from __future__ import absolute_import
 
 import itertools
 import logging
+import re
 import socket
 import struct
 
 from . import util
+
+# Supported urls:
+# - nbd:unix:/sock
+# - nbd:unix:/sock:exportname=
+# - nbd:unix:/sock:exportname=sda
+URL = re.compile(r"nbd:unix:(?P<sock>/[^:]+)(:?:exportname=(?P<name>.*))?")
 
 # Magic numbers.
 NBDMAGIC = 0x4e42444d41474943
@@ -108,6 +115,20 @@ log = logging.getLogger("nbd")
 
 class Error(Exception):
     pass
+
+
+def open(url):
+    """
+    Parse nbd url and return a connected client.
+
+    Currnetly only nbd:unix:/path:exportname=foo is supported.
+    """
+    m = URL.match(url)
+    if m is None:
+        raise Error("Unsupported URL %r" % url)
+
+    d = m.groupdict()
+    return Client(d["sock"], export_name=d["name"] or "")
 
 
 class Client(object):

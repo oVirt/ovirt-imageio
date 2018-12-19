@@ -164,3 +164,22 @@ def test_zero_min_block_size(tmpdir, format):
 
         with nbd.Client(sock) as c:
             assert c.read(offset, size) == b"\0" * size
+
+
+@pytest.mark.parametrize("url,export", [
+    ("nbd:unix:/path", ""),
+    ("nbd:unix:/path:exportname=", ""),
+    ("nbd:unix:/path:exportname=sda", "sda"),
+])
+def test_open(tmpdir, url, export):
+    image = str(tmpdir.join("image"))
+    with open(image, "wb") as f:
+        f.truncate(1024**3)
+
+    sock = str(tmpdir.join("sock"))
+    url = url.replace("/path", sock)
+
+    log.debug("Trying url=%r export=%r", url, export)
+    with qemu_nbd.run(image, "raw", sock, export_name=export):
+        with nbd.open(url) as c:
+            assert c.export_size == 1024**3
