@@ -16,8 +16,12 @@ import pytest
 from ovirt_imageio_common import nbd
 
 from . import qemu_nbd
+from . import backup
 
 log = logging.getLogger("test")
+
+
+# Communicate with qemu-nbd
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -183,3 +187,82 @@ def test_open(tmpdir, url, export):
     with qemu_nbd.run(image, "raw", sock, export_name=export):
         with nbd.open(url) as c:
             assert c.export_size == 1024**3
+
+
+# Communicate with qemu builtin NBD server
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_full_backup_handshake(tmpdir, fmt):
+    image = str(tmpdir.join("image"))
+    subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
+
+    with backup.full_backup(image, fmt, tmpdir) as backup_url:
+        with nbd.open(backup_url) as c:
+            # TODO: test transmission_flags?
+            assert c.export_size == 1024**3
+            assert c.minimum_block_size == 1
+            assert c.preferred_block_size == 4096
+            assert c.maximum_block_size == 32 * 1024**2
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_full_backup_single_image(tmpdir, fmt):
+    chunk_size = 1024**2
+    disk_size = 5 * chunk_size
+
+    # Create disk
+    disk = str(tmpdir.join("disk." + fmt))
+    subprocess.check_call([
+        "qemu-img",
+        "create",
+        "-f", fmt,
+        disk,
+        str(disk_size),
+    ])
+
+    # Pupulate disk with data.
+    with qemu_nbd.open(disk, fmt) as d:
+        for i in range(0, disk_size, chunk_size):
+            d.write(i, b"%d\n" % i)
+        d.flush()
+
+    # Start full backup and copy the data, veifying what we read.
+    with backup.full_backup(disk, fmt, tmpdir) as backup_url, \
+            nbd.open(backup_url) as d:
+        for i in range(0, disk_size, chunk_size):
+            data = d.read(i, chunk_size)
+            assert data.startswith(b"%d\n\0" % i)
+
+
+def test_full_backup_complete_chain(tmpdir):
+    depth = 3
+    chunk_size = 1024**2
+    disk_size = depth * chunk_size
+
+    for i in range(depth):
+        # Create disk based on previous one.
+        disk = str(tmpdir.join("disk.%d" % i))
+        cmd = ["qemu-img", "create", "-f", "qcow2"]
+
+        if i > 0:
+            cmd.append("-b")
+            cmd.append("disk.%d" % (i - 1))
+
+        cmd.append(disk)
+        cmd.append(str(disk_size))
+
+        subprocess.check_call(cmd)
+
+        # This data can be read only from this disk.
+        with qemu_nbd.open(disk, "qcow2") as d:
+            d.write(i * chunk_size, b"%d\n" % i)
+            d.flush()
+
+    # Start full backup and copy the data, veifying what we read.
+    with backup.full_backup(disk, "qcow2", tmpdir) as backup_url, \
+            nbd.open(backup_url) as d:
+        for i in range(depth):
+            # Every chunk comes from different image.
+            data = d.read(i * chunk_size, chunk_size)
+            assert data.startswith(b"%d\n\0" % i)
