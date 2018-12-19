@@ -68,6 +68,12 @@ def test_open_no_create(mode):
     assert e.value.errno == errno.ENOENT
 
 
+def test_block_size(tmpfile):
+    with file.open(tmpfile, "r") as f:
+        # We don't support yet 4k drives.
+        assert f.block_size == 512
+
+
 def test_readinto(tmpfile):
     with io.open(tmpfile, "wb") as f:
         f.write(b"a" * 4096)

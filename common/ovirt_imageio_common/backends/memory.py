@@ -92,6 +92,10 @@ class Backend(object):
         self._buf.write(b"\0" * count)
         return count
 
+    @property
+    def block_size(self):
+        return 512
+
     # Debugging interface
 
     @property

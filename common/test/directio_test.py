@@ -17,9 +17,11 @@ import pytest
 from ovirt_imageio_common import directio
 from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
-from ovirt_imageio_common.backends import file
 
 from . import testutil
+
+# Legacy code supports only 512 bytes.
+BLOCKSIZE = 512
 
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
@@ -78,29 +80,29 @@ def receive(tmpdir, data, size, offset=0):
 
 
 def test_receive_busy(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, BLOCKSIZE)
     assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, BLOCKSIZE)
     op.run()
     assert not op.active
 
 
 def test_receive_close_on_error(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, file.BLOCKSIZE + 1)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, BLOCKSIZE + 1)
     with pytest.raises(errors.PartialContent):
         op.run()
     assert not op.active
 
 
 def test_receive_close_twice(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
+    op = directio.Receive(tmpfile, src, BLOCKSIZE)
     op.run()
     op.close()  # should do nothing
     assert not op.active
@@ -137,7 +139,7 @@ def test_recv_repr(tmpfile):
     op = directio.Receive(tmpfile, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "size=100 offset=42 buffersize=512 done=0" in rep
+    assert "size=100 offset=42 buffersize=4096 done=0" in rep
     assert "active" in rep
 
 
@@ -200,7 +202,7 @@ def test_receive_padd_to_block_size(tmpdir):
     dst.write("x" * 400)
     size = 200
     offset = 300
-    padding = file.BLOCKSIZE - size - offset
+    padding = BLOCKSIZE - size - offset
     src = io.BytesIO(b"y" * size)
     op = directio.Receive(str(dst), src, size, offset=offset)
     op.run()

@@ -19,10 +19,6 @@ from .. import compat
 from .. import ioutil
 from .. import util
 
-# Typical logical block size of the underlying storage, which should be
-# sufficient for doing direct I/O.
-BLOCKSIZE = 512
-
 log = logging.getLogger("file")
 
 
@@ -75,13 +71,13 @@ class BaseIO(object):
 
     def write(self, buf):
         self._dirty = True
-        if (not self._aligned(self.tell()) or len(buf) < BLOCKSIZE):
+        if (not self._aligned(self.tell()) or len(buf) < self._block_size):
             # The slow path.
             return self._write_unaligned(buf)
         else:
             # The fast path.
             if not self._aligned(len(buf)):
-                count = util.round_down(len(buf), BLOCKSIZE)
+                count = util.round_down(len(buf), self._block_size)
                 buf = compat.bufview(buf, 0, count)
 
             return util.uninterruptible(self._fio.write, buf)
@@ -124,13 +120,13 @@ class BaseIO(object):
         """
         self._dirty = True
         start = self.tell()
-        if (not self._aligned(start) or count < BLOCKSIZE):
+        if (not self._aligned(start) or count < self._block_size):
             # The slow path.
-            count = min(count, BLOCKSIZE - start % BLOCKSIZE)
+            count = min(count, self._block_size - start % self._block_size)
             return self._write_unaligned(b"\0" * count)
         else:
             # The fast path.
-            count = util.round_down(count, BLOCKSIZE)
+            count = util.round_down(count, self._block_size)
             if self._sparse:
                 return self._trim(count)
             else:
@@ -139,6 +135,10 @@ class BaseIO(object):
     def flush(self):
         os.fsync(self._fio.fileno())
         self._dirty = False
+
+    @property
+    def block_size(self):
+        return self._block_size
 
     # Debugging interface
 
@@ -152,11 +152,11 @@ class BaseIO(object):
         """
         Return True if number n is aligned to block size.
         """
-        return not (n & (BLOCKSIZE - 1))
+        return not (n & (self._block_size - 1))
 
     def _write_unaligned(self, buf):
         """
-        Write up to BLOCKSIZE bytes from buf into the current block.
+        Write up to block_size bytes from buf into the current block.
 
         If position is not aligned to block size, writes only up to end of
         current block.
@@ -170,13 +170,13 @@ class BaseIO(object):
             Number of bytes written
         """
         start = self.tell()
-        offset = start % BLOCKSIZE
-        count = min(len(buf), BLOCKSIZE - offset)
+        offset = start % self._block_size
+        count = min(len(buf), self._block_size - offset)
 
         log.debug("Unaligned write start=%s offset=%s count=%s",
                   start, offset, count)
 
-        block = util.aligned_buffer(BLOCKSIZE)
+        block = util.aligned_buffer(self._block_size)
         with closing(block):
             # 1. Read available bytes in current block.
             self.seek(start - offset)
@@ -215,6 +215,8 @@ class BlockIO(BaseIO):
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
+        # TODO: get block size using ioctl(BLKSSZGET).
+        self._block_size = 512
 
     def _zero(self, count):
         """
@@ -279,6 +281,8 @@ class FileIO(BaseIO):
         # buffer.
         self._buffer_size = buffer_size
         self._buf = None
+        # TODO: detect by doing direct I/O.
+        self._block_size = 512
 
     def _zero(self, count):
         offset = self.tell()

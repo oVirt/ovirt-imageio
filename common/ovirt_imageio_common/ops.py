@@ -14,7 +14,6 @@ from contextlib import closing
 
 from . import errors
 from . import util
-from . backends import file
 
 # This value is used by vdsm when copying image data using dd. Smaller values
 # save memory, and larger values minimize syscall and python calls overhead.
@@ -34,8 +33,7 @@ class Operation(object):
         self._size = size
         self._offset = offset
         if self._size:
-            self._buffersize = min(
-                util.round_up(size, file.BLOCKSIZE), buffersize)
+            self._buffersize = min(util.round_up(size, 4096), buffersize)
         else:
             self._buffersize = buffersize
         self._done = 0
@@ -107,7 +105,7 @@ class Send(Operation):
     def __iter__(self):
         with closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
-                skip = self._offset % file.BLOCKSIZE
+                skip = self._offset % self._src.block_size
                 self._src.seek(self._offset - skip)
                 if skip:
                     yield self._next_chunk(buf, skip)
@@ -117,7 +115,7 @@ class Send(Operation):
                 pass
 
     def _next_chunk(self, buf, skip=0):
-        if self._src.tell() % file.BLOCKSIZE:
+        if self._src.tell() % self._src.block_size:
             if self._size is None:
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
@@ -154,9 +152,9 @@ class Receive(Operation):
 
                 # If offset is not aligned to block size, receive partial chunk
                 # until the start of the next block.
-                unaligned = self._offset % file.BLOCKSIZE
+                unaligned = self._offset % self._dst.block_size
                 if unaligned:
-                    count = min(self._todo, file.BLOCKSIZE - unaligned)
+                    count = min(self._todo, self._dst.block_size - unaligned)
                     self._receive_chunk(buf, count)
 
                 # Now current file position is aligned to block size and we can

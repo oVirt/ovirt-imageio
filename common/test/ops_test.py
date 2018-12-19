@@ -20,6 +20,9 @@ from ovirt_imageio_common.backends import memory
 
 from . import testutil
 
+# TODO: use backend block_size.
+BLOCKSIZE = 512
+
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
 
@@ -145,7 +148,7 @@ def test_send_repr():
     op = ops.Send(None, None, 200, offset=24)
     rep = repr(op)
     assert "Send" in rep
-    assert "size=200 offset=24 buffersize=512 done=0" in rep
+    assert "size=200 offset=24 buffersize=4096 done=0" in rep
     assert "active" in rep
 
 
@@ -213,7 +216,7 @@ def test_receive_padd_to_block_size(tmpdir):
     dst_file.write("x" * 400)
     size = 200
     offset = 300
-    padding = file.BLOCKSIZE - size - offset
+    padding = BLOCKSIZE - size - offset
     src = io.BytesIO(b"y" * size)
     with file.open(str(dst_file), "r+") as dst:
         op = ops.Receive(dst, src, size, offset=offset)
@@ -241,33 +244,33 @@ def test_receive_seek():
 
 
 def test_receive_busy(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
     with file.open(tmpfile, "r+") as dst:
-        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        op = ops.Receive(dst, src, BLOCKSIZE)
         assert op.active
 
 
 def test_receive_close_on_success(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
     with file.open(tmpfile, "r+") as dst:
-        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        op = ops.Receive(dst, src, BLOCKSIZE)
         op.run()
         assert not op.active
 
 
 def test_receive_close_on_error(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
     with file.open(tmpfile, "r+") as dst:
-        op = ops.Receive(dst, src, file.BLOCKSIZE + 1)
+        op = ops.Receive(dst, src, BLOCKSIZE + 1)
         with pytest.raises(errors.PartialContent):
             op.run()
         assert not op.active
 
 
 def test_receive_close_twice(tmpfile):
-    src = io.BytesIO(b"x" * file.BLOCKSIZE)
+    src = io.BytesIO(b"x" * BLOCKSIZE)
     with file.open(tmpfile, "r+") as dst:
-        op = ops.Receive(dst, src, file.BLOCKSIZE)
+        op = ops.Receive(dst, src, BLOCKSIZE)
         op.run()
         op.close()  # should do nothing
         assert not op.active
@@ -291,7 +294,7 @@ def test_recv_repr():
     op = ops.Receive(None, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "size=100 offset=42 buffersize=512 done=0" in rep
+    assert "size=100 offset=42 buffersize=4096 done=0" in rep
     assert "active" in rep
 
 
@@ -355,25 +358,25 @@ def test_receive_no_size(tmpdir, data, offset):
 @pytest.mark.parametrize("sparse", [True, False])
 @pytest.mark.parametrize("offset,size", [
     # Aligned offset and size
-    (0, file.BLOCKSIZE),
-    (0, ops.BUFFERSIZE - file.BLOCKSIZE),
+    (0, BLOCKSIZE),
+    (0, ops.BUFFERSIZE - BLOCKSIZE),
     (0, ops.BUFFERSIZE),
-    (0, ops.BUFFERSIZE + file.BLOCKSIZE),
+    (0, ops.BUFFERSIZE + BLOCKSIZE),
     (0, ops.BUFFERSIZE * 2),
-    (file.BLOCKSIZE, file.BLOCKSIZE),
-    (ops.BUFFERSIZE, file.BLOCKSIZE),
-    (ops.BUFFERSIZE * 2 - file.BLOCKSIZE, file.BLOCKSIZE),
+    (BLOCKSIZE, BLOCKSIZE),
+    (ops.BUFFERSIZE, BLOCKSIZE),
+    (ops.BUFFERSIZE * 2 - BLOCKSIZE, BLOCKSIZE),
     # Unalinged size
     (0, 42),
-    (0, file.BLOCKSIZE + 42),
+    (0, BLOCKSIZE + 42),
     (0, ops.BUFFERSIZE + 42),
     # Unaligned offset
-    (42, file.BLOCKSIZE),
-    (file.BLOCKSIZE + 42, file.BLOCKSIZE),
-    (ops.BUFFERSIZE + 42, file.BLOCKSIZE),
+    (42, BLOCKSIZE),
+    (BLOCKSIZE + 42, BLOCKSIZE),
+    (ops.BUFFERSIZE + 42, BLOCKSIZE),
     # Unaligned size and offset
-    (42, file.BLOCKSIZE - 42),
-    (file.BLOCKSIZE + 42, file.BLOCKSIZE - 42),
+    (42, BLOCKSIZE - 42),
+    (BLOCKSIZE + 42, BLOCKSIZE - 42),
     (ops.BUFFERSIZE + 42, ops.BUFFERSIZE - 42),
     (ops.BUFFERSIZE * 2 - 42, 42),
 ])
