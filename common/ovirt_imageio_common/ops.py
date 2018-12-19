@@ -29,9 +29,8 @@ class EOF(Exception):
 
 class Operation(object):
 
-    def __init__(self, path, size=None, offset=0, buffersize=BUFFERSIZE,
+    def __init__(self, size=None, offset=0, buffersize=BUFFERSIZE,
                  clock=util.NullClock()):
-        self._path = path
         self._size = size
         self._offset = offset
         if self._size:
@@ -78,7 +77,7 @@ class Operation(object):
             self._clock.stop("operation")
 
     def __repr__(self):
-        return ("<{self.__class__.__name__} path={self._path!r} "
+        return ("<{self.__class__.__name__} "
                 "size={self.size} offset={self._offset} "
                 "buffersize={self._buffersize} done={self.done}{active} "
                 "at 0x{id}>").format(
@@ -95,7 +94,7 @@ class Send(Operation):
 
     def __init__(self, src, dst, size=None, offset=0, buffersize=BUFFERSIZE,
                  clock=util.NullClock()):
-        super(Send, self).__init__("<src>", size=size, offset=offset,
+        super(Send, self).__init__(size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
         self._src = src
         self._dst = dst
@@ -142,7 +141,7 @@ class Receive(Operation):
 
     def __init__(self, dst, src, size=None, offset=0, flush=True,
                  buffersize=BUFFERSIZE, clock=util.NullClock()):
-        super(Receive, self).__init__("<dst>", size=size, offset=offset,
+        super(Receive, self).__init__(size=size, offset=offset,
                                       buffersize=buffersize, clock=clock)
         self._src = src
         self._dst = dst
@@ -206,7 +205,7 @@ class Zero(Operation):
 
     def __init__(self, dst, size, offset=0, flush=False,
                  buffersize=BUFFERSIZE, clock=util.NullClock()):
-        super(Zero, self).__init__("<dst>", size=size, offset=offset,
+        super(Zero, self).__init__(size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
         self._dst = dst
         self._flush = flush
@@ -236,7 +235,7 @@ class Flush(Operation):
     """
 
     def __init__(self, dst, clock=util.NullClock()):
-        super(Flush, self).__init__("<dst>", clock=clock)
+        super(Flush, self).__init__(clock=clock)
         self._dst = dst
 
     def _run(self):
