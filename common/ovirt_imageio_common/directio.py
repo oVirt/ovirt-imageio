@@ -17,6 +17,8 @@ Changes to this module must be tested with /usr/libexec/vdsm/kvm2ovirt.
 
 from __future__ import absolute_import
 
+from six.moves import urllib_parse
+
 from . import ops
 from . import util
 from . backends import file
@@ -30,7 +32,8 @@ class Receive(ops.Receive):
 
     def __init__(self, path, src, size=None, offset=0, flush=True,
                  buffersize=ops.BUFFERSIZE, clock=util.NullClock()):
-        self._dst = file.open(path, "r+")
+        url = urllib_parse.urlparse("file:" + path)
+        self._dst = file.open(url, "r+")
         super(Receive, self).__init__(self._dst, src, size=size, offset=offset,
                                       flush=flush, buffersize=buffersize,
                                       clock=clock)

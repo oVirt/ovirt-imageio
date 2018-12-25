@@ -22,19 +22,19 @@ from .. import util
 log = logging.getLogger("file")
 
 
-def open(path, mode, sparse=False, buffer_size=1024**2):
+def open(url, mode, sparse=False, buffer_size=1024**2):
     """
     Open a file backend.
 
     Arguments:
-        path (str): filename of underlying file.
+        url (url): parsed file url of underlying file.
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
         buffer_size (int): size of buffer to allocate if needed.
     """
-    fio = util.open(path, mode, direct=True)
+    fio = util.open(url.path, mode, direct=True)
     try:
-        fio.name = path
+        fio.name = url.path
         mode = os.fstat(fio.fileno()).st_mode
         if stat.S_ISBLK(mode):
             return BlockIO(fio, sparse=sparse)

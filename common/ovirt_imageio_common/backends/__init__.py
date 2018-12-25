@@ -26,7 +26,7 @@ def get(req, ticket, buffer_size=1024**2):
         mode = "r+" if "write" in ticket.ops else "r"
 
         backend = file.open(
-            ticket.url.path,
+            ticket.url,
             mode,
             sparse=ticket.sparse,
             buffer_size=buffer_size)

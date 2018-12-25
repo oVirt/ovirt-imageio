@@ -167,8 +167,8 @@ def test_send_repr_active():
     testutil.BLOCK + testutil.BYTES,
     testutil.BYTES,
 ], ids=testutil.head)
-def test_receive(tmpfile, data, offset):
-    assert receive(tmpfile, data, len(data), offset=offset) == data
+def test_receive(tmpurl, data, offset):
+    assert receive(tmpurl, data, len(data), offset=offset) == data
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -178,9 +178,9 @@ def test_receive(tmpfile, data, offset):
     len(testutil.BUFFER) + 511,
     len(testutil.BUFFER) + 513,
 ])
-def test_receive_partial(tmpfile, size, offset):
+def test_receive_partial(tmpurl, size, offset):
     data = testutil.BUFFER * 2
-    assert receive(tmpfile, data, size, offset=offset) == data[:size]
+    assert receive(tmpurl, data, size, offset=offset) == data[:size]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -192,36 +192,36 @@ def test_receive_partial(tmpfile, size, offset):
     testutil.BLOCK + testutil.BYTES,
     testutil.BYTES,
 ], ids=testutil.head)
-def test_receive_partial_content(tmpfile, data, offset):
+def test_receive_partial_content(tmpurl, data, offset):
     with pytest.raises(errors.PartialContent) as e:
-        receive(tmpfile, data[:-1], len(data), offset=offset)
+        receive(tmpurl, data[:-1], len(data), offset=offset)
     assert e.value.requested == len(data)
     assert e.value.available == len(data) - 1
 
 
-def receive(tmpfile, data, size, offset=0):
-    with open(tmpfile, "wb") as f:
+def receive(tmpurl, data, size, offset=0):
+    with io.open(tmpurl.path, "wb") as f:
         f.write("x" * offset)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         src = io.BytesIO(data)
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with open(tmpfile, "rb") as f:
+    with io.open(tmpurl.path, "rb") as f:
         f.seek(offset)
         return f.read(size)
 
 
-def test_receive_padd_to_block_size(tmpfile):
-    with open(tmpfile, "wb") as f:
+def test_receive_padd_to_block_size(tmpurl):
+    with io.open(tmpurl.path, "wb") as f:
         f.write("x" * 400)
     size = 200
     offset = 300
     padding = BLOCKSIZE - size - offset
     src = io.BytesIO(b"y" * size)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with open(tmpfile, "rb") as f:
+    with io.open(tmpurl.path, "rb") as f:
         # Data before offset is not modified.
         assert f.read(300) == b"x" * offset
         # Data after offset is modifed, flie extended.
@@ -243,33 +243,33 @@ def test_receive_seek():
     assert b == b"bbbbbaaaaa\0"
 
 
-def test_receive_busy(tmpfile):
+def test_receive_busy(tmpurl):
     src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, BLOCKSIZE)
         assert op.active
 
 
-def test_receive_close_on_success(tmpfile):
+def test_receive_close_on_success(tmpurl):
     src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, BLOCKSIZE)
         op.run()
         assert not op.active
 
 
-def test_receive_close_on_error(tmpfile):
+def test_receive_close_on_error(tmpurl):
     src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, BLOCKSIZE + 1)
         with pytest.raises(errors.PartialContent):
             op.run()
         assert not op.active
 
 
-def test_receive_close_twice(tmpfile):
+def test_receive_close_twice(tmpurl):
     src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, BLOCKSIZE)
         op.run()
         op.close()  # should do nothing
@@ -305,31 +305,31 @@ def test_recv_repr_active():
 
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
-def test_receive_unbuffered_stream(tmpfile, bufsize):
+def test_receive_unbuffered_stream(tmpurl, bufsize):
     chunks = ["1" * 1024,
               "2" * 1024,
               "3" * 42,
               "4" * 982]
     data = ''.join(chunks)
-    assert receive_unbuffered(tmpfile, chunks, len(data), bufsize) == data
+    assert receive_unbuffered(tmpurl, chunks, len(data), bufsize) == data
 
 
-def test_receive_unbuffered_stream_partial_content(tmpfile):
+def test_receive_unbuffered_stream_partial_content(tmpurl):
     chunks = ["1" * 1024,
               "2" * 1024,
               "3" * 42,
               "4" * 982]
     data = ''.join(chunks)
     with pytest.raises(errors.PartialContent):
-        receive_unbuffered(tmpfile, chunks, len(data) + 1, 2048)
+        receive_unbuffered(tmpurl, chunks, len(data) + 1, 2048)
 
 
-def receive_unbuffered(tmpfile, chunks, size, bufsize):
+def receive_unbuffered(tmpurl, chunks, size, bufsize):
     src = testutil.UnbufferedStream(chunks)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, size, buffersize=bufsize)
         op.run()
-        with open(tmpfile, "rb") as f:
+        with io.open(tmpurl.path, "rb") as f:
             return f.read()
 
 
@@ -341,14 +341,14 @@ def receive_unbuffered(tmpfile, chunks, size, bufsize):
     testutil.BLOCK * 2,
     testutil.BLOCK + testutil.BYTES,
 ], ids=testutil.head)
-def test_receive_no_size(tmpfile, data, offset):
-    with open(tmpfile, "wb") as f:
+def test_receive_no_size(tmpurl, data, offset):
+    with io.open(tmpurl.path, "wb") as f:
         f.write("x" * offset)
     src = io.BytesIO(data)
-    with file.open(tmpfile, "r+") as dst:
+    with file.open(tmpurl, "r+") as dst:
         op = ops.Receive(dst, src, offset=offset)
         op.run()
-    with io.open(tmpfile, "rb") as f:
+    with io.open(tmpurl.path, "rb") as f:
         f.seek(offset)
         assert f.read(len(data)) == data
 
@@ -378,14 +378,14 @@ def test_receive_no_size(tmpfile, data, offset):
     (ops.BUFFERSIZE + 42, ops.BUFFERSIZE - 42),
     (ops.BUFFERSIZE * 2 - 42, 42),
 ])
-def test_zero(tmpfile, offset, size, sparse):
+def test_zero(tmpurl, offset, size, sparse):
     data = "x" * ops.BUFFERSIZE * 2
-    with io.open(tmpfile, "wb") as f:
+    with io.open(tmpurl.path, "wb") as f:
         f.write(data)
-    with file.open(tmpfile, "r+", sparse=sparse) as dst:
+    with file.open(tmpurl, "r+", sparse=sparse) as dst:
         op = ops.Zero(dst, size, offset=offset)
         op.run()
-    with io.open(tmpfile, "rb") as f:
+    with io.open(tmpurl.path, "rb") as f:
         assert f.read(offset) == data[:offset]
         assert f.read(size) == b"\0" * size
         assert f.read() == data[offset + size:]
