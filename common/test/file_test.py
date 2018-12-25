@@ -22,9 +22,19 @@ from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 
 
+def test_debugging_interface(tmpurl):
+    with file.open(tmpurl, "r+") as f:
+        assert f.readable()
+        assert f.writable()
+        assert not f.sparse
+        assert f.name == "file"
+
+
 def test_open_write_only(tmpurl):
     with file.open(tmpurl, "w") as f, \
             closing(util.aligned_buffer(512)) as buf:
+        assert not f.readable()
+        assert f.writable()
         buf.write(b"x" * 512)
         f.write(buf)
     with io.open(tmpurl.path, "rb") as f:
@@ -45,6 +55,8 @@ def test_open_read_only(tmpurl):
         f.write(b"x" * 512)
     with file.open(tmpurl, "r") as f, \
             closing(util.aligned_buffer(512)) as buf:
+        assert f.readable()
+        assert not f.writable()
         f.readinto(buf)
         assert buf[:] == b"x" * 512
 
@@ -54,6 +66,8 @@ def test_open_read_write(tmpurl):
         f.write(b"a" * 512)
     with file.open(tmpurl, "r+") as f, \
             closing(util.aligned_buffer(512)) as buf:
+        assert f.readable()
+        assert f.writable()
         f.readinto(buf)
         buf[:] = b"b" * 512
         f.seek(0)
@@ -297,6 +311,7 @@ def test_zero_aligned_at_end(tmpurl, sparse):
     with io.open(tmpurl.path, "wb") as f:
         f.write(b"x" * 4096)
     with file.open(tmpurl, "r+", sparse=sparse) as f:
+        assert f.sparse == sparse
         f.seek(4096)
         n = f.zero(4096)
         assert n == 4096

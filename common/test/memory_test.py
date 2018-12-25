@@ -14,10 +14,19 @@ import pytest
 from ovirt_imageio_common.backends import memory
 
 
+def test_debugging_interface(tmpurl):
+    with memory.open(urlparse("memory:"), "r+") as m:
+        assert m.readable()
+        assert m.writable()
+        assert not m.sparse
+        assert m.name == "memory"
+
+
 def test_open_read_write():
     m = memory.Backend("r+")
     assert m.readable()
     assert m.writable()
+    assert not m.sparse
 
     data = b"data"
     m.write(data)
@@ -69,6 +78,7 @@ def test_invalid_mode():
 @pytest.mark.parametrize("sparse", [True, False])
 def test_zero_middle(sparse):
     m = memory.open(urlparse("memory:"), "r+", sparse=sparse)
+    assert not m.sparse
     m.write(b"xxxxxxxxxxxx")
     m.seek(4)
     n = m.zero(4)

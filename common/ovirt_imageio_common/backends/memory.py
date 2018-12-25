@@ -78,12 +78,6 @@ class Backend(object):
                 raise
             log.exception("Error closing")
 
-    def readable(self):
-        return self._mode in ("r", "r+")
-
-    def writable(self):
-        return self._mode in ("w", "r+")
-
     # Backend interface.
 
     def zero(self, count):
@@ -99,9 +93,23 @@ class Backend(object):
 
     # Debugging interface
 
+    def readable(self):
+        return self._mode in ("r", "r+")
+
+    def writable(self):
+        return self._mode in ("w", "r+")
+
     @property
     def dirty(self):
         """
         Returns True if backend was modifed and needs flushing.
         """
         return self._dirty
+
+    @property
+    def sparse(self):
+        return False
+
+    @property
+    def name(self):
+        return "memory"

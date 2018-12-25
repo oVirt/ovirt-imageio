@@ -142,9 +142,23 @@ class BaseIO(object):
 
     # Debugging interface
 
+    def readable(self):
+        return self._fio.readable()
+
+    def writable(self):
+        return self._fio.writable()
+
     @property
     def dirty(self):
         return self._dirty
+
+    @property
+    def sparse(self):
+        return self._sparse
+
+    @property
+    def name(self):
+        return "file"
 
     # Private
 
