@@ -167,8 +167,8 @@ def test_send_repr_active():
     testutil.BLOCK + testutil.BYTES,
     testutil.BYTES,
 ], ids=testutil.head)
-def test_receive(tmpdir, data, offset):
-    assert receive(tmpdir, data, len(data), offset=offset) == data
+def test_receive(tmpfile, data, offset):
+    assert receive(tmpfile, data, len(data), offset=offset) == data
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -178,9 +178,9 @@ def test_receive(tmpdir, data, offset):
     len(testutil.BUFFER) + 511,
     len(testutil.BUFFER) + 513,
 ])
-def test_receive_partial(tmpdir, size, offset):
+def test_receive_partial(tmpfile, size, offset):
     data = testutil.BUFFER * 2
-    assert receive(tmpdir, data, size, offset=offset) == data[:size]
+    assert receive(tmpfile, data, size, offset=offset) == data[:size]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -192,36 +192,36 @@ def test_receive_partial(tmpdir, size, offset):
     testutil.BLOCK + testutil.BYTES,
     testutil.BYTES,
 ], ids=testutil.head)
-def test_receive_partial_content(tmpdir, data, offset):
+def test_receive_partial_content(tmpfile, data, offset):
     with pytest.raises(errors.PartialContent) as e:
-        receive(tmpdir, data[:-1], len(data), offset=offset)
+        receive(tmpfile, data[:-1], len(data), offset=offset)
     assert e.value.requested == len(data)
     assert e.value.available == len(data) - 1
 
 
-def receive(tmpdir, data, size, offset=0):
-    dst_file = tmpdir.join("dst")
-    dst_file.write("x" * offset)
-    with file.open(str(dst_file), "r+") as dst:
+def receive(tmpfile, data, size, offset=0):
+    with open(tmpfile, "wb") as f:
+        f.write("x" * offset)
+    with file.open(tmpfile, "r+") as dst:
         src = io.BytesIO(data)
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with open(str(dst_file), "rb") as f:
+    with open(tmpfile, "rb") as f:
         f.seek(offset)
         return f.read(size)
 
 
-def test_receive_padd_to_block_size(tmpdir):
-    dst_file = tmpdir.join("dst")
-    dst_file.write("x" * 400)
+def test_receive_padd_to_block_size(tmpfile):
+    with open(tmpfile, "wb") as f:
+        f.write("x" * 400)
     size = 200
     offset = 300
     padding = BLOCKSIZE - size - offset
     src = io.BytesIO(b"y" * size)
-    with file.open(str(dst_file), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with open(str(dst_file), "rb") as f:
+    with open(tmpfile, "rb") as f:
         # Data before offset is not modified.
         assert f.read(300) == b"x" * offset
         # Data after offset is modifed, flie extended.
@@ -305,33 +305,31 @@ def test_recv_repr_active():
 
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
-def test_receive_unbuffered_stream(tmpdir, bufsize):
+def test_receive_unbuffered_stream(tmpfile, bufsize):
     chunks = ["1" * 1024,
               "2" * 1024,
               "3" * 42,
               "4" * 982]
     data = ''.join(chunks)
-    assert receive_unbuffered(tmpdir, chunks, len(data), bufsize) == data
+    assert receive_unbuffered(tmpfile, chunks, len(data), bufsize) == data
 
 
-def test_receive_unbuffered_stream_partial_content(tmpdir):
+def test_receive_unbuffered_stream_partial_content(tmpfile):
     chunks = ["1" * 1024,
               "2" * 1024,
               "3" * 42,
               "4" * 982]
     data = ''.join(chunks)
     with pytest.raises(errors.PartialContent):
-        receive_unbuffered(tmpdir, chunks, len(data) + 1, 2048)
+        receive_unbuffered(tmpfile, chunks, len(data) + 1, 2048)
 
 
-def receive_unbuffered(tmpdir, chunks, size, bufsize):
-    dst_file = tmpdir.join("dst")
-    dst_file.write("")
+def receive_unbuffered(tmpfile, chunks, size, bufsize):
     src = testutil.UnbufferedStream(chunks)
-    with file.open(str(dst_file), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, size, buffersize=bufsize)
         op.run()
-        with open(str(dst_file), "rb") as f:
+        with open(tmpfile, "rb") as f:
             return f.read()
 
 
@@ -343,14 +341,14 @@ def receive_unbuffered(tmpdir, chunks, size, bufsize):
     testutil.BLOCK * 2,
     testutil.BLOCK + testutil.BYTES,
 ], ids=testutil.head)
-def test_receive_no_size(tmpdir, data, offset):
-    dst_file = tmpdir.join("dst")
-    dst_file.write("x" * offset)
+def test_receive_no_size(tmpfile, data, offset):
+    with open(tmpfile, "wb") as f:
+        f.write("x" * offset)
     src = io.BytesIO(data)
-    with file.open(str(dst_file), "r+") as dst:
+    with file.open(tmpfile, "r+") as dst:
         op = ops.Receive(dst, src, offset=offset)
         op.run()
-    with io.open(str(dst_file), "rb") as f:
+    with io.open(tmpfile, "rb") as f:
         f.seek(offset)
         assert f.read(len(data)) == data
 
