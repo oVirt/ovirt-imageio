@@ -10,9 +10,22 @@ from __future__ import absolute_import
 
 import pytest
 
+from six.moves import urllib_parse
+
 
 @pytest.fixture
 def tmpfile(tmpdir):
+    """
+    Return a path to an empty temporary file.
+    """
     f = tmpdir.join("tmpfile")
     f.write("")
     return str(f)
+
+
+@pytest.fixture
+def tmpurl(tmpfile):
+    """
+    Return a file: url to an empty temporary file.
+    """
+    return urllib_parse.urlparse("file:" + tmpfile)
