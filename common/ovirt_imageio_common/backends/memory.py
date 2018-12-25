@@ -15,17 +15,16 @@ import os
 log = logging.getLogger("memory")
 
 
-def open(mode, sparse=False, buffer_size=0):
+def open(url, mode, sparse=False, buffer_size=0):
     """
     Open a memory backend.
 
     Arguments:
+        url: (url): ignored, for consistency with other backends.
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): ignored, memory backend does not support sparseness.
         buffer_size (int): ignored, memory backend does not allocate buffers.
     """
-    if mode not in ("r", "w", "r+"):
-        raise ValueError("Unsupported mode %r" % mode)
     return Backend(mode)
 
 
@@ -35,6 +34,8 @@ class Backend(object):
     """
 
     def __init__(self, mode, data=None):
+        if mode not in ("r", "w", "r+"):
+            raise ValueError("Unsupported mode %r" % mode)
         self._mode = mode
         self._buf = io.BytesIO(data)
         self._dirty = False

@@ -283,7 +283,7 @@ def test_receive_close_twice(tmpurl):
 ])
 def test_receive_flush(extra, dirty):
     size = 4096
-    dst = memory.open("r+", b"a" * size)
+    dst = memory.Backend("r+", b"a" * size)
     src = io.BytesIO(b"b" * size)
     op = ops.Receive(dst, src, size, **extra)
     op.run()
@@ -410,26 +410,26 @@ def test_zero_seek():
 ])
 def test_zero_flush(extra, dirty):
     size = 4096
-    dst = memory.open("r+", b"a" * size)
+    dst = memory.Backend("r+", b"a" * size)
     op = ops.Zero(dst, size, **extra)
     op.run()
     assert dst.dirty == dirty
 
 
 def test_zero_busy():
-    op = ops.Zero(memory.open("r+"), 4096)
+    op = ops.Zero(memory.Backend("r+"), 4096)
     assert op.active
 
 
 def test_zero_close_on_success():
-    op = ops.Zero(memory.open("r+"), 4096)
+    op = ops.Zero(memory.Backend("r+"), 4096)
     op.run()
     assert not op.active
 
 
 def test_zero_close_on_error():
     # Use readonly backend to trigger IOError on zero().
-    dst = memory.open("r")
+    dst = memory.Backend("r")
     op = ops.Zero(dst, 4096)
     with pytest.raises(IOError):
         op.run()
@@ -437,14 +437,14 @@ def test_zero_close_on_error():
 
 
 def test_zero_close_twice():
-    op = ops.Zero(memory.open("r+"), 4096)
+    op = ops.Zero(memory.Backend("r+"), 4096)
     op.run()
     op.close()  # should do nothing
     assert not op.active
 
 
 def test_zero_repr():
-    op = ops.Zero(memory.open("r+"), 4096)
+    op = ops.Zero(memory.Backend("r+"), 4096)
     rep = repr(op)
     assert "Zero" in rep
     assert "offset=0" in rep
@@ -454,13 +454,13 @@ def test_zero_repr():
 
 
 def test_zero_repr_active():
-    op = ops.Zero(memory.open("r+"), 4096)
+    op = ops.Zero(memory.Backend("r+"), 4096)
     op.close()
     assert "active" not in repr(op)
 
 
 def test_flush():
-    dst = memory.open("r+")
+    dst = memory.Backend("r+")
     dst.write(b"x")
     op = ops.Flush(dst)
     op.run()
@@ -468,12 +468,12 @@ def test_flush():
 
 
 def test_flush_busy():
-    op = ops.Flush(memory.open("r+"))
+    op = ops.Flush(memory.Backend("r+"))
     assert op.active
 
 
 def test_flush_close_on_success():
-    op = ops.Flush(memory.open("r+"))
+    op = ops.Flush(memory.Backend("r+"))
     op.run()
     assert not op.active
 
@@ -483,7 +483,7 @@ def test_flush_close_on_error():
     def flush():
         raise OSError
 
-    dst = memory.open("r")
+    dst = memory.Backend("r")
     dst.flush = flush
     op = ops.Flush(dst)
     with pytest.raises(OSError):
@@ -492,14 +492,14 @@ def test_flush_close_on_error():
 
 
 def test_flush_close_twice():
-    op = ops.Flush(memory.open("r+"))
+    op = ops.Flush(memory.Backend("r+"))
     op.run()
     op.close()  # should do nothing
     assert not op.active
 
 
 def test_flush_repr():
-    op = ops.Flush(memory.open("r"))
+    op = ops.Flush(memory.Backend("r"))
     rep = repr(op)
     assert "Flush" in rep
     assert "done=0" in rep
@@ -507,6 +507,6 @@ def test_flush_repr():
 
 
 def test_flush_repr_active():
-    op = ops.Flush(memory.open("r"))
+    op = ops.Flush(memory.Backend("r"))
     op.close()
     assert "active" not in repr(op)

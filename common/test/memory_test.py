@@ -8,13 +8,14 @@
 
 from __future__ import absolute_import
 
+from six.moves.urllib_parse import urlparse
 import pytest
 
 from ovirt_imageio_common.backends import memory
 
 
 def test_open_read_write():
-    m = memory.open("r+")
+    m = memory.Backend("r+")
     assert m.readable()
     assert m.writable()
 
@@ -32,7 +33,7 @@ def test_open_read_write():
 
 
 def test_open_readonly():
-    m = memory.open("r")
+    m = memory.Backend("r")
     assert m.readable()
     assert not m.writable()
 
@@ -48,7 +49,7 @@ def test_open_readonly():
 
 
 def test_open_writeonly():
-    m = memory.open("w")
+    m = memory.Backend("w")
     assert not m.readable()
     assert m.writable()
 
@@ -62,12 +63,12 @@ def test_open_writeonly():
 
 def test_invalid_mode():
     with pytest.raises(ValueError):
-        memory.open("invalid")
+        memory.Backend("invalid")
 
 
 @pytest.mark.parametrize("sparse", [True, False])
 def test_zero_middle(sparse):
-    m = memory.open("r+", sparse=sparse)
+    m = memory.open(urlparse("memory:"), "r+", sparse=sparse)
     m.write(b"xxxxxxxxxxxx")
     m.seek(4)
     n = m.zero(4)
@@ -79,7 +80,7 @@ def test_zero_middle(sparse):
 
 
 def test_close():
-    m = memory.open("r+")
+    m = memory.Backend("r+")
     m.close()
     # All operations should fail now with:
     #     ValueError: I/O operation on closed file
@@ -90,7 +91,7 @@ def test_close():
 
 
 def test_context_manager():
-    with memory.open("r+") as m:
+    with memory.Backend("r+") as m:
         m.write(b"data")
     with pytest.raises(ValueError):
         m.write("more")
@@ -102,7 +103,7 @@ def test_close_error():
         raise IOError("backend error")
 
     with pytest.raises(IOError):
-        with memory.open("r+") as m:
+        with memory.Backend("r+") as m:
             m.close = close
 
 
@@ -115,7 +116,7 @@ def test_propagate_user_error():
         raise IOError("backend error")
 
     with pytest.raises(UserError):
-        with memory.open("r+") as m:
+        with memory.Backend("r+") as m:
             m.close = close
             raise UserError("user error")
 
