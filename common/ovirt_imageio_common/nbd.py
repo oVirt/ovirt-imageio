@@ -23,7 +23,7 @@ from . import util
 # - nbd:unix:/sock
 # - nbd:unix:/sock:exportname=
 # - nbd:unix:/sock:exportname=sda
-URL = re.compile(r"nbd:unix:(?P<sock>/[^:]+)(:?:exportname=(?P<name>.*))?")
+UNIX_URL = re.compile(r"unix:(?P<sock>/[^:]+)(:?:exportname=(?P<name>.*))?")
 
 # Magic numbers.
 NBDMAGIC = 0x4e42444d41474943
@@ -123,9 +123,12 @@ def open(url):
 
     Currnetly only nbd:unix:/path:exportname=foo is supported.
     """
-    m = URL.match(url)
+    if url.scheme != "nbd":
+        raise Error("Unsupported URL scheme %s" % url)
+
+    m = UNIX_URL.match(url.path)
     if m is None:
-        raise Error("Unsupported URL %r" % url)
+        raise Error("Unsupported URL path %r" % url)
 
     d = m.groupdict()
     return Client(d["sock"], export_name=d["name"] or "")

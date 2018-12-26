@@ -11,6 +11,8 @@ from __future__ import absolute_import
 import logging
 import subprocess
 
+from six.moves.urllib_parse import urlparse
+
 import pytest
 
 from ovirt_imageio_common import nbd
@@ -185,7 +187,7 @@ def test_open(tmpdir, url, export):
 
     log.debug("Trying url=%r export=%r", url, export)
     with qemu_nbd.run(image, "raw", sock, export_name=export):
-        with nbd.open(url) as c:
+        with nbd.open(urlparse(url)) as c:
             assert c.export_size == 1024**3
 
 
@@ -198,7 +200,7 @@ def test_full_backup_handshake(tmpdir, fmt):
     subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
 
     with backup.full_backup(image, fmt, tmpdir) as backup_url:
-        with nbd.open(backup_url) as c:
+        with nbd.open(urlparse(backup_url)) as c:
             # TODO: test transmission_flags?
             assert c.export_size == 1024**3
             assert c.minimum_block_size == 1
@@ -229,7 +231,7 @@ def test_full_backup_single_image(tmpdir, fmt):
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(disk, fmt, tmpdir) as backup_url, \
-            nbd.open(backup_url) as d:
+            nbd.open(urlparse(backup_url)) as d:
         for i in range(0, disk_size, chunk_size):
             data = d.read(i, chunk_size)
             assert data.startswith(b"%d\n\0" % i)
@@ -261,7 +263,7 @@ def test_full_backup_complete_chain(tmpdir):
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(disk, "qcow2", tmpdir) as backup_url, \
-            nbd.open(backup_url) as d:
+            nbd.open(urlparse(backup_url)) as d:
         for i in range(depth):
             # Every chunk comes from different image.
             data = d.read(i * chunk_size, chunk_size)
