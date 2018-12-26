@@ -10,6 +10,7 @@ import bisect
 import logging
 import threading
 
+from ovirt_imageio_common import backends
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_daemon import measure
@@ -19,7 +20,6 @@ from six.moves import urllib_parse
 
 log = logging.getLogger("tickets")
 _tickets = {}
-supported_schemes = ['file']
 
 
 class Ticket(object):
@@ -43,7 +43,7 @@ class Ticket(object):
             self._url = urllib_parse.urlparse(url_str)
         except (ValueError, AttributeError, TypeError) as e:
             raise errors.InvalidTicketParameter("url", url_str, e)
-        if self._url.scheme not in supported_schemes:
+        if not backends.supports(self._url.scheme):
             raise errors.InvalidTicketParameter(
                 "url", url_str,
                 "Unsupported url scheme: %s" % self._url.scheme)

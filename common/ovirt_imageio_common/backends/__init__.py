@@ -9,6 +9,17 @@
 from __future__ import absolute_import
 
 from . import file
+from . import nbd
+
+_modules = {"file": file, "nbd": nbd}
+
+
+class Unsupported(Exception):
+    """ Requested backend is not supported """
+
+
+def supports(name):
+    return name in _modules
 
 
 def get(req, ticket, buffer_size=1024**2):
@@ -22,10 +33,14 @@ def get(req, ticket, buffer_size=1024**2):
     locking is needed.
     """
     if ticket.uuid not in req.context:
-        # TODO: use ticket.url.scheme to select the backend.
-        mode = "r+" if "write" in ticket.ops else "r"
+        if not supports(ticket.url.scheme):
+            raise Unsupported(
+                "Unsupported backend {!r}".format(ticket.url.scheme))
 
-        backend = file.open(
+        mode = "r+" if "write" in ticket.ops else "r"
+        module = _modules[ticket.url.scheme]
+
+        backend = module.open(
             ticket.url,
             mode,
             sparse=ticket.sparse,

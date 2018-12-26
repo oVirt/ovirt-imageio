@@ -8,8 +8,8 @@
 
 from __future__ import absolute_import
 
+from six.moves.urllib_parse import urlparse
 import pytest
-
 from ovirt_imageio_common import backends
 
 
@@ -26,6 +26,13 @@ class Request(object):
 
     def __init__(self):
         self.context = {}
+
+
+def test_get_unsupported_scheme():
+    ticket = Ticket("test", urlparse("unsupported:/path"))
+    req = Request()
+    with pytest.raises(backends.Unsupported):
+        backends.get(req, ticket)
 
 
 def test_get_caching(tmpurl):
@@ -72,3 +79,12 @@ def test_get_sparse(tmpurl, sparse):
 
     assert b.name == "file"
     assert b.sparse == sparse
+
+
+def test_get_nbd_backend(nbd_server):
+    nbd_server.start()
+    ticket = Ticket("test", nbd_server.url)
+    req = Request()
+    b = backends.get(req, ticket)
+
+    assert b.name == "nbd"
