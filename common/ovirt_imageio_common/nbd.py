@@ -232,8 +232,8 @@ class Client(object):
 
             if reply in ERROR_REPLY:
                 message = self._receive_error_reply(length)
-                raise Error("{} [message={}])"
-                            .format(ERROR_REPLY[reply], message))
+                raise Error("Error {}: {} ({})"
+                            .format(reply, strerror(reply), message))
 
             if reply == NBD_REP_ACK:
                 if self.export_size is None or self.transmission_flags is None:
@@ -328,8 +328,7 @@ class Client(object):
                         .format(magic, NBD_SIMPLE_REPLY_MAGIC))
 
         if error != 0:
-            # TODO: get description from error code.
-            raise Error("Failed with error {}".format(error))
+            raise Error("Error {}: {}".format(error, strerror(error)))
 
         if handle != expected_handle:
             raise Error("Unepected handle {}, expecting {}"
@@ -376,3 +375,7 @@ class Client(object):
             if t is None:
                 raise
             log.exeption("Error closing")
+
+
+def strerror(error):
+    return ERROR_REPLY.get(error, "Unknown error")
