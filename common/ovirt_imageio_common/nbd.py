@@ -179,11 +179,7 @@ class Client(object):
         self._receive_simple_reply(handle)
 
     def close(self):
-        if self._sock:
-            try:
-                self._sock.close()
-            finally:
-                self._lock = None
+        self._sock.close()
 
     # NBD fixed newstyle handshake
 
