@@ -8,9 +8,10 @@
 
 from __future__ import absolute_import
 
+import io
 import pytest
-
 from six.moves import urllib_parse
+from . import qemu_nbd
 
 
 @pytest.fixture
@@ -29,3 +30,27 @@ def tmpurl(tmpfile):
     Return a file: url to an empty temporary file.
     """
     return urllib_parse.urlparse("file:" + tmpfile)
+
+
+@pytest.fixture
+def nbd_server(tmpdir):
+    """
+    Returns nbd_server exporting a temporary file.
+
+    The test may configure the server before starting it. Typical example is
+    setting the read_only flag to create a read only server.
+
+    The test must start the server. The test framework will stop the server
+    when the test ends.
+    """
+    image = str(tmpdir.join("image"))
+    with io.open(image, "wb") as f:
+        f.truncate(10 * 1024**2)
+
+    sock = str(tmpdir.join("sock"))
+
+    server = qemu_nbd.Server(image, "raw", sock)
+    try:
+        yield server
+    finally:
+        server.stop()

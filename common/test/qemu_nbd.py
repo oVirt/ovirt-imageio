@@ -10,46 +10,75 @@ from __future__ import absolute_import
 
 import logging
 import subprocess
-
 from contextlib import contextmanager
 
-from ovirt_imageio_common import nbd
+from six.moves import urllib_parse
 
+from ovirt_imageio_common import nbd
 from . import testutil
 
 log = logging.getLogger("qemu_nbd")
 
 
+class Server(object):
+
+    def __init__(self, image, fmt, sock, export_name="", read_only=False,
+                 timeout=1.0):
+        self.image = image
+        self.fmt = fmt
+        self.sock = sock
+        self.export_name = export_name
+        self.read_only = read_only
+        self.timeout = timeout
+        self.proc = None
+        url = u"nbd:unix:{}:exportname={}".format(sock, export_name)
+        self.url = urllib_parse.urlparse(url)
+
+    def start(self):
+        cmd = [
+            "qemu-nbd",
+            "--socket", self.sock,
+            "--format", self.fmt,
+            "--export-name", self.export_name.encode("utf-8"),
+            "--persistent",
+            "--cache=none",
+            "--aio=native",
+            "--discard=unmap",
+        ]
+
+        if self.read_only:
+            cmd.append("--read-only")
+
+        cmd.append(self.image)
+
+        log.debug("Starting qemu-nbd %s", cmd)
+        self.proc = subprocess.Popen(cmd)
+
+        if not testutil.wait_for_path(self.sock, self.timeout):
+            self.stop()
+            raise RuntimeError("Timeout waiting for qemu-nbd socket")
+
+        log.debug("qemu-nbd socket ready")
+
+    def stop(self):
+        if self.proc:
+            log.debug("Terminating qemu-nbd")
+            self.proc.terminate()
+            self.proc.wait()
+            log.debug("qemu-nbd terminated with exit code %s",
+                      self.proc.returncode)
+            self.proc = None
+
+
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False):
-    cmd = [
-        "qemu-nbd",
-        "--socket", sock,
-        "--format", fmt,
-        "--export-name", export_name.encode("utf-8"),
-        "--persistent",
-        "--cache=none",
-        "--aio=native",
-        "--discard=unmap",
-    ]
-
-    if read_only:
-        cmd.append("--read-only")
-
-    cmd.append(image)
-
-    log.debug("Starting qemu-nbd %s", cmd)
-    p = subprocess.Popen(cmd)
+    server = Server(
+        image, fmt, sock, export_name=export_name, read_only=read_only)
+    server.start()
     try:
-        if not testutil.wait_for_path(sock, 1):
-            raise RuntimeError("Timeout waiting for qemu-nbd socket")
-        log.debug("qemu-nbd socket ready")
         yield
     finally:
-        log.debug("Terminating qemu-nbd")
-        p.terminate()
-        p.wait()
-        log.debug("qemu-nbd terminated with exit code %s", p.returncode)
+        server.stop()
 
 
 @contextmanager
