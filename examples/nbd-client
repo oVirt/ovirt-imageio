@@ -131,7 +131,9 @@ parser.add_argument(
     default="", help="export name")
 parser.add_argument(
     "-b", "--block-size",
-    default=8 * 1024**2,
+    # 4M is significantly faster than 8M on download, and about the same on
+    # upload.
+    default=4 * 1024**2,
     type=kib,
     help="block size in KiB")
 
