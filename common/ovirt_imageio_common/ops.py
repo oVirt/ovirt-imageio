@@ -98,19 +98,18 @@ class Send(Operation):
         self._dst = dst
 
     def _run(self):
-        for chunk in self:
-            with self._clock.run("write"):
-                self._dst.write(chunk)
-
-    def __iter__(self):
         with closing(util.aligned_buffer(self._buffersize)) as buf:
             try:
                 skip = self._offset % self._src.block_size
                 self._src.seek(self._offset - skip)
                 if skip:
-                    yield self._next_chunk(buf, skip)
+                    chunk = self._next_chunk(buf, skip)
+                    with self._clock.run("write"):
+                        self._dst.write(chunk)
                 while self._todo:
-                    yield self._next_chunk(buf)
+                    chunk = self._next_chunk(buf)
+                    with self._clock.run("write"):
+                        self._dst.write(chunk)
             except EOF:
                 pass
 

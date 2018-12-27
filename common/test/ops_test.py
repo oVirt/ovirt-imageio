@@ -90,7 +90,6 @@ def test_send_seek():
 def test_send_busy():
     src = memory.Backend("r", b"data")
     op = ops.Send(src, io.BytesIO(), 4)
-    next(iter(op))
     assert op.active
 
 
@@ -114,17 +113,6 @@ def test_send_close_twice():
     op = ops.Send(src, io.BytesIO(), 4)
     op.run()
     op.close()  # Should do nothing
-    assert not op.active
-
-
-def test_send_iterate_and_close():
-    # Used when passing operation as app_iter on GET request.
-    src = memory.Backend("r", testutil.BUFFER)
-    dst = io.BytesIO()
-    op = ops.Send(src, dst, len(testutil.BUFFER))
-    for chunk in op:
-        dst.write(chunk)
-    op.close()
     assert not op.active
 
 
