@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import io
 import logging
 import subprocess
 
@@ -64,6 +65,23 @@ def test_raw_read(tmpdir):
     with qemu_nbd.run(image, "raw", sock):
         with nbd.Client(sock) as c:
             assert c.read(offset, len(data)) == data
+
+
+def test_raw_readinto(nbd_server):
+    offset = 1024**2
+    data = b"can read from raw"
+
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(2 * 1024**2)
+        f.seek(1024**2)
+        f.write(data)
+
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        buf = bytearray(len(data))
+        c.readinto(offset, buf)
+        assert buf == data
 
 
 def test_raw_write(tmpdir):

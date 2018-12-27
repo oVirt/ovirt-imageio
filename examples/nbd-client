@@ -71,11 +71,13 @@ def download(args):
         with ui.ProgressBar(src.export_size) as pb:
             max_step = min(src.maximum_block_size, args.block_size)
             offset = 0
+            buf = bytearray(max_step)
 
             while offset < src.export_size:
                 step = min(src.export_size - offset, max_step)
-                chunk = src.read(offset, step)
-                dst.write(chunk)
+                view = memoryview(buf)[:step]
+                src.readinto(offset, view)
+                dst.write(view)
                 offset += step
                 pb.update(step)
 

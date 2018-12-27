@@ -160,6 +160,12 @@ class Client(object):
         self._receive_simple_reply(handle)
         return self._receive(length)
 
+    def readinto(self, offset, buf):
+        handle = next(self._counter)
+        self._send_command(NBD_CMD_READ, handle, offset, len(buf))
+        self._receive_simple_reply(handle)
+        return self._receive_into(buf)
+
     def write(self, offset, data):
         handle = next(self._counter)
         self._send_command(NBD_CMD_WRITE, handle, offset, len(data))
@@ -350,17 +356,21 @@ class Client(object):
         self._sock.sendall(data)
 
     def _receive(self, length):
-        data = bytearray(length)
+        buf = bytearray(length)
+        self._receive_into(buf)
+        return buf
+
+    def _receive_into(self, buf):
+        length = len(buf)
         pos = 0
         while pos < length:
-            buf = memoryview(data)[pos:]
-            n = util.uninterruptible(self._sock.recv_into, buf)
+            view = memoryview(buf)[pos:]
+            n = util.uninterruptible(self._sock.recv_into, view)
             if not n:
                 raise Error("Server closed the connection, read {} bytes, "
                             "expected {} bytes"
                             .format(pos, length))
             pos += n
-        return data
 
     # Conetext manager
 
