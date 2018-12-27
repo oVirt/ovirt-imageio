@@ -103,17 +103,13 @@ class Send(Operation):
                 skip = self._offset % self._src.block_size
                 self._src.seek(self._offset - skip)
                 if skip:
-                    chunk = self._next_chunk(buf, skip)
-                    with self._clock.run("write"):
-                        self._dst.write(chunk)
+                    self._send_chunk(buf, skip)
                 while self._todo:
-                    chunk = self._next_chunk(buf)
-                    with self._clock.run("write"):
-                        self._dst.write(chunk)
+                    self._send_chunk(buf)
             except EOF:
                 pass
 
-    def _next_chunk(self, buf, skip=0):
+    def _send_chunk(self, buf, skip=0):
         if self._src.tell() % self._src.block_size:
             if self._size is None:
                 raise EOF
@@ -127,8 +123,10 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
+        chunk = buffer(buf, skip, size)
+        with self._clock.run("write"):
+            self._dst.write(chunk)
         self._done += size
-        return buffer(buf, skip, size)
 
 
 class Receive(Operation):

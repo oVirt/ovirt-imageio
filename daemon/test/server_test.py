@@ -786,8 +786,14 @@ def test_images_download_out_of_range(tmpdir, rng, end):
     assert res.status == 403
 
 
-def test_download_progress(tmpdir):
-    size = 1024**2 * 10
+def test_download_progress(tmpdir, monkeypatch):
+    # We need to read at least one buffer to update the transfered value.
+    monkeypatch.setattr(config.daemon, "buffer_size", 1024**2)
+
+    # And we need to request enough data so the server does not complete before
+    # the client read all the data.
+    size = config.daemon.buffer_size * 10
+
     filename = tmpdir.join("image")
     with open(str(filename), 'wb') as image:
         image.truncate(size)
@@ -801,8 +807,8 @@ def test_download_progress(tmpdir):
     assert ticket.transferred() == 0
 
     res = http.get("/images/" + ticket.uuid)
-    res.read(1024**2)
-    # The server has sent some chunks
+    res.read(config.daemon.buffer_size)
+    # The server processed at least one buffer.
     assert ticket.active()
     assert 0 < ticket.transferred() < size
 
