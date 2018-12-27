@@ -37,9 +37,7 @@ class Operation(object):
         else:
             self._buffersize = buffersize
         self._done = 0
-        self._active = True
         self._clock = clock
-        self._clock.start("operation")
 
     @property
     def size(self):
@@ -59,30 +57,15 @@ class Operation(object):
             return self._buffersize
         return self._size - self._done
 
-    @property
-    def active(self):
-        return self._active
-
     def run(self):
-        try:
+        with self._clock.run("operation"):
             self._run()
-        finally:
-            self.close()
-
-    def close(self):
-        if self._active:
-            self._active = False
-            self._clock.stop("operation")
 
     def __repr__(self):
         return ("<{self.__class__.__name__} "
                 "size={self.size} offset={self._offset} "
-                "buffersize={self._buffersize} done={self.done}{active} "
-                "at 0x{id}>").format(
-                    self=self,
-                    id=id(self),
-                    active=" active" if self.active else ""
-                )
+                "buffersize={self._buffersize} done={self.done} "
+                "at 0x{id}>").format(self=self, id=id(self))
 
 
 class Send(Operation):

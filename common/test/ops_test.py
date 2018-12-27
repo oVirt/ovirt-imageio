@@ -87,35 +87,6 @@ def test_send_seek():
     assert dst.getvalue() == b"01234"
 
 
-def test_send_busy():
-    src = memory.Backend("r", b"data")
-    op = ops.Send(src, io.BytesIO(), 4)
-    assert op.active
-
-
-def test_send_close_on_success():
-    src = memory.Backend("r", b"data")
-    op = ops.Send(src, io.BytesIO(), 4)
-    op.run()
-    assert not op.active
-
-
-def test_send_close_on_error():
-    src = memory.Backend("r", b"data")
-    op = ops.Send(src, io.BytesIO(), 5)
-    with pytest.raises(errors.PartialContent):
-        op.run()
-    assert not op.active
-
-
-def test_send_close_twice():
-    src = memory.Backend("r", b"data")
-    op = ops.Send(src, io.BytesIO(), 4)
-    op.run()
-    op.close()  # Should do nothing
-    assert not op.active
-
-
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
     testutil.BUFFER * 2,
@@ -137,13 +108,6 @@ def test_send_repr():
     rep = repr(op)
     assert "Send" in rep
     assert "size=200 offset=24 buffersize=4096 done=0" in rep
-    assert "active" in rep
-
-
-def test_send_repr_active():
-    op = ops.Send(None, None)
-    op.close()
-    assert "active" not in repr(op)
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -231,39 +195,6 @@ def test_receive_seek():
     assert b == b"bbbbbaaaaa\0"
 
 
-def test_receive_busy(tmpurl):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpurl, "r+") as dst:
-        op = ops.Receive(dst, src, BLOCKSIZE)
-        assert op.active
-
-
-def test_receive_close_on_success(tmpurl):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpurl, "r+") as dst:
-        op = ops.Receive(dst, src, BLOCKSIZE)
-        op.run()
-        assert not op.active
-
-
-def test_receive_close_on_error(tmpurl):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpurl, "r+") as dst:
-        op = ops.Receive(dst, src, BLOCKSIZE + 1)
-        with pytest.raises(errors.PartialContent):
-            op.run()
-        assert not op.active
-
-
-def test_receive_close_twice(tmpurl):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    with file.open(tmpurl, "r+") as dst:
-        op = ops.Receive(dst, src, BLOCKSIZE)
-        op.run()
-        op.close()  # should do nothing
-        assert not op.active
-
-
 @pytest.mark.parametrize("extra, dirty", [
     ({}, False),  # Flushes by default for backward compatibility.
     ({"flush": True}, False),
@@ -283,13 +214,6 @@ def test_recv_repr():
     rep = repr(op)
     assert "Receive" in rep
     assert "size=100 offset=42 buffersize=4096 done=0" in rep
-    assert "active" in rep
-
-
-def test_recv_repr_active():
-    op = ops.Receive(memory.Backend("r+"), None)
-    op.close()
-    assert "active" not in repr(op)
 
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
@@ -404,33 +328,6 @@ def test_zero_flush(extra, dirty):
     assert dst.dirty == dirty
 
 
-def test_zero_busy():
-    op = ops.Zero(memory.Backend("r+"), 4096)
-    assert op.active
-
-
-def test_zero_close_on_success():
-    op = ops.Zero(memory.Backend("r+"), 4096)
-    op.run()
-    assert not op.active
-
-
-def test_zero_close_on_error():
-    # Use readonly backend to trigger IOError on zero().
-    dst = memory.Backend("r")
-    op = ops.Zero(dst, 4096)
-    with pytest.raises(IOError):
-        op.run()
-    assert not op.active
-
-
-def test_zero_close_twice():
-    op = ops.Zero(memory.Backend("r+"), 4096)
-    op.run()
-    op.close()  # should do nothing
-    assert not op.active
-
-
 def test_zero_repr():
     op = ops.Zero(memory.Backend("r+"), 4096)
     rep = repr(op)
@@ -438,13 +335,6 @@ def test_zero_repr():
     assert "offset=0" in rep
     assert "size=4096" in rep
     assert "done=0" in rep
-    assert "active" in rep
-
-
-def test_zero_repr_active():
-    op = ops.Zero(memory.Backend("r+"), 4096)
-    op.close()
-    assert "active" not in repr(op)
 
 
 def test_flush():
@@ -455,46 +345,8 @@ def test_flush():
     assert not dst.dirty
 
 
-def test_flush_busy():
-    op = ops.Flush(memory.Backend("r+"))
-    assert op.active
-
-
-def test_flush_close_on_success():
-    op = ops.Flush(memory.Backend("r+"))
-    op.run()
-    assert not op.active
-
-
-def test_flush_close_on_error():
-
-    def flush():
-        raise OSError
-
-    dst = memory.Backend("r")
-    dst.flush = flush
-    op = ops.Flush(dst)
-    with pytest.raises(OSError):
-        op.run()
-    assert not op.active
-
-
-def test_flush_close_twice():
-    op = ops.Flush(memory.Backend("r+"))
-    op.run()
-    op.close()  # should do nothing
-    assert not op.active
-
-
 def test_flush_repr():
     op = ops.Flush(memory.Backend("r"))
     rep = repr(op)
     assert "Flush" in rep
     assert "done=0" in rep
-    assert "active" in rep
-
-
-def test_flush_repr_active():
-    op = ops.Flush(memory.Backend("r"))
-    op.close()
-    assert "active" not in repr(op)

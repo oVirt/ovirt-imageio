@@ -79,35 +79,6 @@ def receive(tmpfile, data, size, offset=0):
         return f.read(size)
 
 
-def test_receive_busy(tmpfile):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, BLOCKSIZE)
-    assert op.active
-
-
-def test_receive_close_on_success(tmpfile):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, BLOCKSIZE)
-    op.run()
-    assert not op.active
-
-
-def test_receive_close_on_error(tmpfile):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, BLOCKSIZE + 1)
-    with pytest.raises(errors.PartialContent):
-        op.run()
-    assert not op.active
-
-
-def test_receive_close_twice(tmpfile):
-    src = io.BytesIO(b"x" * BLOCKSIZE)
-    op = directio.Receive(tmpfile, src, BLOCKSIZE)
-    op.run()
-    op.close()  # should do nothing
-    assert not op.active
-
-
 @pytest.mark.parametrize("extra, calls", [
     ({}, 1),  # Flushes by default.
     ({"flush": True}, 1),
@@ -140,13 +111,6 @@ def test_recv_repr(tmpfile):
     rep = repr(op)
     assert "Receive" in rep
     assert "size=100 offset=42 buffersize=4096 done=0" in rep
-    assert "active" in rep
-
-
-def test_recv_repr_active(tmpfile):
-    op = directio.Receive(tmpfile, None)
-    op.close()
-    assert "active" not in repr(op)
 
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
