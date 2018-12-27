@@ -66,6 +66,13 @@ class Echo(object):
             count -= len(chunk)
 
 
+class JSON(object):
+
+    def put(self, req, resp):
+        msg = json.loads(req.read())
+        resp.send_json(msg)
+
+
 class RangeDemo(object):
     """
     Demonstrate using Range and Content-Range headers.
@@ -163,9 +170,7 @@ class RequestInfo(object):
         else:
             info["content_range"] = req.content_range
 
-        body = json.dumps(info).encode("utf-8")
-        resp.headers["content-length"] = len(body)
-        resp.write(body)
+        resp.send_json(info)
 
 
 class Context(object):
@@ -268,6 +273,7 @@ def server():
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
         (r"/echo/(.*)", Echo()),
+        (r"/json/", JSON()),
         (r"/range-demo/", RangeDemo()),
         (r"/request-info/(.*)", RequestInfo()),
         (r"/context/(.*)", Context()),
@@ -384,6 +390,22 @@ def test_echo_100_continue(server):
         r = con.getresponse()
         assert r.status == http.OK
         assert r.read() == data
+
+
+def test_json(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        send = {"Hebrew Alef": u"\u05d0"}
+        data = json.dumps(send).encode("utf-8") + b"\n"
+        con.request("PUT", "/json/", body=data)
+        r = con.getresponse()
+        data = r.read()
+        assert r.status == http.OK
+        assert r.getheader("content-type") == "application/json"
+        assert int(r.getheader("content-length")) == len(data)
+        assert data.endswith(b"\n")
+        recv = json.loads(data)
+        assert send == recv
 
 
 def test_range_demo(server):

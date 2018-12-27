@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import io
+import json
 import logging
 import re
 import socket
@@ -377,6 +378,19 @@ class Response(object):
         self.status_code = e.code
         body = str(e).encode("utf-8")
         self.headers["content-length"] = len(body)
+        self.write(body)
+
+    def send_json(self, obj):
+        """
+        Send a JSON response.
+        """
+        if self._started:
+            raise AssertionError("Response already sent")
+
+        self.status_code = OK
+        body = json.dumps(obj).encode("utf-8") + b"\n"
+        self.headers["content-length"] = len(body)
+        self.headers["content-type"] = "application/json"
         self.write(body)
 
     def close_connection(self):
