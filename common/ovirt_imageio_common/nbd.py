@@ -349,16 +349,17 @@ class Client(object):
     def _send(self, data):
         self._sock.sendall(data)
 
-    def _receive(self, n):
-        data = bytearray()
-        while n:
-            b = util.uninterruptible(self._sock.recv, n)
-            if not b:
+    def _receive(self, length):
+        data = bytearray(length)
+        pos = 0
+        while pos < length:
+            buf = memoryview(data)[pos:]
+            n = util.uninterruptible(self._sock.recv_into, buf)
+            if not n:
                 raise Error("Server closed the connection, read {} bytes, "
                             "expected {} bytes"
-                            .format(len(data), n))
-            n -= len(b)
-            data += b
+                            .format(pos, length))
+            pos += n
         return data
 
     # Conetext manager

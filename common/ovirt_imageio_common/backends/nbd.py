@@ -60,10 +60,12 @@ class Backend(object):
         if not self.readable():
             raise IOError("Unsupported operation: readinto")
 
-        # TODO: This is horrible - first nbd.Client reads data from the socket
-        # into a bytearray, doing allocation for every read, and here we copy
-        # the allocated data to the operation buffer. I think we need to add
-        # readinto() to nbd.Client, using socket.recv_into to avoid all copies.
+        # TODO: This is horrible - we copy the data allocated by the client to
+        # the buffer allocated by the operation, instead of passing the buffer
+        # to the client, and the client passing the buffer to the socket.
+        # This can be fixed if we use bytearray instead of mmap when using nbd
+        # client, and allocate the buffer by the backend instead of by the
+        # operation.
         data = self._client.read(self._position, len(buf))
         length = len(data)
         buf[:length] = bytes(data)
