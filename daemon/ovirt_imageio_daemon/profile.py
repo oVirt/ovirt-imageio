@@ -6,7 +6,6 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-import json
 import logging
 import threading
 
@@ -49,9 +48,8 @@ class Handler(object):
         if yappi is None:
             raise http.Error(http.NOT_FOUND, "yappi is not installed")
 
-        body = json.dumps({"running": yappi.is_running()}).encode("utf-8")
-        resp.headers["content-length"] = len(body)
-        resp.write(body)
+        msg = {"running": yappi.is_running()}
+        resp.send_json(msg)
 
     def _start_profiling(self, clock):
         with lock:

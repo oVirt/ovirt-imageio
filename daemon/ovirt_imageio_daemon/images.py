@@ -209,13 +209,9 @@ class Handler(object):
                 allow.extend(("PUT", "PATCH"))
                 features = ["zero", "flush"]
 
-        msg = {"features": features, "unix_socket": self.config.images.socket}
-        body = json.dumps(msg).encode("utf-8")
-
-        resp.headers["content-length"] = len(body)
-        resp.headers["content-type"] = "application/json"
         resp.headers["allow"] = ",".join(allow)
-        resp.write(body)
+        msg = {"features": features, "unix_socket": self.config.images.socket}
+        resp.send_json(msg)
 
     def _backend(self, req, ticket):
         return backends.get(

@@ -40,11 +40,7 @@ class Handler(object):
 
         ticket_info = ticket.info()
         log.debug("[%s] GET ticket=%s", req.client_addr, ticket_info)
-
-        body = json.dumps(ticket_info).encode("utf-8")
-        resp.headers["content-length"] = len(body)
-        resp.headers["content-type"] = "application/json"
-        resp.write(body)
+        resp.send_json(ticket_info)
 
     def put(self, req, resp, ticket_id):
         if not ticket_id:
