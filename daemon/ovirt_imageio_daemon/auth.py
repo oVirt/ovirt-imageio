@@ -117,15 +117,6 @@ class Ticket(object):
         finally:
             self._remove_operation(operation)
 
-    def bind(self, operation):
-        """
-        Return an operation bound to the ticket, implementing
-        WebOb.Response.app_iter interface.
-
-        The caller must close the bound operation when done.
-        """
-        return BoundOperation(self, operation)
-
     def touch(self):
         """
         Extend the ticket and update the last access time.
@@ -223,35 +214,6 @@ class Ticket(object):
                     transferred=self.transferred(),
                     url=urllib_parse.urlunparse(self.url)
                 )
-
-
-class BoundOperation(object):
-    """
-    An operation bound to ticket while the operation is active.
-
-    The caller can iterate over the operation data, and finally close it.
-    """
-
-    def __init__(self, ticket, operation):
-        self._ticket = ticket
-        self._operation = operation
-        ticket._add_operation(operation)
-
-    # WebOB.Response.app_iter interface.
-
-    def __iter__(self):
-        """
-        Iterate over operation data.
-        """
-        for chunk in self._operation:
-            yield chunk
-
-    def close(self):
-        """
-        Unbind the opeation from the ticket, and close it.
-        """
-        self._ticket._remove_operation(self._operation)
-        self._operation.close()
 
 
 def _required(d, key, type):

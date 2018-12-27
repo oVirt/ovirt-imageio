@@ -32,17 +32,9 @@ class Operation(object):
         self.offset = offset
         self.size = size
         self.done = 0
-        self.closed = False
-
-    def __iter__(self):
-        self.done = self.size
-        yield b"x" * self.size
 
     def run(self):
         self.done = self.size
-
-    def close(self):
-        self.closed = True
 
 
 def test_transfered_nothing():
@@ -113,36 +105,29 @@ def test_transfered_ongoing_concurrent_ops():
     # Start 2 ongoing operations:
     # ongoing: 0-0, 100-100
     # completed:
-    b1 = ticket.bind(Operation(0, 100))
-    b2 = ticket.bind(Operation(100, 100))
+    op1 = Operation(0, 100)
+    ticket._add_operation(op1)
     assert ticket.transferred() == 0
     assert ticket.active()
 
-    # Consume b1 data:
+    op2 = Operation(100, 100)
+    ticket._add_operation(op2)
+    assert ticket.transferred() == 0
+    assert ticket.active()
+
+    # Consume op1 data:
     # ongoing: 0-100, 100-100
     # completed:
-    list(b1)
+    op1.run()
+    ticket._remove_operation(op1)
     assert ticket.transferred() == 100
     assert ticket.active()
 
-    # Consume b2 data:
+    # Consume op2 data:
     # ongoing: 0-100, 100-200
     # completed:
-    list(b2)
-    assert ticket.transferred() == 200
-    assert ticket.active()
-
-    # Close first operation:
-    # ongoing: 100-200
-    # completed: 0-100
-    b1.close()
-    assert ticket.transferred() == 200
-    assert ticket.active()
-
-    # Close last operation:
-    # ongoing:
-    # completed: 0-200
-    b2.close()
+    op2.run()
+    ticket._remove_operation(op2)
     assert ticket.transferred() == 200
     assert not ticket.active()
 
@@ -153,34 +138,28 @@ def test_transfered_ongoing_overlapping_ops():
     # Start 2 ongoing operations.
     # ongoing: 0-0, 80-80
     # completed:
-    b1 = ticket.bind(Operation(0, 120))
-    b2 = ticket.bind(Operation(80, 120))
+    op1 = Operation(0, 120)
+    op2 = Operation(80, 120)
+    ticket._add_operation(op1)
+    ticket._add_operation(op2)
     assert ticket.transferred() == 0
     assert ticket.active()
 
-    # Consume b1 data:
+    # Consume op1 data:
     # ongoing: 0-120, 80-80
     # completed:
-    list(b1)
+    op1.run()
+    ticket._remove_operation(op1)
     assert ticket.transferred() == 120
+    assert ticket.active()
 
-    # Consume b2 data:
+    # Consume op2 data:
     # ongoing: 0-120, 80-200
     # completed:
-    list(b2)
+    op2.run()
+    ticket._remove_operation(op2)
     assert ticket.transferred() == 200
-
-    # Close first operation:
-    # ongoing: 80-200
-    # completed: 0-120
-    b1.close()
-    assert ticket.transferred() == 200
-
-    # Close last operation:
-    # ongoing:
-    # completed: 0-200
-    b2.close()
-    assert ticket.transferred() == 200
+    assert not ticket.active()
 
 
 def test_transfered_ongoing_non_continues_ops():
@@ -189,33 +168,25 @@ def test_transfered_ongoing_non_continues_ops():
     # Start 2 ongoing operations.
     # ongoing: 0-0, 200-200
     # completed:
-    b1 = ticket.bind(Operation(0, 100))
-    b2 = ticket.bind(Operation(200, 100))
+    op1 = Operation(0, 100)
+    op2 = Operation(200, 100)
+    ticket._add_operation(op1)
+    ticket._add_operation(op2)
     assert ticket.transferred() == 0
     assert ticket.active()
 
-    # Consume b1 data:
+    # Consume op1 data:
     # ongoing: 0-100, 200-200
     # completed:
-    list(b1)
+    op1.run()
+    ticket._remove_operation(op1)
     assert ticket.transferred() == 100
 
-    # Consume b2 data:
+    # Consume op2 data:
     # ongoing: 0-100, 200-300
     # completed:
-    list(b2)
-    assert ticket.transferred() == 200
-
-    # Close first operation:
-    # ongoing: 200-300
-    # completed: 0-100
-    b1.close()
-    assert ticket.transferred() == 200
-
-    # Close last operation:
-    # ongoing:
-    # completed: 0-100, 200-300
-    b2.close()
+    op2.run()
+    ticket._remove_operation(op2)
     assert ticket.transferred() == 200
 
 
@@ -266,7 +237,7 @@ def test_transferred_benchmark(concurrent):
     # Add some ongoing operations - assume worst case when ranges are not
     # continues.
     for i in xrange(concurrent):
-        list(ticket.bind(Operation(i * 1000 + 200, 100)))
+        ticket._add_operation(Operation(i * 1000 + 200, 100))
 
     # Time transferred call - merging ongoing and completed ranges.
     start = time.time()
@@ -350,27 +321,3 @@ def test_ticket_run():
 
     assert ticket.transferred() == op.done
     assert op.done == 100
-    assert not op.closed
-
-
-def test_ticket_bind():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
-    op = Operation(0, 100)
-    bop = ticket.bind(op)
-
-    assert ticket.active()
-    assert ticket.transferred() == 0
-    assert op.done == 0
-
-    # Use as WebOB.Response.app_iter.
-    data = list(bop)
-
-    assert op.done == 100
-    assert not op.closed
-    assert data == [b"x" * op.done]
-
-    bop.close()
-
-    assert not ticket.active()
-    assert ticket.transferred() == op.done
-    assert op.closed
