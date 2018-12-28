@@ -19,7 +19,7 @@ from .. import compat
 from .. import ioutil
 from .. import util
 
-log = logging.getLogger("file")
+log = logging.getLogger("backends.file")
 
 
 def open(url, mode, sparse=False, buffer_size=1024**2):

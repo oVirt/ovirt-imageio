@@ -12,7 +12,7 @@ import io
 import logging
 import os
 
-log = logging.getLogger("memory")
+log = logging.getLogger("backends.memory")
 
 
 def open(url, mode, sparse=False, buffer_size=0):
