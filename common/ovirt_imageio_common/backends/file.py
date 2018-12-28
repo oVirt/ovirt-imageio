@@ -37,17 +37,17 @@ def open(url, mode, sparse=False, buffer_size=1024**2):
         fio.name = url.path
         mode = os.fstat(fio.fileno()).st_mode
         if stat.S_ISBLK(mode):
-            return BlockIO(fio, sparse=sparse)
+            return BlockBackend(fio, sparse=sparse)
         else:
-            return FileIO(fio, sparse=sparse, buffer_size=buffer_size)
+            return FileBackend(fio, sparse=sparse, buffer_size=buffer_size)
     except:
         fio.close()
         raise
 
 
-class BaseIO(object):
+class Backend(object):
     """
-    Abstract I/O backend.
+    Base class for file backends.
     """
 
     def __init__(self, fio, sparse=False):
@@ -109,7 +109,7 @@ class BaseIO(object):
             finally:
                 self._fio = None
 
-    # BaseIO interface.
+    # Backend interface.
 
     def zero(self, count):
         """
@@ -212,20 +212,20 @@ class BaseIO(object):
         return count
 
 
-class BlockIO(BaseIO):
+class BlockBackend(Backend):
     """
-    Block device I/O backend.
+    Block device backend.
     """
 
     def __init__(self, fio, sparse=False):
         """
-        Initialize a BlockIO backend.
+        Initialize a BlockBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
         """
-        super(BlockIO, self).__init__(fio, sparse=sparse)
+        super(BlockBackend, self).__init__(fio, sparse=sparse)
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
@@ -270,14 +270,14 @@ class BlockIO(BaseIO):
     _trim = _zero
 
 
-class FileIO(BaseIO):
+class FileBackend(Backend):
     """
-    File I/O backend.
+    Regular file backend.
     """
 
     def __init__(self, fio, sparse=False, buffer_size=1024**2):
         """
-        Initialize a FileIO backend.
+        Initialize a FileBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
@@ -285,7 +285,7 @@ class FileIO(BaseIO):
             buffer_size (int): size of buffer used in zero() if manual zeroing
                 is needed.
         """
-        super(FileIO, self).__init__(fio, sparse=sparse)
+        super(FileBackend, self).__init__(fio, sparse=sparse)
         # These will be set to False if the first call to fallocate() reveal
         # that it is not supported on the current file system.
         self._can_zero_range = True
@@ -400,4 +400,4 @@ class FileIO(BaseIO):
                 self._buf.close()
             finally:
                 self._buf = None
-        super(FileIO, self).close()
+        super(FileBackend, self).close()
