@@ -267,7 +267,7 @@ class PartialResponse(object):
 
 @pytest.fixture(scope="module")
 def server():
-    server = http.Server(("", 0), http.Connection)
+    server = http.Server(("127.0.0.1", 0), http.Connection)
     log.info("Server listening on port %d", server.server_port)
 
     server.app = http.Router([
