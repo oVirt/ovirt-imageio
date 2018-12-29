@@ -17,8 +17,11 @@ log = logging.getLogger("backends.nbd")
 
 Error = nbd.Error
 
+# Default buffer size for copying.
+BUFFER_SIZE = 1024**2
 
-def open(url, mode, sparse=True, buffer_size=0):
+
+def open(url, mode, sparse=True, buffer_size=BUFFER_SIZE):
     """
     Open a NBD backend.
 
@@ -31,11 +34,11 @@ def open(url, mode, sparse=True, buffer_size=0):
         sparse (bool): ignored, NBD backend does not support sparseness. This
             must be controlled by the nbd server. It seems that qemu-nbd and
             qemu always deallocate space when zeroing.
-        buffer_size (int): ignored, NBD backend does not allocate buffers.
+        buffer_size (int): size of buffer to allocate if needed.
     """
     client = nbd.open(url)
     try:
-        return Backend(client, mode)
+        return Backend(client, mode, buffer_size=buffer_size)
     except:
         client.close()
         raise
@@ -46,11 +49,12 @@ class Backend(object):
     NBD backend.
     """
 
-    def __init__(self, client, mode):
+    def __init__(self, client, mode, buffer_size=BUFFER_SIZE):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
         self._client = client
         self._mode = mode
+        self._buffer = bytearray(buffer_size)
         self._position = 0
         self._dirty = False
 
@@ -71,6 +75,26 @@ class Backend(object):
         buf[:length] = bytes(data)
 
         self._position += length
+        return length
+
+    def write_to(self, dst, length):
+        """
+        Copy up to length bytes at current position from NBD server to dst
+        file-like object.
+        """
+        if not self.readable():
+            raise IOError("Unsupported operation: write_to")
+
+        max_step = min(self._client.maximum_block_size, len(self._buffer))
+        end = self._position + length
+
+        while self._position < end:
+            step = min(end - self._position, max_step)
+            buf = memoryview(self._buffer)[:step]
+            self._client.readinto(self._position, buf)
+            dst.write(buf)
+            self._position += step
+
         return length
 
     def write(self, buf):

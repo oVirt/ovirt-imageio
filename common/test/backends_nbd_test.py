@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import io
 from contextlib import closing
 
 import pytest
@@ -83,6 +84,10 @@ def test_open_writeonly(nbd_server):
             with closing(util.aligned_buffer(100)) as buf:
                 b.readinto(buf)
 
+        dst = io.BytesIO()
+        with pytest.raises(IOError):
+            b.write_to(dst, 100)
+
         b.flush()
 
 
@@ -90,6 +95,93 @@ def test_invalid_mode(nbd_server):
     nbd_server.start()
     with pytest.raises(ValueError):
         nbd.open(nbd_server.url, "invalid")
+
+
+@pytest.mark.parametrize("buffer_size", [
+    # Length aligned to buffer size.
+    8 * 1024,
+    # Length not aligned to buffer size.
+    10 * 1024,
+    # Length equal to buffer size.
+    16 * 1024,
+    # Length smaller than buffer size.
+    20 * 1024,
+])
+def test_write_to_buffer_size(nbd_server, buffer_size):
+    length = 16 * 1024
+
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(length)
+        for i in range(0, length, 1024):
+            f.seek(i)
+            f.write(b"%d\n" % i)
+
+    nbd_server.start()
+
+    dst = io.BytesIO()
+    with nbd.open(nbd_server.url, "r", buffer_size=buffer_size) as b:
+        n = b.write_to(dst, length)
+
+        assert n == length
+        assert b.tell() == length
+
+    with io.open(nbd_server.image, "rb") as f:
+        assert f.read() == dst.getvalue()
+
+
+@pytest.mark.parametrize("length", [
+    # Unalinged length, seems to be supported by qemu-nbg and qemu, always
+    # publishing minimum_bloc_size = 1. However we tested only with files,
+    # maybe with block device the minimum block size is higher?
+    42,
+    # Typical block sizes.
+    512,
+    4096,
+    # The biggest read that can work by NBD spec.
+    32 * 1024**2,
+    # Will fail unless the backends implement a read loop.
+    33 * 1024**2,
+])
+def test_write_to_length(nbd_server, length):
+    # Create a sparse file for fastest reading.
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(33 * 1024**2)
+
+    nbd_server.start()
+
+    dst = io.BytesIO()
+    with nbd.open(nbd_server.url, "r") as b:
+        n = b.write_to(dst, length)
+
+        assert n == length
+        assert b.tell() == length
+        assert dst.tell() == length
+
+
+@pytest.mark.parametrize("offset", [
+    # Unalinged length.
+    42,
+    # Typical block sizes.
+    512,
+    4096,
+    # Last block.
+    16 * 1024 - 4096,
+])
+def test_write_to_offset(nbd_server, offset):
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(16 * 1024)
+
+    nbd_server.start()
+    length = 4096
+
+    dst = io.BytesIO()
+    with nbd.open(nbd_server.url, "r") as b:
+        b.seek(offset)
+        n = b.write_to(dst, length)
+
+        assert n == length
+        assert b.tell() == offset + length
+        assert dst.tell() == length
 
 
 @pytest.mark.parametrize("sparse", [True, False])
