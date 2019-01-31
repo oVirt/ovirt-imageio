@@ -19,6 +19,7 @@
 """ovirt-imageio-proxy plugin."""
 
 
+import datetime
 import gettext
 import os
 import textwrap
@@ -26,6 +27,7 @@ import textwrap
 from otopi import constants as otopicons
 from otopi import filetransaction
 from otopi import plugin
+from otopi import transaction
 from otopi import util
 
 from ovirt_engine_setup import constants as osetupcons
@@ -50,6 +52,7 @@ class Plugin(plugin.PluginBase):
         super(Plugin, self).__init__(context=context)
         self._needStart = False
         self._enabled = True
+        self._new_filename = None
 
     @plugin.event(
         stage=plugin.Stages.STAGE_INIT,
@@ -244,6 +247,17 @@ class Plugin(plugin.PluginBase):
             ),
         )
 
+    def _conffile_was_written_by_previous_setup(self, conffile):
+        return self.environment[
+            osetupcons.CoreEnv.UNINSTALL_FILES_INFO
+        ].get(conffile)
+
+    def _conffile_was_changed_since_previous_setup(self, conffile):
+        uninstinfo = self.environment[
+            osetupcons.CoreEnv.UNINSTALL_FILES_INFO
+        ].get(conffile)
+        return uninstinfo.get('changed')
+
     @plugin.event(
         stage=plugin.Stages.STAGE_MISC,
         condition=lambda self: (
@@ -251,15 +265,90 @@ class Plugin(plugin.PluginBase):
         ),
     )
     def _misc_config(self):
-        self.environment[otopicons.CoreEnv.MAIN_TRANSACTION].append(
-            filetransaction.FileTransaction(
-                name=oipcons.FileLocations.OVIRT_IMAGEIO_PROXY_CONFIG,
-                content=self._get_configuration(),
-                modifiedList=self.environment[otopicons.CoreEnv.MODIFIED_FILES]
+        # If running on the engine machine, use key/cert created for httpd.
+        # In the past, we used our own pki.
+        # Only replace the config file if user didn't touch it since last
+        # run of engine-setup. Otherwise, write a new file and notify the user.
+        conffile = oipcons.FileLocations.OVIRT_IMAGEIO_PROXY_CONFIG
+        newcontent = self._get_configuration()
+        oldcontent = ''
+        if os.path.exists(conffile):
+            with open(conffile) as f:
+                oldcontent = f.read()
+
+        if self._conffile_was_written_by_previous_setup(conffile):
+            if not self._conffile_was_changed_since_previous_setup(conffile):
+                self.logger.info(
+                    _(
+                        'Updating {f} to use apache key and certificate'
+                    ).format(
+                        f=conffile,
+                    )
+                )
+            elif oldcontent == newcontent:
+                # We wrote the file in the past, the user changed it, but
+                # changed it to have the same content we already want to write.
+                # So output nothing to the user, but still re-write the file,
+                # so that we have the new hash in uninstall info.
+                self.logger.debug(
+                    'Rewriting %s in order to update uninstall info',
+                    conffile,
+                )
+            else:
+                # Write a new file, do not touch existing one that user
+                # changed, and notify the user.
+                self._new_filename = '{old}.new'.format(
+                    old=conffile,
+                )
+                if os.path.exists(self._new_filename):
+                    self._new_filename = '{newf}.{timestamp}'.format(
+                        newf=self._new_filename,
+                        timestamp=datetime.datetime.now().strftime(
+                            '%Y%m%d%H%M%S'
+                        ),
+                    )
+                self.logger.info(
+                    _(
+                        'Not rewriting {f} because it was changed manually. '
+                        'You might want to compare it with {fnew} and edit as '
+                        'needed.'
+                    ).format(
+                        f=conffile,
+                        fnew=self._new_filename,
+                    )
+                )
+        if self._new_filename:
+            # If we are writing a new file, write it immediately.
+            # Note that this will not be rolled back by engine-setup
+            # if there is some failure.
+            localtransaction = transaction.Transaction()
+            with localtransaction:
+                localtransaction.append(
+                    filetransaction.FileTransaction(
+                        name=self._new_filename,
+                        content=newcontent,
+                        modifiedList=self.environment[
+                            otopicons.CoreEnv.MODIFIED_FILES
+                        ],
+                    )
+                )
+        else:
+            # If updating the existing file (or writing it new), do this
+            # in the main transaction. So will be rolled back if there is
+            # a problem.
+            self.environment[otopicons.CoreEnv.MAIN_TRANSACTION].append(
+                filetransaction.FileTransaction(
+                    name=conffile,
+                    content=newcontent,
+                    modifiedList=self.environment[
+                        otopicons.CoreEnv.MODIFIED_FILES
+                    ],
+                )
             )
-        )
 
     def _get_configuration(self):
+        key = oengcommcons.FileLocations.OVIRT_ENGINE_PKI_APACHE_KEY
+        cert = oengcommcons.FileLocations.OVIRT_ENGINE_PKI_APACHE_CERT
         return textwrap.dedent(
             """\
             [proxy]
@@ -305,8 +394,8 @@ class Plugin(plugin.PluginBase):
             """
         ).format(
             port=self.environment[oipcons.ConfigEnv.IMAGEIO_PROXY_PORT],
-            key=oipcons.FileLocations.OVIRT_ENGINE_PKI_IMAGEIO_PROXY_KEY,
-            cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_IMAGEIO_PROXY_CERT,
+            key=key,
+            cert=cert,
             engine_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CERT,
             ca_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CA_CERT,
         )
@@ -358,6 +447,29 @@ class Plugin(plugin.PluginBase):
                     ),
                 },
             ),
+        )
+
+    @plugin.event(
+        stage=plugin.Stages.STAGE_CLOSEUP,
+        before=(
+            osetupcons.Stages.DIALOG_TITLES_E_SUMMARY,
+        ),
+        after=(
+            osetupcons.Stages.DIALOG_TITLES_S_SUMMARY,
+        ),
+        condition=lambda self: (
+            self._new_filename
+        ),
+    )
+    def _closeup_notify_new_config(self):
+        self.dialog.note(
+            _(
+                'Did not update {f} because it was changed manually. You '
+                'might want to compare it with {fnew} and edit as needed.'
+            ).format(
+                f=oipcons.FileLocations.OVIRT_IMAGEIO_PROXY_CONFIG,
+                fnew=self._new_filename,
+            )
         )
 
     @plugin.event(
