@@ -304,6 +304,27 @@ class Plugin(plugin.PluginBase):
             ca_cert=oipcons.FileLocations.OVIRT_ENGINE_PKI_ENGINE_CA_CERT,
         )
 
+    def _database_needs_update(self):
+        if self.environment[oenginecons.EngineDBEnv.NEW_DATABASE]:
+            return True
+        else:
+            current = vdcoption.VdcOption(
+                statement=self.environment[
+                    oenginecons.EngineDBEnv.STATEMENT
+                ]
+            ).getVdcOption(
+                name='ImageProxyAddress',
+            )
+            if current == '{name}:{port}'.format(
+                name='localhost',
+                port=oipcons.ConfigEnv.DEFAULT_IMAGEIO_PROXY_PORT,
+            ):
+                # Most likely 'localhost' was set by dbscripts and
+                # never updated, because in previous versions we didn't
+                # set it here and later we set it only on new setups.
+                return True
+        return False
+
     @plugin.event(
         stage=plugin.Stages.STAGE_MISC,
         after=(
@@ -312,9 +333,7 @@ class Plugin(plugin.PluginBase):
         condition=lambda self: (
                 self.environment[
                     oenginecons.CoreEnv.ENABLE
-                ] and self.environment[
-                    oenginecons.EngineDBEnv.NEW_DATABASE
-                ]
+                ] and self._database_needs_update()
         ),
     )
     def _databaseOptions(self):
