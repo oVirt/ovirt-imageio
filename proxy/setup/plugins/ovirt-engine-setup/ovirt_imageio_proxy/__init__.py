@@ -22,13 +22,11 @@
 from otopi import util
 
 from . import config
-from . import pki
 
 
 @util.export
 def createPlugins(context):
     config.Plugin(context=context)
-    pki.Plugin(context=context)
 
 
 # vim: expandtab tabstop=4 shiftwidth=4

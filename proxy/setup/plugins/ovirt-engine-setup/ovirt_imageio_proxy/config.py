@@ -96,9 +96,16 @@ class Plugin(plugin.PluginBase):
         ),
         after=(
             osetupcons.Stages.DIALOG_TITLES_S_PRODUCT_OPTIONS,
+            oenginecons.Stages.CORE_ENABLE,
         ),
     )
     def _customization(self):
+        if not self.environment[oenginecons.CoreEnv.ENABLE]:
+            self.logger.info(_(
+                'Configuration of Image I/O Proxy is only allowed on the same'
+                'machine as the oVirt Engine, not asking about this'
+            ))
+            return
 
         if self.environment[
             oipcons.ConfigEnv.IMAGEIO_PROXY_CONFIG
