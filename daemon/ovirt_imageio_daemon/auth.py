@@ -261,12 +261,11 @@ def get(ticket_id):
     return _tickets[ticket_id]
 
 
-def authorize(ticket_id, op, offset, size):
+def authorize(ticket_id, op):
     """
     Authorizing a ticket operation
     """
-    log.debug("AUTH op=%s offset=%s size=%s ticket=%s",
-              op, offset, size, ticket_id)
+    log.debug("AUTH op=%s ticket=%s", op, ticket_id)
     try:
         ticket = _tickets[ticket_id]
     except KeyError:
@@ -278,9 +277,5 @@ def authorize(ticket_id, op, offset, size):
     if not ticket.may(op):
         raise errors.AuthorizationError(
             "Ticket {} forbids {}".format(ticket_id, op))
-
-    end = (offset + size) if size else offset
-    if end > ticket.size:
-        raise errors.AuthorizationError("Requested range out of allowed range")
 
     return ticket

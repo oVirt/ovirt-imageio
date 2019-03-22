@@ -46,9 +46,11 @@ class Handler(object):
         flush = (flush == "y")
 
         try:
-            ticket = auth.authorize(ticket_id, "write", offset, size)
+            ticket = auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
+
+        validate.allowed_range(offset, size, ticket)
 
         log.info(
             "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
@@ -88,12 +90,17 @@ class Handler(object):
                 # TODO: validate size with actual image size.
 
         try:
-            ticket = auth.authorize(ticket_id, "read", offset, size)
+            ticket = auth.authorize(ticket_id, "read")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        if size is None:
-            size = ticket.size - offset
+        backend = self._backend(req, ticket)
+
+        if size is not None:
+            validate.allowed_range(offset, size, ticket)
+            validate.available_range(offset, size, ticket, backend)
+        else:
+            size = min(ticket.size, backend.size()) - offset
 
         log.info(
             "[%s] READ size=%d offset=%d ticket=%s",
@@ -150,9 +157,11 @@ class Handler(object):
         flush = validate.boolean(msg, "flush", default=False)
 
         try:
-            ticket = auth.authorize(ticket_id, "write", offset, size)
+            ticket = auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
+
+        validate.allowed_range(offset, size, ticket)
 
         log.info(
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
@@ -172,7 +181,7 @@ class Handler(object):
 
     def _flush(self, req, resp, ticket_id, msg):
         try:
-            ticket = auth.authorize(ticket_id, "write", 0, 0)
+            ticket = auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
@@ -194,7 +203,7 @@ class Handler(object):
         else:
             # Reporting real image capabilities per ticket.
             try:
-                ticket = auth.authorize(ticket_id, "read", 0, 0)
+                ticket = auth.authorize(ticket_id, "read")
             except errors.AuthorizationError as e:
                 raise http.Error(http.FORBIDDEN, str(e))
 

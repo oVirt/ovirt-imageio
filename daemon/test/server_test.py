@@ -567,7 +567,7 @@ def test_images_upload_too_big(tmpdir):
         url="file://" + str(image), size=image_size)
     auth.add(ticket)
     res = http.put("/images/" + ticket["uuid"], "b" * (image_size + 1))
-    assert res.status == 403
+    assert res.status == 416
     assert image.read() == ""
 
 
@@ -592,7 +592,7 @@ def test_images_upload_after_last_byte(tmpdir):
     auth.add(ticket)
     res = http.put("/images/" + ticket["uuid"], "b",
                    headers={"Content-Range": "bytes 100-101/*"})
-    assert res.status == 403
+    assert res.status == 416
     assert image.read() == "a" * image_size
 
 
@@ -643,6 +643,44 @@ def test_images_download(tmpdir, rng, start, end):
     assert received == data[start:end]
     content_range = 'bytes %d-%d/%d' % (start, end-1, len(data))
     assert res.getheader("Content-Range") == content_range
+
+
+def test_images_download_image_size_gt_ticket_size(tmpdir):
+    image = testutils.create_tempfile(tmpdir, "image", size=8192)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=4096)
+    auth.add(ticket)
+    res = http.get("/images/" + ticket["uuid"])
+    assert res.status == 200
+    assert len(res.read()) == 4096
+
+
+def test_images_download_ticket_size_gt_image_size(tmpdir):
+    image = testutils.create_tempfile(tmpdir, "image", size=4096)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=8192)
+    auth.add(ticket)
+    res = http.get("/images/" + ticket["uuid"])
+    assert res.status == 200
+    assert len(res.read()) == 4096
+
+
+def test_images_download_range_forbidden(tmpdir):
+    image = testutils.create_tempfile(tmpdir, "image", size=4096)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=8192)
+    auth.add(ticket)
+    res = http.get("/images/" + ticket["uuid"],
+                   headers={"Range": "bytes=0-8192"})
+    assert res.status == 416
+    assert res.getheader("Content-Range") == "bytes */8192"
+
+
+def test_images_download_range_unavailable(tmpdir):
+    image = testutils.create_tempfile(tmpdir, "image", size=8192)
+    ticket = testutils.create_ticket(url="file://" + str(image), size=4096)
+    auth.add(ticket)
+    res = http.get("/images/" + ticket["uuid"],
+                   headers={"Range": "bytes=0-4096"})
+    assert res.status == 416
+    assert res.getheader("Content-Range") == "bytes */4096"
 
 
 def test_images_download_no_range(tmpdir):
@@ -783,7 +821,7 @@ def test_images_download_out_of_range(tmpdir, rng, end):
     res = http.get("/images/" + ticket["uuid"],
                    headers={"Range": rng})
     res.read()
-    assert res.status == 403
+    assert res.status == 416
 
 
 def test_download_progress(tmpdir, monkeypatch):

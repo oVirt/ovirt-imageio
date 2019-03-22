@@ -67,3 +67,28 @@ def boolean(d, name, default=False):
             http.BAD_REQUEST, "Boolean required {!r}".format(val))
 
     return val
+
+
+def allowed_range(offset, size, ticket):
+    """
+    Checks that requested size is no greater than what's allowed by ticket,
+    taking offset into account.
+    """
+    if offset + size > ticket.size:
+        raise http.Error(http.REQUESTED_RANGE_NOT_SATISFIABLE,
+                         "Requested range out of allowed range",
+                         content_range="bytes */{}".format(ticket.size))
+
+
+def available_range(offset, size, ticket, backend):
+    """
+    Checks that requested size is no greater than what's allowed by ticket and
+    backend, taking offset into account.
+    """
+    requested = offset + size
+    available = min(ticket.size, backend.size())
+    if requested > available:
+        raise http.Error(http.REQUESTED_RANGE_NOT_SATISFIABLE,
+                         "Requested more bytes than available: {} > {}"
+                         .format(requested, available),
+                         content_range="bytes */{}".format(available))
