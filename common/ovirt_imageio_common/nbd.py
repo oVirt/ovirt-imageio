@@ -118,6 +118,61 @@ class Error(Exception):
     pass
 
 
+class UnixAddress(str):
+    """
+    A unix socket path with additioal methods to make it easier to handle both
+    unix socket and TCP socket in the same code.
+
+    Because we inherit from str, you can pass an instance to socket.connect()
+    or socket.bind().
+    """
+
+    @property
+    def transport(self):
+        return "unix"
+
+    @property
+    def path(self):
+        return str(self)
+
+    def url(self, export=None):
+        s = "nbd:unix:{}".format(self.path)
+        if export:
+            s += ":exportname=" + export
+        return s
+
+
+class TCPAddress(tuple):
+    """
+    A TCP socket 2 tuple (host, port) with additioal methods to make it easier
+    to handle both unix socket and TCP socket in the same code.
+
+    Because we inherit from tuple, you can pass an instance to socket.connect()
+    or socket.bind().
+    """
+
+    def __new__(cls, host, port):
+        return tuple.__new__(cls, (host, port))
+
+    @property
+    def transport(self):
+        return "tcp"
+
+    @property
+    def host(self):
+        return self[0]
+
+    @property
+    def port(self):
+        return self[1]
+
+    def url(self, export=None):
+        s = "nbd:{}:{}".format(self.host, self.port)
+        if export:
+            s += ":exportname=" + export
+        return s
+
+
 def open(url):
     """
     Parse nbd url and return a connected client.

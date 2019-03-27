@@ -24,6 +24,20 @@ from . import backup
 log = logging.getLogger("test")
 
 
+# Addresses
+
+@pytest.mark.parametrize("addr,export,url", [
+    (nbd.UnixAddress("/sock"), None, "nbd:unix:/sock"),
+    (nbd.UnixAddress("/sock"), "", "nbd:unix:/sock"),
+    (nbd.UnixAddress("/sock"), "sda", "nbd:unix:/sock:exportname=sda"),
+    (nbd.TCPAddress("host", 10900), None, "nbd:host:10900"),
+    (nbd.TCPAddress("host", 10900), "", "nbd:host:10900"),
+    (nbd.TCPAddress("host", 10900), "sdb", "nbd:host:10900:exportname=sdb"),
+])
+def test_url(addr, export, url):
+    assert addr.url(export) == url
+
+
 # Communicate with qemu-nbd
 
 
