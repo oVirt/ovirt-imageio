@@ -20,7 +20,6 @@ from . import qemu_nbd
 log = logging.getLogger("test")
 
 
-@pytest.mark.xfail(reason="broken on Fedora")
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_full_backup(tmpdir, fmt):
     disk_size = 1024**2

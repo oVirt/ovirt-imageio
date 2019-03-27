@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+import re
 import subprocess
 
 from contextlib import contextmanager
@@ -17,6 +18,15 @@ from contextlib import contextmanager
 from . import testutil
 
 log = logging.getLogger("qemu")
+
+
+def supports_audiodev():
+    if not hasattr(supports_audiodev, "result"):
+        cmd = ["qemu-kvm", "--help"]
+        out = subprocess.check_output(cmd, env=env()).decode()
+        m = re.search(r"^-audiodev +none\b", out, flags=re.MULTILINE)
+        supports_audiodev.result = m is not None
+    return supports_audiodev.result
 
 
 def env():
@@ -41,6 +51,13 @@ def run(image, fmt, qmp_sock, start_cpu=True):
         "-nographic",
         "-qmp", "unix:{},server,nowait".format(qmp_sock),
     ]
+
+    # Workaround for bug in qemu-4.0.0-rc0 on Fedora, failing to start VM
+    # becuase initilizing real audio driver failed.
+    # See https://bugzilla.redhat.com/1692047.
+    if supports_audiodev():
+        cmd.append("-audiodev")
+        cmd.append("none,id=1")
 
     if not start_cpu:
         cmd.append("-S")

@@ -212,7 +212,6 @@ def test_open(tmpdir, url, export):
 # Communicate with qemu builtin NBD server
 
 
-@pytest.mark.xfail(reason="broken on Fedora with qemu-4.0.0-rc0")
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_full_backup_handshake(tmpdir, fmt):
     image = str(tmpdir.join("image"))
@@ -227,7 +226,6 @@ def test_full_backup_handshake(tmpdir, fmt):
             assert c.maximum_block_size == 32 * 1024**2
 
 
-@pytest.mark.xfail(reason="broken on Fedora with qemu-4.0.0-rc0")
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_full_backup_single_image(tmpdir, fmt):
     chunk_size = 1024**2
@@ -258,7 +256,6 @@ def test_full_backup_single_image(tmpdir, fmt):
             assert data.startswith(b"%d\n\0" % i)
 
 
-@pytest.mark.xfail(reason="broken on Fedora with qemu-4.0.0-rc0")
 def test_full_backup_complete_chain(tmpdir):
     depth = 3
     chunk_size = 1024**2
