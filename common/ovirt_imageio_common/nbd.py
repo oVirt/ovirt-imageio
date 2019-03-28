@@ -65,6 +65,7 @@ NBD_INFO_BLOCK_SIZE = 3
 # Commands
 NBD_CMD_READ = 0
 NBD_CMD_WRITE = 1
+NBD_CMD_DISC = 2
 NBD_CMD_FLUSH = 3
 NBD_CMD_WRITE_ZEROES = 6
 
@@ -134,6 +135,14 @@ def open(url):
     return Client(d["sock"], export_name=d["name"] or "")
 
 
+# Client states
+
+CONNECTING = 0
+HANDSHAKE = 1
+TRASMISSION = 2
+CLOSED = 3
+
+
 class Client(object):
 
     def __init__(self, socket_path, export_name=""):
@@ -143,6 +152,7 @@ class Client(object):
         self.preferred_block_size = None
         self.maximum_block_size = None
         self._counter = itertools.count()
+        self._state = CONNECTING
 
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
@@ -188,11 +198,17 @@ class Client(object):
         self._receive_simple_reply(handle)
 
     def close(self):
-        self._sock.close()
+        if self._state in (HANDSHAKE, TRASMISSION):
+            self._soft_disconnect()
+        else:
+            self._hard_disconnect()
 
     # NBD fixed newstyle handshake
 
     def _newstyle_handshake(self, export_name):
+        assert self._state == CONNECTING
+        self._state = HANDSHAKE
+
         # Initial handshake.
         nbd_magic, cliserv_magic, server_flags = self._receive_struct("!QQH")
 
@@ -214,6 +230,8 @@ class Client(object):
         # Options haggling.
         self._send_go_option(export_name)
         self._receive_go_reply()
+
+        self._state = TRASMISSION
 
     def _send_client_flags(self, flags):
         log.debug("Sending client flags: %x:", flags)
@@ -305,6 +323,29 @@ class Client(object):
             return error.decode("utf-8")
         except UnicodeDecodeError:
             return "(error decoding error message)"
+
+    # Terminating transmistion phase
+
+    def _soft_disconnect(self):
+        assert self._state in (HANDSHAKE, TRASMISSION)
+
+        log.info("Initiating a soft disconnect")
+        handle = next(self._counter)
+        try:
+            self._send_command(NBD_CMD_DISC, handle, 0, 0)
+        except socket.error as e:
+            log.debug("Error sending NBD_CMD_DISC: %s", e)
+        except Exception:
+            log.exception("Error while sending NBD_CMD_DISC")
+
+        self._state = CLOSED
+        self._sock.close()
+
+    def _hard_disconnect(self):
+        if self._state < CLOSED:
+            log.info("Initiating a hard disconnect")
+            self._state = CLOSED
+            self._sock.close()
 
     # Commands
 
