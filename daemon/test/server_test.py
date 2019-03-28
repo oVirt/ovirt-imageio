@@ -792,7 +792,7 @@ def test_download_progress(tmpdir, monkeypatch):
 
     # And we need to request enough data so the server does not complete before
     # the client read all the data.
-    size = config.daemon.buffer_size * 10
+    size = config.daemon.buffer_size * 50
 
     filename = tmpdir.join("image")
     with open(str(filename), 'wb') as image:
@@ -808,7 +808,11 @@ def test_download_progress(tmpdir, monkeypatch):
 
     res = http.get("/images/" + ticket.uuid)
     res.read(config.daemon.buffer_size)
-    # The server processed at least one buffer.
+
+    # The server processed at least one buffer but we need to give it time to
+    # touch the ticket.
+    time.sleep(0.2)
+
     assert ticket.active()
     assert 0 < ticket.transferred() < size
 
