@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import logging
 import subprocess
+import time
 
 from contextlib import contextmanager
 
@@ -87,6 +88,11 @@ def full_backup(disk, fmt, tmpdir):
         try:
             yield backup_url
         finally:
+            # Give qemu time to detect that the NBD client disconnected before
+            # we tear down the nbd server.
+            log.debug("Waiting before tearing down nbd server")
+            time.sleep(0.1)
+
             log.debug("Removing disk sda from nbd server")
             c.execute("nbd-server-remove", {"name": "sda"})
 
