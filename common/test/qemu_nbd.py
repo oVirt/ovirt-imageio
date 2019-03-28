@@ -31,13 +31,15 @@ class Server(object):
         self.read_only = read_only
         self.timeout = timeout
         self.proc = None
-        url = u"nbd:unix:{}:exportname={}".format(sock, export_name)
-        self.url = urllib_parse.urlparse(url)
+
+    @property
+    def url(self):
+        url = self.sock.url(self.export_name)
+        return urllib_parse.urlparse(url)
 
     def start(self):
         cmd = [
             "qemu-nbd",
-            "--socket", self.sock,
             "--format", self.fmt,
             "--export-name", self.export_name.encode("utf-8"),
             "--persistent",
@@ -45,6 +47,14 @@ class Server(object):
             "--aio=native",
             "--discard=unmap",
         ]
+
+        if self.sock.transport == "unix":
+            cmd.append("--socket=%s" % self.sock.path)
+        elif self.sock.transport == "tcp":
+            cmd.append("--bind=%s" % self.sock.host)
+            cmd.append("--port=%s" % self.sock.port)
+        else:
+            raise RuntimeError("Unsupported transport: {}".format(self.sock))
 
         if self.read_only:
             cmd.append("--read-only")
