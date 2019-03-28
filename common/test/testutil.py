@@ -9,9 +9,12 @@
 from __future__ import absolute_import
 
 import collections
+import errno
 import logging
-import os
+import socket
 import time
+
+from contextlib import closing
 
 log = logging.getLogger("test")
 
@@ -59,15 +62,29 @@ class UnbufferedStream(object):
         return res
 
 
-def wait_for_path(path, timeout, step=0.02):
+def wait_for_socket(addr, timeout, step=0.02):
     start = time.time()
     elapsed = 0.0
 
-    while elapsed < timeout:
-        if os.path.exists(path):
-            log.debug("Waited for %s %.3f seconds", path, elapsed)
-            return True
-        time.sleep(step)
-        elapsed = time.time() - start
+    if addr.transport == "unix":
+        sock = socket.socket(socket.AF_UNIX)
+    elif addr.transport == "tcp":
+        # TODO: IPV6 support.
+        sock = socket.socket(socket.AF_INET)
+    else:
+        raise RuntimeError("Cannot wait for {}".format(addr))
 
-    return False
+    with closing(sock):
+        while elapsed < timeout:
+            try:
+                sock.connect(addr)
+            except socket.error as e:
+                if e.args[0] not in (errno.ECONNREFUSED, errno.ENOENT):
+                    raise
+                time.sleep(step)
+                elapsed = time.time() - start
+            else:
+                log.debug("Waited for %s %.3f seconds", addr, elapsed)
+                return True
+
+        return False

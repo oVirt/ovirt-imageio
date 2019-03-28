@@ -8,6 +8,11 @@
 
 from __future__ import absolute_import
 
+import socket
+from contextlib import closing
+
+from ovirt_imageio_common import nbd
+
 from . import testutil
 
 
@@ -65,3 +70,33 @@ def test_unbuffered_stream_less():
     assert b == b''
     b = s.read(128)
     assert b == b''
+
+
+def test_wait_for_unix_socket(tmpdir):
+    addr = nbd.UnixAddress(tmpdir.join("path"))
+
+    # Socket was not created yet.
+    assert not testutil.wait_for_socket(addr, 0.1)
+
+    sock = socket.socket(socket.AF_UNIX)
+    with closing(sock):
+        sock.bind(addr)
+
+        # Socket created yet but not listening yet.
+        assert not testutil.wait_for_socket(addr, 0.1)
+
+        sock.listen(1)
+        # Socket listening.
+        assert testutil.wait_for_socket(addr, 0.1)
+
+
+def test_wait_for_tcp_socket():
+    sock = socket.socket()
+    with closing(sock):
+        sock.bind(("localhost", 0))
+        sock.listen(1)
+        addr = nbd.TCPAddress(*sock.getsockname())
+
+        assert testutil.wait_for_socket(addr, 0.1)
+
+    assert not testutil.wait_for_socket(addr, 0.1)

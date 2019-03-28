@@ -65,7 +65,7 @@ def run(image, fmt, qmp_sock, start_cpu=True):
     log.debug("Starting qemu %s", cmd)
     p = subprocess.Popen(cmd, env=env())
     try:
-        if not testutil.wait_for_path(qmp_sock, 1):
+        if not testutil.wait_for_socket(qmp_sock, 1):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
         yield p
     finally:

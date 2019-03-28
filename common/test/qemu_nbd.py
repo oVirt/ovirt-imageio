@@ -54,7 +54,7 @@ class Server(object):
         log.debug("Starting qemu-nbd %s", cmd)
         self.proc = subprocess.Popen(cmd)
 
-        if not testutil.wait_for_path(self.sock, self.timeout):
+        if not testutil.wait_for_socket(self.sock, self.timeout):
             self.stop()
             raise RuntimeError("Timeout waiting for qemu-nbd socket")
 
