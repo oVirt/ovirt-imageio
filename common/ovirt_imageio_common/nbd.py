@@ -339,13 +339,20 @@ class Client(object):
             log.exception("Error while sending NBD_CMD_DISC")
 
         self._state = CLOSED
-        self._sock.close()
+        self._close_socket()
 
     def _hard_disconnect(self):
         if self._state < CLOSED:
             log.info("Initiating a hard disconnect")
             self._state = CLOSED
-            self._sock.close()
+            self._close_socket()
+
+    def _close_socket(self):
+        try:
+            self._sock.shutdown(socket.SHUT_RDWR)
+        except socket.error as e:
+            log.debug("Error shutting down socket: %s", e)
+        self._sock.close()
 
     # Commands
 
