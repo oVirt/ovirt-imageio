@@ -86,7 +86,7 @@ def open(image, fmt, read_only=False):
     """
     Open nbd client for accessing image using qemu-nbd.
     """
-    sock = image + ".sock"
+    sock = nbd.UnixAddress(image + ".sock")
     with run(image, fmt, sock, read_only=read_only):
         with nbd.Client(sock) as c:
             yield c

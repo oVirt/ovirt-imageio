@@ -14,6 +14,8 @@ import time
 
 from contextlib import contextmanager
 
+from ovirt_imageio_common import nbd
+
 from . import qemu
 from . import qmp
 
@@ -36,8 +38,8 @@ def full_backup(disk, fmt, tmpdir):
         scratch_disk
     ])
 
-    qmp_sock = str(tmpdir.join("qmp.sock"))
-    nbd_sock = str(tmpdir.join("nbd.sock"))
+    qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
+    nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
     backup_url = "nbd:unix:{}:exportname=sda".format(nbd_sock)
 
     with qemu.run(disk, fmt, qmp_sock, start_cpu=False), \

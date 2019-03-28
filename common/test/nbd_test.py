@@ -50,7 +50,7 @@ def test_url(addr, export, url):
 def test_handshake(tmpdir, export, fmt):
     image = str(tmpdir.join("image"))
     subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
 
     with qemu_nbd.run(image, fmt, sock, export_name=export):
         if export:
@@ -67,7 +67,7 @@ def test_handshake(tmpdir, export, fmt):
 
 def test_raw_read(tmpdir):
     image = str(tmpdir.join("image"))
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     offset = 1024**2
     data = b"can read from raw"
 
@@ -102,7 +102,7 @@ def test_raw_write(tmpdir):
     image = str(tmpdir.join("image"))
     with open(image, "wb") as f:
         f.truncate(1024**3)
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     offset = 1024**2
     data = b"can write to raw"
 
@@ -118,7 +118,7 @@ def test_raw_write(tmpdir):
 
 def test_qcow2_write_read(tmpdir):
     image = str(tmpdir.join("image"))
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     offset = 1024**2
     data = b"can read and write qcow2"
     subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
@@ -137,7 +137,7 @@ def test_zero(tmpdir, format):
     size = 2 * 1024**2
     offset = 1024**2
     image = str(tmpdir.join("image"))
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, str(size)])
 
@@ -160,7 +160,7 @@ def test_zero(tmpdir, format):
 def test_zero_max_block_size(tmpdir, format):
     offset = 1024**2
     image = str(tmpdir.join("image"))
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, "1g"])
 
@@ -184,7 +184,7 @@ def test_zero_max_block_size(tmpdir, format):
 def test_zero_min_block_size(tmpdir, format):
     offset = 1024**2
     image = str(tmpdir.join("image"))
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     subprocess.check_call(
         ["qemu-img", "create", "-f", format, image, "1g"])
 
@@ -214,7 +214,7 @@ def test_open(tmpdir, url, export):
     with open(image, "wb") as f:
         f.truncate(1024**3)
 
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
     url = url.replace("/path", sock)
 
     log.debug("Trying url=%r export=%r", url, export)

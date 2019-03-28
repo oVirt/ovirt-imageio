@@ -11,6 +11,8 @@ from __future__ import absolute_import
 import logging
 import subprocess
 
+from ovirt_imageio_common import nbd
+
 from . import qmp
 from . import qemu
 
@@ -23,7 +25,7 @@ def test_query_status(tmpdir):
     with open(image, "wb") as f:
         f.truncate(1024**2)
 
-    qmp_sock = str(tmpdir.join("qmp.sock"))
+    qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
 
     with qemu.run(image, "raw", qmp_sock, start_cpu=False):
         with qmp.Client(qmp_sock) as c:
@@ -37,7 +39,7 @@ def test_add_bitmap(tmpdir):
     image = str(tmpdir.join("image.qcow2"))
     subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
 
-    qmp_sock = str(tmpdir.join("qmp.sock"))
+    qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
 
     with qemu.run(image, "qcow2", qmp_sock, start_cpu=False):
         with qmp.Client(qmp_sock) as c:

@@ -187,7 +187,7 @@ def open(url):
         raise Error("Unsupported URL path %r" % url)
 
     d = m.groupdict()
-    return Client(d["sock"], export_name=d["name"] or "")
+    return Client(UnixAddress(d["sock"]), export_name=d["name"] or "")
 
 
 # Client states

@@ -11,6 +11,9 @@ from __future__ import absolute_import
 import io
 import pytest
 from six.moves import urllib_parse
+
+from ovirt_imageio_common import nbd
+
 from . import qemu_nbd
 
 
@@ -47,7 +50,7 @@ def nbd_server(tmpdir):
     with io.open(image, "wb") as f:
         f.truncate(10 * 1024**2)
 
-    sock = str(tmpdir.join("sock"))
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
 
     server = qemu_nbd.Server(image, "raw", sock)
     try:
