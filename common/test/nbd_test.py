@@ -252,6 +252,7 @@ def test_full_backup_single_image(tmpdir, fmt):
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(disk, fmt, tmpdir) as backup_url, \
             nbd.open(urlparse(backup_url)) as d:
+        log.debug("Backing up data with nbd client")
         for i in range(0, disk_size, chunk_size):
             data = d.read(i, chunk_size)
             assert data.startswith(b"%d\n\0" % i)
@@ -285,6 +286,7 @@ def test_full_backup_complete_chain(tmpdir):
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(disk, "qcow2", tmpdir) as backup_url, \
             nbd.open(urlparse(backup_url)) as d:
+        log.debug("Backing up data with nbd client")
         for i in range(depth):
             # Every chunk comes from different image.
             data = d.read(i * chunk_size, chunk_size)

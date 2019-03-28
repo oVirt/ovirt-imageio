@@ -9,12 +9,15 @@
 from __future__ import absolute_import
 
 import io
+import logging
 import subprocess
 
 import pytest
 
 from . import backup
 from . import qemu_nbd
+
+log = logging.getLogger("test")
 
 
 @pytest.mark.xfail(reason="broken on Fedora")
@@ -43,6 +46,7 @@ def test_full_backup(tmpdir, fmt):
 
     # Backup using qemu-img convert.
     with backup.full_backup(disk, fmt, tmpdir) as backup_url:
+        log.debug("Backing up image with qemu-img")
         subprocess.check_call([
             "qemu-img",
             "convert",
