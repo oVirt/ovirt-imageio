@@ -208,14 +208,37 @@ def test_zero_min_block_size(tmpdir, format):
     ("nbd:unix:/path", ""),
     ("nbd:unix:/path:exportname=", ""),
     ("nbd:unix:/path:exportname=sda", "sda"),
+    ("nbd:unix:/path:exportname=/sda", "/sda"),
 ])
-def test_open(tmpdir, url, export):
+def test_open_unix(tmpdir, url, export):
     image = str(tmpdir.join("image"))
     with open(image, "wb") as f:
         f.truncate(1024**3)
 
     sock = nbd.UnixAddress(tmpdir.join("sock"))
     url = url.replace("/path", sock)
+
+    log.debug("Trying url=%r export=%r", url, export)
+    with qemu_nbd.run(image, "raw", sock, export_name=export):
+        with nbd.open(urlparse(url)) as c:
+            assert c.export_size == 1024**3
+
+
+@pytest.mark.parametrize("url,export", [
+    ("nbd:localhost:10900", ""),
+    ("nbd:localhost:10900:exportname=", ""),
+    ("nbd:localhost:10900:exportname=sda", "sda"),
+    ("nbd:localhost:10900:exportname=/sda", "/sda"),
+    ("nbd://localhost:10900", ""),
+    ("nbd://localhost:10900/", ""),
+    ("nbd://localhost:10900/sda", "sda"),
+])
+def test_open_tcp(tmpdir, url, export):
+    image = str(tmpdir.join("image"))
+    with open(image, "wb") as f:
+        f.truncate(1024**3)
+
+    sock = nbd.TCPAddress("localhost", 10900)
 
     log.debug("Trying url=%r export=%r", url, export)
     with qemu_nbd.run(image, "raw", sock, export_name=export):

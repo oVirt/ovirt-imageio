@@ -10,6 +10,8 @@ from __future__ import absolute_import
 
 from six.moves.urllib_parse import urlparse
 import pytest
+
+from ovirt_imageio_common import nbd
 from ovirt_imageio_common import backends
 
 
@@ -81,8 +83,14 @@ def test_get_sparse(tmpurl, sparse):
     assert b.sparse == sparse
 
 
-def test_get_nbd_backend(nbd_server):
+@pytest.mark.parametrize("transport", ["unix", "tcp"])
+def test_get_nbd_backend(tmpdir, nbd_server, transport):
+    if transport == "unix":
+        nbd_server.sock = nbd.UnixAddress(tmpdir.join("sock"))
+    else:
+        nbd_server.sock = nbd.TCPAddress("localhost", 10900)
     nbd_server.start()
+
     ticket = Ticket("test", nbd_server.url)
     req = Request()
     b = backends.get(req, ticket)

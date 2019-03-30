@@ -19,11 +19,15 @@ import struct
 
 from . import util
 
-# Supported urls:
-# - nbd:unix:/sock
-# - nbd:unix:/sock:exportname=
-# - nbd:unix:/sock:exportname=sda
-UNIX_URL = re.compile(r"unix:(?P<sock>/[^:]+)(:?:exportname=(?P<name>.*))?")
+# Matcher for NBD Unix URL path.
+# nbd:unix:path[:exportname=name]
+UNIX_URL_PATH = re.compile(
+    r"unix:(?P<path>/[^:]+)(:?:exportname=(?P<name>.*))?")
+
+# Matcher for NBD TCP URL path.
+# nbd:host:port[:exportname=name]
+TCP_URL_PATH = re.compile(
+    r"(?P<host>.+):(?P<port>\d+)(:?:exportname=(?P<name>.*))?")
 
 # Magic numbers.
 NBDMAGIC = 0x4e42444d41474943
@@ -175,19 +179,46 @@ class TCPAddress(tuple):
 
 def open(url):
     """
-    Parse nbd url and return a connected client.
+    Open parsed NBD URL and return a connected Client instance.
+    """
+    address, name = _parse_url(url)
+    return Client(address, name)
 
-    Currnetly only nbd:unix:/path:exportname=foo is supported.
+
+def _parse_url(url):
+    """
+    Parse url and return 2 tuple (address, name), or raise an Error.
     """
     if url.scheme != "nbd":
-        raise Error("Unsupported URL scheme %s" % url)
+        raise Error("Unsupported URL scheme: {}".format(url))
 
-    m = UNIX_URL.match(url.path)
-    if m is None:
-        raise Error("Unsupported URL path %r" % url)
+    # First try the nice URL notation:
+    # nbd://localhost:10809/sda
+    # This notiation is less flexible but nicer for humans.
+    # See https://qemu.weilnetz.de/doc/qemu-doc.html#disk_005fimages_005fnbd
+    if ":" in url.netloc:
+        host, port = url.netloc.rsplit(":", 1)
+        # Use qemu semantics, removing leading "/".
+        export = url.path.lstrip("/")
+        return TCPAddress(host, port), export
 
-    d = m.groupdict()
-    return Client(UnixAddress(d["sock"]), export_name=d["name"] or "")
+    # Next try to documented NBD URL notation. This notiation is more flexible
+    # and can handle export names with leading "/".
+    # - nbd:unix:path[:exportname=name]
+    # - nbd:host:port[:exportname=name]
+    # See https://qemu.weilnetz.de/doc/qemu-doc.html#Device-URL-Syntax
+    if url.netloc == "":
+        match = UNIX_URL_PATH.match(url.path)
+        if match:
+            d = match.groupdict()
+            return UnixAddress(d["path"]), d["name"]
+
+        match = TCP_URL_PATH.match(url.path)
+        if match:
+            d = match.groupdict()
+            return TCPAddress(d["host"], d["port"]), d["name"]
+
+    raise Error("Unsupported URL: {}".format(url))
 
 
 # Client states
@@ -200,7 +231,9 @@ CLOSED = 3
 
 class Client(object):
 
-    def __init__(self, address, export_name=""):
+    def __init__(self, address, export_name=None):
+        if export_name is None:
+            export_name = ""
         self.export_size = None
         self.transmission_flags = None
         self.minimum_block_size = None
