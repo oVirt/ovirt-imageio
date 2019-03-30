@@ -23,10 +23,10 @@ log = logging.getLogger("backup")
 
 
 @contextmanager
-def full_backup(disk, fmt, tmpdir):
+def full_backup(tmpdir, disk, fmt, nbd_sock):
     """
-    Start nbd server, exposing disk for full backup, creating temporary files
-    in tmpdir.
+    Start qemu internal nbd server using address nbd_sock, exposing disk for
+    full backup, creating temporary files in tmpdir.
     """
     log.debug("Creating scratch disk")
     scratch_disk = str(tmpdir.join("scratch.qcow2"))
@@ -39,20 +39,31 @@ def full_backup(disk, fmt, tmpdir):
     ])
 
     qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
-    nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
-    backup_url = "nbd:unix:{}:exportname=sda".format(nbd_sock)
 
     with qemu.run(disk, fmt, qmp_sock, start_cpu=False), \
             qmp.Client(qmp_sock) as c:
         log.debug("Starting nbd server")
-        c.execute("nbd-server-start", {
-            "addr": {
+
+        if nbd_sock.transport == "unix":
+            addr = {
                 "type": "unix",
                 "data": {
-                    "path": nbd_sock,
+                    "path": nbd_sock.path
                 }
             }
-        })
+        elif nbd_sock.transport == "tcp":
+            addr = {
+                "type": "inet",
+                "data": {
+                    "host": nbd_sock.host,
+                    # Qemu wants port as string.
+                    "port": str(nbd_sock.port),
+                }
+            }
+        else:
+            raise RuntimeError("Unsupported transport: {}".format(nbd_sock))
+
+        c.execute("nbd-server-start", {"addr": addr})
 
         node = qmp.find_node(c, disk)
         log.debug("Adding backup node for %s", node)
@@ -88,7 +99,7 @@ def full_backup(disk, fmt, tmpdir):
         })
 
         try:
-            yield backup_url
+            yield
         finally:
             # Give qemu time to detect that the NBD client disconnected before
             # we tear down the nbd server.

@@ -14,14 +14,17 @@ import subprocess
 
 import pytest
 
+from ovirt_imageio_common import nbd
+
 from . import backup
 from . import qemu_nbd
 
 log = logging.getLogger("test")
 
 
+@pytest.mark.parametrize("transport", ["unix", "tcp"])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_full_backup(tmpdir, fmt):
+def test_full_backup(tmpdir, fmt, transport):
     disk_size = 1024**2
     disk_part = disk_size // 4
     disk = str(tmpdir.join("disk." + fmt))
@@ -43,8 +46,13 @@ def test_full_backup(tmpdir, fmt):
             d.write(i, data.ljust(512))
         d.flush()
 
+    if transport == "unix":
+        nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
+    else:
+        nbd_sock = nbd.TCPAddress("localhost", 10900)
+
     # Backup using qemu-img convert.
-    with backup.full_backup(disk, fmt, tmpdir) as backup_url:
+    with backup.full_backup(tmpdir, disk, fmt, nbd_sock):
         log.debug("Backing up image with qemu-img")
         subprocess.check_call([
             "qemu-img",
@@ -52,7 +60,7 @@ def test_full_backup(tmpdir, fmt):
             "-p",
             "-f", "raw",
             "-O", "raw",
-            backup_url,
+            nbd_sock.url("sda"),
             backup_disk,
         ])
 

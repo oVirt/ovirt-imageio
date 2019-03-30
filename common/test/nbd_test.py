@@ -231,7 +231,10 @@ def test_full_backup_handshake(tmpdir, fmt):
     image = str(tmpdir.join("image"))
     subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
 
-    with backup.full_backup(image, fmt, tmpdir) as backup_url:
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
+    backup_url = sock.url("sda")
+
+    with backup.full_backup(tmpdir, image, fmt, sock):
         with nbd.open(urlparse(backup_url)) as c:
             # TODO: test transmission_flags?
             assert c.export_size == 1024**3
@@ -261,8 +264,11 @@ def test_full_backup_single_image(tmpdir, fmt):
             d.write(i, b"%d\n" % i)
         d.flush()
 
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
+    backup_url = sock.url("sda")
+
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(disk, fmt, tmpdir) as backup_url, \
+    with backup.full_backup(tmpdir, disk, fmt, sock), \
             nbd.open(urlparse(backup_url)) as d:
         log.debug("Backing up data with nbd client")
         for i in range(0, disk_size, chunk_size):
@@ -294,8 +300,11 @@ def test_full_backup_complete_chain(tmpdir):
             d.write(i * chunk_size, b"%d\n" % i)
             d.flush()
 
+    sock = nbd.UnixAddress(tmpdir.join("sock"))
+    backup_url = sock.url("sda")
+
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(disk, "qcow2", tmpdir) as backup_url, \
+    with backup.full_backup(tmpdir, disk, "qcow2", sock), \
             nbd.open(urlparse(backup_url)) as d:
         log.debug("Backing up data with nbd client")
         for i in range(depth):
