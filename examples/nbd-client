@@ -41,6 +41,7 @@ Download qcow2 image to raw file via qemu-nbd:
 import argparse
 import io
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -135,6 +136,10 @@ parser.add_argument(
     default=4 * 1024**2,
     type=kib,
     help="block size in KiB")
+parser.add_argument(
+    "-v", "--verbose",
+    action="store_true",
+    help="Be more verbose")
 
 commands = parser.add_subparsers(title="commands")
 
@@ -161,4 +166,9 @@ download_parser.add_argument(
     help="filename to write")
 
 args = parser.parse_args()
+
+logging.basicConfig(
+    level=logging.DEBUG if args.verbose else logging.WARNING,
+    format="nbd-client: %(levelname)-7s %(message)s")
+
 args.command(args)
