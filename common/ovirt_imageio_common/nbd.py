@@ -236,9 +236,17 @@ class Client(object):
             export_name = ""
         self.export_size = None
         self.transmission_flags = None
-        self.minimum_block_size = None
-        self.preferred_block_size = None
-        self.maximum_block_size = None
+
+        # If a server does not advertise block size constraints, it should
+        # support these values. It can also return reads and block status info
+        # aligned to minimum block size.
+        # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+        # section #block-size-constraints
+
+        self.minimum_block_size = 1
+        self.preferred_block_size = 4096
+        self.maximum_block_size = 32 * 1024**2
+
         self._counter = itertools.count()
         self._state = CONNECTING
 
@@ -374,11 +382,33 @@ class Client(object):
     # Options
 
     def _send_go_option(self, export_name):
+        """
+        32 bits, length of name (unsigned); MUST be no larger than the option
+            data length - 6
+        String: name of the export
+        16 bits, number of information requests
+        16 bits x n - list of NBD_INFO information requests
+        """
+        # 1. Format GO option data.
+
+        # Export name (length + name)
         name = export_name.encode("utf-8")
         data = bytearray()
         data += struct.pack("!I", len(name))
         data += name
+
+        # Information requests list.
+        # Here we can announce that we can honour server block size constraints
+        # by adding NBD_INFO_BLOCK_SIZE information request. If we do this we
+        # MUST abide by the block size constraints received. If we don't we are
+        # allowed to send unaligned requests.
+        # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+        # section #block-size-constraints
+        # Currently we don't ask any info so we send zero.
         data += struct.pack("!H", 0)
+
+        # 2. Build and send the option request.
+
         head = struct.pack("!QII", IHAVEOPT, NBD_OPT_GO, len(data))
         log.debug("Sending option: %r data: %r", head, data)
         self._send(head + data)
