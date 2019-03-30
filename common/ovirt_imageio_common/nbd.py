@@ -200,7 +200,7 @@ CLOSED = 3
 
 class Client(object):
 
-    def __init__(self, socket_path, export_name=""):
+    def __init__(self, address, export_name=""):
         self.export_size = None
         self.transmission_flags = None
         self.minimum_block_size = None
@@ -209,15 +209,16 @@ class Client(object):
         self._counter = itertools.count()
         self._state = CONNECTING
 
-        self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        log.info("Connecting to %s %r", address, export_name)
+
+        self._sock = self._connect(address)
         try:
-            log.info("Connecting to %r %r", socket_path, export_name)
-            self._sock.connect(socket_path)
             self._newstyle_handshake(export_name)
-            log.info("Ready for transmission")
         except:
             self.close()
             raise
+
+        log.info("Ready for transmission")
 
     def read(self, offset, length):
         handle = next(self._counter)
@@ -257,6 +258,51 @@ class Client(object):
             self._soft_disconnect()
         else:
             self._hard_disconnect()
+
+    # Connecting to NBD server
+
+    def _connect(self, address):
+        """
+        Connect to NBD server on address and return a connected socket, or
+        raise socket.error.
+        """
+        if address.transport == "unix":
+            return self._create_unix_connection(address)
+        elif address.transport == "tcp":
+            return self._create_tcp_connection(address)
+        else:
+            raise Error("Unsupported transport: {}".format(address))
+
+    def _create_tcp_connection(self, address):
+        """
+        Enhanced version of socket.create_connection.
+
+        Resolve DNS name to both AF_INET and AF_INET6 and will try to connect
+        to all possible addresses.
+
+        Set socket option TCP_NODELAY for improved latency.
+        """
+        sock = socket.create_connection(address)
+        try:
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except:
+            sock.close()
+            raise
+
+        return sock
+
+    def _create_unix_connection(self, address):
+        """
+        Like socket.create_connection() for unix socket.
+        """
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.connect(address)
+        except:
+            sock.close()
+            raise
+
+        return sock
 
     # NBD fixed newstyle handshake
 
