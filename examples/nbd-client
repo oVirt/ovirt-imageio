@@ -31,11 +31,11 @@ qemu-img.  To access raw images, you can also use nbdkit or nbd-server.
 
 Upload raw file to qcow2 image via qemu-nbd:
 
-    $ ./nbd-client -e export upload file.raw /tmp/nbb.sock
+    $ ./nbd-client -e export upload file.raw nbd:unix:/tmp/nbb.sock
 
 Download qcow2 image to raw file via qemu-nbd:
 
-    $ ./nbd-client -e export download /tmp/nbb.sock file.raw
+    $ ./nbd-client -e export download nbd:unix:/tmp/nbb.sock file.raw
 """
 
 import argparse
@@ -45,6 +45,8 @@ import os
 import subprocess
 import sys
 
+from six.moves.urllib.parse import urlparse
+
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import ui
 
@@ -52,7 +54,7 @@ from ovirt_imageio_common import ui
 def upload(args):
     size = os.path.getsize(args.filename)
     with io.open(args.filename, "rb") as src, \
-            nbd.Client(args.socket, args.export) as dst, \
+            nbd.open(urlparse(args.nbd_url)) as dst, \
             ui.ProgressBar(size) as pb:
         if dst.export_size < size:
             raise Exception("Destination size {} is smaller than source file "
@@ -66,7 +68,7 @@ def upload(args):
 
 
 def download(args):
-    with nbd.Client(args.socket, args.export) as src, \
+    with nbd.open(urlparse(args.nbd_url)) as src, \
             io.open(args.filename, "wb") as dst:
         with ui.ProgressBar(src.export_size) as pb:
             max_step = min(src.maximum_block_size, args.block_size)
@@ -127,9 +129,6 @@ def kib(s):
 
 parser = argparse.ArgumentParser(description="nbd example")
 parser.add_argument(
-    "-e", "--export",
-    default="", help="export name")
-parser.add_argument(
     "-b", "--block-size",
     # 4M is significantly faster than 8M on download, and about the same on
     # upload.
@@ -147,16 +146,16 @@ upload_parser.add_argument(
     "filename",
     help="filename to copy")
 upload_parser.add_argument(
-    "socket",
-    help="nbd socket")
+    "nbd_url",
+    help="NBD URL (nbd:unix:/sock or nbd:localhost:10809)")
 
 download_parser = commands.add_parser(
     "download",
     help="download image data from nbd server")
 download_parser.set_defaults(command=download)
 download_parser.add_argument(
-    "socket",
-    help="nbd socket")
+    "nbd_url",
+    help="NBD URL (nbd:unix:/sock or nbd:localhost:10809)")
 download_parser.add_argument(
     "filename",
     help="filename to write")
