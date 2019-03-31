@@ -122,6 +122,19 @@ class Error(Exception):
     pass
 
 
+class OptionError(Error):
+    fmt = ("Error negotiating option opt={self.opt} code={self.code} "
+           "reason={self.reason}")
+
+    def __init__(self, opt, code, reason):
+        self.opt = opt
+        self.code = code
+        self.reason = reason
+
+    def __str__(self):
+        return self.fmt.format(self=self)
+
+
 class UnixAddress(str):
     """
     A unix socket path with additioal methods to make it easier to handle both
@@ -379,7 +392,7 @@ class Client(object):
         log.debug("Sending client flags: %x:", flags)
         self._send_struct("!I", flags)
 
-    # Options
+    # GO Option
 
     def _send_go_option(self, export_name):
         """
@@ -408,10 +421,7 @@ class Client(object):
         data += struct.pack("!H", 0)
 
         # 2. Build and send the option request.
-
-        head = struct.pack("!QII", IHAVEOPT, NBD_OPT_GO, len(data))
-        log.debug("Sending option: %r data: %r", head, data)
-        self._send(head + data)
+        self._send_option(NBD_OPT_GO, data)
 
     def _receive_go_reply(self):
         while True:
@@ -464,7 +474,52 @@ class Client(object):
                   self.preferred_block_size,
                   self.maximum_block_size)
 
+    # Negotiating options
+
+    def _negotiate_option(self, opt, data=b""):
+        self._send_option(opt, data)
+        reply, length = self._receive_option_reply(opt)
+
+        # If reply is an error, consume the optional data which is a error
+        # message suitable for dispalying to the user. The caller need to
+        # handle this error and inspect the reply property if needed.
+        if reply in ERROR_REPLY:
+            message = self._receive_error_reply(length)
+            raise OptionError(opt, reply, message)
+
+        # Read the reply payload and return to caller for further handling.
+        data = self._receive(length) if length else b""
+        return reply, data
+
+    def _send_option(self, opt, data):
+        """
+        Send an option with optional data to the server. The caller must call
+        _receive_option_reply() to get a reply.
+
+        C: 64 bits, 0x49484156454F5054 (ASCII 'IHAVEOPT')
+        C: 32 bits, option
+        C: 32 bits, length of option data (unsigned)
+        C: any data needed for the chosen option, of length as specified above.
+        """
+        log.debug("Sending option: %r data: %r", opt, data)
+        self._send_struct("!QII", IHAVEOPT, opt, len(data))
+        if data:
+            self._send(data)
+
     def _receive_option_reply(self, expected_option):
+        """
+        Receive reply header from server, and return the reply and the length
+        of the data that the caller need to read from the server to complete
+        the option negotiation.
+
+        S: 64 bits, 0x3e889045565a9 (magic number for replies)
+        S: 32 bits, the option as sent by the client to which this is a reply
+        S: 32 bits, reply type:
+            - NBD_REP_ACK for successful completion, or
+            - NBD_REP_ERR_UNSUP option not known by this server
+        S: 32 bits, length of the reply; if zero, next field is not sent
+        S: any data as required by the reply.
+        """
         magic, option, reply, length = self._receive_struct("!QIII")
         log.debug("Received reply [magic=%x option=%x type=%x len=%r]",
                   magic, option, reply, length)
