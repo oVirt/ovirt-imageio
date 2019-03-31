@@ -383,8 +383,7 @@ class Client(object):
         self._send_client_flags(NBD_FLAG_C_FIXED_NEWSTYLE)
 
         # Options haggling.
-        self._send_go_option(export_name)
-        self._receive_go_reply()
+        self._negotiate_go_option(export_name)
 
         self._state = TRASMISSION
 
@@ -394,36 +393,17 @@ class Client(object):
 
     # GO Option
 
-    def _send_go_option(self, export_name):
-        """
-        32 bits, length of name (unsigned); MUST be no larger than the option
-            data length - 6
-        String: name of the export
-        16 bits, number of information requests
-        16 bits x n - list of NBD_INFO information requests
-        """
-        # 1. Format GO option data.
-
-        # Export name (length + name)
-        name = export_name.encode("utf-8")
-        data = bytearray()
-        data += struct.pack("!I", len(name))
-        data += name
-
-        # Information requests list.
-        # Here we can announce that we can honour server block size constraints
+    def _negotiate_go_option(self, export_name):
+        # Here we can annoucse that we can honour server block size constraints
         # by adding NBD_INFO_BLOCK_SIZE information request. If we do this we
         # MUST abide by the block size constraints received. If we don't we are
         # allowed to send unaligned requests.
         # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         # section #block-size-constraints
-        # Currently we don't ask any info so we send zero.
-        data += struct.pack("!H", 0)
 
-        # 2. Build and send the option request.
+        data = self._format_go_option_data(export_name)
         self._send_option(NBD_OPT_GO, data)
 
-    def _receive_go_reply(self):
         while True:
             reply, length = self._receive_option_reply(NBD_OPT_GO)
 
@@ -453,6 +433,29 @@ class Client(object):
                 self._receive_blocksize_info(length)
             else:
                 log.debug("Dropping unknown info reply %r", info)
+
+    def _format_go_option_data(self, export_name, *requests):
+        """
+        Format export name and optional list of NBD_INFO_XXX requests.
+
+        32 bits, length of name (unsigned); MUST be no larger than the option
+            data length - 6
+        String: name of the export
+        16 bits, number of information requests
+        16 bits x n - list of NBD_INFO information requests
+        """
+        # Export name (length + name)
+        name = export_name.encode("utf-8")
+        data = bytearray()
+        data += struct.pack("!I", len(name))
+        data += name
+
+        # Information requests list (length + requests)
+        data += struct.pack("!H", len(requests))
+        if requests:
+            data += struct.pack("!%dH" % len(requests), *requests)
+
+        return data
 
     def _receive_export_info(self, length):
         if length != 10:
