@@ -432,7 +432,9 @@ class Client(object):
             elif info == NBD_INFO_BLOCK_SIZE:
                 self._receive_blocksize_info(length)
             else:
-                log.debug("Dropping unknown info reply %r", info)
+                data = self._receive(length)
+                log.warning("Dropping unknown info reply=%r data=%r",
+                            info, data)
 
     def _format_go_option_data(self, export_name, *requests):
         """
