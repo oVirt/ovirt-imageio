@@ -56,6 +56,7 @@ NBD_FLAG_SEND_RESIZE = (1 << 9)
 NBD_FLAG_SEND_CACHE = (1 << 10)
 
 # Options
+NBD_OPT_ABORT = 2
 NBD_OPT_GO = 7
 
 # Replies
@@ -496,7 +497,7 @@ class Client(object):
         data = self._receive(length) if length else b""
         return reply, data
 
-    def _send_option(self, opt, data):
+    def _send_option(self, opt, data=b""):
         """
         Send an option with optional data to the server. The caller must call
         _receive_option_reply() to get a reply.
@@ -548,19 +549,39 @@ class Client(object):
         except UnicodeDecodeError:
             return "(error decoding error message)"
 
-    # Terminating transmistion phase
+    # Terminating session
 
     def _soft_disconnect(self):
-        assert self._state in (HANDSHAKE, TRASMISSION)
+        """
+        Perform soft disconnect.
 
+        During handshake, we need to send a NBD_OPT_ABORT. The server
+        may reply, but we are allowed to close the socket without
+        reading the reply[1].
+
+        During transmission, we need to send a NBD_CMD_DISC. The
+        server does not reply[2].
+
+        [1] https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+            #termination-of-the-session-during-option-haggling
+        [2] https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+            #terminating-the-transmission-phase
+        """
         log.info("Initiating a soft disconnect")
-        handle = next(self._counter)
         try:
-            self._send_command(NBD_CMD_DISC, handle, 0, 0)
+            if self._state == HANDSHAKE:
+                self._send_option(NBD_OPT_ABORT)
+            elif self._state == TRASMISSION:
+                handle = next(self._counter)
+                self._send_command(NBD_CMD_DISC, handle, 0, 0)
+            else:
+                raise AssertionError(
+                    "Cannot initiate soft disconnect at state {!r}"
+                    .foramt(self._state))
         except socket.error as e:
-            log.debug("Error sending NBD_CMD_DISC: %s", e)
+            log.debug("Error initiating soft disconnect: %s", e)
         except Exception:
-            log.exception("Error while sending NBD_CMD_DISC")
+            log.exception("Error initiating soft disconnect")
 
         self._state = CLOSED
         self._close_socket()
