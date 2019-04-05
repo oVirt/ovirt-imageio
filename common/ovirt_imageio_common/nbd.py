@@ -419,7 +419,7 @@ class Client(object):
                 break
 
             if reply != NBD_REP_INFO:
-                raise Error("Unexpected reply {:x}, expecting info reply {:x}"
+                raise Error("Unexpected reply {}, expecting info reply {}"
                             .format(reply, NBD_REP_INFO))
 
             if length < 2:
@@ -527,7 +527,7 @@ class Client(object):
         S: any data as required by the reply.
         """
         magic, option, reply, length = self._receive_struct("!QIII")
-        log.debug("Received reply [magic=%x option=%x type=%x len=%r]",
+        log.debug("Received reply [magic=%x option=%s type=%s len=%s]",
                   magic, option, reply, length)
 
         if magic != OPTION_REPLY_MAGIC:
