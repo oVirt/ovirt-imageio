@@ -59,7 +59,7 @@ def upload(args):
             ui.ProgressBar(size) as pb:
         if dst.export_size < size:
             raise Exception("Destination size {} is smaller than source file "
-                            "size {}".format(dst.export_size, todo))
+                            "size {}".format(dst.export_size, size))
         for zero, start, length in _map(args.filename):
             if zero:
                 _zero_range(dst, start, length, pb)
