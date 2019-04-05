@@ -621,7 +621,7 @@ class Client(object):
 
     # Commands
 
-    def _send_command(self, type, handle, offset, legnth):
+    def _send_command(self, type, handle, offset, length):
         # C: 32 bits, 0x25609513, magic (NBD_REQUEST_MAGIC)
         # C: 16 bits, command flags
         # C: 16 bits, type
@@ -630,7 +630,7 @@ class Client(object):
         # C: 32 bits, length (unsigned)
         # C: (length bytes of data if the request is of type NBD_CMD_WRITE)
         self._send_struct("!IHHQQI", NBD_REQUEST_MAGIC, 0, type, handle,
-                          offset, legnth)
+                          offset, length)
 
     def _receive_simple_reply(self, expected_handle):
         # Simple reply
