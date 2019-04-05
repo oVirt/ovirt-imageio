@@ -629,6 +629,8 @@ class Client(object):
         # C: 64 bits, offset (unsigned)
         # C: 32 bits, length (unsigned)
         # C: (length bytes of data if the request is of type NBD_CMD_WRITE)
+        log.debug("Sending command type=%s handle=%s offset=%s length=%s",
+                  type, handle, offset, length)
         self._send_struct("!IHHQQI", NBD_REQUEST_MAGIC, 0, type, handle,
                           offset, length)
 
