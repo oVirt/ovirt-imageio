@@ -136,6 +136,15 @@ class OptionError(Error):
         return self.fmt.format(self=self)
 
 
+class OptionUnsupported(OptionError):
+    fmt = "Option {self.option} is not supported: {self.reason}"
+    code = NBD_REP_ERR_UNSUP
+
+    def __init__(self, option, reason):
+        self.option = option
+        self.reason = reason
+
+
 class UnixAddress(str):
     """
     A unix socket path with additioal methods to make it easier to handle both
@@ -409,9 +418,7 @@ class Client(object):
             reply, length = self._receive_option_reply(NBD_OPT_GO)
 
             if reply in ERROR_REPLY:
-                message = self._receive_error_reply(length)
-                raise Error("Error {}: {} ({})"
-                            .format(reply, strerror(reply), message))
+                self._handle_option_error(NBD_OPT_GO, reply, length)
 
             if reply == NBD_REP_ACK:
                 if self.export_size is None or self.transmission_flags is None:
@@ -486,16 +493,18 @@ class Client(object):
         self._send_option(opt, data)
         reply, length = self._receive_option_reply(opt)
 
-        # If reply is an error, consume the optional data which is a error
-        # message suitable for dispalying to the user. The caller need to
-        # handle this error and inspect the reply property if needed.
         if reply in ERROR_REPLY:
-            message = self._receive_error_reply(length)
-            raise OptionError(opt, reply, message)
+            self._handle_option_error(opt, reply, length)
 
-        # Read the reply payload and return to caller for further handling.
-        data = self._receive(length) if length else b""
-        return reply, data
+        # The spec is not clear about the possible reply for general options.
+        # using qemu policy as in nbd_request_simple_option().
+
+        if reply != NBD_REP_ACK:
+            raise Error("Unexpected reply {} for option {}".format(reply, opt))
+
+        if length != 0:
+            raise Error("Reply with non-zero length {} for option {}"
+                        .format(length, opt))
 
     def _send_option(self, opt, data=b""):
         """
@@ -540,14 +549,25 @@ class Client(object):
 
         return reply, length
 
-    def _receive_error_reply(self, length):
-        if not length:
-            return ""
-        error = self._receive(length)
-        try:
-            return error.decode("utf-8")
-        except UnicodeDecodeError:
-            return "(error decoding error message)"
+    def _handle_option_error(self, opt, reply, length):
+        """
+        Consume the optional data which is an error message suitable for
+        displaying to the user, and raise an OptionError.
+        """
+        message = ""
+
+        # If the server sent an error message, try to use it.
+        if length:
+            message = self._receive(length).decode("utf-8", errors="replace")
+
+        # If we have no message, use the builtin message for this error.
+        if message == "":
+            message = strerror(reply)
+
+        if reply == NBD_REP_ERR_UNSUP:
+            raise OptionUnsupported(opt, message)
+        else:
+            raise OptionError(opt, reply, message)
 
     # Terminating session
 
