@@ -373,7 +373,7 @@ class Client(object):
                         .format(nbd_magic, NBDMAGIC))
 
         if cliserv_magic != IHAVEOPT:
-            raise Error("Server does not support newsyle negotiation "
+            raise Error("Server does not support newstyle negotiation "
                         "[magic={:x} expected={:x}]"
                         .format(cliserv_magic, IHAVEOPT))
 
@@ -395,7 +395,7 @@ class Client(object):
     # GO Option
 
     def _negotiate_go_option(self, export_name):
-        # Here we can annoucse that we can honour server block size constraints
+        # Here we can announce that we can honour server block size constraints
         # by adding NBD_INFO_BLOCK_SIZE information request. If we do this we
         # MUST abide by the block size constraints received. If we don't we are
         # allowed to send unaligned requests.
