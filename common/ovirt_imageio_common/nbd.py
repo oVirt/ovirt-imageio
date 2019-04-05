@@ -37,6 +37,7 @@ IHAVEOPT = 0x49484156454F5054
 OPTION_REPLY_MAGIC = 0x3e889045565a9
 NBD_REQUEST_MAGIC = 0x25609513
 NBD_SIMPLE_REPLY_MAGIC = 0x67446698
+NBD_STRUCTURED_REPLY_MAGIC = 0x668e33ef
 
 # Flags
 NBD_FLAG_FIXED_NEWSTYLE = 1
@@ -64,6 +65,18 @@ NBD_OPT_GO = 7
 # Replies
 NBD_REP_ACK = 1
 NBD_REP_INFO = 3
+
+# Structured reply flags
+NBD_REPLY_FLAG_DONE = (1 << 0)
+
+# Structured reply types
+NBD_REPLY_TYPE_NONE = 0
+NBD_REPLY_TYPE_OFFSET_DATA = 1
+NBD_REPLY_TYPE_OFFSET_HOLE = 2
+NBD_REPLY_TYPE_BLOCK_STATUS = 5
+NBD_REPLY_ERROR_BASE = (1 << 15)
+NBD_REPLY_TYPE_ERROR = NBD_REPLY_ERROR_BASE + 1
+NBD_REPLY_TYPE_ERROR_OFFSET = NBD_REPLY_ERROR_BASE + 2
 
 # NBD_INFO replies
 NBD_INFO_EXPORT = 0
@@ -278,6 +291,9 @@ class Client(object):
         self.preferred_block_size = 4096
         self.maximum_block_size = 32 * 1024**2
 
+        # Server capabilities discovered during handshake.
+        self._structured_reply = False
+
         self._counter = itertools.count()
         self._state = CONNECTING
 
@@ -295,27 +311,37 @@ class Client(object):
     def read(self, offset, length):
         handle = next(self._counter)
         self._send_command(NBD_CMD_READ, handle, offset, length)
-        self._receive_simple_reply(handle)
-        return self._receive(length)
+        # If structured reply was negotiated, the server must send structured
+        # reply to NBD_CMD_READ.
+        return self._receive_reply(
+            handle,
+            length=length,
+            offset=offset,
+            only_structured=self._structured_reply)
 
     def readinto(self, offset, buf):
         handle = next(self._counter)
         self._send_command(NBD_CMD_READ, handle, offset, len(buf))
-        self._receive_simple_reply(handle)
-        return self._receive_into(buf)
+        # If structured reply was negotiated, the server must send structured
+        # reply to NBD_CMD_READ.
+        return self._receive_reply_into(
+            handle,
+            buf,
+            offset=offset,
+            only_structured=self._structured_reply)
 
     def write(self, offset, data):
         handle = next(self._counter)
         self._send_command(NBD_CMD_WRITE, handle, offset, len(data))
         self._send(data)
-        self._receive_simple_reply(handle)
+        self._receive_reply(handle)
 
     def zero(self, offset, length):
         if self.transmission_flags & NBD_FLAG_SEND_WRITE_ZEROES == 0:
             raise Error("Server does not support NBD_CMD_WRITE_ZEROES")
         handle = next(self._counter)
         self._send_command(NBD_CMD_WRITE_ZEROES, handle, offset, length)
-        self._receive_simple_reply(handle)
+        self._receive_reply(handle)
 
     def flush(self):
         # TODO: is this the best way to handle this?
@@ -323,7 +349,7 @@ class Client(object):
             return
         handle = next(self._counter)
         self._send_command(NBD_CMD_FLUSH, handle, 0, 0)
-        self._receive_simple_reply(handle)
+        self._receive_reply(handle)
 
     def close(self):
         if self._state in (HANDSHAKE, TRASMISSION):
@@ -642,18 +668,70 @@ class Client(object):
         self._send_struct("!IHHQQI", NBD_REQUEST_MAGIC, 0, type, handle,
                           offset, length)
 
-    def _receive_simple_reply(self, expected_handle):
-        # Simple reply
-        # S: 32 bits, 0x67446698, magic (NBD_SIMPLE_REPLY_MAGIC)
-        # S: 32 bits, error (MAY be zero)
-        # S: 64 bits, handle
-        # S: (length bytes of data if the request is of type NBD_CMD_READ and
-        #    error is zero)
-        magic, error, handle = self._receive_struct("!IIQ")
+    def _receive_reply(self, handle, length=0, offset=0,
+                       only_structured=False):
+        """
+        Receive either a simple reply or structured reply.
+        """
+        buf = bytearray(length)
+        self._receive_reply_into(
+            handle, buf, offset=offset, only_structured=only_structured)
+        return buf
 
-        if magic != NBD_SIMPLE_REPLY_MAGIC:
-            raise Error("Unexpected reply magic {!r}, expecting {!r}"
+    def _receive_reply_into(self, handle, buf, offset=0,
+                            only_structured=False):
+        """
+        Receive either a simple reply or structured reply info buffer buf.
+        """
+        errors = []
+
+        while True:
+            magic = self._receive_struct("!I")[0]
+
+            if magic == NBD_SIMPLE_REPLY_MAGIC:
+                if only_structured:
+                    raise Error(
+                        "Unexpected simple reply magic {:x}, expecting "
+                        "structured reply magic {:x}"
+                        .format(magic, NBD_STRUCTURED_REPLY_MAGIC))
+
+                self._receive_simple_reply_into(handle, buf)
+                return len(buf)
+
+            elif magic == NBD_STRUCTURED_REPLY_MAGIC:
+                if not self._structured_reply:
+                    raise Error(
+                        "Unexpected structured reply magic {:x}, expecting "
+                        "simple reply magic {:x}"
                         .format(magic, NBD_SIMPLE_REPLY_MAGIC))
+
+                # We started to received structured reply chunks, so simple
+                # reply is not allowed.
+                only_structured = True
+
+                if self._receive_reply_chunk_into(handle, buf, offset, errors):
+                    break
+            else:
+                raise Error("Unexpected reply magic {:x}".format(magic))
+
+        if errors:
+            # Some chunks failed. We don't have a good way to report
+            # partial failures since content chunks may be fragmented, so
+            # fail the entire request.
+            raise Error("Errors receiving reply: {}".format(errors))
+
+        return len(buf)
+
+    def _receive_simple_reply_into(self, expected_handle, buf):
+        """
+        Receive a simple reply (magic was already read).
+
+        S: 32 bits, error (MAY be zero)
+        S: 64 bits, handle
+        S: (length bytes of data if the request is of type NBD_CMD_READ and
+           error is zero)
+        """
+        error, handle = self._receive_struct("!IQ")
 
         if error != 0:
             raise Error("Error {}: {}".format(error, strerror(error)))
@@ -661,6 +739,131 @@ class Client(object):
         if handle != expected_handle:
             raise Error("Unepected handle {}, expecting {}"
                         .format(handle, expected_handle))
+
+        if len(buf):
+            self._receive_into(buf)
+
+    def _receive_reply_chunk_into(self, expected_handle, buf, offset, errors):
+        """
+        Receive a structured reply chunk (magic was already read). Return True
+        if this was the last chunk.
+
+        S: 16 bits, flags
+        S: 16 bits, type
+        S: 64 bits, handle
+        S: 32 bits, length of payload (unsigned)
+        S: length bytes of payload data (if length is nonzero)
+        """
+        flags, type, handle, length = self._receive_struct("!HHQI")
+
+        if handle != expected_handle:
+            raise Error("Unepected handle {}, expecting {}"
+                        .format(handle, expected_handle))
+
+        if type == NBD_REPLY_TYPE_ERROR:
+            self._handle_error_chunk(length)
+        elif type == NBD_REPLY_TYPE_ERROR_OFFSET:
+            self._handle_error_offset_chunk(length, errors)
+        elif type == NBD_REPLY_TYPE_NONE:
+            self._handle_none_chunk(flags, length)
+        elif type == NBD_REPLY_TYPE_OFFSET_DATA:
+            self._handle_data_chunk(length, buf, offset)
+        elif type == NBD_REPLY_TYPE_OFFSET_HOLE:
+            self._handle_hole_chunk(length, buf, offset)
+        else:
+            raise Error("Received unknown chunk type={} flags={} length={}"
+                        .format(type, flags, length))
+
+        return flags & NBD_REPLY_FLAG_DONE
+
+    def _handle_none_chunk(self, flags, length):
+        if not flags & NBD_REPLY_FLAG_DONE:
+            raise Error(
+                "Server sent invalid reply chunk type={} flags={}"
+                .format(NBD_REPLY_TYPE_NONE, flags))
+        if length != 0:
+            raise Error(
+                "Server sent invalid reply chunk type={} with non-zero "
+                "legnth {}"
+                .format(NBD_REPLY_TYPE_NONE, length))
+
+    def _handle_error_chunk(self, length):
+        """
+        Handle general error (entire request failed). This must be the last
+        chunk so we can fail the request without failing the entire connection.
+
+        32 bits: error (MUST be nonzero)
+        16 bits: message length (no more than header length - 6)
+        message length bytes: optional string suitable for direct display to a
+            human being
+        """
+        code, message = self._receive_error_chunk(length)
+        raise Error("Request failed code={} message={}".format(code, message))
+
+    def _handle_error_offset_chunk(self, length, errors):
+        """
+        Handle error at offset (partial error). This may not be the last chunk,
+        so we collect the error and continue to read the next chunk.
+
+        32 bits: error (MUST be nonzero)
+        16 bits: message length (no more than header length - 14)
+        message length bytes: optional string suitable for direct display to a
+            human being
+        64 bits: offset (unsigned)
+        """
+        code, message = self._receive_error_chunk(length - 8)
+        offset = self._receive_struct("!Q")[0]
+        errors.append((offset, code, message))
+
+    def _handle_data_chunk(self, length, buf, offset):
+        """
+        Receive data chunk payload into buf.
+
+        64 bits: offset (unsigned)
+        length - 8 bytes: data
+        """
+        # TODO: Validate that chunk offset and size are within requested range.
+        chunk_offset = self._receive_struct("!Q")[0]
+        chunk_size = length - 8
+
+        log.debug("Receive data chunk offset=%s size=%s",
+                  chunk_offset, chunk_size)
+
+        buf_offset = chunk_offset - offset
+        view = memoryview(buf)[buf_offset:buf_offset + chunk_size]
+        self._receive_into(view)
+
+    def _handle_hole_chunk(self, length, buf, offset):
+        """
+        Handle hole chunk, zeroing byte range in buf.
+
+        64 bits: offset (unsigned)
+        32 bits: hole size (unsigned, MUST be nonzero)
+        """
+        if length != 12:
+            raise Error("Server sent invalid hole chunk length {} != 12"
+                        .format(length))
+
+        chunk_offset, chunk_size = self._receive_struct("!QI")
+        if chunk_size == 0:
+            raise Error("Server sent invalid hole chunk with zero size")
+
+        log.debug("Receive hole chunk offset=%s size=%s",
+                  chunk_offset, chunk_size)
+
+        buf_offset = chunk_offset - offset
+        buf[buf_offset:buf_offset + chunk_size] = b"\0" * chunk_size
+
+    def _receive_error_chunk(self, length):
+        code, msg_len = self._receive_struct("!IH")
+
+        if length != msg_len + 6:
+            raise Error(
+                "Invalid structure reply error length expected={} actual={}"
+                .format(length, msg_len + 6))
+
+        message = self._receive(msg_len)
+        return code, message
 
     # Structured I/O
 
