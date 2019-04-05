@@ -39,6 +39,7 @@ Download qcow2 image to raw file via qemu-nbd:
 """
 
 import argparse
+import errno
 import io
 import json
 import logging
@@ -84,7 +85,11 @@ def download(args):
                 offset += step
                 pb.update(step)
 
-            os.fsync(dst.fileno())
+            try:
+                os.fsync(dst.fileno())
+            except OSError as e:
+                if e.errno != errno.EINVAL:
+                    raise
 
 
 def _map(path):
