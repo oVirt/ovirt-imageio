@@ -61,6 +61,7 @@ NBD_FLAG_SEND_CACHE = (1 << 10)
 # Options
 NBD_OPT_ABORT = 2
 NBD_OPT_GO = 7
+NBD_OPT_STRUCTURED_REPLY = 8
 
 # Replies
 NBD_REP_ACK = 1
@@ -427,6 +428,8 @@ class Client(object):
         self._send_client_flags(NBD_FLAG_C_FIXED_NEWSTYLE)
 
         # Options haggling.
+
+        self._negotiate_structured_reply_option()
         self._negotiate_go_option(export_name)
 
         self._state = TRASMISSION
@@ -435,7 +438,28 @@ class Client(object):
         log.debug("Sending client flags: %x:", flags)
         self._send_struct("!I", flags)
 
-    # GO Option
+    # Negotiating options
+
+    def _negotiate_structured_reply_option(self):
+        """
+        Ask the server to enable structured replies. This allows better error
+        handling for NBD_CMD_READ, and enables extension that require
+        structured replies such as NBD_CMD_BLOCK_STATUS.
+
+        If negotiation was successful, the server MUST use structured reply to
+        any response with a payload, and may used structured reply for other
+        responses.
+
+        If the server fails with NBD_REP_ERR_UNSUP, we disable structured
+        replies and will not be able to report block status.
+        """
+        try:
+            self._negotiate_option(NBD_OPT_STRUCTURED_REPLY)
+        except OptionUnsupported as e:
+            log.debug("Structured reply not available: %s", e)
+        else:
+            log.debug("Structured reply enabled")
+            self._structured_reply = True
 
     def _negotiate_go_option(self, export_name):
         # Here we can announce that we can honour server block size constraints
