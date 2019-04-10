@@ -279,8 +279,7 @@ CLOSED = 3
 class Client(object):
 
     def __init__(self, address, export_name=None):
-        if export_name is None:
-            export_name = ""
+        self.export_name = export_name or ""
         self.export_size = None
         self.transmission_flags = None
 
@@ -302,11 +301,11 @@ class Client(object):
         self._counter = itertools.count()
         self._state = CONNECTING
 
-        log.info("Connecting to %s %r", address, export_name)
+        log.info("Connecting to %s %r", address, self.export_name)
 
         self._sock = self._connect(address)
         try:
-            self._newstyle_handshake(export_name)
+            self._newstyle_handshake()
         except:
             self.close()
             raise
@@ -413,7 +412,7 @@ class Client(object):
 
     # NBD fixed newstyle handshake
 
-    def _newstyle_handshake(self, export_name):
+    def _newstyle_handshake(self):
         assert self._state == CONNECTING
         self._state = HANDSHAKE
 
@@ -440,9 +439,9 @@ class Client(object):
         self._negotiate_structured_reply_option()
 
         if self._structured_reply:
-            self._negotiate_meta_context(export_name)
+            self._negotiate_meta_context()
 
-        self._negotiate_go_option(export_name)
+        self._negotiate_go_option()
 
         self._state = TRASMISSION
 
@@ -473,10 +472,9 @@ class Client(object):
             log.debug("Structured reply enabled")
             self._structured_reply = True
 
-    def _negotiate_meta_context(self, export_name):
+    def _negotiate_meta_context(self):
         opt = NBD_OPT_SET_META_CONTEXT
-        queries = list(self._meta_context)
-        data = self._format_meta_context_data(export_name, *queries)
+        data = self._format_meta_context_data(*list(self._meta_context))
         self._send_option(opt, data)
 
         # If the server supports NBD_OPT_SET_META_CONTEXT and all the contexts
@@ -515,7 +513,7 @@ class Client(object):
 
             self._receive_meta_context_reply(length)
 
-    def _format_meta_context_data(self, export_name, *queries):
+    def _format_meta_context_data(self, *queries):
         """
         32 bits, length of export name.
         String, name of export for which we wish to list metadata contexts.
@@ -525,7 +523,7 @@ class Client(object):
             String, query to select metadata contexts.
         """
         # Export name (length + name)
-        name = export_name.encode("utf-8")
+        name = self.export_name.encode("utf-8")
         data = bytearray()
         data += struct.pack("!I", len(name))
         data += name
@@ -563,7 +561,7 @@ class Client(object):
         log.debug("Meta context %s is available", ctx_name)
         self._meta_context[ctx_name] = ctx_id
 
-    def _negotiate_go_option(self, export_name):
+    def _negotiate_go_option(self):
         # Here we can announce that we can honour server block size constraints
         # by adding NBD_INFO_BLOCK_SIZE information request. If we do this we
         # MUST abide by the block size constraints received. If we don't we are
@@ -571,7 +569,7 @@ class Client(object):
         # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         # section #block-size-constraints
 
-        data = self._format_go_option_data(export_name)
+        data = self._format_go_option_data()
         self._send_option(NBD_OPT_GO, data)
 
         while True:
@@ -604,7 +602,7 @@ class Client(object):
                 log.warning("Dropping unknown info reply=%r data=%r",
                             info, data)
 
-    def _format_go_option_data(self, export_name, *requests):
+    def _format_go_option_data(self, *requests):
         """
         Format export name and optional list of NBD_INFO_XXX requests.
 
@@ -615,7 +613,7 @@ class Client(object):
         16 bits x n - list of NBD_INFO information requests
         """
         # Export name (length + name)
-        name = export_name.encode("utf-8")
+        name = self.export_name.encode("utf-8")
         data = bytearray()
         data += struct.pack("!I", len(name))
         data += name
