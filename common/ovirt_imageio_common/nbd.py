@@ -147,6 +147,13 @@ class Error(Exception):
         return self.fmt.format(self=self)
 
 
+class ProtocolError(Error):
+    """
+    Raised when server sent invalid response. Requires termination of the
+    connection.
+    """
+
+
 class OptionError(Error):
     fmt = ("Error negotiating option opt={self.opt} code={self.code} "
            "reason={self.reason}")
@@ -423,17 +430,18 @@ class Client(object):
         nbd_magic, cliserv_magic, server_flags = self._receive_struct("!QQH")
 
         if nbd_magic != NBDMAGIC:
-            raise Error("Bad nbd magic {:x}, expecting {:x}"
-                        .format(nbd_magic, NBDMAGIC))
+            raise ProtocolError("Bad nbd magic {:x}, expecting {:x}"
+                                .format(nbd_magic, NBDMAGIC))
 
         if cliserv_magic != IHAVEOPT:
-            raise Error("Server does not support newstyle negotiation "
-                        "[magic={:x} expected={:x}]"
-                        .format(cliserv_magic, IHAVEOPT))
+            raise ProtocolError("Server does not support newstyle negotiation "
+                                "magic={:x} expected={:x}"
+                                .format(cliserv_magic, IHAVEOPT))
 
         log.debug("Received server flags: %x", server_flags)
         if not server_flags & NBD_FLAG_FIXED_NEWSTYLE:
-            raise Error("Server does not support fixed newstyle negotiation")
+            raise ProtocolError(
+                "Server does not support fixed newstyle negotiation")
 
         self._send_client_flags(NBD_FLAG_C_FIXED_NEWSTYLE)
 
@@ -564,8 +572,8 @@ class Client(object):
 
         ctx_name = data[4:].decode("utf-8")
         if ctx_name not in self._meta_context:
-            raise Error("Unexpected context {}, expecting one of {}"
-                        .format(ctx_name, list(self._meta_context)))
+            raise ProtocolError("Unexpected context {}, expecting one of {}"
+                                .format(ctx_name, list(self._meta_context)))
 
         log.debug("Meta context %s is available", ctx_name)
         self._meta_context[ctx_name] = ctx_id
@@ -589,7 +597,8 @@ class Client(object):
 
             if reply == NBD_REP_ACK:
                 if self.export_size is None or self.transmission_flags is None:
-                    raise Error("Server did not send export info")
+                    raise ProtocolError("Server did not send export size or "
+                                        "transmission flags")
                 break
 
             if reply != NBD_REP_INFO:
@@ -707,12 +716,13 @@ class Client(object):
                   magic, option, reply, length)
 
         if magic != OPTION_REPLY_MAGIC:
-            raise Error("Unexpected reply magic number {:x}, expecting {:x}"
-                        .format(magic, OPTION_REPLY_MAGIC))
+            raise ProtocolError(
+                "Unexpected reply magic {:x} for option {}, expecting {:x}"
+                .format(magic, expected_option, OPTION_REPLY_MAGIC))
 
         if option != expected_option:
-            raise Error("Unexpected reply option {:x}, expecting {:x}"
-                        .format(option, expected_option))
+            raise ProtocolError("Unexpected reply option {}, expecting {}"
+                                .format(option, expected_option))
 
         return reply, length
 
@@ -823,7 +833,7 @@ class Client(object):
 
             if magic == NBD_SIMPLE_REPLY_MAGIC:
                 if only_structured:
-                    raise Error(
+                    raise ProtocolError(
                         "Unexpected simple reply magic {:x}, expecting "
                         "structured reply magic {:x}"
                         .format(magic, NBD_STRUCTURED_REPLY_MAGIC))
@@ -833,7 +843,7 @@ class Client(object):
 
             elif magic == NBD_STRUCTURED_REPLY_MAGIC:
                 if not self._structured_reply:
-                    raise Error(
+                    raise ProtocolError(
                         "Unexpected structured reply magic {:x}, expecting "
                         "simple reply magic {:x}"
                         .format(magic, NBD_SIMPLE_REPLY_MAGIC))
@@ -844,8 +854,10 @@ class Client(object):
 
                 if self._receive_reply_chunk_into(handle, buf, offset, errors):
                     break
+
             else:
-                raise Error("Unexpected reply magic {:x}".format(magic))
+                raise ProtocolError("Unexpected reply magic {:x}"
+                                    .format(magic))
 
         if errors:
             # Some chunks failed. We don't have a good way to report
@@ -904,15 +916,16 @@ class Client(object):
         elif type == NBD_REPLY_TYPE_OFFSET_HOLE:
             self._handle_hole_chunk(length, buf, offset)
         else:
-            raise Error("Received unknown chunk type={} flags={} length={}"
-                        .format(type, flags, length))
+            raise ProtocolError(
+                "Received unknown chunk type={} flags={} length={}"
+                .format(type, flags, length))
 
         return flags & NBD_REPLY_FLAG_DONE
 
     def _handle_none_chunk(self, flags, length):
         if not flags & NBD_REPLY_FLAG_DONE:
-            raise Error(
-                "Server sent invalid reply chunk type={} flags={}"
+            raise ProtocolError(
+                "Invalid none reply chunk without done flag type={} flags={}"
                 .format(NBD_REPLY_TYPE_NONE, flags))
         if length != 0:
             raise Error(
@@ -979,7 +992,7 @@ class Client(object):
 
         chunk_offset, chunk_size = self._receive_struct("!QI")
         if chunk_size == 0:
-            raise Error("Server sent invalid hole chunk with zero size")
+            raise ProtocolError("Invalid hole chunk with zero size")
 
         log.debug("Receive hole chunk offset=%s size=%s",
                   chunk_offset, chunk_size)
@@ -990,10 +1003,10 @@ class Client(object):
     def _receive_error_chunk(self, length):
         code, msg_len = self._receive_struct("!IH")
 
-        if length != msg_len + 6:
-            raise Error(
-                "Invalid structure reply error length expected={} actual={}"
-                .format(length, msg_len + 6))
+        if msg_len != length - 6:
+            raise ProtocolError(
+                "Invalid structure reply error message length {}, expected={}"
+                .format(msg_len, length - 6))
 
         message = self._receive(msg_len)
         return code, message
@@ -1026,9 +1039,10 @@ class Client(object):
             view = memoryview(buf)[pos:]
             n = util.uninterruptible(self._sock.recv_into, view)
             if not n:
-                raise Error("Server closed the connection, read {} bytes, "
-                            "expected {} bytes"
-                            .format(pos, length))
+                raise ProtocolError(
+                    "Server closed the connection, read {} bytes, expected "
+                    "{} bytes"
+                    .format(pos, length))
             pos += n
 
     # Conetext manager
