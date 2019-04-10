@@ -164,6 +164,16 @@ class UnexpectedOptionReply(ProtocolError):
         self.expected = expected
 
 
+class InvalidLength(ProtocolError):
+    fmt = ("Reply {self.reply} with invalid legnth {self.length}, expecting "
+           "{self.expected}")
+
+    def __init__(self, reply, length, expected):
+        self.reply = reply
+        self.length = length
+        self.expected = expected
+
+
 class OptionError(Error):
     fmt = ("Error negotiating option opt={self.opt} code={self.code} "
            "reason={self.reason}")
@@ -525,8 +535,7 @@ class Client(object):
 
             if reply == NBD_REP_ACK:
                 if length != 0:
-                    raise Error("Invalid reply {} with non-zero length {}"
-                                .format(reply, length))
+                    raise InvalidLength(reply, length, 0)
                 break
 
             if reply != NBD_REP_META_CONTEXT:
@@ -573,8 +582,7 @@ class Client(object):
             human-readable string, but it MUST be valid UTF-8 data.
         """
         if length < 4:
-            raise Error("Unexpected length {} for meta context reply"
-                        .format(length))
+            raise InvalidLength(NBD_REP_META_CONTEXT, length, ">= 4")
 
         data = self._receive(length)
         ctx_id = struct.unpack("!I", data[:4])[0]
@@ -606,6 +614,8 @@ class Client(object):
                 self._handle_option_error(opt, reply, length)
 
             if reply == NBD_REP_ACK:
+                if length != 0:
+                    raise InvalidLength(reply, length, 0)
                 if self.export_size is None or self.transmission_flags is None:
                     raise ProtocolError("Server did not send export size or "
                                         "transmission flags")
@@ -615,7 +625,7 @@ class Client(object):
                 raise UnexpectedOptionReply(reply, opt, NBD_REP_INFO)
 
             if length < 2:
-                raise Error("Invalid short reply {}".format(length))
+                raise InvalidLength(NBD_REP_INFO, length, ">= 2")
 
             info = self._receive_struct("!H")[0]
             length -= 2
@@ -654,16 +664,14 @@ class Client(object):
 
     def _receive_export_info(self, length):
         if length != 10:
-            raise Error("Invalid export info length {}"
-                        .format(length))
+            raise InvalidLength(NBD_REP_INFO, length, 10)
         self.export_size, self.transmission_flags = self._receive_struct("!QH")
         log.debug("Received export info [size=%r flags=%r]",
                   self.export_size, self.transmission_flags)
 
     def _receive_blocksize_info(self, length):
         if length != 12:
-            raise Error("Invalid blocksize info length {}"
-                        .format(length))
+            raise InvalidLength(NBD_REP_INFO, length, 12)
         (self.minimum_block_size, self.preferred_block_size,
             self.maximum_block_size) = self._receive_struct("!III")
         log.debug("Received block size info [minimum=%r preferred=%r "
@@ -688,8 +696,7 @@ class Client(object):
             raise UnexpectedOptionReply(reply, opt, NBD_REP_ACK)
 
         if length != 0:
-            raise Error("Reply with non-zero length {} for option {}"
-                        .format(length, opt))
+            raise InvalidLength(reply, length, 0)
 
     def _send_option(self, opt, data=b""):
         """
@@ -937,10 +944,7 @@ class Client(object):
                 "Invalid none reply chunk without done flag type={} flags={}"
                 .format(NBD_REPLY_TYPE_NONE, flags))
         if length != 0:
-            raise Error(
-                "Server sent invalid reply chunk type={} with non-zero "
-                "legnth {}"
-                .format(NBD_REPLY_TYPE_NONE, length))
+            raise InvalidLength(NBD_REPLY_TYPE_NONE, length, 0)
 
     def _handle_error_chunk(self, length):
         """
@@ -996,8 +1000,7 @@ class Client(object):
         32 bits: hole size (unsigned, MUST be nonzero)
         """
         if length != 12:
-            raise Error("Server sent invalid hole chunk length {} != 12"
-                        .format(length))
+            raise InvalidLength(NBD_REPLY_TYPE_OFFSET_HOLE, length, 12)
 
         chunk_offset, chunk_size = self._receive_struct("!QI")
         if chunk_size == 0:
