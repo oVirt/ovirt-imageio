@@ -138,7 +138,13 @@ log = logging.getLogger("nbd")
 
 
 class Error(Exception):
-    pass
+    fmt = "{self.reason}"
+
+    def __init__(self, reason):
+        self.reason = reason
+
+    def __str__(self):
+        return self.fmt.format(self=self)
 
 
 class OptionError(Error):
@@ -149,9 +155,6 @@ class OptionError(Error):
         self.opt = opt
         self.code = code
         self.reason = reason
-
-    def __str__(self):
-        return self.fmt.format(self=self)
 
 
 class OptionUnsupported(OptionError):
