@@ -154,6 +154,16 @@ class ProtocolError(Error):
     """
 
 
+class UnexpectedOptionReply(ProtocolError):
+    fmt = ("Unexpected reply {self.reply} for option {self.option}, "
+           "expecting reply {self.expected}")
+
+    def __init__(self, reply, option, expected):
+        self.reply = reply
+        self.option = option
+        self.expected = expected
+
+
 class OptionError(Error):
     fmt = ("Error negotiating option opt={self.opt} code={self.code} "
            "reason={self.reason}")
@@ -520,8 +530,7 @@ class Client(object):
                 break
 
             if reply != NBD_REP_META_CONTEXT:
-                raise Error("Unexpected reply {}, expecting {}"
-                            .format(reply, NBD_REP_META_CONTEXT))
+                raise UnexpectedOptionReply(reply, opt, NBD_REP_META_CONTEXT)
 
             self._receive_meta_context_reply(length)
 
@@ -586,14 +595,15 @@ class Client(object):
         # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         # section #block-size-constraints
 
+        opt = NBD_OPT_GO
         data = self._format_go_option_data()
-        self._send_option(NBD_OPT_GO, data)
+        self._send_option(opt, data)
 
         while True:
-            reply, length = self._receive_option_reply(NBD_OPT_GO)
+            reply, length = self._receive_option_reply(opt)
 
             if reply in ERROR_REPLY:
-                self._handle_option_error(NBD_OPT_GO, reply, length)
+                self._handle_option_error(opt, reply, length)
 
             if reply == NBD_REP_ACK:
                 if self.export_size is None or self.transmission_flags is None:
@@ -602,8 +612,7 @@ class Client(object):
                 break
 
             if reply != NBD_REP_INFO:
-                raise Error("Unexpected reply {}, expecting info reply {}"
-                            .format(reply, NBD_REP_INFO))
+                raise UnexpectedOptionReply(reply, opt, NBD_REP_INFO)
 
             if length < 2:
                 raise Error("Invalid short reply {}".format(length))
@@ -676,7 +685,7 @@ class Client(object):
         # using qemu policy as in nbd_request_simple_option().
 
         if reply != NBD_REP_ACK:
-            raise Error("Unexpected reply {} for option {}".format(reply, opt))
+            raise UnexpectedOptionReply(reply, opt, NBD_REP_ACK)
 
         if length != 0:
             raise Error("Reply with non-zero length {} for option {}"
