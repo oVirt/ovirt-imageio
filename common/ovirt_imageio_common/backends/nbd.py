@@ -179,3 +179,6 @@ class Backend(object):
     @property
     def name(self):
         return "nbd"
+
+    def size(self):
+        return self._client.export_size

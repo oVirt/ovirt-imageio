@@ -120,3 +120,10 @@ class Backend(object):
     @property
     def name(self):
         return "memory"
+
+    def size(self):
+        old_pos = self._buf.tell()
+        self._buf.seek(0, os.SEEK_END)
+        result = self._buf.tell()
+        self._buf.seek(old_pos, os.SEEK_SET)
+        return result

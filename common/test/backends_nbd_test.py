@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import io
+import subprocess
 from contextlib import closing
 
 import pytest
@@ -264,3 +265,13 @@ def test_dirty(nbd_server):
         with closing(util.aligned_buffer(10)) as buf:
             b.readinto(buf)
         assert not b.dirty
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_size(nbd_server, fmt):
+    nbd_server.fmt = fmt
+    subprocess.check_call(["qemu-img", "create", "-f",
+                           fmt, nbd_server.image, "150m"])
+    nbd_server.start()
+    with nbd.open(nbd_server.url, "r") as b:
+        assert b.size() == 150 * 1024**2

@@ -163,6 +163,13 @@ class Backend(object):
     def name(self):
         return "file"
 
+    def size(self):
+        old_pos = self._fio.tell()
+        self._fio.seek(0, os.SEEK_END)
+        result = self._fio.tell()
+        self._fio.seek(old_pos, os.SEEK_SET)
+        return result
+
     # Private
 
     def _aligned(self, n):

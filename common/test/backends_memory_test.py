@@ -178,3 +178,13 @@ def test_dirty():
     assert not m.dirty
     m.readinto(b)
     assert not m.dirty
+
+
+def test_size():
+    m = memory.Backend("r+", b"data")
+    assert m.size() == 4
+    assert m.tell() == 0
+    m.zero(5)
+    m.seek(3)
+    assert m.size() == 5
+    assert m.tell() == 3

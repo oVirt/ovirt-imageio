@@ -472,3 +472,15 @@ def test_dirty(tmpurl):
         assert not m.dirty
         m.readinto(buf)
         assert not m.dirty
+
+
+def test_size(tmpurl):
+    with io.open(tmpurl.path, "wb") as f:
+        f.truncate(1024)
+    with file.open(tmpurl, "r+") as f:
+        assert f.size() == 1024
+        assert f.tell() == 0
+        f.zero(2048)
+        f.seek(100)
+        assert f.size() == 2048
+        assert f.tell() == 100
