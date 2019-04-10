@@ -208,6 +208,14 @@ class RequestError(Error):
     """
 
 
+class UnsupportedRequest(RequestError):
+    """
+    Raised when the server cannot process a request becuase the requested
+    operation is not supported for the current connection. The client can
+    continue normally sending other requests.
+    """
+
+
 class UnixAddress(str):
     """
     A unix socket path with additioal methods to make it easier to handle both
@@ -391,7 +399,8 @@ class Client(object):
 
     def zero(self, offset, length):
         if self.transmission_flags & NBD_FLAG_SEND_WRITE_ZEROES == 0:
-            raise Error("Server does not support NBD_CMD_WRITE_ZEROES")
+            raise UnsupportedRequest(
+                "Server does not support NBD_CMD_WRITE_ZEROES")
         handle = next(self._counter)
         self._send_command(NBD_CMD_WRITE_ZEROES, handle, offset, length)
         self._receive_reply(handle)
