@@ -174,6 +174,14 @@ class InvalidLength(ProtocolError):
         self.expected = expected
 
 
+class UnexpectedHandle(ProtocolError):
+    fmt = "Unepected handle {self.handle}, expecting {self.expected}"
+
+    def __init__(self, handle, expected):
+        self.handle = handle
+        self.expected = expected
+
+
 class OptionError(Error):
     fmt = ("Error negotiating option opt={self.opt} code={self.code} "
            "reason={self.reason}")
@@ -898,8 +906,7 @@ class Client(object):
             raise Error("Error {}: {}".format(error, strerror(error)))
 
         if handle != expected_handle:
-            raise Error("Unepected handle {}, expecting {}"
-                        .format(handle, expected_handle))
+            raise UnexpectedHandle(handle, expected_handle)
 
         if len(buf):
             self._receive_into(buf)
@@ -918,8 +925,7 @@ class Client(object):
         flags, type, handle, length = self._receive_struct("!HHQI")
 
         if handle != expected_handle:
-            raise Error("Unepected handle {}, expecting {}"
-                        .format(handle, expected_handle))
+            raise UnexpectedHandle(handle, expected_handle)
 
         if type == NBD_REPLY_TYPE_ERROR:
             self._handle_error_chunk(length)
