@@ -201,6 +201,13 @@ class OptionUnsupported(OptionError):
         self.reason = reason
 
 
+class RequestError(Error):
+    """
+    Raised when server failed to process a request. The client can continue
+    normally with another request or repeat the failing request.
+    """
+
+
 class UnixAddress(str):
     """
     A unix socket path with additioal methods to make it easier to handle both
@@ -887,7 +894,7 @@ class Client(object):
             # Some chunks failed. We don't have a good way to report
             # partial failures since content chunks may be fragmented, so
             # fail the entire request.
-            raise Error("Errors receiving reply: {}".format(errors))
+            raise RequestError("Errors receiving reply: {}".format(errors))
 
         return len(buf)
 
