@@ -467,7 +467,7 @@ class Client(object):
         try:
             self._negotiate_option(NBD_OPT_STRUCTURED_REPLY)
         except OptionUnsupported as e:
-            log.debug("Structured reply not available: %s", e)
+            log.warning("Structured reply is not available: %s", e)
         else:
             log.debug("Structured reply enabled")
             self._structured_reply = True
@@ -498,8 +498,9 @@ class Client(object):
             if reply in ERROR_REPLY:
                 try:
                     self._handle_option_error(opt, reply, length)
-                except OptionUnsupported:
-                    break
+                except OptionUnsupported as e:
+                    log.warning("Meta context is not supported: %s", e)
+                    return
 
             if reply == NBD_REP_ACK:
                 if length != 0:
@@ -512,6 +513,11 @@ class Client(object):
                             .format(reply, NBD_REP_META_CONTEXT))
 
             self._receive_meta_context_reply(length)
+
+        # Warn if server does not support all requested meta contexts.
+        for ctx_name, ctx_id in six.iteritems(self._meta_context):
+            if ctx_id is None:
+                log.warning("Meta context %s is not available", ctx_name)
 
     def _format_meta_context_data(self, *queries):
         """
