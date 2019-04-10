@@ -11,8 +11,10 @@ nbd - Network Block Device
 
 from __future__ import absolute_import
 
+import errno
 import itertools
 import logging
+import os
 import re
 import socket
 import struct
@@ -134,6 +136,19 @@ ERROR_REPLY = {
     NBD_REP_ERR_TOO_BIG: "The request or the reply is too large to process",
 }
 
+# Mapping from NBD error code in simple or structured reply to system errno.
+# https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+# #error-values
+REPLY_ERRORS = {
+    1: errno.EPERM,
+    5: errno.EIO,
+    12: errno.ENOMEM,
+    22: errno.EINVAL,
+    28: errno.ENOSPC,
+    75: errno.EOVERFLOW,
+    108: errno.ESHUTDOWN,
+}
+
 log = logging.getLogger("nbd")
 
 
@@ -214,6 +229,19 @@ class UnsupportedRequest(RequestError):
     operation is not supported for the current connection. The client can
     continue normally sending other requests.
     """
+
+
+class ReplyError(RequestError):
+    fmt = "[Error {self.code}] {self.reason}"
+
+    def __init__(self, code, reason=None):
+        if reason is None:
+            if code not in REPLY_ERRORS:
+                reason = "Unknown error"
+            else:
+                reason = os.strerror(REPLY_ERRORS[code])
+        self.code = code
+        self.reason = reason
 
 
 class UnixAddress(str):
@@ -779,7 +807,7 @@ class Client(object):
 
         # If we have no message, use the builtin message for this error.
         if message == "":
-            message = strerror(reply)
+            message = ERROR_REPLY.get(reply, "Unknown error")
 
         if reply == NBD_REP_ERR_UNSUP:
             raise OptionUnsupported(opt, message)
@@ -919,7 +947,7 @@ class Client(object):
         error, handle = self._receive_struct("!IQ")
 
         if error != 0:
-            raise Error("Error {}: {}".format(error, strerror(error)))
+            raise ReplyError(error)
 
         if handle != expected_handle:
             raise UnexpectedHandle(handle, expected_handle)
@@ -979,7 +1007,7 @@ class Client(object):
             human being
         """
         code, message = self._receive_error_chunk(length)
-        raise Error("Request failed code={} message={}".format(code, message))
+        raise ReplyError(code, message)
 
     def _handle_error_offset_chunk(self, length, errors):
         """
@@ -994,7 +1022,7 @@ class Client(object):
         """
         code, message = self._receive_error_chunk(length - 8)
         offset = self._receive_struct("!Q")[0]
-        errors.append((offset, code, message))
+        errors.append((offset, ReplyError(code, message)))
 
     def _handle_data_chunk(self, length, buf, offset):
         """
@@ -1092,7 +1120,3 @@ class Client(object):
             if t is None:
                 raise
             log.exeption("Error closing")
-
-
-def strerror(error):
-    return ERROR_REPLY.get(error, "Unknown error")
