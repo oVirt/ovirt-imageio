@@ -62,10 +62,12 @@ NBD_FLAG_SEND_CACHE = (1 << 10)
 NBD_OPT_ABORT = 2
 NBD_OPT_GO = 7
 NBD_OPT_STRUCTURED_REPLY = 8
+NBD_OPT_SET_META_CONTEXT = 10
 
 # Replies
 NBD_REP_ACK = 1
 NBD_REP_INFO = 3
+NBD_REP_META_CONTEXT = 4
 
 # Structured reply flags
 NBD_REPLY_FLAG_DONE = (1 << 0)
@@ -294,6 +296,8 @@ class Client(object):
 
         # Server capabilities discovered during handshake.
         self._structured_reply = False
+        # TODO: support "qemu:dirty-bitmap".
+        self._meta_context = {"base:allocation": None}
 
         self._counter = itertools.count()
         self._state = CONNECTING
@@ -308,6 +312,10 @@ class Client(object):
             raise
 
         log.info("Ready for transmission")
+
+    @property
+    def base_allocation(self):
+        return self._meta_context["base:allocation"] is not None
 
     def read(self, offset, length):
         handle = next(self._counter)
@@ -430,6 +438,10 @@ class Client(object):
         # Options haggling.
 
         self._negotiate_structured_reply_option()
+
+        if self._structured_reply:
+            self._negotiate_meta_context(export_name)
+
         self._negotiate_go_option(export_name)
 
         self._state = TRASMISSION
@@ -460,6 +472,96 @@ class Client(object):
         else:
             log.debug("Structured reply enabled")
             self._structured_reply = True
+
+    def _negotiate_meta_context(self, export_name):
+        opt = NBD_OPT_SET_META_CONTEXT
+        queries = list(self._meta_context)
+        data = self._format_meta_context_data(export_name, *queries)
+        self._send_option(opt, data)
+
+        # If the server supports NBD_OPT_SET_META_CONTEXT and all the contexts
+        # in self._meta_context, we expect to get one reply for every context,
+        # with the meta context id, and then NBD_REP_ACK.
+        #
+        # If the server does not support meta context, we may get
+        # NBD_REP_ERR_UNSUP. If the server supports NBD_OPT_SET_META_CONTEXT
+        # but not all required meta contexts, we may get info only about the
+        # contexts supported by the server.
+        #
+        # Related sections in the spec:
+        # - https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+        #   #metadata-querying
+        # - https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
+        #   #option-types (see NBD_OPT_SET_META_CONTEXT).
+
+        while True:
+            reply, length = self._receive_option_reply(opt)
+
+            if reply in ERROR_REPLY:
+                try:
+                    self._handle_option_error(opt, reply, length)
+                except OptionUnsupported:
+                    break
+
+            if reply == NBD_REP_ACK:
+                if length != 0:
+                    raise Error("Invalid reply {} with non-zero length {}"
+                                .format(reply, length))
+                break
+
+            if reply != NBD_REP_META_CONTEXT:
+                raise Error("Unexpected reply {}, expecting {}"
+                            .format(reply, NBD_REP_META_CONTEXT))
+
+            self._receive_meta_context_reply(length)
+
+    def _format_meta_context_data(self, export_name, *queries):
+        """
+        32 bits, length of export name.
+        String, name of export for which we wish to list metadata contexts.
+        32 bits, number of queries
+        Zero or more queries, each being:
+            32 bits, length of query
+            String, query to select metadata contexts.
+        """
+        # Export name (length + name)
+        name = export_name.encode("utf-8")
+        data = bytearray()
+        data += struct.pack("!I", len(name))
+        data += name
+
+        # Queries
+        data += struct.pack("!I", len(queries))
+        for query in queries:
+            query = query.encode("utf-8")
+            data += struct.pack("!I", len(query))
+            data += query
+
+        return data
+
+    def _receive_meta_context_reply(self, length):
+        """
+        Receive reply to NBD_OPT_SET_META_CONTEXT, and store the meta context
+        id in self._meta_context dict.
+
+        32 bits, NBD metadata context ID.
+        String, name of the metadata context. This is not required to be a
+            human-readable string, but it MUST be valid UTF-8 data.
+        """
+        if length < 4:
+            raise Error("Unexpected length {} for meta context reply"
+                        .format(length))
+
+        data = self._receive(length)
+        ctx_id = struct.unpack("!I", data[:4])[0]
+
+        ctx_name = data[4:].decode("utf-8")
+        if ctx_name not in self._meta_context:
+            raise Error("Unexpected context {}, expecting one of {}"
+                        .format(ctx_name, list(self._meta_context)))
+
+        log.debug("Meta context %s is available", ctx_name)
+        self._meta_context[ctx_name] = ctx_id
 
     def _negotiate_go_option(self, export_name):
         # Here we can announce that we can honour server block size constraints

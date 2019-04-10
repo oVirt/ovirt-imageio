@@ -73,6 +73,7 @@ def test_handshake(tmpdir, export, fmt):
             assert c.minimum_block_size == 1
             assert c.preferred_block_size == 4096
             assert c.maximum_block_size == 32 * 1024**2
+            assert c.base_allocation
 
 
 def test_raw_read(tmpdir):
@@ -279,6 +280,7 @@ def test_full_backup_handshake(tmpdir, fmt, transport):
             assert c.minimum_block_size == 1
             assert c.preferred_block_size == 4096
             assert c.maximum_block_size == 32 * 1024**2
+            assert c.base_allocation
 
 
 @pytest.mark.parametrize("transport", ["unix", "tcp"])
