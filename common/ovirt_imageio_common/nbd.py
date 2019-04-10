@@ -529,7 +529,7 @@ class Client(object):
         self._state = TRASMISSION
 
     def _send_client_flags(self, flags):
-        log.debug("Sending client flags: %x:", flags)
+        log.debug("Sending client flags: %x", flags)
         self._send_struct("!I", flags)
 
     # Negotiating options
@@ -718,7 +718,7 @@ class Client(object):
         if length != 10:
             raise InvalidLength(NBD_REP_INFO, length, 10)
         self.export_size, self.transmission_flags = self._receive_struct("!QH")
-        log.debug("Received export info [size=%r flags=%r]",
+        log.debug("Received export info size=%r flags=%r",
                   self.export_size, self.transmission_flags)
 
     def _receive_blocksize_info(self, length):
@@ -726,8 +726,8 @@ class Client(object):
             raise InvalidLength(NBD_REP_INFO, length, 12)
         (self.minimum_block_size, self.preferred_block_size,
             self.maximum_block_size) = self._receive_struct("!III")
-        log.debug("Received block size info [minimum=%r preferred=%r "
-                  "maximum=%r]",
+        log.debug("Received block size info minimum=%r preferred=%r "
+                  "maximum=%r",
                   self.minimum_block_size,
                   self.preferred_block_size,
                   self.maximum_block_size)
@@ -780,7 +780,7 @@ class Client(object):
         S: any data as required by the reply.
         """
         magic, option, reply, length = self._receive_struct("!QIII")
-        log.debug("Received reply [magic=%x option=%s type=%s len=%s]",
+        log.debug("Received reply magic=%x option=%s type=%s len=%s",
                   magic, option, reply, length)
 
         if magic != OPTION_REPLY_MAGIC:
