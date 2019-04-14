@@ -831,7 +831,6 @@ def test_internal_error_put(server):
         assert "secret" not in r.read().decode("utf-8")
 
 
-@pytest.mark.xfail(reason="incorrect handling on server")
 def test_server_socket_error_get(server):
     # Socket error on server side should report as INTERNAL_SERVER_ERROR.
     con = http_client.HTTPConnection("localhost", server.server_port)
@@ -841,7 +840,6 @@ def test_server_socket_error_get(server):
         assert r.status == http.INTERNAL_SERVER_ERROR
 
 
-@pytest.mark.xfail(reason="incorrect handling on server")
 def test_server_socket_error_put(server):
     # Socket error on server side should report as INTERNAL_SERVER_ERROR.
     con = http_client.HTTPConnection("localhost", server.server_port)

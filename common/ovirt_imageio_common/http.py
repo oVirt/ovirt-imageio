@@ -177,6 +177,13 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
         """
         log.warning(fmt, *args)
 
+    def connection_error(self):
+        """
+        Return the error number from the underlying socket, or 0 if the socket
+        has no error.
+        """
+        return self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+
 
 class Request(object):
 
@@ -335,6 +342,12 @@ class Request(object):
         self._length -= len(data)
 
         return data
+
+    def connection_lost(self):
+        """
+        Return True if the underlying socket was disconnected.
+        """
+        return self._con.connection_error() in _DISCONNECTED
 
 
 class Response(object):
@@ -661,15 +674,11 @@ class Router(object):
                 # code that want to return the default 200 OK response.
                 if not resp.started:
                     resp.write(b"")
-            except socket.error as e:
-                # We cannot return a response, close the connection.
-                # TODO: Verify that error is in the connection socket.
-                if e.args[0] not in _DISCONNECTED:
-                    raise
-                log.debug("Client disconnected: %s", e)
-                resp.close_connection()
             except Exception as e:
-                if resp.started:
+                if isinstance(e, socket.error) and req.connection_lost():
+                    log.debug("Client disconnected: %s", e)
+                    resp.close_connection()
+                elif resp.started:
                     # Already started the response, close the connection.
                     log.exception("Request aborted after starting response")
                     resp.close_connection()
