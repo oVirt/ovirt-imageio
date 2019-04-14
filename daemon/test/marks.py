@@ -12,6 +12,7 @@ import pytest
 import six
 
 from . import distro
+from . import testutil
 
 xfail_python3 = pytest.mark.xfail(six.PY3, reason="Needs porting to python 3")
 
@@ -21,3 +22,8 @@ requires_advanced_virt = pytest.mark.skipif(
 
 
 requires_python3 = pytest.mark.skipif(six.PY2, reason="Requires python 3")
+
+
+requires_ipv6 = pytest.mark.skipif(
+    not testutil.ipv6_enabled(),
+    reason="IPv6 not available")

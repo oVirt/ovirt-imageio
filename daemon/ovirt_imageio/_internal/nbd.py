@@ -19,6 +19,7 @@ import re
 import socket
 import struct
 
+from . import ipv6
 from . import sockutil
 from . import util
 
@@ -281,9 +282,9 @@ class TCPAddress(sockutil.TCPAddress):
     """
     sockutil.TCPAddress enriched with url() providing nbd URL.
     """
-
     def url(self, export=None):
-        s = "nbd:{}:{}".format(self.host, self.port)
+        host = ipv6.quote_address(self.host)
+        s = "nbd:{}:{}".format(host, self.port)
         if export:
             s += ":exportname=" + export
         return s
