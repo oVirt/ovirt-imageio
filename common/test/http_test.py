@@ -235,6 +235,20 @@ class ServerError(object):
         raise RuntimeError("secret data")
 
 
+class ServerSocketError(object):
+
+    def get(self, req, resp, name):
+        # Fake a fatal socket error that is not related to the HTTP connection.
+        # An example error is a backend failing to connect to a remote server.
+        # We expect to get INTERNAL_SERVER_ERROR on the client side.
+        # Until 1.5.2, this error was wrongly handled as an error on the HTTP
+        # connection, and we closed the connection silently instead of
+        # returning an error to the client.
+        raise socket.error(errno.ECONNRESET, "fake socket error")
+
+    put = get
+
+
 class ClientError(object):
 
     def get(self, req, resp, name):
@@ -279,6 +293,7 @@ def server():
         (r"/context/(.*)", Context()),
         (r"/close-context/(.*)", CloseContext()),
         (r"/server-error/(.*)", ServerError()),
+        (r"/server-socket-error/(.*)", ServerSocketError()),
         (r"/client-error/(.*)", ClientError()),
         (r"/keep-connection/", KeepConnection()),
         (r"/partial-response/", PartialResponse()),
@@ -814,6 +829,30 @@ def test_internal_error_put(server):
         r = con.getresponse()
         assert r.status == http.INTERNAL_SERVER_ERROR
         assert "secret" not in r.read().decode("utf-8")
+
+
+@pytest.mark.xfail(reason="incorrect handling on server")
+def test_server_socket_error_get(server):
+    # Socket error on server side should report as INTERNAL_SERVER_ERROR.
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/server-socket-error/")
+        r = con.getresponse()
+        assert r.status == http.INTERNAL_SERVER_ERROR
+
+
+@pytest.mark.xfail(reason="incorrect handling on server")
+def test_server_socket_error_put(server):
+    # Socket error on server side should report as INTERNAL_SERVER_ERROR.
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        try:
+            con.request("PUT", "/server-socket-error/", body=b"x" * 1024**2)
+        except socket.error as e:
+            if e.args[0] not in (errno.EPIPE, errno.ESHUTDOWN):
+                raise
+        r = con.getresponse()
+        assert r.status == http.INTERNAL_SERVER_ERROR
 
 
 @pytest.mark.parametrize("data", [None, b"", b"read me"])
