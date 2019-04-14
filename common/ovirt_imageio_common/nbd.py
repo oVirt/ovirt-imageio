@@ -17,6 +17,8 @@ import re
 import socket
 import struct
 
+import six
+
 from . import util
 
 # Matcher for NBD Unix URL path.
@@ -179,6 +181,12 @@ class TCPAddress(tuple):
     """
 
     def __new__(cls, host, port):
+        if not isinstance(host, six.string_types):
+            raise ValueError("Invalid host {!r}, expecting string value"
+                             .format(host))
+        if not isinstance(port, six.integer_types):
+            raise ValueError("Invalid port {!r}, expecting integer value"
+                             .format(port))
         return tuple.__new__(cls, (host, port))
 
     @property
@@ -223,7 +231,7 @@ def _parse_url(url):
         host, port = url.netloc.rsplit(":", 1)
         # Use qemu semantics, removing leading "/".
         export = url.path.lstrip("/")
-        return TCPAddress(host, port), export
+        return TCPAddress(host, int(port)), export
 
     # Next try to documented NBD URL notation. This notiation is more flexible
     # and can handle export names with leading "/".
@@ -239,7 +247,7 @@ def _parse_url(url):
         match = TCP_URL_PATH.match(url.path)
         if match:
             d = match.groupdict()
-            return TCPAddress(d["host"], d["port"]), d["name"]
+            return TCPAddress(d["host"], int(d["port"])), d["name"]
 
     raise Error("Unsupported URL: {}".format(url))
 

@@ -27,15 +27,25 @@ log = logging.getLogger("test")
 # Addresses
 
 @pytest.mark.parametrize("addr,export,url", [
-    (nbd.UnixAddress("/sock"), None, "nbd:unix:/sock"),
-    (nbd.UnixAddress("/sock"), "", "nbd:unix:/sock"),
-    (nbd.UnixAddress("/sock"), "sda", "nbd:unix:/sock:exportname=sda"),
-    (nbd.TCPAddress("host", 10900), None, "nbd:host:10900"),
-    (nbd.TCPAddress("host", 10900), "", "nbd:host:10900"),
-    (nbd.TCPAddress("host", 10900), "sdb", "nbd:host:10900:exportname=sdb"),
+    # Note: We get Unicode when parsing ticket JSON.
+    (nbd.UnixAddress(u"/sock"), None, u"nbd:unix:/sock"),
+    (nbd.UnixAddress(u"/sock"), u"", u"nbd:unix:/sock"),
+    (nbd.UnixAddress(u"/sock"), u"sda", u"nbd:unix:/sock:exportname=sda"),
+    (nbd.TCPAddress(u"host", 10900), None, u"nbd:host:10900"),
+    (nbd.TCPAddress(u"host", 10900), u"", u"nbd:host:10900"),
+    (nbd.TCPAddress(u"host", 10900), u"sdb", u"nbd:host:10900:exportname=sdb"),
 ])
 def test_url(addr, export, url):
     assert addr.url(export) == url
+
+
+@pytest.mark.parametrize("host,port", [
+    (u"localhost", u"42"),
+    (42, 42),
+])
+def test_tcp_address_invalid(host, port):
+    with pytest.raises(ValueError):
+        nbd.TCPAddress(host, port)
 
 
 # Communicate with qemu-nbd
@@ -205,10 +215,11 @@ def test_zero_min_block_size(tmpdir, format):
 
 
 @pytest.mark.parametrize("url,export", [
-    ("nbd:unix:/path", ""),
-    ("nbd:unix:/path:exportname=", ""),
-    ("nbd:unix:/path:exportname=sda", "sda"),
-    ("nbd:unix:/path:exportname=/sda", "/sda"),
+    # Note: We get Unicode URL when parsing ticket JSON.
+    (u"nbd:unix:/path", u""),
+    (u"nbd:unix:/path:exportname=", u""),
+    (u"nbd:unix:/path:exportname=sda", u"sda"),
+    (u"nbd:unix:/path:exportname=/sda", u"/sda"),
 ])
 def test_open_unix(tmpdir, url, export):
     image = str(tmpdir.join("image"))
@@ -225,20 +236,21 @@ def test_open_unix(tmpdir, url, export):
 
 
 @pytest.mark.parametrize("url,export", [
-    ("nbd:localhost:10900", ""),
-    ("nbd:localhost:10900:exportname=", ""),
-    ("nbd:localhost:10900:exportname=sda", "sda"),
-    ("nbd:localhost:10900:exportname=/sda", "/sda"),
-    ("nbd://localhost:10900", ""),
-    ("nbd://localhost:10900/", ""),
-    ("nbd://localhost:10900/sda", "sda"),
+    # Note: We get Unicode URL when parsing ticket JSON.
+    (u"nbd:localhost:10900", u""),
+    (u"nbd:localhost:10900:exportname=", u""),
+    (u"nbd:localhost:10900:exportname=sda", u"sda"),
+    (u"nbd:localhost:10900:exportname=/sda", u"/sda"),
+    (u"nbd://localhost:10900", u""),
+    (u"nbd://localhost:10900/", u""),
+    (u"nbd://localhost:10900/sda", u"sda"),
 ])
 def test_open_tcp(tmpdir, url, export):
     image = str(tmpdir.join("image"))
     with open(image, "wb") as f:
         f.truncate(1024**3)
 
-    sock = nbd.TCPAddress("localhost", 10900)
+    sock = nbd.TCPAddress(u"localhost", 10900)
 
     log.debug("Trying url=%r export=%r", url, export)
     with qemu_nbd.run(image, "raw", sock, export_name=export):
