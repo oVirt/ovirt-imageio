@@ -37,103 +37,103 @@ TCP_URL_PATH = re.compile(
 NBDMAGIC = 0x4e42444d41474943
 IHAVEOPT = 0x49484156454F5054
 OPTION_REPLY_MAGIC = 0x3e889045565a9
-NBD_REQUEST_MAGIC = 0x25609513
-NBD_SIMPLE_REPLY_MAGIC = 0x67446698
-NBD_STRUCTURED_REPLY_MAGIC = 0x668e33ef
+REQUEST_MAGIC = 0x25609513
+SIMPLE_REPLY_MAGIC = 0x67446698
+STRUCTURED_REPLY_MAGIC = 0x668e33ef
 
 # Flags
-NBD_FLAG_FIXED_NEWSTYLE = 1
-NBD_FLAG_NO_ZEROES = 2
-NBD_FLAG_C_FIXED_NEWSTYLE = 1
-NBD_FLAG_C_NO_ZEROES = 2
+FLAG_FIXED_NEWSTYLE = 1
+FLAG_NO_ZEROES = 2
+FLAG_C_FIXED_NEWSTYLE = 1
+FLAG_C_NO_ZEROES = 2
 
 # Transmission flags
-NBD_FLAG_HAS_FLAGS = (1 << 0)
-NBD_FLAG_READ_ONLY = (1 << 1)
-NBD_FLAG_SEND_FLUSH = (1 << 2)
-NBD_FLAG_SEND_FUA = (1 << 3)
-NBD_FLAG_ROTATIONAL = (1 << 4)
-NBD_FLAG_SEND_TRIM = (1 << 5)
-NBD_FLAG_SEND_WRITE_ZEROES = (1 << 6)
-NBD_FLAG_SEND_DF = (1 << 7)
-NBD_FLAG_CAN_MULTI_CONN = (1 << 8)
-NBD_FLAG_SEND_RESIZE = (1 << 9)
-NBD_FLAG_SEND_CACHE = (1 << 10)
+FLAG_HAS_FLAGS = (1 << 0)
+FLAG_READ_ONLY = (1 << 1)
+FLAG_SEND_FLUSH = (1 << 2)
+FLAG_SEND_FUA = (1 << 3)
+FLAG_ROTATIONAL = (1 << 4)
+FLAG_SEND_TRIM = (1 << 5)
+FLAG_SEND_WRITE_ZEROES = (1 << 6)
+FLAG_SEND_DF = (1 << 7)
+FLAG_CAN_MULTI_CONN = (1 << 8)
+FLAG_SEND_RESIZE = (1 << 9)
+FLAG_SEND_CACHE = (1 << 10)
 
 # Options
-NBD_OPT_ABORT = 2
-NBD_OPT_GO = 7
-NBD_OPT_STRUCTURED_REPLY = 8
-NBD_OPT_SET_META_CONTEXT = 10
+OPT_ABORT = 2
+OPT_GO = 7
+OPT_STRUCTURED_REPLY = 8
+OPT_SET_META_CONTEXT = 10
 
 # Replies
-NBD_REP_ACK = 1
-NBD_REP_INFO = 3
-NBD_REP_META_CONTEXT = 4
+REP_ACK = 1
+REP_INFO = 3
+REP_META_CONTEXT = 4
 
 # Structured reply flags
-NBD_REPLY_FLAG_DONE = (1 << 0)
+REPLY_FLAG_DONE = (1 << 0)
 
 # Structured reply types
-NBD_REPLY_TYPE_NONE = 0
-NBD_REPLY_TYPE_OFFSET_DATA = 1
-NBD_REPLY_TYPE_OFFSET_HOLE = 2
-NBD_REPLY_TYPE_BLOCK_STATUS = 5
-NBD_REPLY_ERROR_BASE = (1 << 15)
-NBD_REPLY_TYPE_ERROR = NBD_REPLY_ERROR_BASE + 1
-NBD_REPLY_TYPE_ERROR_OFFSET = NBD_REPLY_ERROR_BASE + 2
+REPLY_TYPE_NONE = 0
+REPLY_TYPE_OFFSET_DATA = 1
+REPLY_TYPE_OFFSET_HOLE = 2
+REPLY_TYPE_BLOCK_STATUS = 5
+REPLY_ERROR_BASE = (1 << 15)
+REPLY_TYPE_ERROR = REPLY_ERROR_BASE + 1
+REPLY_TYPE_ERROR_OFFSET = REPLY_ERROR_BASE + 2
 
 # NBD_INFO replies
-NBD_INFO_EXPORT = 0
-NBD_INFO_BLOCK_SIZE = 3
+INFO_EXPORT = 0
+INFO_BLOCK_SIZE = 3
 
 # Commands
-NBD_CMD_READ = 0
-NBD_CMD_WRITE = 1
-NBD_CMD_DISC = 2
-NBD_CMD_FLUSH = 3
-NBD_CMD_WRITE_ZEROES = 6
+CMD_READ = 0
+CMD_WRITE = 1
+CMD_DISC = 2
+CMD_FLUSH = 3
+CMD_WRITE_ZEROES = 6
 
 # Error replies
 ERR_BASE = 2**31
-NBD_REP_ERR_UNSUP = ERR_BASE + 1
-NBD_REP_ERR_POLICY = ERR_BASE + 2
-NBD_REP_ERR_INVALID = ERR_BASE + 3
-NBD_REP_ERR_PLATFORM = ERR_BASE + 4
-NBD_REP_ERR_TLS_REQD = ERR_BASE + 5
-NBD_REP_ERR_UNKNOWN = ERR_BASE + 6
-NBD_REP_ERR_SHUTDOWN = ERR_BASE + 7
-NBD_REP_ERR_BLOCK_SIZE_REQD = ERR_BASE + 8
-NBD_REP_ERR_TOO_BIG = ERR_BASE + 9
+REP_ERR_UNSUP = ERR_BASE + 1
+REP_ERR_POLICY = ERR_BASE + 2
+REP_ERR_INVALID = ERR_BASE + 3
+REP_ERR_PLATFORM = ERR_BASE + 4
+REP_ERR_TLS_REQD = ERR_BASE + 5
+REP_ERR_UNKNOWN = ERR_BASE + 6
+REP_ERR_SHUTDOWN = ERR_BASE + 7
+REP_ERR_BLOCK_SIZE_REQD = ERR_BASE + 8
+REP_ERR_TOO_BIG = ERR_BASE + 9
 
 ERROR_REPLY = {
-    NBD_REP_ERR_UNSUP: (
+    REP_ERR_UNSUP: (
         "The option sent by the client is unknown by this server "
         "implementation"),
-    NBD_REP_ERR_POLICY: (
+    REP_ERR_POLICY: (
         "The option sent by the client is known by this server and "
         "syntactically valid, but server-side policy forbids the server to "
         "allow the option"),
-    NBD_REP_ERR_INVALID: (
+    REP_ERR_INVALID: (
         "The option sent by the client is known by this server, but was "
         "determined by the server to be syntactically or semantically "
         "invalid"),
-    NBD_REP_ERR_PLATFORM: (
+    REP_ERR_PLATFORM: (
         "The option sent by the client is not supported on the platform on "
         "which the server is running"),
-    NBD_REP_ERR_TLS_REQD: (
+    REP_ERR_TLS_REQD: (
         "The server is unwilling to continue negotiation unless TLS is "
         "initiated first"),
-    NBD_REP_ERR_UNKNOWN: "The requested export is not available",
-    NBD_REP_ERR_SHUTDOWN: (
+    REP_ERR_UNKNOWN: "The requested export is not available",
+    REP_ERR_SHUTDOWN: (
         "The server is unwilling to continue negotiation as it is in the "
         "process of being shut down"),
-    NBD_REP_ERR_BLOCK_SIZE_REQD: (
+    REP_ERR_BLOCK_SIZE_REQD: (
         "The server is unwilling to enter transmission phase for a given "
         "export unless the client first acknowledges (via "
-        "NBD_INFO_BLOCK_SIZE) that it will obey non-default block sizing "
+        "INFO_BLOCK_SIZE) that it will obey non-default block sizing "
         "requirements"),
-    NBD_REP_ERR_TOO_BIG: "The request or the reply is too large to process",
+    REP_ERR_TOO_BIG: "The request or the reply is too large to process",
 }
 
 # Mapping from NBD error code in simple or structured reply to system errno.
@@ -209,7 +209,7 @@ class OptionError(Error):
 
 class OptionUnsupported(OptionError):
     fmt = "Option {self.option} is not supported: {self.reason}"
-    code = NBD_REP_ERR_UNSUP
+    code = REP_ERR_UNSUP
 
     def __init__(self, option, reason):
         self.option = option
@@ -399,9 +399,9 @@ class Client(object):
 
     def read(self, offset, length):
         handle = next(self._counter)
-        self._send_command(NBD_CMD_READ, handle, offset, length)
+        self._send_command(CMD_READ, handle, offset, length)
         # If structured reply was negotiated, the server must send structured
-        # reply to NBD_CMD_READ.
+        # reply to CMD_READ.
         return self._receive_reply(
             handle,
             length=length,
@@ -410,9 +410,9 @@ class Client(object):
 
     def readinto(self, offset, buf):
         handle = next(self._counter)
-        self._send_command(NBD_CMD_READ, handle, offset, len(buf))
+        self._send_command(CMD_READ, handle, offset, len(buf))
         # If structured reply was negotiated, the server must send structured
-        # reply to NBD_CMD_READ.
+        # reply to CMD_READ.
         return self._receive_reply_into(
             handle,
             buf,
@@ -421,24 +421,24 @@ class Client(object):
 
     def write(self, offset, data):
         handle = next(self._counter)
-        self._send_command(NBD_CMD_WRITE, handle, offset, len(data))
+        self._send_command(CMD_WRITE, handle, offset, len(data))
         self._send(data)
         self._receive_reply(handle)
 
     def zero(self, offset, length):
-        if self.transmission_flags & NBD_FLAG_SEND_WRITE_ZEROES == 0:
+        if self.transmission_flags & FLAG_SEND_WRITE_ZEROES == 0:
             raise UnsupportedRequest(
-                "Server does not support NBD_CMD_WRITE_ZEROES")
+                "Server does not support CMD_WRITE_ZEROES")
         handle = next(self._counter)
-        self._send_command(NBD_CMD_WRITE_ZEROES, handle, offset, length)
+        self._send_command(CMD_WRITE_ZEROES, handle, offset, length)
         self._receive_reply(handle)
 
     def flush(self):
         # TODO: is this the best way to handle this?
-        if self.transmission_flags & NBD_FLAG_SEND_FLUSH == 0:
+        if self.transmission_flags & FLAG_SEND_FLUSH == 0:
             return
         handle = next(self._counter)
-        self._send_command(NBD_CMD_FLUSH, handle, 0, 0)
+        self._send_command(CMD_FLUSH, handle, 0, 0)
         self._receive_reply(handle)
 
     def close(self):
@@ -511,11 +511,11 @@ class Client(object):
                                 .format(cliserv_magic, IHAVEOPT))
 
         log.debug("Received server flags: %x", server_flags)
-        if not server_flags & NBD_FLAG_FIXED_NEWSTYLE:
+        if not server_flags & FLAG_FIXED_NEWSTYLE:
             raise ProtocolError(
                 "Server does not support fixed newstyle negotiation")
 
-        self._send_client_flags(NBD_FLAG_C_FIXED_NEWSTYLE)
+        self._send_client_flags(FLAG_C_FIXED_NEWSTYLE)
 
         # Options haggling.
 
@@ -537,18 +537,18 @@ class Client(object):
     def _negotiate_structured_reply_option(self):
         """
         Ask the server to enable structured replies. This allows better error
-        handling for NBD_CMD_READ, and enables extension that require
-        structured replies such as NBD_CMD_BLOCK_STATUS.
+        handling for CMD_READ, and enables extension that require
+        structured replies such as CMD_BLOCK_STATUS.
 
         If negotiation was successful, the server MUST use structured reply to
         any response with a payload, and may used structured reply for other
         responses.
 
-        If the server fails with NBD_REP_ERR_UNSUP, we disable structured
+        If the server fails with REP_ERR_UNSUP, we disable structured
         replies and will not be able to report block status.
         """
         try:
-            self._negotiate_option(NBD_OPT_STRUCTURED_REPLY)
+            self._negotiate_option(OPT_STRUCTURED_REPLY)
         except OptionUnsupported as e:
             log.warning("Structured reply is not available: %s", e)
         else:
@@ -556,16 +556,16 @@ class Client(object):
             self._structured_reply = True
 
     def _negotiate_meta_context(self):
-        opt = NBD_OPT_SET_META_CONTEXT
+        opt = OPT_SET_META_CONTEXT
         data = self._format_meta_context_data(*list(self._meta_context))
         self._send_option(opt, data)
 
-        # If the server supports NBD_OPT_SET_META_CONTEXT and all the contexts
+        # If the server supports OPT_SET_META_CONTEXT and all the contexts
         # in self._meta_context, we expect to get one reply for every context,
-        # with the meta context id, and then NBD_REP_ACK.
+        # with the meta context id, and then REP_ACK.
         #
         # If the server does not support meta context, we may get
-        # NBD_REP_ERR_UNSUP. If the server supports NBD_OPT_SET_META_CONTEXT
+        # REP_ERR_UNSUP. If the server supports OPT_SET_META_CONTEXT
         # but not all required meta contexts, we may get info only about the
         # contexts supported by the server.
         #
@@ -573,7 +573,7 @@ class Client(object):
         # - https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         #   #metadata-querying
         # - https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
-        #   #option-types (see NBD_OPT_SET_META_CONTEXT).
+        #   #option-types (see OPT_SET_META_CONTEXT).
 
         while True:
             reply, length = self._receive_option_reply(opt)
@@ -585,13 +585,13 @@ class Client(object):
                     log.warning("Meta context is not supported: %s", e)
                     return
 
-            if reply == NBD_REP_ACK:
+            if reply == REP_ACK:
                 if length != 0:
                     raise InvalidLength(reply, length, 0)
                 break
 
-            if reply != NBD_REP_META_CONTEXT:
-                raise UnexpectedOptionReply(reply, opt, NBD_REP_META_CONTEXT)
+            if reply != REP_META_CONTEXT:
+                raise UnexpectedOptionReply(reply, opt, REP_META_CONTEXT)
 
             self._receive_meta_context_reply(length)
 
@@ -626,7 +626,7 @@ class Client(object):
 
     def _receive_meta_context_reply(self, length):
         """
-        Receive reply to NBD_OPT_SET_META_CONTEXT, and store the meta context
+        Receive reply to OPT_SET_META_CONTEXT, and store the meta context
         id in self._meta_context dict.
 
         32 bits, NBD metadata context ID.
@@ -634,7 +634,7 @@ class Client(object):
             human-readable string, but it MUST be valid UTF-8 data.
         """
         if length < 4:
-            raise InvalidLength(NBD_REP_META_CONTEXT, length, ">= 4")
+            raise InvalidLength(REP_META_CONTEXT, length, ">= 4")
 
         data = self._receive(length)
         ctx_id = struct.unpack("!I", data[:4])[0]
@@ -649,13 +649,13 @@ class Client(object):
 
     def _negotiate_go_option(self):
         # Here we can announce that we can honour server block size constraints
-        # by adding NBD_INFO_BLOCK_SIZE information request. If we do this we
+        # by adding INFO_BLOCK_SIZE information request. If we do this we
         # MUST abide by the block size constraints received. If we don't we are
         # allowed to send unaligned requests.
         # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         # section #block-size-constraints
 
-        opt = NBD_OPT_GO
+        opt = OPT_GO
         data = self._format_go_option_data()
         self._send_option(opt, data)
 
@@ -665,7 +665,7 @@ class Client(object):
             if reply in ERROR_REPLY:
                 self._handle_option_error(opt, reply, length)
 
-            if reply == NBD_REP_ACK:
+            if reply == REP_ACK:
                 if length != 0:
                     raise InvalidLength(reply, length, 0)
                 if self.export_size is None or self.transmission_flags is None:
@@ -673,18 +673,18 @@ class Client(object):
                                         "transmission flags")
                 break
 
-            if reply != NBD_REP_INFO:
-                raise UnexpectedOptionReply(reply, opt, NBD_REP_INFO)
+            if reply != REP_INFO:
+                raise UnexpectedOptionReply(reply, opt, REP_INFO)
 
             if length < 2:
-                raise InvalidLength(NBD_REP_INFO, length, ">= 2")
+                raise InvalidLength(REP_INFO, length, ">= 2")
 
             info = self._receive_struct("!H")[0]
             length -= 2
 
-            if info == NBD_INFO_EXPORT:
+            if info == INFO_EXPORT:
                 self._receive_export_info(length)
-            elif info == NBD_INFO_BLOCK_SIZE:
+            elif info == INFO_BLOCK_SIZE:
                 self._receive_blocksize_info(length)
             else:
                 data = self._receive(length)
@@ -693,13 +693,13 @@ class Client(object):
 
     def _format_go_option_data(self, *requests):
         """
-        Format export name and optional list of NBD_INFO_XXX requests.
+        Format export name and optional list of INFO_XXX requests.
 
         32 bits, length of name (unsigned); MUST be no larger than the option
             data length - 6
         String: name of the export
         16 bits, number of information requests
-        16 bits x n - list of NBD_INFO information requests
+        16 bits x n - list of INFO information requests
         """
         # Export name (length + name)
         name = self.export_name.encode("utf-8")
@@ -716,14 +716,14 @@ class Client(object):
 
     def _receive_export_info(self, length):
         if length != 10:
-            raise InvalidLength(NBD_REP_INFO, length, 10)
+            raise InvalidLength(REP_INFO, length, 10)
         self.export_size, self.transmission_flags = self._receive_struct("!QH")
         log.debug("Received export info size=%r flags=%r",
                   self.export_size, self.transmission_flags)
 
     def _receive_blocksize_info(self, length):
         if length != 12:
-            raise InvalidLength(NBD_REP_INFO, length, 12)
+            raise InvalidLength(REP_INFO, length, 12)
         (self.minimum_block_size, self.preferred_block_size,
             self.maximum_block_size) = self._receive_struct("!III")
         log.debug("Received block size info minimum=%r preferred=%r "
@@ -744,8 +744,8 @@ class Client(object):
         # The spec is not clear about the possible reply for general options.
         # using qemu policy as in nbd_request_simple_option().
 
-        if reply != NBD_REP_ACK:
-            raise UnexpectedOptionReply(reply, opt, NBD_REP_ACK)
+        if reply != REP_ACK:
+            raise UnexpectedOptionReply(reply, opt, REP_ACK)
 
         if length != 0:
             raise InvalidLength(reply, length, 0)
@@ -774,8 +774,8 @@ class Client(object):
         S: 64 bits, 0x3e889045565a9 (magic number for replies)
         S: 32 bits, the option as sent by the client to which this is a reply
         S: 32 bits, reply type:
-            - NBD_REP_ACK for successful completion, or
-            - NBD_REP_ERR_UNSUP option not known by this server
+            - REP_ACK for successful completion, or
+            - REP_ERR_UNSUP option not known by this server
         S: 32 bits, length of the reply; if zero, next field is not sent
         S: any data as required by the reply.
         """
@@ -809,7 +809,7 @@ class Client(object):
         if message == "":
             message = ERROR_REPLY.get(reply, "Unknown error")
 
-        if reply == NBD_REP_ERR_UNSUP:
+        if reply == REP_ERR_UNSUP:
             raise OptionUnsupported(opt, message)
         else:
             raise OptionError(opt, reply, message)
@@ -820,11 +820,11 @@ class Client(object):
         """
         Perform soft disconnect.
 
-        During handshake, we need to send a NBD_OPT_ABORT. The server
+        During handshake, we need to send a OPT_ABORT. The server
         may reply, but we are allowed to close the socket without
         reading the reply[1].
 
-        During transmission, we need to send a NBD_CMD_DISC. The
+        During transmission, we need to send a CMD_DISC. The
         server does not reply[2].
 
         [1] https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
@@ -835,10 +835,10 @@ class Client(object):
         log.info("Initiating a soft disconnect")
         try:
             if self._state == HANDSHAKE:
-                self._send_option(NBD_OPT_ABORT)
+                self._send_option(OPT_ABORT)
             elif self._state == TRASMISSION:
                 handle = next(self._counter)
-                self._send_command(NBD_CMD_DISC, handle, 0, 0)
+                self._send_command(CMD_DISC, handle, 0, 0)
             else:
                 raise AssertionError(
                     "Cannot initiate soft disconnect at state {!r}"
@@ -867,16 +867,16 @@ class Client(object):
     # Commands
 
     def _send_command(self, type, handle, offset, length):
-        # C: 32 bits, 0x25609513, magic (NBD_REQUEST_MAGIC)
+        # C: 32 bits, 0x25609513, magic (REQUEST_MAGIC)
         # C: 16 bits, command flags
         # C: 16 bits, type
         # C: 64 bits, handle
         # C: 64 bits, offset (unsigned)
         # C: 32 bits, length (unsigned)
-        # C: (length bytes of data if the request is of type NBD_CMD_WRITE)
+        # C: (length bytes of data if the request is of type CMD_WRITE)
         log.debug("Sending command type=%s handle=%s offset=%s length=%s",
                   type, handle, offset, length)
-        self._send_struct("!IHHQQI", NBD_REQUEST_MAGIC, 0, type, handle,
+        self._send_struct("!IHHQQI", REQUEST_MAGIC, 0, type, handle,
                           offset, length)
 
     def _receive_reply(self, handle, length=0, offset=0,
@@ -899,22 +899,22 @@ class Client(object):
         while True:
             magic = self._receive_struct("!I")[0]
 
-            if magic == NBD_SIMPLE_REPLY_MAGIC:
+            if magic == SIMPLE_REPLY_MAGIC:
                 if only_structured:
                     raise ProtocolError(
                         "Unexpected simple reply magic {:x}, expecting "
                         "structured reply magic {:x}"
-                        .format(magic, NBD_STRUCTURED_REPLY_MAGIC))
+                        .format(magic, STRUCTURED_REPLY_MAGIC))
 
                 self._receive_simple_reply_into(handle, buf)
                 return len(buf)
 
-            elif magic == NBD_STRUCTURED_REPLY_MAGIC:
+            elif magic == STRUCTURED_REPLY_MAGIC:
                 if not self._structured_reply:
                     raise ProtocolError(
                         "Unexpected structured reply magic {:x}, expecting "
                         "simple reply magic {:x}"
-                        .format(magic, NBD_SIMPLE_REPLY_MAGIC))
+                        .format(magic, SIMPLE_REPLY_MAGIC))
 
                 # We started to received structured reply chunks, so simple
                 # reply is not allowed.
@@ -941,7 +941,7 @@ class Client(object):
 
         S: 32 bits, error (MAY be zero)
         S: 64 bits, handle
-        S: (length bytes of data if the request is of type NBD_CMD_READ and
+        S: (length bytes of data if the request is of type CMD_READ and
            error is zero)
         """
         error, handle = self._receive_struct("!IQ")
@@ -971,30 +971,30 @@ class Client(object):
         if handle != expected_handle:
             raise UnexpectedHandle(handle, expected_handle)
 
-        if type == NBD_REPLY_TYPE_ERROR:
+        if type == REPLY_TYPE_ERROR:
             self._handle_error_chunk(length)
-        elif type == NBD_REPLY_TYPE_ERROR_OFFSET:
+        elif type == REPLY_TYPE_ERROR_OFFSET:
             self._handle_error_offset_chunk(length, errors)
-        elif type == NBD_REPLY_TYPE_NONE:
+        elif type == REPLY_TYPE_NONE:
             self._handle_none_chunk(flags, length)
-        elif type == NBD_REPLY_TYPE_OFFSET_DATA:
+        elif type == REPLY_TYPE_OFFSET_DATA:
             self._handle_data_chunk(length, buf, offset)
-        elif type == NBD_REPLY_TYPE_OFFSET_HOLE:
+        elif type == REPLY_TYPE_OFFSET_HOLE:
             self._handle_hole_chunk(length, buf, offset)
         else:
             raise ProtocolError(
                 "Received unknown chunk type={} flags={} length={}"
                 .format(type, flags, length))
 
-        return flags & NBD_REPLY_FLAG_DONE
+        return flags & REPLY_FLAG_DONE
 
     def _handle_none_chunk(self, flags, length):
-        if not flags & NBD_REPLY_FLAG_DONE:
+        if not flags & REPLY_FLAG_DONE:
             raise ProtocolError(
                 "Invalid none reply chunk without done flag type={} flags={}"
-                .format(NBD_REPLY_TYPE_NONE, flags))
+                .format(REPLY_TYPE_NONE, flags))
         if length != 0:
-            raise InvalidLength(NBD_REPLY_TYPE_NONE, length, 0)
+            raise InvalidLength(REPLY_TYPE_NONE, length, 0)
 
     def _handle_error_chunk(self, length):
         """
@@ -1050,7 +1050,7 @@ class Client(object):
         32 bits: hole size (unsigned, MUST be nonzero)
         """
         if length != 12:
-            raise InvalidLength(NBD_REPLY_TYPE_OFFSET_HOLE, length, 12)
+            raise InvalidLength(REPLY_TYPE_OFFSET_HOLE, length, 12)
 
         chunk_offset, chunk_size = self._receive_struct("!QI")
         if chunk_size == 0:
