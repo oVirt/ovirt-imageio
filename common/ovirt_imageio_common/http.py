@@ -55,9 +55,10 @@ _UNKNOWN = object()
 
 class Error(Exception):
 
-    def __init__(self, code, message):
+    def __init__(self, code, message, content_range=None):
         self.code = code
         self.message = message
+        self.content_range = content_range
 
     def __str__(self):
         return str(self.message)
@@ -391,6 +392,8 @@ class Response(object):
         self.status_code = e.code
         body = str(e).encode("utf-8")
         self.headers["content-length"] = len(body)
+        if e.content_range is not None:
+            self.headers["content-range"] = e.content_range
         self.write(body)
 
     def send_json(self, obj):

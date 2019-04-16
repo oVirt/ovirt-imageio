@@ -101,7 +101,8 @@ class RangeDemo(object):
             raise http.Error(
                 http.REQUESTED_RANGE_NOT_SATISFIABLE,
                 "Requested {} bytes, available {} bytes"
-                .format(size, complete - offset))
+                .format(size, complete - offset),
+                content_range="bytes */{}".format(complete - offset))
 
         resp.headers["content-length"] = size
 
@@ -466,6 +467,7 @@ def test_range_demo(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.REQUESTED_RANGE_NOT_SATISFIABLE
+        assert r.getheader("content-range") == "bytes */16"
 
 
 def test_request_info_get(server):
