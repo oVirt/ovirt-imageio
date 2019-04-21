@@ -47,6 +47,18 @@ def test_open_read_write(nbd_server):
         b.flush()
 
 
+def test_open_read_larger_buffer(nbd_server):
+    nbd_server.start()
+    with nbd.open(nbd_server.url, "r") as b:
+        # buffer larger than remaining data
+        buffer_length = 10
+        data_length = 5
+        with closing(util.aligned_buffer(buffer_length)) as buf:
+            b.seek(b._client.export_size - data_length)
+            assert b.readinto(buf) == data_length
+        b.flush()
+
+
 def test_open_readonly(nbd_server):
     nbd_server.read_only = True
     nbd_server.start()

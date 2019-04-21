@@ -70,7 +70,8 @@ class Backend(object):
         # This can be fixed if we use bytearray instead of mmap when using nbd
         # client, and allocate the buffer by the backend instead of by the
         # operation.
-        data = self._client.read(self._position, len(buf))
+        to_read = min(len(buf), self._client.export_size - self._position)
+        data = self._client.read(self._position, to_read)
         length = len(data)
         buf[:length] = bytes(data)
 
