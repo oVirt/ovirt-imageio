@@ -81,7 +81,7 @@ make clean
 %{_unitdir}/ovirt-imageio-proxy.service
 %{_bindir}/ovirt-imageio-proxy
 %dir %{proxy_logdir}
-%{python_sitelib}/*
+%{python2_sitelib}/*
 
 
 # For more information about the systemd macros, see:
