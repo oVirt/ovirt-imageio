@@ -82,6 +82,25 @@ def test_zeroout_end(loop_device):
             assert buf[-BLOCKSIZE:] == b"\0" * BLOCKSIZE
 
 
+@requires_root
+def test_blksszget_512(loop_device):
+    with util.open(loop_device, "r+") as f:
+        assert ioutil.blksszget(f.fileno()) == 512
+
+
+@requires_root
+def test_blksszget_bad_fd(loop_device):
+    with pytest.raises(OSError):
+        ioutil.blksszget(-1)
+
+
+@requires_root
+def test_blksszget_not_block_device(loop_device, tmpfile):
+    with open(tmpfile) as f:
+        with pytest.raises(OSError):
+            ioutil.blksszget(f.fileno())
+
+
 # Empty zero buffer
 
 @pytest.mark.parametrize("buf", [

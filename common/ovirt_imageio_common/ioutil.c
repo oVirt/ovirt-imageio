@@ -52,6 +52,41 @@ blkzeroout(PyObject *self, PyObject *args, PyObject *kw)
     Py_RETURN_NONE;
 }
 
+PyDoc_STRVAR(blksszget_doc, "\
+blksszget(fd)\n\
+Return block device logical block size.\n\
+\n\
+Arguments\n\
+  fd (int):      file descriptor open for read on block device\n\
+\n\
+Raises\n\
+  OSError if the oprartion failed.\n\
+\n\
+Returns\n\
+  block size (int)\n\
+");
+
+static PyObject *
+blksszget(PyObject *self, PyObject *args)
+{
+    int fd;
+    int res;
+    int err;
+
+    if (!PyArg_ParseTuple(args, "i:blksszget", &fd))
+        return NULL;
+
+    /* This should not block but lets not take risk. */
+    Py_BEGIN_ALLOW_THREADS
+    err = ioctl(fd, BLKSSZGET, &res);
+    Py_END_ALLOW_THREADS
+
+    if (err != 0)
+        return PyErr_SetFromErrno(PyExc_OSError);
+
+    return PyLong_FromLong(res);
+}
+
 PyDoc_STRVAR(is_zero_doc, "\
 is_zero(buf)\n\
 Return True if buf is full of zeros.\n\
@@ -160,6 +195,7 @@ py_fallocate(PyObject *self, PyObject *args)
 static PyMethodDef module_methods[] = {
     {"blkzeroout", (PyCFunction) blkzeroout, METH_VARARGS | METH_KEYWORDS,
         blkzeroout_doc},
+    {"blksszget", (PyCFunction) blksszget, METH_VARARGS, blksszget_doc},
     {"is_zero", (PyCFunction) is_zero, METH_VARARGS, is_zero_doc},
     {"fallocate", (PyCFunction) py_fallocate, METH_VARARGS, py_fallocate_doc},
     {NULL}  /* Sentinel */
