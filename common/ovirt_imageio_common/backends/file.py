@@ -418,6 +418,11 @@ class FileBackend(Backend):
             if offset + count > size:
                 self._truncate(offset + count)
 
+                # If we zero the end of the file punching a hole is not needed.
+                if size == offset:
+                    self.seek(offset + count)
+                    return count
+
             # And punch a hole.
             mode = ioutil.FALLOC_FL_PUNCH_HOLE | ioutil.FALLOC_FL_KEEP_SIZE
             if self._fallocate(mode, offset, count):
