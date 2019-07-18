@@ -2,7 +2,6 @@ arch:
 - x86_64:
     distributions:
     - el7
-    - fc28
     - fc29
 - ppc64le:
     distributions:
