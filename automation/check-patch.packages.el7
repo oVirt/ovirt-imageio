@@ -1,3 +1,4 @@
+e2fsprogs
 gcc
 git
 m2crypto
@@ -7,6 +8,9 @@ python-pip
 python-requests
 python-six
 python-webob
-systemd-python
-qemu-kvm-rhev
 qemu-img-rhev
+qemu-kvm-rhev
+sudo
+systemd-python
+util-linux
+xfsprogs

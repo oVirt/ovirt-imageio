@@ -8,7 +8,7 @@ ifndef release_suffix
 	release_suffix := "%{nil}"
 endif
 
-.PHONY: $(targets) $(subdirs)
+.PHONY: $(targets) $(subdirs) storage clean-storage
 
 $(targets): $(subdirs)
 
@@ -17,3 +17,9 @@ $(subdirs):
 
 clean: $(subdirs)
 	rm -rf exported-artifacts/
+
+storage:
+	userstorage create storage.py
+
+clean-storage:
+	userstorage delete storage.py

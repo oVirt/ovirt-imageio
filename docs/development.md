@@ -53,6 +53,12 @@ projects install it in a virtual environment for the other project.
 
 ## Running the tests
 
+Create storage for the tests:
+
+    make storage
+
+See "Creating storage for tests" for more info.
+
 Before running the tests, make the project:
 
     make
@@ -91,6 +97,32 @@ To send a backport to older branch:
 To checkout patch from gerrit (e.g. https://gerrit.ovirt.org/c/101904/):
 
     git review -d 101904
+
+
+## Creating storage for tests
+
+The tests use the userstorage tool to create files and block devices
+with various sector sizes for testing.
+
+To create storage run:
+
+    make storage
+
+The storage is configured in the file `storage.py` in the root of the
+project. Tests that use user storage load this configuration file and
+access the storage via the BACKENDS dict.
+
+Some storage may not be available on all environments. For example on
+CentOS 7 userstorage cannot create storage with 4k sector size, and in
+oVirt CI, this usually fails. Tests should check if storage exists and
+mark test as xfail or skip when the storage is not available.
+
+Usually there is no need to delete storage created by "make storage",
+however if you want to do this, run:
+
+    make clean-storage
+
+For more info on userstorage see https://github.com/nirs/userstorage.
 
 
 ## Installing the proxy with engine development environment
