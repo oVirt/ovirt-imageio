@@ -1,0 +1,28 @@
+FROM centos:7
+
+# Runtime packages.
+RUN yum update -y \
+    && yum install -y \
+        http://resources.ovirt.org/pub/yum-repo/ovirt-release-master.rpm \
+    && yum install -y \
+        e2fsprogs \
+        gcc \
+        m2crypto \
+        make \
+        openssl \
+        python-devel \
+        python-setuptools \
+        python-webob \
+        python2-requests \
+        python2-six \
+        qemu-img-rhev \
+        qemu-kvm-rhev \
+        sudo \
+        systemd-python \
+        util-linux \
+        xfsprogs \
+    && yum clean all
+
+# Development tools.
+RUN easy_install pip \
+    && pip install tox userstorage>=0.2
