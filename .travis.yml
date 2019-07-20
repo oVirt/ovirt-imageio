@@ -1,0 +1,24 @@
+sudo: required
+dist: xenial
+group: edge
+language: python
+services:
+  - docker
+
+env:
+  matrix:
+    - DIST=centos-7
+    - DIST=fedora-29
+
+before_install:
+  - docker pull ovirtorg/imageio-test-$DIST
+
+script:
+  - |
+    docker run \
+    --privileged \
+    --rm \
+    -it \
+    --volume `pwd`:/src:Z \
+    ovirtorg/imageio-test-$DIST \
+    bash -c "cd /src && travis/test.sh"

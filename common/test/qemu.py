@@ -47,6 +47,9 @@ def run(image, fmt, qmp_sock, start_cpu=True):
     #       qemu-kvm: Memory size 0x1000000 is not aligned to 256 MiB
     cmd = [
         "qemu-kvm",
+        # Use kvm if available, othrewise fallback to tcg. This allows running
+        # qemu on Travis CI which does not support nested virtualization.
+        "-accel", "kvm:tcg",
         "-drive", "file={},format={}".format(image, fmt),
         "-nographic",
         "-qmp", "unix:{},server,nowait".format(qmp_sock),

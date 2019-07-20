@@ -99,6 +99,35 @@ To checkout patch from gerrit (e.g. https://gerrit.ovirt.org/c/101904/):
     git review -d 101904
 
 
+## CI
+
+Running tests locally is convenient but before your changes can be
+merged, we need to test them on all supported distributions and
+architectures.
+
+When you submit patches to gerrit, oVirt CI will run all the tests on:
+
+- CentOS 7, x86_64
+- Fedora 29, x86_64
+- Fedora 29, ppc64
+
+Note that tests using 4k storage cannot run in oVirt CI, but they can
+run in Travis CI. This is not integrated yet with gerrit, but easy to
+run manually.
+
+On Travis CI all tests run on:
+
+- CentOS 7, x86_64
+- Fedora 29, x86_64
+
+To test your changes on Travis:
+
+- Fork the project on github
+- Visit https://travis-ci.org, register using your github account, and
+  enable builds for your ovirt-imageio fork
+- Push your changes to your github fork to trigger a build
+
+
 ## Creating storage for tests
 
 The tests use the userstorage tool to create files and block devices
