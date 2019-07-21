@@ -306,8 +306,62 @@ class FileBackend(Backend):
         # If we cannot use fallocate, we fallback to manual zero, using this
         # buffer.
         self._buf = None
-        # TODO: detect by doing direct I/O.
-        self._block_size = 512
+        self._block_size = self._detect_block_size()
+
+    def _detect_block_size(self):
+        """
+        Detect the unserlying storage block size by checking the minimal block
+        size that works for direct I/O.
+
+        Note that on XFS unaligned read from hole succeed, so the only way to
+        find the minimal block size is to write.
+
+        On NFS no alignment is required for direct I/O so we always use 512.
+        """
+        initial_size = os.path.getsize(self._fio.name)
+
+        with util.open(self._fio.name, "r+", direct=True) as f:
+            for block_size in (512, 4096):
+                log.debug("Trying block size %s", block_size)
+                buf = util.aligned_buffer(block_size)
+                with closing(buf):
+                    # 1. Read one block from storage. We expect to get entire
+                    # block, or if the initial size is smaller than one block,
+                    # all bytes in the file.
+                    expected_read = min(initial_size, block_size)
+
+                    f.seek(0)
+                    try:
+                        read = util.uninterruptible(f.readinto, buf)
+                    except EnvironmentError as e:
+                        if e.errno != errno.EINVAL:
+                            raise
+                        continue
+
+                    if read < expected_read:
+                        raise RuntimeError(
+                            "Short read using direct I/O read={} expected={}"
+                            .format(read, expected_read))
+
+                    # 2. Write the buffer back to storage. If the file size
+                    # smaller than block_size, it will enlarge the file to
+                    # block_size bytes by padding zeroes.
+                    f.seek(0)
+                    try:
+                        util.uninterruptible(f.write, buf)
+                    except EnvironmentError as e:
+                        if e.errno != errno.EINVAL:
+                            raise
+                        continue
+
+                    # 3. Restore file size if needed.
+                    if initial_size < block_size:
+                        f.truncate(initial_size)
+
+                    log.debug("Detected block size %s", block_size)
+                    return block_size
+
+        raise RuntimeError("Cannot detect {} block size".format(f.name))
 
     def _zero(self, count):
         offset = self.tell()

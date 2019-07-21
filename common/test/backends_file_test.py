@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import errno
 import io
 import os
+import subprocess
 
 from collections import namedtuple
 from contextlib import closing
@@ -57,11 +58,6 @@ def user_file(request):
         sector_size=storage.sector_size)
 
     storage.teardown()
-
-
-def xfail_4k(user_file):
-    if user_file.sector_size == 4096:
-        pytest.xfail(reason="4k sector size not supported yet")
 
 
 def test_debugging_interface(user_file):
@@ -127,10 +123,58 @@ def test_open_no_create(mode):
     assert e.value.errno == errno.ENOENT
 
 
-def test_block_size(user_file):
-    xfail_4k(user_file)
+@pytest.mark.parametrize("size", [0, 511, 4097])
+def test_block_size_sparse(user_file, size):
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size)
+
     with file.open(user_file.url, "r") as f:
         assert f.block_size == user_file.sector_size
+
+    with io.open(user_file.path, "rb") as f:
+        assert f.read(size) == b"\0" * size
+
+
+@pytest.mark.parametrize("size", [511, 4097])
+def test_block_size_preallocated(user_file, size):
+    # This is how vdsm preallocates volumes. This uses fallocate() or fallback
+    # to writing one byte per block.
+    subprocess.check_output(
+        ["fallocate", "--posix", "--length", str(size), user_file.path])
+
+    with file.open(user_file.url, "r") as f:
+        assert f.block_size == user_file.sector_size
+
+    with io.open(user_file.path, "rb") as f:
+        assert f.read(size) == b"\0" * size
+
+
+@pytest.mark.parametrize("hole_size", [511, 4097])
+def test_block_size_hole(user_file, hole_size):
+    data_size = 8192 - hole_size
+
+    with io.open(user_file.path, "wb") as f:
+        f.seek(hole_size)
+        f.write(b"x" * data_size)
+
+    with file.open(user_file.url, "r") as f:
+        assert f.block_size == user_file.sector_size
+
+    with io.open(user_file.path, "rb") as f:
+        assert f.read(hole_size) == b"\0" * hole_size
+        assert f.read(data_size) == b"x" * data_size
+
+
+@pytest.mark.parametrize("size", [511, 4097])
+def test_block_size_allocated(user_file, size):
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    with file.open(user_file.url, "r") as f:
+        assert f.block_size == user_file.sector_size
+
+    with io.open(user_file.path, "rb") as f:
+        assert f.read() == b"x" * size
 
 
 def test_readinto(user_file):
@@ -224,7 +268,6 @@ def test_write_aligned_after_end(user_file):
 
 
 def test_write_unaligned_offset_complete(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = user_file.sector_size + 10
     end = start + 10
@@ -246,7 +289,6 @@ def test_write_unaligned_offset_complete(user_file):
 
 
 def test_write_unaligned_offset_inside(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = user_file.sector_size - 12
 
@@ -267,7 +309,6 @@ def test_write_unaligned_offset_inside(user_file):
 
 
 def test_write_unaligned_offset_at_end(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = size - 24
 
@@ -287,7 +328,6 @@ def test_write_unaligned_offset_at_end(user_file):
 
 
 def test_write_unaligned_offset_after_end(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size
 
     with io.open(user_file.path, "wb") as f:
@@ -307,7 +347,6 @@ def test_write_unaligned_offset_after_end(user_file):
 
 
 def test_write_unaligned_buffer_slow_path(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
 
     with io.open(user_file.path, "wb") as f:
@@ -353,7 +392,6 @@ def test_write_unaligned_buffer_fast_path(user_file):
 
 
 def test_flush(user_file, monkeypatch):
-    xfail_4k(user_file)
     count = [0]
 
     def fsync(fd):
@@ -434,7 +472,6 @@ def test_zero_sparse_deallocate_space(user_file):
 
 
 def test_zero_unaligned_offset_complete(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = user_file.sector_size + 10
 
@@ -455,7 +492,6 @@ def test_zero_unaligned_offset_complete(user_file):
 
 
 def test_zero_unaligned_offset_inside(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = user_file.sector_size - 10
 
@@ -476,7 +512,6 @@ def test_zero_unaligned_offset_inside(user_file):
 
 
 def test_zero_unaligned_offset_at_end(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = size - 10
 
@@ -496,7 +531,6 @@ def test_zero_unaligned_offset_at_end(user_file):
 
 
 def test_zero_unaligned_offset_after_end(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size
     start = size + 10
 
@@ -515,7 +549,6 @@ def test_zero_unaligned_offset_after_end(user_file):
 
 
 def test_zero_unaligned_buffer_slow_path(user_file):
-    xfail_4k(user_file)
     size = user_file.sector_size * 2
     start = user_file.sector_size
 
