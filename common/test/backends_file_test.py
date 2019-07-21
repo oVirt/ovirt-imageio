@@ -35,6 +35,9 @@ UserFile = namedtuple("UserFile", "path,url,sector_size")
         BACKENDS["file-512-ext2"],
         BACKENDS["file-512-ext4"],
         BACKENDS["file-512-xfs"],
+        BACKENDS["file-4k-ext2"],
+        BACKENDS["file-4k-ext4"],
+        BACKENDS["file-4k-xfs"],
     ],
     ids=str
 )
@@ -56,6 +59,11 @@ def user_file(request):
     storage.teardown()
 
 
+def xfail_4k(user_file):
+    if user_file.sector_size == 4096:
+        pytest.xfail(reason="4k sector size not supported yet")
+
+
 def test_debugging_interface(user_file):
     with file.open(user_file.url, "r+") as f:
         assert f.readable()
@@ -66,18 +74,18 @@ def test_debugging_interface(user_file):
 
 def test_open_write_only(user_file):
     with file.open(user_file.url, "w") as f, \
-            closing(util.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(user_file.sector_size)) as buf:
         assert not f.readable()
         assert f.writable()
-        buf.write(b"x" * 512)
+        buf.write(b"x" * user_file.sector_size)
         f.write(buf)
     with io.open(user_file.path, "rb") as f:
-        assert f.read() == b"x" * 512
+        assert f.read() == b"x" * user_file.sector_size
 
 
 def test_open_write_only_truncate(user_file):
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 512)
+        f.write(b"x" * user_file.sector_size)
     with file.open(user_file.url, "w") as f:
         pass
     with io.open(user_file.path, "rb") as f:
@@ -86,28 +94,28 @@ def test_open_write_only_truncate(user_file):
 
 def test_open_read_only(user_file):
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 512)
+        f.write(b"x" * user_file.sector_size)
     with file.open(user_file.url, "r") as f, \
-            closing(util.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(user_file.sector_size)) as buf:
         assert f.readable()
         assert not f.writable()
         f.readinto(buf)
-        assert buf[:] == b"x" * 512
+        assert buf[:] == b"x" * user_file.sector_size
 
 
 def test_open_read_write(user_file):
     with io.open(user_file.path, "wb") as f:
-        f.write(b"a" * 512)
+        f.write(b"a" * user_file.sector_size)
     with file.open(user_file.url, "r+") as f, \
-            closing(util.aligned_buffer(512)) as buf:
+            closing(util.aligned_buffer(user_file.sector_size)) as buf:
         assert f.readable()
         assert f.writable()
         f.readinto(buf)
-        buf[:] = b"b" * 512
+        buf[:] = b"b" * user_file.sector_size
         f.seek(0)
         f.write(buf)
     with io.open(user_file.path, "rb") as f:
-        assert f.read() == b"b" * 512
+        assert f.read() == b"b" * user_file.sector_size
 
 
 @pytest.mark.parametrize("mode", ["r", "r+"])
@@ -120,9 +128,9 @@ def test_open_no_create(mode):
 
 
 def test_block_size(user_file):
+    xfail_4k(user_file)
     with file.open(user_file.url, "r") as f:
-        # We don't support yet 4k drives.
-        assert f.block_size == 512
+        assert f.block_size == user_file.sector_size
 
 
 def test_readinto(user_file):
@@ -136,28 +144,36 @@ def test_readinto(user_file):
         assert buf[:] == b"a" * 4096
 
 
-def test_readinto_short_ulinged(user_file):
+def test_readinto_short_aligned(user_file):
+    size = user_file.sector_size
+    buf_size = user_file.sector_size * 2
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"a" * 4096)
+        f.write(b"a" * size)
+
     with file.open(user_file.url, "r") as f, \
-            closing(util.aligned_buffer(8192)) as buf:
+            closing(util.aligned_buffer(buf_size)) as buf:
         n = f.readinto(buf)
-        assert n == 4096
-        assert f.tell() == 4096
-        assert buf[:4096] == b"a" * 4096
-        assert buf[4096:] == b"\0" * 4096
+        assert n == size
+        assert f.tell() == size
+        assert buf[:size] == b"a" * size
+        assert buf[size:] == b"\0" * (buf_size - size)
 
 
 def test_readinto_short_unaligned(user_file):
+    size = 42
+    buf_size = user_file.sector_size
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"a" * 42)
+        f.write(b"a" * size)
+
     with file.open(user_file.url, "r") as f, \
-            closing(util.aligned_buffer(4096)) as buf:
+            closing(util.aligned_buffer(buf_size)) as buf:
         n = f.readinto(buf)
-        assert n == 42
-        assert f.tell() == 42
-        assert buf[:42] == b"a" * 42
-        assert buf[42:] == b"\0" * (4096 - 42)
+        assert n == size
+        assert f.tell() == size
+        assert buf[:size] == b"a" * size
+        assert buf[size:] == b"\0" * (buf_size - size)
 
 
 def test_write_aligned_middle(user_file):
@@ -208,110 +224,136 @@ def test_write_aligned_after_end(user_file):
 
 
 def test_write_unaligned_offset_complete(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = user_file.sector_size + 10
+    end = start + 10
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Write 10 bytes into the second block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(600)
+        f.seek(start)
         n = f.write(b"y" * 10)
         assert n == 10
-        assert f.tell() == 610
+        assert f.tell() == end
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(600) == b"x" * 600
+        assert f.read(start) == b"x" * start
         assert f.read(10) == b"y" * 10
-        assert f.read() == b"x" * (1024 - 610)
+        assert f.read() == b"x" * (size - end)
 
 
 def test_write_unaligned_offset_inside(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = user_file.sector_size - 12
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Write 12 bytes into the first block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(500)
+        f.seek(start)
         n = f.write(b"y" * 100)
         assert n == 12
-        assert f.tell() == 512
+        assert f.tell() == user_file.sector_size
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(500) == b"x" * 500
+        assert f.read(start) == b"x" * start
         assert f.read(12) == b"y" * 12
-        assert f.read() == b"x" * 512
+        assert f.read() == b"x" * user_file.sector_size
 
 
 def test_write_unaligned_offset_at_end(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = size - 24
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Write 24 bytes into the last block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(1000)
+        f.seek(size - 24)
         n = f.write(b"y" * 100)
         assert n == 24
-        assert f.tell() == 1024
+        assert f.tell() == size
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(1000) == b"x" * 1000
+        assert f.read(start) == b"x" * start
         assert f.read() == b"y" * 24
 
 
 def test_write_unaligned_offset_after_end(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 512)
+        f.write(b"x" * size)
 
     with file.open(user_file.url, "r+") as f:
-        f.seek(600)
+        f.seek(size + 10)
         n = f.write(b"y" * 10)
         assert n == 10
-        assert f.tell() == 610
+        assert f.tell() == size + 20
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
-        assert f.read(88) == b"\0" * 88
+        assert f.read(size) == b"x" * size
+        assert f.read(10) == b"\0" * 10
         assert f.read(10) == b"y" * 10
-        assert f.read() == b"\0" * (1024 - 610)
+        assert f.read() == b"\0" * (user_file.sector_size - 20)
 
 
 def test_write_unaligned_buffer_slow_path(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Perform slow read-modify-write in the second block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(512)
+        f.seek(user_file.sector_size)
         n = f.write(b"y" * 10)
         assert n == 10
-        assert f.tell() == 522
+        assert f.tell() == user_file.sector_size + 10
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
+        assert f.read(user_file.sector_size) == b"x" * user_file.sector_size
         assert f.read(10) == b"y" * 10
-        assert f.read() == b"x" * (1024 - 522)
+        assert f.read() == b"x" * (user_file.sector_size - 10)
 
 
 def test_write_unaligned_buffer_fast_path(user_file):
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 4096)
+    size = user_file.sector_size * 4
+    start = user_file.sector_size
+    length = user_file.sector_size * 2
 
-    # Perform short fast write of 6 blocks.
-    buf = util.aligned_buffer(3073)
-    buf.write(b"y" * 3073)
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    # Create buffer of 2 blcoks + 1 byte.
+    buf = util.aligned_buffer(length + 1)
+    buf.write(b"y" * len(buf))
+
+    # Perform short fast write of 2 blocks.
     with closing(buf):
         with file.open(user_file.url, "r+") as f:
-            f.seek(512)
+            f.seek(start)
             n = f.write(buf)
-            assert n == 3072
-            assert f.tell() == 3584
+            assert n == length
+            assert f.tell() == start + length
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
-        assert f.read(3072) == b"y" * 3072
-        assert f.read() == b"x" * 512
+        assert f.read(start) == b"x" * start
+        assert f.read(length) == b"y" * length
+        assert f.read() == b"x" * user_file.sector_size
 
 
 def test_flush(user_file, monkeypatch):
+    xfail_4k(user_file)
     count = [0]
 
     def fsync(fd):
@@ -392,103 +434,127 @@ def test_zero_sparse_deallocate_space(user_file):
 
 
 def test_zero_unaligned_offset_complete(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = user_file.sector_size + 10
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Zero 10 bytes into the second block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(600)
+        f.seek(start)
         n = f.zero(10)
         assert n == 10
-        assert f.tell() == 610
+        assert f.tell() == start + 10
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(600) == b"x" * 600
+        assert f.read(start) == b"x" * start
         assert f.read(10) == b"\0" * 10
-        assert f.read() == b"x" * (1024 - 610)
+        assert f.read() == b"x" * (size - start - 10)
 
 
 def test_zero_unaligned_offset_inside(user_file):
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = user_file.sector_size - 10
 
-    # Zero 12 bytes into the first block.
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    # Zero 10 bytes into the first block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(500)
+        f.seek(start)
         n = f.zero(100)
-        assert n == 12
-        assert f.tell() == 512
+        assert n == 10
+        assert f.tell() == start + 10
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(500) == b"x" * 500
-        assert f.read(12) == b"\0" * 12
-        assert f.read() == b"x" * 512
+        assert f.read(start) == b"x" * start
+        assert f.read(10) == b"\0" * 10
+        assert f.read() == b"x" * (size - start - 10)
 
 
 def test_zero_unaligned_offset_at_end(user_file):
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = size - 10
 
-    # Zero 24 bytes into the last block.
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    # Zero 10 bytes into the last block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(1000)
+        f.seek(start)
         n = f.zero(100)
-        assert n == 24
-        assert f.tell() == 1024
+        assert n == 10
+        assert f.tell() == size
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(1000) == b"x" * 1000
-        assert f.read() == b"\0" * 24
+        assert f.read(start) == b"x" * start
+        assert f.read() == b"\0" * 10
 
 
 def test_zero_unaligned_offset_after_end(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size
+    start = size + 10
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 512)
+        f.write(b"x" * size)
 
     with file.open(user_file.url, "r+") as f:
-        f.seek(600)
+        f.seek(start)
         n = f.zero(10)
         assert n == 10
-        assert f.tell() == 610
+        assert f.tell() == start + 10
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
-        assert f.read() == b"\0" * 512
+        assert f.read(size) == b"x" * size
+        assert f.read() == b"\0" * user_file.sector_size
 
 
 def test_zero_unaligned_buffer_slow_path(user_file):
+    xfail_4k(user_file)
+    size = user_file.sector_size * 2
+    start = user_file.sector_size
+
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 1024)
+        f.write(b"x" * size)
 
     # Perform slow read-modify-write in the second block.
     with file.open(user_file.url, "r+") as f:
-        f.seek(512)
+        f.seek(start)
         n = f.zero(10)
         assert n == 10
-        assert f.tell() == 522
+        assert f.tell() == start + 10
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
+        assert f.read(start) == b"x" * start
         assert f.read(10) == b"\0" * 10
-        assert f.read() == b"x" * 502
+        assert f.read() == b"x" * (size - start - 10)
 
 
 @xfail_python3
 def test_zero_unaligned_buffer_fast_path(user_file):
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 4096)
+    size = user_file.sector_size * 4
+    start = user_file.sector_size
+    length = user_file.sector_size * 2
 
-    # Perform fast short zero of 6 blocks.
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    # Perform fast short zero of 2 blocks.
     with file.open(user_file.url, "r+") as f:
-        f.seek(512)
-        n = f.zero(3073)
-        assert n == 3072
-        assert f.tell() == 3584
+        f.seek(start)
+        n = f.zero(length + 1)
+        assert n == length
+        assert f.tell() == start + length
 
     with io.open(user_file.path, "rb") as f:
-        assert f.read(512) == b"x" * 512
-        assert f.read(3072) == b"\0" * 3072
-        assert f.read() == b"x" * 512
+        assert f.read(start) == b"x" * start
+        assert f.read(length) == b"\0" * length
+        assert f.read() == b"x" * (size - start - length)
 
 
 def test_dirty(user_file):
@@ -516,12 +582,18 @@ def test_dirty(user_file):
 
 
 def test_size(user_file):
+    size = user_file.sector_size * 2
+
     with io.open(user_file.path, "wb") as f:
-        f.truncate(1024)
+        f.truncate(size)
+
     with file.open(user_file.url, "r+", sparse=True) as f:
-        assert f.size() == 1024
-        assert f.tell() == 0
-        f.zero(2048)
+        # Check initial size.
         f.seek(100)
-        assert f.size() == 2048
+        assert f.size() == size
         assert f.tell() == 100
+
+        # Check that size() updates when file size is modified.
+        f.seek(size)
+        f.zero(user_file.sector_size)
+        assert f.size() == size + user_file.sector_size

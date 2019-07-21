@@ -49,4 +49,43 @@ BACKENDS = {
         )
     ),
 
+    "file-4k-ext2": File(
+        Mount(
+            LoopDevice(
+                base_dir=BASE_DIR,
+                name="file-4k-ext2",
+                size=GiB,
+                sector_size=4096,
+                required=False,
+            ),
+            fstype="ext2",
+        )
+    ),
+
+    "file-4k-ext4": File(
+        Mount(
+            LoopDevice(
+                base_dir=BASE_DIR,
+                name="file-4k-ext4",
+                size=GiB,
+                sector_size=4096,
+                required=False,
+            ),
+            fstype="ext4",
+        )
+    ),
+
+    "file-4k-xfs": File(
+        Mount(
+            LoopDevice(
+                base_dir=BASE_DIR,
+                name="file-4k-xfs",
+                size=GiB,
+                sector_size=4096,
+                required=False,
+            ),
+            fstype="xfs",
+        )
+    ),
+
 }
