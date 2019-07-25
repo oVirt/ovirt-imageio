@@ -96,7 +96,7 @@ class Backend(object):
 
     @property
     def block_size(self):
-        return 512
+        return 1
 
     # Debugging interface
 
