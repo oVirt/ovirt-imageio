@@ -9,73 +9,85 @@
 from __future__ import absolute_import
 
 import io
+import os
 import sys
 
 import pytest
+import userstorage
 
 from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
 from ovirt_imageio_common.backends import file
 from ovirt_imageio_common.backends import memory
 
+from . import storage
 from . import testutil
-
-# TODO: use backend block_size.
-BLOCKSIZE = 512
 
 pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
                                 reason='needs porting to python 3')
 
-
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-], ids=testutil.head)
-def test_send_full(data, offset):
-    size = len(data) - offset
-    expected = data[offset:]
-    assert send(data, size, offset=offset) == expected
+BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
 
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("size", [
-    511,
-    513,
-    len(testutil.BUFFER) + 511,
-    len(testutil.BUFFER) + 513,
+@pytest.fixture(
+    params=[
+        BACKENDS["file-512-xfs"],
+        BACKENDS["file-4k-xfs"],
+    ],
+    ids=str
+)
+def user_file(request):
+    with storage.Backend(request.param) as backend:
+        yield backend
+
+
+# Common offset and size parameters.
+OFFSET_SIZE = [
+    pytest.param(0, 8192, id="small-aligned"),
+    pytest.param(0, 511, id="small-partial-block"),
+    pytest.param(42, 512 - 42 - 1, id="small-partial-block-offset"),
+    pytest.param(42, 8192 - 42, id="small-unaligned-offset"),
+    pytest.param(42, 8192, id="small-unaligned-offset-and-size"),
+    pytest.param(0, 1024**2 * 2, id="large-aligned"),
+    pytest.param(42, 1024**2 * 2 - 42, id="large-unaligned-offset"),
+    pytest.param(42, 1024**2 * 2, id="large-unaligned-offset-and-size"),
+]
+
+
+@pytest.mark.parametrize("trailer", [
+    pytest.param(0, id="no-trailer"),
+    pytest.param(8192, id="trailer"),
 ])
-def test_send_partial(size, offset):
-    data = testutil.BUFFER * 2
-    expected = data[offset:offset + size]
-    assert send(data, size, offset=offset) == expected
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_send_full(user_file, offset, size, trailer):
+    data = b"b" * size
+
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"a" * offset)
+        f.write(data)
+        f.write(b"c" * trailer)
+
+    dst = io.BytesIO()
+    with file.open(user_file.url, "r") as src:
+        op = ops.Send(src, dst, size, offset=offset)
+        op.run()
+
+    assert dst.getvalue() == data
 
 
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-], ids=testutil.head)
-def test_send_partial_content(data, offset):
-    size = len(data) - offset
-    with pytest.raises(errors.PartialContent) as e:
-        send(data[:-1], size, offset=offset)
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_send_partial_content(user_file, offset, size):
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(offset + size - 1)
+
+    dst = io.BytesIO()
+    with file.open(user_file.url, "r") as src:
+        op = ops.Send(src, dst, size, offset=offset)
+        with pytest.raises(errors.PartialContent) as e:
+            op.run()
+
     assert e.value.requested == size
     assert e.value.available == size - 1
-
-
-def send(data, size, offset=0):
-    src = memory.Backend("r", data)
-    dst = io.BytesIO()
-    op = ops.Send(src, dst, size, offset=offset)
-    op.run()
-    return dst.getvalue()
 
 
 def test_send_seek():
@@ -87,20 +99,20 @@ def test_send_seek():
     assert dst.getvalue() == b"01234"
 
 
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-], ids=testutil.head)
-def test_send_no_size(data, offset):
-    src = memory.Backend("r", data)
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_send_no_size(user_file, offset, size):
+    data = b"b" * size
+
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"a" * offset)
+        f.write(data)
+
     dst = io.BytesIO()
-    op = ops.Send(src, dst, offset=offset)
-    op.run()
-    assert dst.getvalue() == data[offset:]
+    with file.open(user_file.url, "r") as src:
+        op = ops.Send(src, dst, offset=offset)
+        op.run()
+
+    assert dst.getvalue() == data
 
 
 def test_send_repr():
@@ -110,76 +122,71 @@ def test_send_repr():
     assert "size=200 offset=24 buffersize=4096 done=0" in rep
 
 
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-    testutil.BYTES,
-], ids=testutil.head)
-def test_receive(tmpurl, data, offset):
-    assert receive(tmpurl, data, len(data), offset=offset) == data
-
-
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("size", [
-    511,
-    513,
-    len(testutil.BUFFER) + 511,
-    len(testutil.BUFFER) + 513,
+@pytest.mark.parametrize("preallocated", [
+    pytest.param(True, id="preallocated"),
+    pytest.param(False, id="empty"),
 ])
-def test_receive_partial(tmpurl, size, offset):
-    data = testutil.BUFFER * 2
-    assert receive(tmpurl, data, size, offset=offset) == data[:size]
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_receive_new(user_file, offset, size, preallocated):
+    with io.open(user_file.path, "wb") as f:
+        if preallocated:
+            f.truncate(offset + size)
 
-
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-    testutil.BYTES,
-], ids=testutil.head)
-def test_receive_partial_content(tmpurl, data, offset):
-    with pytest.raises(errors.PartialContent) as e:
-        receive(tmpurl, data[:-1], len(data), offset=offset)
-    assert e.value.requested == len(data)
-    assert e.value.available == len(data) - 1
-
-
-def receive(tmpurl, data, size, offset=0):
-    with io.open(tmpurl.path, "wb") as f:
-        f.write("x" * offset)
-    with file.open(tmpurl, "r+") as dst:
-        src = io.BytesIO(data)
+    src = io.BytesIO(b"x" * size)
+    with file.open(user_file.url, "r+") as dst:
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with io.open(tmpurl.path, "rb") as f:
-        f.seek(offset)
-        return f.read(size)
+
+    with io.open(user_file.path, "rb") as f:
+        # Nothing is written before offset.
+        assert f.read(offset) == b"\0" * offset
+
+        # All data was written.
+        assert f.read(size) == src.getvalue()
+
+        # Writing to unaligned size align file size by padding zeroes.
+        file_size = os.path.getsize(user_file.path)
+        trailer = file_size - offset - size
+        assert file_size % user_file.sector_size == 0
+        assert f.read() == b"\0" * trailer
 
 
-def test_receive_padd_to_block_size(tmpurl):
-    with io.open(tmpurl.path, "wb") as f:
-        f.write("x" * 400)
-    size = 200
-    offset = 300
-    padding = BLOCKSIZE - size - offset
-    src = io.BytesIO(b"y" * size)
-    with file.open(tmpurl, "r+") as dst:
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_receive_inside(user_file, offset, size):
+    trailer = 8192
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(offset + size + trailer)
+
+    src = io.BytesIO(b"x" * size)
+    with file.open(user_file.url, "r+") as dst:
         op = ops.Receive(dst, src, size, offset=offset)
         op.run()
-    with io.open(tmpurl.path, "rb") as f:
-        # Data before offset is not modified.
-        assert f.read(300) == b"x" * offset
-        # Data after offset is modifed, flie extended.
-        assert f.read(200) == b"y" * size
-        # File padded to block size with zeroes.
-        assert f.read() == b"\0" * padding
+
+    with io.open(user_file.path, "rb") as f:
+        # Nothing is written before offset.
+        assert f.read(offset) == b"\0" * offset
+
+        # All data was written.
+        assert f.read(size) == src.getvalue()
+
+        # Nothing was written after offset + size, and file size is not
+        # modified.
+        assert f.read() == b"\0" * trailer
+
+
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_receive_partial_content(user_file, offset, size):
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size + offset)
+
+    src = io.BytesIO(b"x" * (size - 1))
+    with file.open(user_file.url, "r+") as dst:
+        op = ops.Receive(dst, src, size, offset=offset)
+        with pytest.raises(errors.PartialContent) as e:
+            op.run()
+
+    assert e.value.requested == size
+    assert e.value.available == size - 1
 
 
 def test_receive_seek():
@@ -216,90 +223,106 @@ def test_recv_repr():
     assert "size=100 offset=42 buffersize=4096 done=0" in rep
 
 
-@pytest.mark.parametrize("bufsize", [512, 1024, 2048])
-def test_receive_unbuffered_stream(tmpurl, bufsize):
-    chunks = ["1" * 1024,
-              "2" * 1024,
-              "3" * 42,
-              "4" * 982]
-    data = ''.join(chunks)
-    assert receive_unbuffered(tmpurl, chunks, len(data), bufsize) == data
-
-
-def test_receive_unbuffered_stream_partial_content(tmpurl):
-    chunks = ["1" * 1024,
-              "2" * 1024,
-              "3" * 42,
-              "4" * 982]
-    data = ''.join(chunks)
-    with pytest.raises(errors.PartialContent):
-        receive_unbuffered(tmpurl, chunks, len(data) + 1, 2048)
-
-
-def receive_unbuffered(tmpurl, chunks, size, bufsize):
+def test_receive_unbuffered_stream(user_file):
+    chunks = [b"a" * 8192,
+              b"b" * 42,
+              b"c" * (8192 - 42)]
     src = testutil.UnbufferedStream(chunks)
-    with file.open(tmpurl, "r+") as dst:
-        op = ops.Receive(dst, src, size, buffersize=bufsize)
+    size = sum(len(c) for c in chunks)
+
+    with file.open(user_file.url, "r+") as dst:
+        op = ops.Receive(dst, src, size)
         op.run()
-        with io.open(tmpurl.path, "rb") as f:
-            return f.read()
+
+    with io.open(user_file.path, "rb") as f:
+        for c in chunks:
+            assert f.read(len(c)) == c
+        assert f.read() == b""
 
 
-@pytest.mark.parametrize("offset", [0, 42, 512])
-@pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-], ids=testutil.head)
-def test_receive_no_size(tmpurl, data, offset):
-    with io.open(tmpurl.path, "wb") as f:
-        f.write("x" * offset)
-    src = io.BytesIO(data)
-    with file.open(tmpurl, "r+") as dst:
+def test_receive_unbuffered_stream_partial_content(user_file):
+    chunks = [b"a" * 8192,
+              b"b" * 42,
+              b"c" * (8192 - 42)]
+    src = testutil.UnbufferedStream(chunks)
+    size = sum(len(c) for c in chunks)
+
+    with file.open(user_file.url, "r+") as dst:
+        op = ops.Receive(dst, src, size + 1)
+        with pytest.raises(errors.PartialContent):
+            op.run()
+
+
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_receive_no_size(user_file, offset, size):
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(offset + size)
+
+    src = io.BytesIO(b"x" * size)
+    with file.open(user_file.url, "r+") as dst:
         op = ops.Receive(dst, src, offset=offset)
         op.run()
-    with io.open(tmpurl.path, "rb") as f:
-        f.seek(offset)
-        assert f.read(len(data)) == data
+
+    with io.open(user_file.path, "rb") as f:
+        assert f.read(offset) == b"\0" * offset
+        assert f.read(size) == src.getvalue()
+
+        file_size = os.path.getsize(user_file.path)
+        trailer = file_size - offset - size
+        assert file_size % user_file.sector_size == 0
+        assert f.read() == b"\0" * trailer
 
 
-@pytest.mark.parametrize("sparse", [True, False])
-@pytest.mark.parametrize("offset,size", [
-    # Aligned offset and size
-    (0, BLOCKSIZE),
-    (0, ops.BUFFERSIZE - BLOCKSIZE),
-    (0, ops.BUFFERSIZE),
-    (0, ops.BUFFERSIZE + BLOCKSIZE),
-    (0, ops.BUFFERSIZE * 2),
-    (BLOCKSIZE, BLOCKSIZE),
-    (ops.BUFFERSIZE, BLOCKSIZE),
-    (ops.BUFFERSIZE * 2 - BLOCKSIZE, BLOCKSIZE),
-    # Unalinged size
-    (0, 42),
-    (0, BLOCKSIZE + 42),
-    (0, ops.BUFFERSIZE + 42),
-    # Unaligned offset
-    (42, BLOCKSIZE),
-    (BLOCKSIZE + 42, BLOCKSIZE),
-    (ops.BUFFERSIZE + 42, BLOCKSIZE),
-    # Unaligned size and offset
-    (42, BLOCKSIZE - 42),
-    (BLOCKSIZE + 42, BLOCKSIZE - 42),
-    (ops.BUFFERSIZE + 42, ops.BUFFERSIZE - 42),
-    (ops.BUFFERSIZE * 2 - 42, 42),
+@pytest.mark.parametrize("sparse", [
+    pytest.param(True, id="sparse"),
+    pytest.param(False, id="preallocated"),
 ])
-def test_zero(tmpurl, offset, size, sparse):
-    data = "x" * ops.BUFFERSIZE * 2
-    with io.open(tmpurl.path, "wb") as f:
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_zero_full(user_file, offset, size, sparse):
+    data = b"x" * (offset + size)
+    with io.open(user_file.path, "wb") as f:
         f.write(data)
-    with file.open(tmpurl, "r+", sparse=sparse) as dst:
+
+    with file.open(user_file.url, "r+", sparse=sparse) as dst:
         op = ops.Zero(dst, size, offset=offset)
         op.run()
-    with io.open(tmpurl.path, "rb") as f:
+
+    with io.open(user_file.path, "rb") as f:
+        # Nothing was zeroed before offset
         assert f.read(offset) == data[:offset]
+
+        # Everything was zeroed after offset.
         assert f.read(size) == b"\0" * size
+
+        # Zeroing to unaligned size align file size by padding zereos.
+        file_size = os.path.getsize(user_file.path)
+        assert file_size % user_file.sector_size == 0
+        assert f.read() == b"\0" * (file_size - offset - size)
+
+
+@pytest.mark.parametrize("sparse", [
+    pytest.param(True, id="sparse"),
+    pytest.param(False, id="preallocated"),
+])
+@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
+def test_zero_inside(user_file, offset, size, sparse):
+    trailer = 8192
+    data = b"x" * (offset + size + trailer)
+    with io.open(user_file.path, "wb") as f:
+        f.write(data)
+
+    with file.open(user_file.url, "r+", sparse=sparse) as dst:
+        op = ops.Zero(dst, size, offset=offset)
+        op.run()
+
+    with io.open(user_file.path, "rb") as f:
+        # Nothing was zeroed before offset
+        assert f.read(offset) == data[:offset]
+
+        # Everything was zeroed after offset.
+        assert f.read(size) == b"\0" * size
+
+        # Nothing was zeroed after size.
         assert f.read() == data[offset + size:]
 
 
