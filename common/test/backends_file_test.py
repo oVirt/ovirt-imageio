@@ -13,7 +13,6 @@ import io
 import os
 import subprocess
 
-from collections import namedtuple
 from contextlib import closing
 
 from six.moves import urllib_parse
@@ -24,11 +23,10 @@ import userstorage
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 
+from . import storage
 from . marks import xfail_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
-
-UserFile = namedtuple("UserFile", "path,url,sector_size")
 
 
 @pytest.fixture(
@@ -43,21 +41,8 @@ UserFile = namedtuple("UserFile", "path,url,sector_size")
     ids=str
 )
 def user_file(request):
-    """
-    Return a file: url to user storage.
-    """
-    storage = request.param
-    if not storage.exists():
-        pytest.xfail("Storage {} is not available".format(storage.name))
-
-    storage.setup()
-
-    yield UserFile(
-        path=storage.path,
-        url=urllib_parse.urlparse("file:" + storage.path),
-        sector_size=storage.sector_size)
-
-    storage.teardown()
+    with storage.Backend(request.param) as backend:
+        yield backend
 
 
 def test_debugging_interface(user_file):
