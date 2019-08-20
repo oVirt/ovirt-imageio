@@ -185,12 +185,22 @@ def aligned_buffer(size):
     return mmap.mmap(-1, size, mmap.MAP_SHARED)
 
 
-def open(path, mode, direct=True):
+def open(path, mode, direct=True, sync=False):
     """
     Open a file for direct I/O.
 
     Writing or reading from the file requires an aligned buffer. Only
     readinto() can be used to read from the file.
+
+    Arguments:
+        path (str): Filesystem path
+        mode (str): One of ("r", "w", "r+"). The file is always opened in
+            binary mode. See io.FileIO for more info on available modes.
+        direct (bool): Try to minimize cache effects of the I/O to and from
+            this file (O_DIRECT).
+        sync (bool): Write operations on the file will complete according to
+            the requirements of synchronized I/O file integrity completion
+            (O_SYNC).
     """
     if mode == "r":
         flags = os.O_RDONLY
@@ -203,6 +213,9 @@ def open(path, mode, direct=True):
 
     if direct:
         flags |= os.O_DIRECT
+
+    if sync:
+        flags |= os.O_SYNC
 
     fd = os.open(path, flags)
     return io.FileIO(fd, mode, closefd=True)

@@ -320,7 +320,9 @@ class FileBackend(Backend):
         """
         initial_size = os.path.getsize(self._fio.name)
 
-        with util.open(self._fio.name, "r+", direct=True) as f:
+        # On Gluster if performance.strict-o-direct is off, unaligned direct
+        # I/O can succeed. Using O_SYNC solves this issue.
+        with util.open(self._fio.name, "r+", direct=True, sync=True) as f:
             for block_size in (512, 4096):
                 log.debug("Trying block size %s", block_size)
                 buf = util.aligned_buffer(block_size)
