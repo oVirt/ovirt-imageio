@@ -91,6 +91,12 @@ options using:
 
     tox -e py27 -- --help
 
+## Using non-standard qemu version
+
+Some tests run qemu-kvm. To your own qemu-kvm built from source, you can
+specify the path to qemu in the QEMU environment variable:
+
+    QEMU=../../qemu/build/x86_64-softmmu/qemu-system-x86_64 tox -e py27
 
 ## Submitting patches
 

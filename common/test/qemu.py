@@ -17,12 +17,14 @@ from contextlib import contextmanager
 
 from . import testutil
 
+QEMU = os.environ.get("QEMU", "qemu-kvm")
+
 log = logging.getLogger("qemu")
 
 
 def supports_audiodev():
     if not hasattr(supports_audiodev, "result"):
-        cmd = ["qemu-kvm", "--help"]
+        cmd = [QEMU, "--help"]
         out = subprocess.check_output(cmd, env=env()).decode()
         m = re.search(r"^-audiodev +none\b", out, flags=re.MULTILINE)
         supports_audiodev.result = m is not None
@@ -46,7 +48,7 @@ def run(image, fmt, qmp_sock, start_cpu=True):
     #   strange alignment. Here is a failure from ppc64le host:
     #       qemu-kvm: Memory size 0x1000000 is not aligned to 256 MiB
     cmd = [
-        "qemu-kvm",
+        QEMU,
         # Use kvm if available, othrewise fallback to tcg. This allows running
         # qemu on Travis CI which does not support nested virtualization.
         "-accel", "kvm:tcg",
