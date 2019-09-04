@@ -38,13 +38,21 @@ For CentOS 7:
 
     sudo yum install $(cat automation/check-patch.packages.el7)
 
-Install development requirements:
+Install development tools:
 
     yum install git-review
 
-    python -m pip install --user --upgrade tox userstorage
+Upgrade pip, since older pip versions have issues with installing
+correct version of requirements:
 
-Do not use pip as root unless you like a lot of pain.
+    sudo pip install --upgrade pip
+
+Install development python packages:
+
+    pip install --upgrade --user -r requirements.txt
+
+Except when upgrading pip itself, do not use pip as root unless you like
+a lot of pain.
 
 Do not install pytest in your development machine. pytest will be
 installed by tox in a virtual environment. If you need pytest for other

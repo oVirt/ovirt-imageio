@@ -18,10 +18,12 @@ teardown() {
 
 trap teardown EXIT
 
-# Notes:
-# - tox: too old on EL, so we must install our own
-# - userstorage: require 0.2 for fstype support.
-pip install tox userstorage>=0.2
+# First upgrade pip, since older pip versions have issues with installing
+# correct version of requirements.
+pip install --upgrade pip
+
+# Install development requirements.
+pip install --upgrade -r requirements.txt
 
 # Make it possibe to run qemu-kvm under mock.
 if [ ! -c "/dev/kvm" ]; then
