@@ -62,7 +62,7 @@ def test_delete(proxy_server, signed_ticket):
 
 def test_delete_unknown_ticket(proxy_server):
     resp = http.request(proxy_server, "DELETE", "/tickets/no-such-ticket")
-    assert resp.status == http_client.NOT_FOUND
+    assert resp.status == http_client.NO_CONTENT
 
 
 def test_delete_no_ticket_id(proxy_server):

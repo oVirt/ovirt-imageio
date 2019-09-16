@@ -2,11 +2,15 @@
 Handling the proxy /tickets/ resource.
 """
 
+import logging
+
 from six.moves import http_client
 from webob import exc
 from ovirt_imageio_common import web
 
 from . import auth
+
+log = logging.getLogger("tickets")
 
 
 class RequestHandler(object):
@@ -43,5 +47,5 @@ class RequestHandler(object):
         try:
             auth.delete_ticket(ticket_id)
         except auth.NoSuchTicket as e:
-            raise exc.HTTPNotFound("Ticket not found: %s" % e)
+            log.debug("Ticket %s does not exists", ticket_id)
         return web.response(http_client.NO_CONTENT)
