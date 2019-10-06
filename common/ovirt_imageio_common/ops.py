@@ -12,6 +12,7 @@ import logging
 
 from contextlib import closing
 
+from . import compat
 from . import errors
 from . import util
 
@@ -106,9 +107,8 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
-        chunk = buffer(buf, skip, size)
         with self._clock.run("write"):
-            self._dst.write(chunk)
+            self._dst.write(compat.bufview(buf, skip, size))
         self._done += size
 
 
@@ -155,7 +155,7 @@ class Receive(Operation):
         while toread:
             with self._clock.run("read"):
                 chunk = self._src.read(toread)
-            if chunk == "":
+            if not chunk:
                 break
             buf.write(chunk)
             toread -= len(chunk)
@@ -164,9 +164,8 @@ class Receive(Operation):
         while towrite:
             offset = buf.tell() - towrite
             size = buf.tell() - offset
-            wbuf = buffer(buf, offset, size)
             with self._clock.run("write"):
-                written = self._dst.write(wbuf)
+                written = self._dst.write(compat.bufview(buf, offset, size))
             towrite -= written
 
         self._done += buf.tell()

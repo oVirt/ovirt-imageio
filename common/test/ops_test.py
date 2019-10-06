@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import io
 import os
-import sys
 
 import pytest
 import userstorage
@@ -22,9 +21,6 @@ from ovirt_imageio_common.backends import memory
 
 from . import storage
 from . import testutil
-
-pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
-                                reason='needs porting to python 3')
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
