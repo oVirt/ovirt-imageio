@@ -463,7 +463,7 @@ class FileBackend(Backend):
             self._buf = util.aligned_buffer(self._buffer_size)
         while count:
             step = min(self._buffer_size, count)
-            wbuf = buffer(self._buf, 0, step)
+            wbuf = compat.bufview(self._buf, 0, step)
             count -= self.write(wbuf)
 
     def close(self):

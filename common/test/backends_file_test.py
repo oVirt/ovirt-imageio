@@ -24,7 +24,6 @@ from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 
 from . import storage
-from . marks import xfail_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
@@ -392,7 +391,7 @@ def test_flush(user_file, monkeypatch):
 
 ZERO_SPARSE = [
     pytest.param(True, id="sparse"),
-    pytest.param(False, id="preallocted", marks=xfail_python3),
+    pytest.param(False, id="preallocted"),
 ]
 
 
@@ -440,7 +439,6 @@ def test_zero_aligned_after_end(user_file, sparse):
         assert f.read() == b"\0" * 8192
 
 
-@xfail_python3
 def test_zero_allocate_space(user_file):
     with file.open(user_file.url, "r+", sparse=False) as f:
         f.zero(8192)
@@ -553,7 +551,6 @@ def test_zero_unaligned_buffer_slow_path(user_file):
         assert f.read() == b"x" * (size - start - 10)
 
 
-@xfail_python3
 def test_zero_unaligned_buffer_fast_path(user_file):
     size = user_file.sector_size * 4
     start = user_file.sector_size
