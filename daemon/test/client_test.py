@@ -9,7 +9,6 @@
 from __future__ import absolute_import
 
 import os
-import sys
 
 import pytest
 
@@ -21,9 +20,6 @@ from ovirt_imageio_daemon import auth
 from ovirt_imageio_daemon import pki
 
 from . import testutils
-
-pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
-                                reason='needs porting to python 3')
 
 IMAGE_SIZE = 128 * 1024
 
