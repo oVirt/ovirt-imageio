@@ -11,15 +11,11 @@ from __future__ import print_function
 
 import os
 import signal
-import sys
 import time
 
 import pytest
 
 from ovirt_imageio_common import util
-
-pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
-                                reason='needs porting to python 3')
 
 
 def test_uninterruptible_interrupt():
@@ -35,10 +31,10 @@ def test_uninterruptible_interrupt():
             time.sleep(0.1)
             os.kill(os.getpid(), signo)
             time.sleep(0.1)
-            os.write(w, 'a')
+            os.write(w, b'a')
 
         util.start_thread(write)
-        assert util.uninterruptible(read) == 'a'
+        assert util.uninterruptible(read) == b'a'
     finally:
         signal.signal(signo, prev)
         os.close(r)
