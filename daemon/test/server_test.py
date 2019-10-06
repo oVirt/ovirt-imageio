@@ -726,7 +726,6 @@ def test_images_download_empty(tmpdir):
     assert data == b""
 
 
-@pytest.mark.xfail(reason="need to check actual image size")
 def test_images_download_partial_not_satistieble(tmpdir):
     # Image is smaller than ticket size - may happen if engine failed to detect
     # actual image size reported by vdsm - one byte difference is enough to
@@ -742,7 +741,6 @@ def test_images_download_partial_not_satistieble(tmpdir):
     assert res.status == http_client.REQUESTED_RANGE_NOT_SATISFIABLE
 
 
-@pytest.mark.xfail(reason="need to return actual image size")
 def test_images_download_partial_no_range(tmpdir):
     # The image is smaller than the tiket size, but we don't request a range,
     # so we should get the existing length of the image, since the ticket size
@@ -760,7 +758,6 @@ def test_images_download_partial_no_range(tmpdir):
     assert res.length == 1024
 
 
-@pytest.mark.xfail(reason="return invalid response line")
 def test_images_download_partial_no_range_empty(tmpdir):
     # Image is empty, no range, should return an empty file - we return invalid
     # http response that fail on the client side with BadStatusLine: ''.
