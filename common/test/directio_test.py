@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import io
 import os
-import sys
 
 import pytest
 
@@ -22,9 +21,6 @@ from . import testutil
 
 # Legacy code supports only 512 bytes.
 BLOCKSIZE = 512
-
-pytestmark = pytest.mark.skipif(sys.version_info[0] > 2,
-                                reason='needs porting to python 3')
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
@@ -70,7 +66,7 @@ def test_receive_partial_content(tmpfile, data, offset):
 
 def receive(tmpfile, data, size, offset=0):
     with open(tmpfile, "wb") as f:
-        f.write("x" * offset)
+        f.write(b"x" * offset)
     src = io.BytesIO(data)
     op = directio.Receive(tmpfile, src, size, offset=offset)
     op.run()
@@ -115,20 +111,20 @@ def test_recv_repr(tmpfile):
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
 def test_receive_unbuffered_stream(tmpfile, bufsize):
-    chunks = ["1" * 1024,
-              "2" * 1024,
-              "3" * 42,
-              "4" * 982]
-    data = ''.join(chunks)
+    chunks = [b"1" * 1024,
+              b"2" * 1024,
+              b"3" * 42,
+              b"4" * 982]
+    data = b''.join(chunks)
     assert receive_unbuffered(tmpfile, chunks, len(data), bufsize) == data
 
 
 def test_receive_unbuffered_stream_partial_content(tmpfile):
-    chunks = ["1" * 1024,
-              "2" * 1024,
-              "3" * 42,
-              "4" * 982]
-    data = ''.join(chunks)
+    chunks = [b"1" * 1024,
+              b"2" * 1024,
+              b"3" * 42,
+              b"4" * 982]
+    data = b''.join(chunks)
     with pytest.raises(errors.PartialContent):
         receive_unbuffered(tmpfile, chunks, len(data) + 1, 2048)
 
@@ -151,7 +147,7 @@ def receive_unbuffered(tmpfile, chunks, size, bufsize):
 ], ids=testutil.head)
 def test_receive_no_size(tmpfile, data, offset):
     with open(tmpfile, "wb") as f:
-        f.write("x" * offset)
+        f.write(b"x" * offset)
     src = io.BytesIO(data)
     op = directio.Receive(tmpfile, src, offset=offset)
     op.run()
@@ -162,7 +158,7 @@ def test_receive_no_size(tmpfile, data, offset):
 
 def test_receive_padd_to_block_size(tmpfile):
     with open(tmpfile, "wb") as f:
-        f.write("x" * 400)
+        f.write(b"x" * 400)
     size = 200
     offset = 300
     padding = BLOCKSIZE - size - offset
