@@ -10,7 +10,7 @@
 class daemon:
 
     # Directory where vdsm pki files are stored.
-    pki_dir = "/etc/pki/vdsm"
+    pki_dir = u"/etc/pki/vdsm"
 
     # Interval in seconds for checking termination conditions.
     poll_interval = 1.0
@@ -30,7 +30,7 @@ class images:
 
     # Image service interface. Use empty string to listen on any
     # interface.
-    host = ""
+    host = u""
 
     # Image service port. Changing this value require change in the
     # firewall rules on the host, and changing this value in engine
@@ -38,7 +38,7 @@ class images:
     port = 54322
 
     # Unix socket for accessing images locally.
-    socket = "\0/org/ovirt/imageio"
+    socket = u"\u0000/org/ovirt/imageio"
 
 
 class tickets:
@@ -46,11 +46,11 @@ class tickets:
     # tickets service socket path. This socket is used to control the
     # daemon and must be accessible only to the program controlling the
     # daemon.
-    socket = "/run/vdsm/ovirt-imageio-daemon.sock"
+    socket = u"/run/vdsm/ovirt-imageio-daemon.sock"
 
 
 class profile:
 
     # Filename for storing profile data. Profiling requires the "yappi"
     # package. Version 0.93 is recommended for best performance.
-    filename = "/tmp/ovirt-imageio-daemon.prof"
+    filename = u"/tmp/ovirt-imageio-daemon.prof"

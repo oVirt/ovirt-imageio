@@ -16,6 +16,7 @@ import six
 from six.moves import http_client
 
 from ovirt_imageio_common import http
+from ovirt_imageio_common import util
 
 PUT = "PUT"
 DELETE = "DELETE"
@@ -77,7 +78,7 @@ class Server(http.Server):
                     raise
 
         self.socket.bind(self.server_address)
-        self.server_address = self.socket.getsockname()
+        self.server_address = util.ensure_text(self.socket.getsockname())
 
     def get_request(self):
         """

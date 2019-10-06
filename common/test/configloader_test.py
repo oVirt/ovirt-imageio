@@ -15,13 +15,15 @@ from ovirt_imageio_common import configloader
 def config():
     class config:
         class foo:
-            string = "old"
+            string = u"old"
+            string_nonascii = u"\u05d0"
+            string_null = u"\u0000"
             integer = 1
             real = 4.0
             boolean = False
 
         class bar:
-            string = "old"
+            string = u"old"
     return config
 
 
@@ -31,6 +33,8 @@ def test_empty(tmpdir, config):
         pass
     configloader.load(config, [conf])
     assert config.foo.string == "old"
+    assert config.foo.string_nonascii == u"\u05d0"
+    assert config.foo.string_null == u"\u0000"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
     assert config.foo.boolean is False
@@ -160,3 +164,39 @@ def test_validate(tmpdir, config, option):
     with open(conf, "w") as f:
         f.write(data)
     pytest.raises(ValueError, configloader.load, config, [conf])
+
+
+def test_unicode(tmpdir, config):
+    data = u"""
+[foo]
+string_nonascii = \u05d0
+string_null = \u0000
+"""
+    conf = str(tmpdir.join("conf"))
+    with open(conf, "wb") as f:
+        f.write(data.encode("utf-8"))
+    configloader.load(config, [conf])
+    assert config.foo.string_nonascii == u"\u05d0"
+    assert config.foo.string_null == u"\u0000"
+
+
+def test_unsupported_default_value(tmpdir):
+
+    class config:
+        class section:
+            value = b"bytes"
+
+    data = """
+[section]
+value = bar
+"""
+    conf = str(tmpdir.join("conf"))
+    with open(conf, "w") as f:
+        f.write(data)
+
+    with pytest.raises(ValueError) as e:
+        configloader.load(config, [conf])
+
+    error = str(e.value)
+    assert "section.value" in error
+    assert str(type(config.section.value)) in error

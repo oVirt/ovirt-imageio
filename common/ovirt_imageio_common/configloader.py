@@ -18,7 +18,7 @@ for example config.py:
 
     class foo:
 
-        string = "value"
+        string = u"value"
         integer = 42
         real = 3.14
         boolean = False
@@ -53,10 +53,16 @@ the config module will raise ValueError.
 
 Unknown sections and options in the configuration file are ignored.
 
+String values must use unicode literals (e.g. u"value"). bytes values (.e.g
+b"value" or "value") are not supported.
 """
 
 from __future__ import absolute_import
+
+import six
 from six.moves import configparser
+
+from . import util
 
 
 def load(config, files):
@@ -71,8 +77,14 @@ def load(config, files):
                 break
             except configparser.NoOptionError:
                 continue
-            default = getattr(section, option)
-            validate = _validators[type(default)]
+
+            value_type = type(getattr(section, option))
+            if value_type not in _validators:
+                raise ValueError(
+                    "Unsupported default value type for '{}.{}': {}"
+                    .format(section_name, option, value_type))
+
+            validate = _validators[value_type]
             value = validate(value)
             setattr(section, option, value)
 
@@ -92,7 +104,7 @@ def _validate_bool(s):
 
 
 _validators = {
-    str: str,
+    six.text_type: util.ensure_text,
     int: int,
     float: float,
     bool: _validate_bool,
