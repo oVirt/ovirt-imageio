@@ -18,6 +18,8 @@ import time
 
 from contextlib import contextmanager
 
+import six
+
 
 def uninterruptible(func, *args):
     while True:
@@ -219,3 +221,25 @@ def open(path, mode, direct=True, sync=False):
 
     fd = os.open(path, flags)
     return io.FileIO(fd, mode, closefd=True)
+
+
+def ensure_text(s, encoding='utf-8', errors='strict'):
+    """
+    Coerce *s* to six.text_type.
+
+    For Python 2:
+      - `unicode` -> `unicode`
+      - `str` -> `unicode`
+
+    For Python 3:
+      - `str` -> `str`
+      - `bytes` -> decoded to `str`
+
+    Copied from six library.
+    """
+    if isinstance(s, six.binary_type):
+        return s.decode(encoding, errors)
+    elif isinstance(s, six.text_type):
+        return s
+    else:
+        raise TypeError("not expecting type '%s'" % type(s))
