@@ -14,7 +14,6 @@ import json
 import os
 
 import pytest
-import six
 from six.moves import http_client
 
 from ovirt_imageio_common import configloader
@@ -25,8 +24,6 @@ from ovirt_imageio_daemon import auth
 
 from . import http
 from . import testutils
-
-pytestmark = pytest.mark.skipif(six.PY3, reason='needs porting to python 3')
 
 
 @pytest.fixture(scope="module")
@@ -105,7 +102,7 @@ def test_get_forbidden(service):
 
 
 def test_get(service, tmpdir):
-    data = "a" * 512 + "b" * 512
+    data = b"a" * 512 + b"b" * 512
     image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(
         url="file://" + str(image), size=1024)
@@ -117,7 +114,7 @@ def test_get(service, tmpdir):
 
 
 def test_images_zero(service, tmpdir):
-    data = "x" * 512
+    data = b"x" * 512
     image = testutils.create_tempfile(tmpdir, "image", data)
     ticket = testutils.create_ticket(url="file://" + str(image))
     auth.add(ticket)
