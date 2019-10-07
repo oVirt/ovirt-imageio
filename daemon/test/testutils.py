@@ -30,7 +30,7 @@ def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
     return d
 
 
-def create_tempfile(tmpdir, name, data='', size=None):
+def create_tempfile(tmpdir, name, data=b'', size=None):
     file = tmpdir.join(name)
     with open(str(file), 'wb') as f:
         if size is not None:
