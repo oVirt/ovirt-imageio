@@ -1,7 +1,9 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
+PYTHON_VERSION=2
 
+PYTHON=python$(PYTHON_VERSION)
 PACKAGE_NAME=ovirt-imageio-common
-PACKAGE_VERSION=$(shell python2 ovirt_imageio_common/version.py)
+PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio_common/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -10,17 +12,17 @@ SPEC_NAME=$(PACKAGE_NAME).spec
 GENERATED = $(SPEC_NAME)
 METADATA = ovirt_imageio_common/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean
+.PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
 build: $(GENERATED)
-	python2 setup.py build_ext --inplace
+	$(PYTHON) setup.py build_ext --inplace
 
 check:
 	tox
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
-	python2 setup.py sdist
+	$(PYTHON) setup.py sdist
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
@@ -34,7 +36,7 @@ rpm: srpm
 	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
 clean:
-	python2 setup.py clean --all
+	$(PYTHON) setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -f ovirt_imageio_common/*.so
@@ -45,5 +47,6 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
+		-e 's|@PYTHON_VERSION@|$(PYTHON_VERSION)|g' \
 		$< > $@
 	@echo "generated $@"

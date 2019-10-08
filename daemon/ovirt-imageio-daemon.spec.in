@@ -1,11 +1,12 @@
-# Hack to require python2-* packages on Fedora, and python-* on RHEL.
-%if 0%{?rhel}
+%global python_version @PYTHON_VERSION@
+
+%if 0%{?rhel} == 7 && %{python_version} == 2
 %global python python
 %else
-%global python python2
+%global python python%{python_version}
 %endif
 
-%global    logdir @LOGDIR@
+%global logdir @LOGDIR@
 
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
@@ -23,10 +24,10 @@ Requires:  ovirt-imageio-common = %{version}
 Requires:  %{python}
 Requires:  %{python}-six
 
-%if 0%{?rhel}
+%if 0%{?rhel} == 7
 Requires:   systemd-python
 %else
-Requires:   python2-systemd
+Requires:   %{python}-systemd
 %endif
 
 # We run as vdsm so we can access vdsm images and pki files, so vdsm must be

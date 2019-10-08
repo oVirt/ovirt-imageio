@@ -1,7 +1,9 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
+PYTHON_VERSION=2
 
+PYTHON=python$(PYTHON_VERSION)
 PACKAGE_NAME=ovirt-imageio-daemon
-PACKAGE_VERSION=$(shell python2 ovirt_imageio_daemon/version.py)
+PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio_daemon/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -15,7 +17,7 @@ GENERATED = \
 
 METADATA = ovirt_imageio_daemon/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean
+.PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
 build: $(GENERATED)
 
@@ -24,7 +26,7 @@ check:
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
-	python2 setup.py sdist
+	$(PYTHON) setup.py sdist
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
@@ -38,7 +40,7 @@ rpm: srpm
 	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
 clean:
-	python2 setup.py clean --all
+	$(PYTHON) setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -rf build
@@ -49,5 +51,6 @@ $(GENERATED) : % : %.in $(METADATA)
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
 		-e 's|@LOGDIR@|$(LOGDIR)|g' \
+		-e 's|@PYTHON_VERSION@|$(PYTHON_VERSION)|g' \
 		$< > $@
 	@echo "generated $@"

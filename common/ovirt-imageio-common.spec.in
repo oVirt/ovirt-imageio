@@ -1,8 +1,9 @@
-# Hack to require python2-* packages on Fedora, and python-* on RHEL.
-%if 0%{?rhel}
+%global python_version @PYTHON_VERSION@
+
+%if 0%{?rhel} == 7 && %{python_version} == 2
 %global python python
 %else
-%global python python2
+%global python python%{python_version}
 %endif
 
 Name:      @PACKAGE_NAME@
@@ -19,11 +20,15 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 Requires:  %{python}
 Requires:  %{python}-six
 Requires:  %{python}-webob
-Requires:  %{python}-subprocess32
 
-%if 0%{?rhel}
+%if %{python_version} == 2
+Requires:  %{python}-subprocess32
+%endif
+
+%if 0%{?rhel} == 7
+# qemu-img is old and crippled on rhel 7.
 Requires: qemu-img-rhev
-%else # fedora
+%else
 Requires: qemu-img
 %endif
 

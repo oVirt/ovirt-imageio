@@ -1,5 +1,12 @@
-subdirs = common daemon proxy
+PYTHON_VERSION = 2
+
 targets = all check dist srpm rpm
+
+subdirs = common daemon
+
+ifeq ($(PYTHON_VERSION), 2)
+	subdirs += proxy
+endif
 
 release_suffix := $(shell ./build-aux/release-suffix)
 
@@ -8,7 +15,9 @@ release_suffix := $(shell ./build-aux/release-suffix)
 $(targets): $(subdirs)
 
 $(subdirs):
-	$(MAKE) -C $@ $(MAKECMDGOALS) RELEASE_SUFFIX=$(release_suffix)
+	$(MAKE) -C $@ $(MAKECMDGOALS) \
+		RELEASE_SUFFIX=$(release_suffix) \
+		PYTHON_VERSION=$(PYTHON_VERSION)
 
 clean: $(subdirs)
 	rm -rf exported-artifacts/
