@@ -9,13 +9,13 @@
 from __future__ import absolute_import
 
 import io
-import subprocess
 from contextlib import closing
 
 import pytest
 
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import nbd
+from ovirt_imageio_common.compat import subprocess
 
 
 def test_debugging_interface(nbd_server):

@@ -12,6 +12,7 @@ RUN yum update -y \
         openssl \
         python-devel \
         python-setuptools \
+        python-subprocess32 \
         python-webob \
         python2-requests \
         python2-six \
@@ -24,5 +25,6 @@ RUN yum update -y \
     && yum clean all
 
 # Development tools.
+COPY ../requirements.txt requirements.txt
 RUN easy_install pip \
-    && pip install tox userstorage>=0.2
+    && python2 -m pip install --requirement requirements.txt

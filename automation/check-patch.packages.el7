@@ -7,6 +7,7 @@ python-devel
 python-pip
 python-requests
 python-six
+python-subprocess32
 python-webob
 qemu-img-rhev
 qemu-kvm-rhev

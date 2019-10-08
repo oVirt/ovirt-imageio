@@ -9,12 +9,13 @@
 from __future__ import absolute_import
 
 import logging
-import subprocess
 from contextlib import contextmanager
 
 from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common.compat import subprocess
+
 from . import testutil
 
 log = logging.getLogger("qemu_nbd")
@@ -72,9 +73,14 @@ class Server(object):
 
     def stop(self):
         if self.proc:
-            log.debug("Terminating qemu-nbd")
+            log.debug("Terminating qemu-nbd gracefully")
             self.proc.terminate()
-            self.proc.wait()
+            try:
+                self.proc.wait(1)
+            except subprocess.TimeoutExpired:
+                log.warning("Timeout terminating qemu-nbd - killing it")
+                self.proc.kill()
+                self.proc.wait()
             log.debug("qemu-nbd terminated with exit code %s",
                       self.proc.returncode)
             self.proc = None

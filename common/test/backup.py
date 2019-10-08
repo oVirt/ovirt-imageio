@@ -9,12 +9,12 @@
 from __future__ import absolute_import
 
 import logging
-import subprocess
 import time
 
 from contextlib import contextmanager
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common.compat import subprocess
 
 from . import qemu
 from . import qmp

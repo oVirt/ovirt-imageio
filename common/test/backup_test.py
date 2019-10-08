@@ -10,11 +10,11 @@ from __future__ import absolute_import
 
 import io
 import logging
-import subprocess
 
 import pytest
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common.compat import subprocess
 
 from . import backup
 from . import qemu_nbd

@@ -18,3 +18,8 @@ if six.PY2:
 else:
     def bufview(buf, pos, size):
         return memoryview(buf)[pos:pos + size]
+
+if six.PY2:
+    import subprocess32 as subprocess
+else:
+    import subprocess  # noqa: F401

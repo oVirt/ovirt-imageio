@@ -9,13 +9,13 @@
 from __future__ import absolute_import
 
 import io
-import subprocess
 
 from six.moves import urllib_parse
 
 import pytest
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common.compat import subprocess
 
 from . import qemu_nbd
 from . import testutil

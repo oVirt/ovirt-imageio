@@ -19,11 +19,12 @@ import json
 import os
 import socket
 import ssl
-import subprocess
 
 import six
 from six.moves import http_client
 from six.moves.urllib.parse import urlparse
+
+from . compat import subprocess
 
 # Higher values are more efficient, sending less requests, but may cause large
 # delays in progress updates when storage does not support efficient zeroing.

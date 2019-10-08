@@ -11,9 +11,10 @@ from __future__ import absolute_import
 import logging
 import os
 import re
-import subprocess
 
 from contextlib import contextmanager
+
+from ovirt_imageio_common.compat import subprocess
 
 from . import testutil
 
@@ -74,7 +75,12 @@ def run(image, fmt, qmp_sock, start_cpu=True):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
         yield p
     finally:
-        log.debug("Terminating qemu")
+        log.debug("Terminating qemu gracefully")
         p.terminate()
-        p.wait()
+        try:
+            p.wait(1)
+        except subprocess.TimeoutExpired:
+            log.warning("Timeout terminating qemu - killing it")
+            p.kill()
+            p.wait()
         log.debug("qemu terminated with exit code %s", p.returncode)

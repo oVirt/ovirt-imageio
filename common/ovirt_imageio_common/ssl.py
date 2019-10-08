@@ -9,7 +9,7 @@
 from __future__ import absolute_import
 
 import ssl
-import subprocess
+from . compat import subprocess
 
 
 def server_context(cafile, certfile, keyfile, enable_tls1_1=False):

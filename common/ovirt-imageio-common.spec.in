@@ -19,6 +19,7 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 Requires:  %{python}
 Requires:  %{python}-six
 Requires:  %{python}-webob
+Requires:  %{python}-subprocess32
 
 %if 0%{?rhel}
 Requires: qemu-img-rhev
