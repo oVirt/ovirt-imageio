@@ -20,6 +20,7 @@ from ovirt_imageio_common import nbd
 
 from . import qemu_nbd
 from . import backup
+from . import testutil
 
 log = logging.getLogger("test")
 
@@ -236,22 +237,23 @@ def test_open_unix(tmpdir, url, export):
             assert c.export_size == 1024**3
 
 
-@pytest.mark.parametrize("url,export", [
+@pytest.mark.parametrize("url_template,export", [
     # Note: We get Unicode URL when parsing ticket JSON.
-    (u"nbd:localhost:10900", u""),
-    (u"nbd:localhost:10900:exportname=", u""),
-    (u"nbd:localhost:10900:exportname=sda", u"sda"),
-    (u"nbd:localhost:10900:exportname=/sda", u"/sda"),
-    (u"nbd://localhost:10900", u""),
-    (u"nbd://localhost:10900/", u""),
-    (u"nbd://localhost:10900/sda", u"sda"),
+    (u"nbd:localhost:{port}", u""),
+    (u"nbd:localhost:{port}:exportname=", u""),
+    (u"nbd:localhost:{port}:exportname=sda", u"sda"),
+    (u"nbd:localhost:{port}:exportname=/sda", u"/sda"),
+    (u"nbd://localhost:{port}", u""),
+    (u"nbd://localhost:{port}/", u""),
+    (u"nbd://localhost:{port}/sda", u"sda"),
 ])
-def test_open_tcp(tmpdir, url, export):
+def test_open_tcp(tmpdir, url_template, export):
     image = str(tmpdir.join("image"))
     with open(image, "wb") as f:
         f.truncate(1024**3)
 
-    sock = nbd.TCPAddress(u"localhost", 10900)
+    sock = nbd.TCPAddress(u"localhost", testutil.random_tcp_port())
+    url = url_template.format(port=sock.port)
 
     log.debug("Trying url=%r export=%r", url, export)
     with qemu_nbd.run(image, "raw", sock, export_name=export):
@@ -271,7 +273,7 @@ def test_full_backup_handshake(tmpdir, fmt, transport):
     if transport == "unix":
         sock = nbd.UnixAddress(tmpdir.join("sock"))
     else:
-        sock = nbd.TCPAddress("localhost", 10900)
+        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     with backup.full_backup(tmpdir, image, fmt, sock):
         with nbd.Client(sock, "sda") as c:
@@ -308,7 +310,7 @@ def test_full_backup_single_image(tmpdir, fmt, transport):
     if transport == "unix":
         sock = nbd.UnixAddress(tmpdir.join("sock"))
     else:
-        sock = nbd.TCPAddress("localhost", 10900)
+        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(tmpdir, disk, fmt, sock):
@@ -347,7 +349,7 @@ def test_full_backup_complete_chain(tmpdir, transport):
     if transport == "unix":
         sock = nbd.UnixAddress(tmpdir.join("sock"))
     else:
-        sock = nbd.TCPAddress("localhost", 10900)
+        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(tmpdir, disk, "qcow2", sock):

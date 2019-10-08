@@ -121,3 +121,12 @@ def test_wait_for_tcp_socket():
 
     # Socket was closed - should return immediately.
     assert not testutil.wait_for_socket(addr, 0.0)
+
+
+def test_random_tcp_port():
+    # Use 100 iterations to detect flakyness early.
+    for i in range(100):
+        s = socket.socket()
+        with closing(s):
+            port = testutil.random_tcp_port()
+            s.bind(("localhost", port))

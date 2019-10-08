@@ -18,6 +18,7 @@ from ovirt_imageio_common import nbd
 
 from . import backup
 from . import qemu_nbd
+from . import testutil
 
 log = logging.getLogger("test")
 
@@ -49,7 +50,7 @@ def test_full_backup(tmpdir, fmt, transport):
     if transport == "unix":
         nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
     else:
-        nbd_sock = nbd.TCPAddress("localhost", 10900)
+        nbd_sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     # Backup using qemu-img convert.
     with backup.full_backup(tmpdir, disk, fmt, nbd_sock):

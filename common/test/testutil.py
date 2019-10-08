@@ -97,3 +97,19 @@ def wait_for_socket(addr, timeout, step=0.02):
                 log.debug("Waited for %s %.6f seconds",
                           addr, time.time() - start)
                 return True
+
+
+def random_tcp_port():
+    """
+    Find a random (likely) unused port.
+
+    The port is unused when the call return, but another process may
+    grab it.  If you don't control the environmemnt, be prepared for
+    bind failures.
+    """
+    s = socket.socket()
+    with closing(s):
+        s.bind(("localhost", 0))
+        port = s.getsockname()[1]
+        log.debug("Found unused TCP port %s", port)
+        return port

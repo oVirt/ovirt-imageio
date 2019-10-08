@@ -78,7 +78,7 @@ def test_run_tcp(tmpfile):
     with io.open(tmpfile, "r+b") as f:
         f.truncate(1024**2)
 
-    addr = nbd.TCPAddress("localhost", 10900)
+    addr = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     with qemu_nbd.run(tmpfile, "raw", addr):
         # The helper already waited for the NBD socket, not wait needed.

@@ -1,5 +1,9 @@
 #!/bin/bash -xe
 
+# Use to handle flaky tests on Jenkins, when we may have multiple tests
+# running on same slave isolated by mock.
+export OVIRT_CI=1
+
 create_loop_devices() {
     # See https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/devices.txt
     local last=$(($1-1))

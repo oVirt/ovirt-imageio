@@ -14,6 +14,8 @@ import pytest
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import backends
 
+from . import testutil
+
 
 class Ticket(object):
 
@@ -88,7 +90,8 @@ def test_get_nbd_backend(tmpdir, nbd_server, transport):
     if transport == "unix":
         nbd_server.sock = nbd.UnixAddress(tmpdir.join("sock"))
     else:
-        nbd_server.sock = nbd.TCPAddress("localhost", 10900)
+        nbd_server.sock = nbd.TCPAddress(
+            "localhost", testutil.random_tcp_port())
     nbd_server.start()
 
     ticket = Ticket("test", nbd_server.url)
