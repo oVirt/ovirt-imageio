@@ -1,0 +1,29 @@
+FROM fedora:30
+
+# Runtime packages.
+RUN dnf update -y \
+    && dnf install -y \
+        http://resources.ovirt.org/pub/yum-repo/ovirt-release-master.rpm \
+    && dnf install -y \
+        e2fsprogs \
+        gcc \
+        m2crypto \
+        make \
+        openssl \
+        python3-devel \
+        python3-pip \
+        python3-requests \
+        python3-six \
+        python3-systemd \
+        python3-webob \
+        qemu-img \
+        qemu-kvm \
+        sudo \
+        util-linux \
+        xfsprogs \
+    && dnf clean all
+
+# Developemnt tools.
+COPY ../requirements.txt requirements.txt
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install --requirement requirements.txt

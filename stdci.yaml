@@ -3,6 +3,7 @@ archs:
     distributions:
     - el7
     - fc29
+    - fc30
 - ppc64le:
     distributions:
     - el7
@@ -15,6 +16,9 @@ stages:
           distributions:
           - el7
           - fc29
+      - py3:
+          distributions:
+          - fc30
 
 release-branches:
   master:

@@ -1,0 +1,16 @@
+e2fsprogs
+gcc
+git
+make
+openssl
+python3-devel
+python3-pip
+python3-requests
+python3-six
+python3-systemd
+python3-webob
+qemu-img
+qemu-kvm
+sudo
+util-linux
+xfsprogs
