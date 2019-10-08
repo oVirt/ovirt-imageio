@@ -8,6 +8,7 @@ services:
 env:
   matrix:
     - DIST=centos-7  PYTHON_VERSION=2
+    - DIST=centos-8  PYTHON_VERSION=3
     - DIST=fedora-29 PYTHON_VERSION=2
     - DIST=fedora-30 PYTHON_VERSION=3
 

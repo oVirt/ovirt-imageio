@@ -1,0 +1,6 @@
+gcc
+git
+make
+python3-devel
+rpm-build
+systemd

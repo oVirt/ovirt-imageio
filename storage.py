@@ -44,6 +44,9 @@ BACKENDS = {
                 name="file-512-xfs",
                 size=GiB,
                 sector_size=512,
+                # Fails to mount on Jenkins when running on slave with kernel
+                # 3.10. Let's make it optional so we can test other storage.
+                required=False,
             ),
             fstype="xfs",
         )

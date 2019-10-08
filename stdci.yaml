@@ -2,11 +2,13 @@ archs:
 - x86_64:
     distributions:
     - el7
+    - el8
     - fc29
     - fc30
 - ppc64le:
     distributions:
     - el7
+    - el8
 
 stages:
   - check-patch
@@ -19,6 +21,7 @@ stages:
       - py3:
           distributions:
           - fc30
+          - el8
 
 release-branches:
   master:
