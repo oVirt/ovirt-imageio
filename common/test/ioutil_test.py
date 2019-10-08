@@ -102,7 +102,7 @@ def test_is_zero_empty(buf):
     pytest.param(bytearray(), id="bytearray"),
 ])
 def test_is_zero_empty_buffer(buf):
-    assert ioutil.is_zero(buffer(buf))
+    assert ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [
@@ -133,7 +133,7 @@ def test_is_zero(buf):
     pytest.param(bytearray(512), id="bytearray"),
 ])
 def test_is_zero_buffer(buf):
-    assert ioutil.is_zero(buffer(buf))
+    assert ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [
@@ -164,7 +164,7 @@ def test_is_not_zero_head(buf):
     pytest.param(bytearray(b"\0" * 15 + b"x"), id="bytearray"),
 ])
 def test_is_not_zero_head_buffer(buf):
-    assert not ioutil.is_zero(buffer(buf))
+    assert not ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [
@@ -195,7 +195,7 @@ def test_is_not_zero(buf):
     pytest.param(bytearray(b"\0" * 511 + b"x"), id="bytearray"),
 ])
 def test_is_not_zero_buffer(buf):
-    assert not ioutil.is_zero(buffer(buf))
+    assert not ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [

@@ -39,7 +39,7 @@ def open(url, mode, sparse=True, buffer_size=BUFFER_SIZE):
     client = nbd.open(url)
     try:
         return Backend(client, mode, buffer_size=buffer_size)
-    except:
+    except:  # noqa: E722
         client.close()
         raise
 

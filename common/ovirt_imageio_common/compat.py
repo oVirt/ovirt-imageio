@@ -14,7 +14,7 @@ import six
 
 if six.PY2:
     def bufview(buf, pos, size):
-        return buffer(buf, pos, size)
+        return buffer(buf, pos, size)  # noqa: F821
 else:
     def bufview(buf, pos, size):
         return memoryview(buf)[pos:pos + size]

@@ -41,7 +41,7 @@ def open(url, mode, sparse=False, buffer_size=BUFFER_SIZE):
         mode = os.fstat(fio.fileno()).st_mode
         backend = BlockBackend if stat.S_ISBLK(mode) else FileBackend
         return backend(fio, sparse=sparse, buffer_size=buffer_size)
-    except:
+    except:  # noqa: E722
         fio.close()
         raise
 

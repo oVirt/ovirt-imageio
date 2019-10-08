@@ -387,7 +387,7 @@ class Client(object):
         self._sock = self._connect(address)
         try:
             self._newstyle_handshake()
-        except:
+        except:  # noqa: E722
             self.close()
             raise
 
@@ -473,7 +473,7 @@ class Client(object):
         sock = socket.create_connection(address)
         try:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        except:
+        except:  # noqa: E722
             sock.close()
             raise
 
@@ -486,7 +486,7 @@ class Client(object):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.connect(address)
-        except:
+        except:  # noqa: E722
             sock.close()
             raise
 
