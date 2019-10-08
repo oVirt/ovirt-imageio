@@ -9,6 +9,10 @@ if git describe --tags --match "v[0-9]*" | grep -q '-'; then
     release_suffix=.$(date -u +%Y%m%d%H%M)
     commithash=$(git rev-parse --short HEAD)
     release_suffix+=.git$commithash
+else
+    # This value is used to define rpm macros, and rpm does not like empty
+    # macros since Fedora 27.
+    release_suffix="%{nil}"
 fi
 
 echo $release_suffix

@@ -1,3 +1,5 @@
+RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
+
 PACKAGE_NAME=ovirt-imageio-daemon
 PACKAGE_VERSION=$(shell python2 ovirt_imageio_daemon/version.py)
 
