@@ -1,4 +1,4 @@
-arch:
+archs:
 - x86_64:
     distributions:
     - el7
@@ -6,6 +6,16 @@ arch:
 - ppc64le:
     distributions:
     - el7
+
+stages:
+  - check-patch
+  - build-artifacts:
+      substages:
+      - py2:
+          distributions:
+          - el7
+          - fc29
+
 release-branches:
   master:
   - ovirt-master

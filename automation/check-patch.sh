@@ -4,6 +4,12 @@
 # running on same slave isolated by mock.
 export OVIRT_CI=1
 
+# On Fedora 30 and CentOS 8 pip install scripts to /usr/local/bin which
+# may not be in PATH.
+export PATH="/usr/local/bin:$PATH"
+
+PYTHON=python$PYTHON_VERSION
+
 create_loop_devices() {
     # See https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/devices.txt
     local last=$(($1-1))
@@ -24,10 +30,10 @@ trap teardown EXIT
 
 # First upgrade pip, since older pip versions have issues with installing
 # correct version of requirements.
-pip install --upgrade pip
+$PYTHON -m pip install --upgrade pip
 
 # Install development requirements.
-pip install --upgrade -r requirements.txt
+$PYTHON -m pip install --upgrade -r requirements.txt
 
 # Make it possibe to run qemu-kvm under mock.
 if [ ! -c "/dev/kvm" ]; then
@@ -38,8 +44,8 @@ fi
 # Ensure we have enough loop devices under mock.
 create_loop_devices 16
 
-make
+make PYTHON_VERSION=$PYTHON_VERSION
 
 make storage
 
-make check
+make PYTHON_VERSION=$PYTHON_VERSION check
