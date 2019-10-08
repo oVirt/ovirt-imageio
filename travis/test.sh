@@ -1,5 +1,5 @@
 #!/bin/bash -e
 
-make
+make PYTHON_VERSION=$PYTHON_VERSION
 make storage
-make check
+make PYTHON_VERSION=$PYTHON_VERSION check
