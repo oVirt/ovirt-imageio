@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 import os
+
 from contextlib import contextmanager
 
 import pytest
@@ -18,6 +19,12 @@ from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import server
 
 TEST_DIR = os.path.dirname(__file__)
+
+
+def on_centos(version=""):
+    prefix = "CentOS Linux release {}".format(version)
+    with open("/etc/redhat-release") as f:
+        return f.readline().startswith(prefix)
 
 
 @contextmanager
@@ -53,7 +60,16 @@ def test_legacy_reject(protocol):
     assert rc != 0
 
 
-@pytest.mark.parametrize("protocol", ["-tls1_1", "-tls1_2"])
+@pytest.mark.parametrize("protocol", [
+    pytest.param(
+        "-tls1_1",
+        marks=pytest.mark.skipif(
+            on_centos("8"),
+            reason="Default crypto policy disable TLS v1.1"
+        )
+    ),
+    "-tls1_2"
+])
 def test_legacy_accept(protocol):
     with remote_service("daemon-tls1_1.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
