@@ -11,11 +11,13 @@ and blkdiscard --zeroout.
 """
 
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import argparse
-import os
-import stat
 import time
+
+from six.moves import urllib_parse
 
 from ovirt_imageio_common.backends import file
 
@@ -71,17 +73,13 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+url = urllib_parse.urlparse("file://" + args.filename)
+
 start_time = time.time()
 
-with file.open(args.filename, "r+") as f:
+with file.open(url, "r+", sparse=args.sparse) as f:
     if args.length is None:
-        st = os.stat(args.filename)
-        if stat.S_ISBLK(st.st_mode):
-            f.seek(0, os.SEEK_END)
-            size = f.tell()
-        else:
-            size = st.st_size
-        args.length = size - args.offset
+        args.length = f.size() - args.offset
 
     if args.step is None:
         args.step = args.length
@@ -91,17 +89,14 @@ with file.open(args.filename, "r+") as f:
     count = args.length
     while count:
         step = min(args.step, count)
-        if args.sparse:
-            f.trim(step)
-        else:
-            f.zero(step)
+        f.zero(step)
         count -= step
 
     f.flush()
 
 elapsed_time = time.time() - start_time
 
-print "Zero %.2f GiB in %.3f seconds (%.2f GiB/s)" % (
+print("Zero %.2f GiB in %.3f seconds (%.2f GiB/s)" % (
     float(args.length) / 1024**3,
     elapsed_time,
-    float(args.length) / 1024**3 / elapsed_time)
+    float(args.length) / 1024**3 / elapsed_time))
