@@ -6,9 +6,9 @@ import logging
 
 from six.moves import http_client
 from webob import exc
-from ovirt_imageio_common import web
 
 from . import auth
+from . import web
 
 log = logging.getLogger("tickets")
 

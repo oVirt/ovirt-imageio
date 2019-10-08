@@ -14,13 +14,13 @@ import os
 import pytest
 import userstorage
 
-from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import ops
+from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 from ovirt_imageio_common.backends import memory
 
 from . import storage
-from . import testutil
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
@@ -223,7 +223,7 @@ def test_receive_unbuffered_stream(user_file):
     chunks = [b"a" * 8192,
               b"b" * 42,
               b"c" * (8192 - 42)]
-    src = testutil.UnbufferedStream(chunks)
+    src = util.UnbufferedStream(chunks)
     size = sum(len(c) for c in chunks)
 
     with file.open(user_file.url, "r+") as dst:
@@ -240,7 +240,7 @@ def test_receive_unbuffered_stream_partial_content(user_file):
     chunks = [b"a" * 8192,
               b"b" * 42,
               b"c" * (8192 - 42)]
-    src = testutil.UnbufferedStream(chunks)
+    src = util.UnbufferedStream(chunks)
     size = sum(len(c) for c in chunks)
 
     with file.open(user_file.url, "r+") as dst:

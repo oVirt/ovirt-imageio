@@ -24,7 +24,7 @@ from webob.exc import (
     HTTPInternalServerError,
 )
 
-from . import util
+from ovirt_imageio_common import util
 
 log = logging.getLogger("web")
 

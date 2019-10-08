@@ -10,9 +10,8 @@ from __future__ import absolute_import
 
 import io
 
-from ovirt_imageio_common import web
-
-from . import testutil
+from ovirt_imageio_common import util
+from ovirt_imageio_proxy import web
 
 
 def test_capped_stream_iter():
@@ -46,7 +45,7 @@ def test_capped_stream_read_size():
 
 
 def test_capped_stream_short_reads():
-    stream = testutil.UnbufferedStream([b"1" * 123, b"2" * 456])
+    stream = util.UnbufferedStream([b"1" * 123, b"2" * 456])
     capped_stream = web.CappedStream(stream, 1024)
     assert capped_stream.read(1024) == b"1" * 123
     assert capped_stream.read(1024) == b"2" * 456

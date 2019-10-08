@@ -14,8 +14,9 @@ import os
 import pytest
 
 from ovirt_imageio_common import directio
-from ovirt_imageio_common import ops
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import ops
+from ovirt_imageio_common import util
 
 from . import testutil
 
@@ -130,7 +131,7 @@ def test_receive_unbuffered_stream_partial_content(tmpfile):
 
 
 def receive_unbuffered(tmpfile, chunks, size, bufsize):
-    src = testutil.UnbufferedStream(chunks)
+    src = util.UnbufferedStream(chunks)
     op = directio.Receive(tmpfile, src, size, buffersize=bufsize)
     op.run()
     with open(tmpfile, "rb") as f:

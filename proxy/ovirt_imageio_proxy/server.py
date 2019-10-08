@@ -26,11 +26,11 @@ import webob
 
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import version
-from ovirt_imageio_common import web
 
 from . import images
 from . import info
 from . import tickets
+from . import web
 
 log = logging.getLogger("server")
 

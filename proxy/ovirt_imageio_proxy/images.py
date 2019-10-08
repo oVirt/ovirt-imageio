@@ -13,7 +13,7 @@ from http_helper import (
 )
 import config
 
-from ovirt_imageio_common import web
+from . import web
 
 
 class RequestHandler(object):

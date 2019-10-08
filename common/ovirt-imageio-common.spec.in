@@ -19,7 +19,6 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 # NOTE: keep in sync with automation/check.packages
 Requires:  %{python}
 Requires:  %{python}-six
-Requires:  %{python}-webob
 
 %if %{python_version} == 2
 Requires:  %{python}-subprocess32
