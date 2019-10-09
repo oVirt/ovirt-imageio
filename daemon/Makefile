@@ -17,12 +17,17 @@ GENERATED = \
 
 METADATA = ovirt_imageio_daemon/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean $(SPEC_NAME)
+.PHONY: build check check-py2 check-py3 dist srpm rpm clean $(SPEC_NAME)
 
 build: $(GENERATED)
 
-check:
-	tox -e "flake8,test-{py27,py36,py37}"
+check: check-py$(PYTHON_VERSION)
+
+check-py2:
+	tox -e "flake8,test-py27"
+
+check-py3:
+	tox -e "flake8,test-{py36,py37}"
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
