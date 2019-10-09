@@ -12,5 +12,6 @@ python3-webob
 qemu-img
 qemu-kvm
 sudo
+systemd-udev
 util-linux
 xfsprogs

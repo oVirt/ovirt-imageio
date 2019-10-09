@@ -12,6 +12,7 @@ python-webob
 qemu-img-rhev
 qemu-kvm-rhev
 sudo
+systemd
 systemd-python
 util-linux
 xfsprogs

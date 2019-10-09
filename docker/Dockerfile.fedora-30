@@ -19,6 +19,7 @@ RUN dnf update -y \
         qemu-img \
         qemu-kvm \
         sudo \
+        systemd-udev \
         util-linux \
         xfsprogs \
     && dnf clean all
