@@ -69,20 +69,20 @@ class ProgressBar(object):
         elapsed = now - self.start
         done = float(self.done)
 
-        line = b"[ %6.2f%% ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
+        line = "[ %6.2f%% ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
             done / self.size * 100,
             done / GIB,
             elapsed,
             done / MIB / elapsed,
         )
 
-        line = line.ljust(self.width, b" ")
+        line = line.ljust(self.width, " ")
 
         # Using "\r" moves the cursor to the first column, so the next progress
         # will overwite this one. If this is the last progress, we use "\n" to
         # move to the next line. Otherwise, the next shell prompt will include
         # part of the old progress.
-        end = b"\n" if last else b"\r"
+        end = "\n" if last else "\r"
 
         self.output.write(line + end)
         self.output.flush()
