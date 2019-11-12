@@ -26,6 +26,6 @@ RUN dnf update -y \
     && dnf clean all
 
 # Developemnt tools.
-COPY ../requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN python2 -m pip install --upgrade pip \
     && python2 -m pip install --requirement requirements.txt

@@ -33,7 +33,7 @@ trap teardown EXIT
 $PYTHON -m pip install --upgrade pip
 
 # Install development requirements.
-$PYTHON -m pip install --upgrade -r requirements.txt
+$PYTHON -m pip install --upgrade -r docker/requirements.txt
 
 # Make it possibe to run qemu-kvm under mock.
 if [ ! -c "/dev/kvm" ]; then

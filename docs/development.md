@@ -49,7 +49,7 @@ correct version of requirements:
 
 Install development python packages:
 
-    pip install --upgrade --user -r requirements.txt
+    pip install --upgrade --user -r docker/requirements.txt
 
 Except when upgrading pip itself, do not use pip as root unless you like
 a lot of pain.

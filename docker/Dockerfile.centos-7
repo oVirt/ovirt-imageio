@@ -26,6 +26,6 @@ RUN yum update -y \
     && yum clean all
 
 # Development tools.
-COPY ../requirements.txt requirements.txt
+COPY requirements.txt requirements.txt
 RUN easy_install pip \
     && python2 -m pip install --requirement requirements.txt
