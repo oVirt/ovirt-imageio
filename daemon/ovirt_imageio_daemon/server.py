@@ -13,7 +13,6 @@ import logging.config
 import os
 import signal
 import sys
-import time
 
 import systemd.daemon
 
@@ -51,7 +50,7 @@ def main(args):
             systemd.daemon.notify("READY=1")
             log.info("Ready for requests")
             while running:
-                time.sleep(30)
+                signal.pause()
         finally:
             stop()
         log.info("Stopped")
