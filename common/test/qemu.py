@@ -52,7 +52,7 @@ def run(image, fmt, qmp_sock, start_cpu=True):
         QEMU,
         # Use kvm if available, othrewise fallback to tcg. This allows running
         # qemu on Travis CI which does not support nested virtualization.
-        "-accel", "kvm:tcg",
+        "-machine", "accel=kvm:tcg",
         "-drive", "file={},format={}".format(image, fmt),
         "-nographic",
         "-qmp", "unix:{},server,nowait".format(qmp_sock),
