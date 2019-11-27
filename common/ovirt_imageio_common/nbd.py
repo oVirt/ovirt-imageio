@@ -19,6 +19,8 @@ import re
 import socket
 import struct
 
+from collections import namedtuple
+
 import six
 
 from . import util
@@ -74,6 +76,9 @@ REP_META_CONTEXT = 4
 # Structured reply flags
 REPLY_FLAG_DONE = (1 << 0)
 
+STATE_HOLE = (1 << 0)
+STATE_ZERO = (1 << 1)
+
 # Structured reply types
 REPLY_TYPE_NONE = 0
 REPLY_TYPE_OFFSET_DATA = 1
@@ -93,6 +98,7 @@ CMD_WRITE = 1
 CMD_DISC = 2
 CMD_FLUSH = 3
 CMD_WRITE_ZEROES = 6
+CMD_BLOCK_STATUS = 7
 
 # Error replies
 ERR_BASE = 2**31
@@ -150,6 +156,8 @@ REPLY_ERRORS = {
 }
 
 log = logging.getLogger("nbd")
+
+Extent = namedtuple("Extent", "length,zero")
 
 
 class Error(Exception):
@@ -441,6 +449,11 @@ class Client(object):
         self._send_command(CMD_FLUSH, handle, 0, 0)
         self._receive_reply(handle)
 
+    def extents(self, offset, length):
+        handle = next(self._counter)
+        self._send_command(CMD_BLOCK_STATUS, handle, offset, length)
+        return self._receive_block_status_reply(handle)
+
     def close(self):
         if self._state in (HANDSHAKE, TRASMISSION):
             self._soft_disconnect()
@@ -644,8 +657,11 @@ class Client(object):
             raise ProtocolError("Unexpected context {}, expecting one of {}"
                                 .format(ctx_name, list(self._meta_context)))
 
-        log.debug("Meta context %s is available", ctx_name)
+        log.debug("Meta context %s is available id=%s", ctx_name, ctx_id)
         self._meta_context[ctx_name] = ctx_id
+
+        # Keep also reverse mapping to find name from id.
+        self._meta_context[ctx_id] = ctx_name
 
     def _negotiate_go_option(self):
         # Here we can announce that we can honour server block size constraints
@@ -987,6 +1003,92 @@ class Client(object):
                 .format(type, flags, length))
 
         return flags & REPLY_FLAG_DONE
+
+    def _receive_block_status_reply(self, expected_handle):
+        """
+        Receive a reply to CMD_BLOCK_STATUS command.
+
+        Receive one chunk per metadata context id with this format:
+
+        S: 32 bits, magic
+        S: 16 bits, flags
+        S: 16 bits, type
+        S: 64 bits, handle
+        S: 32 bits, length of payload (unsigned)
+        S: length bytes of payload data. length must be 4 + (N * 8) and N > 0
+
+        Return mapping of meta context name to list of Extent objects.
+        """
+        result = {}
+
+        while True:
+            magic, flags, type, handle, length = self._receive_struct("!IHHQI")
+
+            if magic != STRUCTURED_REPLY_MAGIC:
+                raise ProtocolError(
+                    "Unexpected reply magic {:x}, expecting "
+                    "structured reply magic {:x}"
+                    .format(magic, STRUCTURED_REPLY_MAGIC))
+
+            if handle != expected_handle:
+                raise UnexpectedHandle(handle, expected_handle)
+
+            # TODO: server can send an error reply. Need to consume it and
+            # fail.
+
+            if type != REPLY_TYPE_BLOCK_STATUS:
+                raise ProtocolError(
+                    "Received unexpected chunk type={} flags={} length={}"
+                    .format(type, flags, length))
+
+            if length < 12 or (length - 4) % 8 != 0:
+                raise ProtocolError(
+                    "Received invalid payload length {}"
+                    .format(length))
+
+            name, extents = self._receive_block_status_payload(length)
+            result[name] = extents
+
+            if flags & REPLY_FLAG_DONE:
+                return result
+
+    def _receive_block_status_payload(self, length):
+        """
+        Receive block status payload.
+
+        The payload starts with
+        32 bits, metadata context ID
+
+        and is followed by a list of one or more descriptors, each with
+        this layout:
+
+        32 bits, length of the extent to which the status below applies
+            (unsigned, MUST be nonzero)
+        32 bits, status flags
+
+        Return tuple (meta_contxt_name, list of Extent objects).
+        """
+        # TODO: limit buffer size to protect from bad servers?
+        buf = memoryview(bytearray(length))
+        self._receive_into(buf)
+
+        meta_context_id = struct.unpack("!I", buf[:4])[0]
+        buf = buf[4:]
+
+        ctx_name = self._meta_context.get(meta_context_id)
+        if ctx_name is None:
+            raise ProtocolError(
+                "Received unexpected metadata context id chunk {}"
+                .format(meta_context_id))
+
+        extents = []
+        while len(buf):
+            ext_len, ext_flags = struct.unpack("!II", buf[:8])
+            ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
+            extents.append(ext)
+            buf = buf[8:]
+
+        return ctx_name, extents
 
     def _handle_none_chunk(self, flags, length):
         if not flags & REPLY_FLAG_DONE:

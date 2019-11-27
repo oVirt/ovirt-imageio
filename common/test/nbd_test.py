@@ -14,6 +14,7 @@ import logging
 from six.moves.urllib_parse import urlparse
 
 import pytest
+import userstorage
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common.compat import subprocess
@@ -21,8 +22,25 @@ from ovirt_imageio_common.compat import subprocess
 from . import qemu_nbd
 from . import backup
 from . import testutil
+from . import storage
+
+BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
 log = logging.getLogger("test")
+
+
+@pytest.fixture(
+    params=[
+        BACKENDS["file-512-ext4"],
+        BACKENDS["file-512-xfs"],
+        BACKENDS["file-4k-ext4"],
+        BACKENDS["file-4k-xfs"],
+    ],
+    ids=str
+)
+def user_file(request):
+    with storage.Backend(request.param) as backend:
+        yield backend
 
 
 # Addresses
@@ -259,6 +277,80 @@ def test_open_tcp(tmpdir, url_template, export):
     with qemu_nbd.run(image, "raw", sock, export_name=export):
         with nbd.open(urlparse(url)) as c:
             assert c.export_size == 1024**3
+
+
+def test_base_allocation_empty(nbd_server, user_file):
+    # Maximum NBD request length.
+    nbd_server.image = user_file.path
+    size = 2**32 - 1
+
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(size)
+
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        extents = c.extents(0, size)["base:allocation"]
+
+    assert extents == [nbd.Extent(length=size, zero=True)]
+
+
+def test_base_allocation_full(nbd_server, user_file):
+    nbd_server.image = user_file.path
+    size = 1024**2
+
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(size)
+
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        c.write(0, b"x" * size)
+        extents = c.extents(0, size)["base:allocation"]
+
+    assert extents == [nbd.Extent(length=size, zero=False)]
+
+
+def test_base_allocation_some_data(nbd_server, user_file):
+    nbd_server.image = user_file.path
+    size = 1024**3
+    data_length = 4096
+    zero_length = size // 2 - data_length
+
+    with io.open(nbd_server.image, "wb") as f:
+        f.truncate(size)
+
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        # Create 4 extents: data, zero, data, zero.
+        c.write(0, b"x" * data_length)
+        c.write(size // 2, b"x" * data_length)
+
+        # The server is allowed to return only one extent (CentOS 8) or all
+        # extents (Fedora). We may need to call extents() multiple times.
+        extents = []
+        pos = 0
+
+        while pos < size:
+            res = c.extents(pos, size - pos)["base:allocation"]
+            for ext in res:
+                pos += ext.length
+                # The server can return consecative extents of same type; merge
+                # them so we can have simpler assertions at the end of the
+                # test.
+                if extents and extents[-1].zero == ext.zero:
+                    extents[-1] = nbd.Extent(
+                        extents[-1].length + ext.length, ext.zero)
+                else:
+                    extents.append(ext)
+
+    assert extents == [
+        nbd.Extent(length=data_length, zero=False),
+        nbd.Extent(length=zero_length, zero=True),
+        nbd.Extent(length=data_length, zero=False),
+        nbd.Extent(length=zero_length, zero=True),
+    ]
 
 
 # Communicate with qemu builtin NBD server
