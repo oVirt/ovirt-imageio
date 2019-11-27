@@ -279,14 +279,18 @@ def test_open_tcp(tmpdir, url_template, export):
             assert c.export_size == 1024**3
 
 
-def test_base_allocation_empty(nbd_server, user_file):
+def test_base_allocation_empty_raw(nbd_server, user_file):
     # Maximum NBD request length.
-    nbd_server.image = user_file.path
     size = 2**32 - 1
 
-    with io.open(nbd_server.image, "wb") as f:
+    # Don't use qemu-img since it allocate the first block on Fedora, but not
+    # on CentOS 8.0, breaking our expected extents.
+    # TODO: Use qemu-img when we have CentOS 8.1 AV.
+    with io.open(user_file.path, "wb") as f:
         f.truncate(size)
 
+    nbd_server.image = user_file.path
+    nbd_server.fmt = "raw"
     nbd_server.start()
 
     with nbd.open(nbd_server.url) as c:
@@ -295,13 +299,30 @@ def test_base_allocation_empty(nbd_server, user_file):
     assert extents == [nbd.Extent(length=size, zero=True)]
 
 
-def test_base_allocation_full(nbd_server, user_file):
+def test_base_allocation_empty_qcow2(nbd_server, user_file):
+    # Maximum NBD request length.
+    size = 2**32 - 1
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", "qcow2", user_file.path, str(size)])
+
     nbd_server.image = user_file.path
+    nbd_server.fmt = "qcow2"
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        extents = c.extents(0, size)["base:allocation"]
+
+    assert extents == [nbd.Extent(length=size, zero=True)]
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_base_allocation_full(nbd_server, user_file, fmt):
     size = 1024**2
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
 
-    with io.open(nbd_server.image, "wb") as f:
-        f.truncate(size)
-
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
     nbd_server.start()
 
     with nbd.open(nbd_server.url) as c:
@@ -311,16 +332,20 @@ def test_base_allocation_full(nbd_server, user_file):
     assert extents == [nbd.Extent(length=size, zero=False)]
 
 
-def test_base_allocation_some_data(nbd_server, user_file):
-    nbd_server.image = user_file.path
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_base_allocation_some_data(nbd_server, user_file, fmt):
     size = 1024**3
-    data_length = 4096
-    zero_length = size // 2 - data_length
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
 
-    with io.open(nbd_server.image, "wb") as f:
-        f.truncate(size)
-
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
     nbd_server.start()
+
+    # Use qcow2 cluster size to avoid inconsistent results on CentOS and
+    # Fedora.
+    data_length = 64 * 1024
+    zero_length = size // 2 - data_length
 
     with nbd.open(nbd_server.url) as c:
         # Create 4 extents: data, zero, data, zero.
