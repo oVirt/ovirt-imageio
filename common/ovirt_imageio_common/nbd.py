@@ -234,12 +234,15 @@ class RequestError(Error):
 class UnsupportedRequest(RequestError):
     """
     Raised when the server cannot process a request becuase the requested
-    operation is not supported for the current connection. The client can
-    continue normally sending other requests.
+    operation is not supported for the current connection. The client should
+    not send the same request again.
     """
 
 
 class ReplyError(RequestError):
+    """
+    Raised when server return an error reply.
+    """
     fmt = "[Error {self.code}] {self.reason}"
 
     def __init__(self, code, reason=None):
@@ -988,8 +991,9 @@ class Client(object):
             raise UnexpectedHandle(handle, expected_handle)
 
         if type == REPLY_TYPE_ERROR:
-            self._handle_error_chunk(length)
-        elif type == REPLY_TYPE_ERROR_OFFSET:
+            self._handle_error_chunk(length, flags)
+
+        if type == REPLY_TYPE_ERROR_OFFSET:
             self._handle_error_offset_chunk(length, errors)
         elif type == REPLY_TYPE_NONE:
             self._handle_none_chunk(flags, length)
@@ -1109,10 +1113,12 @@ class Client(object):
         if length != 0:
             raise InvalidLength(REPLY_TYPE_NONE, length, 0)
 
-    def _handle_error_chunk(self, length):
+    def _handle_error_chunk(self, length, flags):
         """
-        Handle general error (entire request failed). This must be the last
-        chunk so we can fail the request without failing the entire connection.
+        Handle general error (entire request failed).
+
+        If this the last chunk raise ReplyError, failing this request.
+        Otherwise raise ProtocolError failing entire connection.
 
         32 bits: error (MUST be nonzero)
         16 bits: message length (no more than header length - 6)
@@ -1120,7 +1126,13 @@ class Client(object):
             human being
         """
         code, message = self._receive_error_chunk(length)
-        raise ReplyError(code, message)
+
+        if flags & REPLY_FLAG_DONE:
+            raise ReplyError(code, message)
+        else:
+            raise ProtocolError(
+                "Unrecoverable error chunk code={} message={!r}"
+                .format(code, message))
 
     def _handle_error_offset_chunk(self, length, errors):
         """
