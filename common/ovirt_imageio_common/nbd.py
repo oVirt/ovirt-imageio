@@ -1024,6 +1024,7 @@ class Client(object):
         Return mapping of meta context name to list of Extent objects.
         """
         result = {}
+        errors = []
 
         while True:
             magic, flags, type, handle, length = self._receive_struct("!IHHQI")
@@ -1040,21 +1041,23 @@ class Client(object):
             if type == REPLY_TYPE_ERROR:
                 self._handle_error_chunk(length, flags)
 
-            if type != REPLY_TYPE_BLOCK_STATUS:
+            if type == REPLY_TYPE_ERROR_OFFSET:
+                self._handle_error_offset_chunk(length, errors)
+            elif type == REPLY_TYPE_BLOCK_STATUS:
+                name, extents = self._receive_block_status_payload(length)
+                result[name] = extents
+            else:
                 raise ProtocolError(
                     "Received unexpected chunk type={} flags={} length={}"
                     .format(type, flags, length))
 
-            if length < 12 or (length - 4) % 8 != 0:
-                raise ProtocolError(
-                    "Received invalid payload length {}"
-                    .format(length))
-
-            name, extents = self._receive_block_status_payload(length)
-            result[name] = extents
-
             if flags & REPLY_FLAG_DONE:
-                return result
+                break
+
+        if errors:
+            raise RequestError("Errors receiving reply: {}".format(errors))
+
+        return result
 
     def _receive_block_status_payload(self, length):
         """
@@ -1072,6 +1075,11 @@ class Client(object):
 
         Return tuple (meta_contxt_name, list of Extent objects).
         """
+        if length < 12 or (length - 4) % 8 != 0:
+            raise ProtocolError(
+                "Received invalid payload length {}"
+                .format(length))
+
         meta_context_id = self._receive_struct("!I")[0]
         todo = length - 4
 
