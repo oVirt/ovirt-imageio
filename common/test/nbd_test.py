@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import errno
 import io
 import logging
 import os
@@ -396,6 +397,31 @@ def test_base_allocation_many_extents(nbd_server, user_file):
     for i, ext in enumerate(extents):
         assert ext.length == extent_length
         assert ext.zero == bool(i % 2)
+
+
+def test_extents_reply_error(nbd_server, user_file):
+    """
+    The server SHOULD return NBD_EINVAL if it receives a NBD_CMD_BLOCK_STATUS
+    request including one or more sectors beyond the size of the device.
+    """
+    size = 1024**2
+
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size)
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = "raw"
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        with pytest.raises(nbd.ReplyError) as e:
+            c.extents(0, size + 1)
+
+        # Server should return this, qemu does.
+        assert e.value.code == errno.EINVAL
+
+        # The next request should succeed.
+        assert c.read(4096, 1) == b"\0"
 
 
 def all_extents(client, offset, length, meta_ctx):

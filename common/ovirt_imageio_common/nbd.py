@@ -1037,8 +1037,8 @@ class Client(object):
             if handle != expected_handle:
                 raise UnexpectedHandle(handle, expected_handle)
 
-            # TODO: server can send an error reply. Need to consume it and
-            # fail.
+            if type == REPLY_TYPE_ERROR:
+                self._handle_error_chunk(length, flags)
 
             if type != REPLY_TYPE_BLOCK_STATUS:
                 raise ProtocolError(
