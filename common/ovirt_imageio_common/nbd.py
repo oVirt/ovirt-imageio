@@ -1068,12 +1068,8 @@ class Client(object):
 
         Return tuple (meta_contxt_name, list of Extent objects).
         """
-        # TODO: limit buffer size to protect from bad servers?
-        buf = memoryview(bytearray(length))
-        self._receive_into(buf)
-
-        meta_context_id = struct.unpack("!I", buf[:4])[0]
-        buf = buf[4:]
+        meta_context_id = self._receive_struct("!I")[0]
+        todo = length - 4
 
         ctx_name = self._meta_context.get(meta_context_id)
         if ctx_name is None:
@@ -1081,12 +1077,27 @@ class Client(object):
                 "Received unexpected metadata context id chunk {}"
                 .format(meta_context_id))
 
+        # We don't expect many extents in 4 GiB, so 1024 extents per call
+        # should be more than enough.
+        buf = bytearray(min(todo, 8 * 1024))
         extents = []
-        while len(buf):
-            ext_len, ext_flags = struct.unpack("!II", buf[:8])
-            ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
-            extents.append(ext)
-            buf = buf[8:]
+
+        while todo:
+            # Shrink buffer for the last receive.
+            if todo < len(buf):
+                buf = memoryview(buf)[:todo]
+
+            # Receive next buffer.
+            self._receive_into(buf)
+            todo -= len(buf)
+
+            # Unpack extents in buffer.
+            view = memoryview(buf)
+            while len(view):
+                ext_len, ext_flags = struct.unpack("!II", view[:8])
+                view = view[8:]
+                ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
+                extents.append(ext)
 
         return ctx_name, extents
 

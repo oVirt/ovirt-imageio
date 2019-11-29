@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import io
 import logging
+import os
 
 from six.moves.urllib_parse import urlparse
 
@@ -360,6 +361,41 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
         nbd.Extent(length=data_length, zero=False),
         nbd.Extent(length=zero_length, zero=True),
     ]
+
+
+def test_base_allocation_many_extents(nbd_server, user_file):
+    # Tested only with raw since qcow2 minimal extent is cluster size (64K),
+    # and writing 1000 extents (62.5 MiB) will be too slow in the CI.
+
+    # Extents must be multiple of file system block size.
+    extent_length = os.statvfs(user_file.path).f_bsize
+
+    # Use number which is not a multiple of our buffer capacity (1024 extents)
+    # to ensure we read partial buffers correctly.
+    extents_count = 2000
+
+    size = extents_count * extent_length
+
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size)
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = "raw"
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url) as c:
+        # Write data to all even extents.
+        data = b"x" * extent_length
+        for i in range(0, size, extent_length * 2):
+            c.write(i, data)
+
+        extents = all_extents(c, 0, size, "base:allocation")
+
+    assert len(extents) == extents_count
+
+    for i, ext in enumerate(extents):
+        assert ext.length == extent_length
+        assert ext.zero == bool(i % 2)
 
 
 def all_extents(client, offset, length, meta_ctx):
