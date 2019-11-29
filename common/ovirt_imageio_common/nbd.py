@@ -1108,6 +1108,13 @@ class Client(object):
             while len(view):
                 ext_len, ext_flags = struct.unpack("!II", view[:8])
                 view = view[8:]
+
+                if ext_len == 0 or ext_len % self.minimum_block_size:
+                    raise ProtocolError(
+                        "Invalid extent length {}: not an integer multiple "
+                        "of minimum block size {}"
+                        .format(ext_len, self.minimum_block_size))
+
                 ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
                 extents.append(ext)
 
