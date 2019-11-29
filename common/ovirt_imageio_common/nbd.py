@@ -155,6 +155,18 @@ REPLY_ERRORS = {
     108: errno.ESHUTDOWN,
 }
 
+# Maximum NBD request length (unsigned 32 bit integer).
+MAX_LENGTH = 2**32 - 1
+
+# The NBD spec does not define how many extents chunks a server may send in
+# REPLY_TYPE_BLOCK_STATUS.  Theoretically a server can retrun one extent per
+# byte if the minimum block size is 1 byte. Practically for raw images minimum
+# extent size is the file system block size (likely 4 KiB), and for qcow2
+# images the cluster size (likely 64 KiB). Since we don't know the image
+# format, assume raw image. If a server send more extents than this value we
+# fail the connection.
+MAX_EXTENTS = MAX_LENGTH // 4096
+
 log = logging.getLogger("nbd")
 
 Extent = namedtuple("Extent", "length,zero")
@@ -1079,6 +1091,12 @@ class Client(object):
             raise ProtocolError(
                 "Received invalid payload length {}"
                 .format(length))
+
+        extents_count = (length - 4) // 8
+        if extents_count > MAX_EXTENTS:
+            raise ProtocolError(
+                "Received too many extents {} > {}"
+                .format(extents_count, MAX_EXTENTS))
 
         meta_context_id = self._receive_struct("!I")[0]
         todo = length - 4
