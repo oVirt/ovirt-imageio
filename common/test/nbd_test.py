@@ -352,23 +352,7 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
         c.write(0, b"x" * data_length)
         c.write(size // 2, b"x" * data_length)
 
-        # The server is allowed to return only one extent (CentOS 8) or all
-        # extents (Fedora). We may need to call extents() multiple times.
-        extents = []
-        pos = 0
-
-        while pos < size:
-            res = c.extents(pos, size - pos)["base:allocation"]
-            for ext in res:
-                pos += ext.length
-                # The server can return consecative extents of same type; merge
-                # them so we can have simpler assertions at the end of the
-                # test.
-                if extents and extents[-1].zero == ext.zero:
-                    extents[-1] = nbd.Extent(
-                        extents[-1].length + ext.length, ext.zero)
-                else:
-                    extents.append(ext)
+        extents = all_extents(c, 0, size, "base:allocation")
 
     assert extents == [
         nbd.Extent(length=data_length, zero=False),
@@ -376,6 +360,35 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
         nbd.Extent(length=data_length, zero=False),
         nbd.Extent(length=zero_length, zero=True),
     ]
+
+
+def all_extents(client, offset, length, meta_ctx):
+    """
+    Return all extents for meta_ctx in given range, handling partial response
+    from server and merging consecutive extents with same type.
+
+    TODO: This functionality seems to be needed for every test and for the nbd
+    backend. Integrate into nbd.Client.extents()?
+    """
+    # The server is allowed to return only one extent (CentOS 8) or all
+    # extents (Fedora). We may need to call extents() multiple times.
+    extents = []
+    pos = 0
+
+    while pos < length:
+        res = client.extents(offset + pos, length - pos)[meta_ctx]
+        for ext in res:
+            pos += ext.length
+            # The server can return consecutive extents of same type; merge
+            # them so we can have simpler assertions at the end of the
+            # test.
+            if extents and extents[-1].zero == ext.zero:
+                extents[-1] = nbd.Extent(
+                    extents[-1].length + ext.length, ext.zero)
+            else:
+                extents.append(ext)
+
+    return extents
 
 
 # Communicate with qemu builtin NBD server
