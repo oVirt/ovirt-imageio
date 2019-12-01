@@ -1091,27 +1091,28 @@ class Client(object):
 
         Return tuple (meta_contxt_name, list of Extent objects).
         """
-        if length < 12 or (length - 4) % 8 != 0:
+        ctx_id_size = 4
+        extents_count, reminder = divmod(length, 8)
+
+        if extents_count == 0 or reminder != ctx_id_size:
             raise ProtocolError(
                 "Received invalid payload length {}"
                 .format(length))
 
-        extents_count = (length - 4) // 8
         if extents_count > MAX_EXTENTS:
             raise ProtocolError(
                 "Received too many extents {} > {}"
                 .format(extents_count, MAX_EXTENTS))
 
-        meta_context_id = self._recv_fmt("!I")[0]
+        ctx_id = self._recv_fmt("!I")[0]
 
-        ctx_name = self._meta_context.get(meta_context_id)
+        ctx_name = self._meta_context.get(ctx_id)
         if ctx_name is None:
             raise ProtocolError(
-                "Received unexpected metadata context id chunk {}"
-                .format(meta_context_id))
+                "Received unexpected metadata context id {}".format(ctx_id))
 
         extents = []
-        for ext_len, ext_flags in self._recv_extents(length - 4):
+        for ext_len, ext_flags in self._recv_extents(length - ctx_id_size):
             if ext_len == 0 or ext_len % self.minimum_block_size:
                 raise ProtocolError(
                     "Invalid extent length {}: not an integer multiple "
