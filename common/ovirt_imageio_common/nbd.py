@@ -543,7 +543,7 @@ class Client(object):
         self._state = HANDSHAKE
 
         # Initial handshake.
-        nbd_magic, cliserv_magic, server_flags = self._receive_struct("!QQH")
+        nbd_magic, cliserv_magic, server_flags = self._receive_fmt("!QQH")
 
         if nbd_magic != NBDMAGIC:
             raise ProtocolError("Bad nbd magic {:x}, expecting {:x}"
@@ -727,7 +727,7 @@ class Client(object):
             if length < 2:
                 raise InvalidLength(REP_INFO, length, ">= 2")
 
-            info = self._receive_struct("!H")[0]
+            info = self._receive_fmt("!H")[0]
             length -= 2
 
             if info == INFO_EXPORT:
@@ -765,7 +765,7 @@ class Client(object):
     def _receive_export_info(self, length):
         if length != 10:
             raise InvalidLength(REP_INFO, length, 10)
-        self.export_size, self.transmission_flags = self._receive_struct("!QH")
+        self.export_size, self.transmission_flags = self._receive_fmt("!QH")
         log.debug("Received export info size=%r flags=%r",
                   self.export_size, self.transmission_flags)
 
@@ -773,7 +773,7 @@ class Client(object):
         if length != 12:
             raise InvalidLength(REP_INFO, length, 12)
         (self.minimum_block_size, self.preferred_block_size,
-            self.maximum_block_size) = self._receive_struct("!III")
+            self.maximum_block_size) = self._receive_fmt("!III")
         log.debug("Received block size info minimum=%r preferred=%r "
                   "maximum=%r",
                   self.minimum_block_size,
@@ -823,7 +823,7 @@ class Client(object):
         S: 32 bits, length of the reply; if zero, next field is not sent
         S: any data as required by the reply.
         """
-        magic, option, reply, length = self._receive_struct("!QIII")
+        magic, option, reply, length = self._receive_fmt("!QIII")
         log.debug("Received reply magic=%x option=%s type=%s len=%s",
                   magic, option, reply, length)
 
@@ -934,7 +934,7 @@ class Client(object):
         errors = []
 
         while True:
-            magic = self._receive_struct("!I")[0]
+            magic = self._receive_fmt("!I")[0]
 
             if magic == SIMPLE_REPLY_MAGIC:
                 if only_structured:
@@ -981,7 +981,7 @@ class Client(object):
         S: (length bytes of data if the request is of type CMD_READ and
            error is zero)
         """
-        error, handle = self._receive_struct("!IQ")
+        error, handle = self._receive_fmt("!IQ")
 
         if error != 0:
             raise ReplyError(error)
@@ -1003,7 +1003,7 @@ class Client(object):
         S: 32 bits, length of payload (unsigned)
         S: length bytes of payload data (if length is nonzero)
         """
-        flags, type, handle, length = self._receive_struct("!HHQI")
+        flags, type, handle, length = self._receive_fmt("!HHQI")
 
         if handle != expected_handle:
             raise UnexpectedHandle(handle, expected_handle)
@@ -1045,7 +1045,7 @@ class Client(object):
         errors = []
 
         while True:
-            magic, flags, type, handle, length = self._receive_struct("!IHHQI")
+            magic, flags, type, handle, length = self._receive_fmt("!IHHQI")
 
             if magic != STRUCTURED_REPLY_MAGIC:
                 raise ProtocolError(
@@ -1104,7 +1104,7 @@ class Client(object):
                 "Received too many extents {} > {}"
                 .format(extents_count, MAX_EXTENTS))
 
-        meta_context_id = self._receive_struct("!I")[0]
+        meta_context_id = self._receive_fmt("!I")[0]
 
         ctx_name = self._meta_context.get(meta_context_id)
         if ctx_name is None:
@@ -1192,7 +1192,7 @@ class Client(object):
         64 bits: offset (unsigned)
         """
         code, message = self._receive_error_chunk(length - 8)
-        offset = self._receive_struct("!Q")[0]
+        offset = self._receive_fmt("!Q")[0]
         errors.append((offset, ReplyError(code, message)))
 
     def _handle_data_chunk(self, length, buf, offset):
@@ -1203,7 +1203,7 @@ class Client(object):
         length - 8 bytes: data
         """
         # TODO: Validate that chunk offset and size are within requested range.
-        chunk_offset = self._receive_struct("!Q")[0]
+        chunk_offset = self._receive_fmt("!Q")[0]
         chunk_size = length - 8
 
         log.debug("Receive data chunk offset=%s size=%s",
@@ -1223,7 +1223,7 @@ class Client(object):
         if length != 12:
             raise InvalidLength(REPLY_TYPE_OFFSET_HOLE, length, 12)
 
-        chunk_offset, chunk_size = self._receive_struct("!QI")
+        chunk_offset, chunk_size = self._receive_fmt("!QI")
         if chunk_size == 0:
             raise ProtocolError("Invalid hole chunk with zero size")
 
@@ -1234,7 +1234,7 @@ class Client(object):
         buf[buf_offset:buf_offset + chunk_size] = b"\0" * chunk_size
 
     def _receive_error_chunk(self, length):
-        code, msg_len = self._receive_struct("!IH")
+        code, msg_len = self._receive_fmt("!IH")
 
         if msg_len != length - 6:
             raise ProtocolError(
@@ -1246,7 +1246,7 @@ class Client(object):
 
     # Structured I/O
 
-    def _receive_struct(self, fmt):
+    def _receive_fmt(self, fmt):
         s = struct.Struct(fmt)
         data = self._receive(s.size)
         return s.unpack(data)
