@@ -441,7 +441,7 @@ class Client(object):
         self._send_command(CMD_READ, handle, offset, length)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
-        return self._receive_reply(
+        return self._recv_reply(
             handle,
             length=length,
             offset=offset,
@@ -452,7 +452,7 @@ class Client(object):
         self._send_command(CMD_READ, handle, offset, len(buf))
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
-        return self._receive_reply_into(
+        return self._recv_reply_into(
             handle,
             buf,
             offset=offset,
@@ -462,7 +462,7 @@ class Client(object):
         handle = next(self._counter)
         self._send_command(CMD_WRITE, handle, offset, len(data))
         self._send(data)
-        self._receive_reply(handle)
+        self._recv_reply(handle)
 
     def zero(self, offset, length):
         if self.transmission_flags & FLAG_SEND_WRITE_ZEROES == 0:
@@ -470,7 +470,7 @@ class Client(object):
                 "Server does not support CMD_WRITE_ZEROES")
         handle = next(self._counter)
         self._send_command(CMD_WRITE_ZEROES, handle, offset, length)
-        self._receive_reply(handle)
+        self._recv_reply(handle)
 
     def flush(self):
         # TODO: is this the best way to handle this?
@@ -478,12 +478,12 @@ class Client(object):
             return
         handle = next(self._counter)
         self._send_command(CMD_FLUSH, handle, 0, 0)
-        self._receive_reply(handle)
+        self._recv_reply(handle)
 
     def extents(self, offset, length):
         handle = next(self._counter)
         self._send_command(CMD_BLOCK_STATUS, handle, offset, length)
-        return self._receive_block_status_reply(handle)
+        return self._recv_block_status_reply(handle)
 
     def close(self):
         if self._state in (HANDSHAKE, TRASMISSION):
@@ -543,7 +543,7 @@ class Client(object):
         self._state = HANDSHAKE
 
         # Initial handshake.
-        nbd_magic, cliserv_magic, server_flags = self._receive_fmt("!QQH")
+        nbd_magic, cliserv_magic, server_flags = self._recv_fmt("!QQH")
 
         if nbd_magic != NBDMAGIC:
             raise ProtocolError("Bad nbd magic {:x}, expecting {:x}"
@@ -621,7 +621,7 @@ class Client(object):
         #   #option-types (see OPT_SET_META_CONTEXT).
 
         while True:
-            reply, length = self._receive_option_reply(opt)
+            reply, length = self._recv_option_reply(opt)
 
             if reply in ERROR_REPLY:
                 try:
@@ -638,7 +638,7 @@ class Client(object):
             if reply != REP_META_CONTEXT:
                 raise UnexpectedOptionReply(reply, opt, REP_META_CONTEXT)
 
-            self._receive_meta_context_reply(length)
+            self._recv_meta_context_reply(length)
 
         # Warn if server does not support all requested meta contexts.
         for ctx_name, ctx_id in six.iteritems(self._meta_context):
@@ -669,7 +669,7 @@ class Client(object):
 
         return data
 
-    def _receive_meta_context_reply(self, length):
+    def _recv_meta_context_reply(self, length):
         """
         Receive reply to OPT_SET_META_CONTEXT, and store the meta context
         id in self._meta_context dict.
@@ -681,7 +681,7 @@ class Client(object):
         if length < 4:
             raise InvalidLength(REP_META_CONTEXT, length, ">= 4")
 
-        data = self._receive(length)
+        data = self._recv(length)
         ctx_id = struct.unpack("!I", data[:4])[0]
 
         ctx_name = data[4:].decode("utf-8")
@@ -708,7 +708,7 @@ class Client(object):
         self._send_option(opt, data)
 
         while True:
-            reply, length = self._receive_option_reply(opt)
+            reply, length = self._recv_option_reply(opt)
 
             if reply in ERROR_REPLY:
                 self._handle_option_error(opt, reply, length)
@@ -727,15 +727,15 @@ class Client(object):
             if length < 2:
                 raise InvalidLength(REP_INFO, length, ">= 2")
 
-            info = self._receive_fmt("!H")[0]
+            info = self._recv_fmt("!H")[0]
             length -= 2
 
             if info == INFO_EXPORT:
-                self._receive_export_info(length)
+                self._recv_export_info(length)
             elif info == INFO_BLOCK_SIZE:
-                self._receive_blocksize_info(length)
+                self._recv_blocksize_info(length)
             else:
-                data = self._receive(length)
+                data = self._recv(length)
                 log.warning("Dropping unknown info reply=%r data=%r",
                             info, data)
 
@@ -762,18 +762,18 @@ class Client(object):
 
         return data
 
-    def _receive_export_info(self, length):
+    def _recv_export_info(self, length):
         if length != 10:
             raise InvalidLength(REP_INFO, length, 10)
-        self.export_size, self.transmission_flags = self._receive_fmt("!QH")
+        self.export_size, self.transmission_flags = self._recv_fmt("!QH")
         log.debug("Received export info size=%r flags=%r",
                   self.export_size, self.transmission_flags)
 
-    def _receive_blocksize_info(self, length):
+    def _recv_blocksize_info(self, length):
         if length != 12:
             raise InvalidLength(REP_INFO, length, 12)
         (self.minimum_block_size, self.preferred_block_size,
-            self.maximum_block_size) = self._receive_fmt("!III")
+            self.maximum_block_size) = self._recv_fmt("!III")
         log.debug("Received block size info minimum=%r preferred=%r "
                   "maximum=%r",
                   self.minimum_block_size,
@@ -784,7 +784,7 @@ class Client(object):
 
     def _negotiate_option(self, opt, data=b""):
         self._send_option(opt, data)
-        reply, length = self._receive_option_reply(opt)
+        reply, length = self._recv_option_reply(opt)
 
         if reply in ERROR_REPLY:
             self._handle_option_error(opt, reply, length)
@@ -801,7 +801,7 @@ class Client(object):
     def _send_option(self, opt, data=b""):
         """
         Send an option with optional data to the server. The caller must call
-        _receive_option_reply() to get a reply.
+        _recv_option_reply() to get a reply.
         """
         log.debug("Sending option: %r data: %r", opt, data)
         b = OPTION.pack(IHAVEOPT, opt, len(data))
@@ -809,7 +809,7 @@ class Client(object):
         if data:
             self._send(data)
 
-    def _receive_option_reply(self, expected_option):
+    def _recv_option_reply(self, expected_option):
         """
         Receive reply header from server, and return the reply and the length
         of the data that the caller need to read from the server to complete
@@ -823,7 +823,7 @@ class Client(object):
         S: 32 bits, length of the reply; if zero, next field is not sent
         S: any data as required by the reply.
         """
-        magic, option, reply, length = self._receive_fmt("!QIII")
+        magic, option, reply, length = self._recv_fmt("!QIII")
         log.debug("Received reply magic=%x option=%s type=%s len=%s",
                   magic, option, reply, length)
 
@@ -847,7 +847,7 @@ class Client(object):
 
         # If the server sent an error message, try to use it.
         if length:
-            message = self._receive(length).decode("utf-8", errors="replace")
+            message = self._recv(length).decode("utf-8", errors="replace")
 
         # If we have no message, use the builtin message for this error.
         if message == "":
@@ -916,25 +916,23 @@ class Client(object):
         b = COMMAND.pack(REQUEST_MAGIC, 0, type, handle, offset, length)
         self._send(b)
 
-    def _receive_reply(self, handle, length=0, offset=0,
-                       only_structured=False):
+    def _recv_reply(self, handle, length=0, offset=0, only_structured=False):
         """
         Receive either a simple reply or structured reply.
         """
         buf = bytearray(length)
-        self._receive_reply_into(
+        self._recv_reply_into(
             handle, buf, offset=offset, only_structured=only_structured)
         return buf
 
-    def _receive_reply_into(self, handle, buf, offset=0,
-                            only_structured=False):
+    def _recv_reply_into(self, handle, buf, offset=0, only_structured=False):
         """
         Receive either a simple reply or structured reply info buffer buf.
         """
         errors = []
 
         while True:
-            magic = self._receive_fmt("!I")[0]
+            magic = self._recv_fmt("!I")[0]
 
             if magic == SIMPLE_REPLY_MAGIC:
                 if only_structured:
@@ -943,7 +941,7 @@ class Client(object):
                         "structured reply magic {:x}"
                         .format(magic, STRUCTURED_REPLY_MAGIC))
 
-                self._receive_simple_reply_into(handle, buf)
+                self._recv_simple_reply_into(handle, buf)
                 return len(buf)
 
             elif magic == STRUCTURED_REPLY_MAGIC:
@@ -957,7 +955,7 @@ class Client(object):
                 # reply is not allowed.
                 only_structured = True
 
-                if self._receive_reply_chunk_into(handle, buf, offset, errors):
+                if self._recv_reply_chunk_into(handle, buf, offset, errors):
                     break
 
             else:
@@ -972,7 +970,7 @@ class Client(object):
 
         return len(buf)
 
-    def _receive_simple_reply_into(self, expected_handle, buf):
+    def _recv_simple_reply_into(self, expected_handle, buf):
         """
         Receive a simple reply (magic was already read).
 
@@ -981,7 +979,7 @@ class Client(object):
         S: (length bytes of data if the request is of type CMD_READ and
            error is zero)
         """
-        error, handle = self._receive_fmt("!IQ")
+        error, handle = self._recv_fmt("!IQ")
 
         if error != 0:
             raise ReplyError(error)
@@ -990,9 +988,9 @@ class Client(object):
             raise UnexpectedHandle(handle, expected_handle)
 
         if len(buf):
-            self._receive_into(buf)
+            self._recv_into(buf)
 
-    def _receive_reply_chunk_into(self, expected_handle, buf, offset, errors):
+    def _recv_reply_chunk_into(self, expected_handle, buf, offset, errors):
         """
         Receive a structured reply chunk (magic was already read). Return True
         if this was the last chunk.
@@ -1003,7 +1001,7 @@ class Client(object):
         S: 32 bits, length of payload (unsigned)
         S: length bytes of payload data (if length is nonzero)
         """
-        flags, type, handle, length = self._receive_fmt("!HHQI")
+        flags, type, handle, length = self._recv_fmt("!HHQI")
 
         if handle != expected_handle:
             raise UnexpectedHandle(handle, expected_handle)
@@ -1026,7 +1024,7 @@ class Client(object):
 
         return flags & REPLY_FLAG_DONE
 
-    def _receive_block_status_reply(self, expected_handle):
+    def _recv_block_status_reply(self, expected_handle):
         """
         Receive a reply to CMD_BLOCK_STATUS command.
 
@@ -1045,7 +1043,7 @@ class Client(object):
         errors = []
 
         while True:
-            magic, flags, type, handle, length = self._receive_fmt("!IHHQI")
+            magic, flags, type, handle, length = self._recv_fmt("!IHHQI")
 
             if magic != STRUCTURED_REPLY_MAGIC:
                 raise ProtocolError(
@@ -1062,7 +1060,7 @@ class Client(object):
             if type == REPLY_TYPE_ERROR_OFFSET:
                 self._handle_error_offset_chunk(length, errors)
             elif type == REPLY_TYPE_BLOCK_STATUS:
-                name, extents = self._receive_block_status_payload(length)
+                name, extents = self._recv_block_status_payload(length)
                 result[name] = extents
             else:
                 raise ProtocolError(
@@ -1077,7 +1075,7 @@ class Client(object):
 
         return result
 
-    def _receive_block_status_payload(self, length):
+    def _recv_block_status_payload(self, length):
         """
         Receive block status payload.
 
@@ -1104,7 +1102,7 @@ class Client(object):
                 "Received too many extents {} > {}"
                 .format(extents_count, MAX_EXTENTS))
 
-        meta_context_id = self._receive_fmt("!I")[0]
+        meta_context_id = self._recv_fmt("!I")[0]
 
         ctx_name = self._meta_context.get(meta_context_id)
         if ctx_name is None:
@@ -1113,7 +1111,7 @@ class Client(object):
                 .format(meta_context_id))
 
         extents = []
-        for ext_len, ext_flags in self._receive_extents(length - 4):
+        for ext_len, ext_flags in self._recv_extents(length - 4):
             if ext_len == 0 or ext_len % self.minimum_block_size:
                 raise ProtocolError(
                     "Invalid extent length {}: not an integer multiple "
@@ -1125,7 +1123,7 @@ class Client(object):
 
         return ctx_name, extents
 
-    def _receive_extents(self, length):
+    def _recv_extents(self, length):
         """
         Iterator receiving and unpacking extents descriptors form block status
         payload.
@@ -1142,7 +1140,7 @@ class Client(object):
                 buf = memoryview(buf)[:length]
 
             # Receive next buffer.
-            self._receive_into(buf)
+            self._recv_into(buf)
             length -= len(buf)
 
             # Unpack extents in buffer.
@@ -1171,7 +1169,7 @@ class Client(object):
         message length bytes: optional string suitable for direct display to a
             human being
         """
-        code, message = self._receive_error_chunk(length)
+        code, message = self._recv_error_chunk(length)
 
         if flags & REPLY_FLAG_DONE:
             raise ReplyError(code, message)
@@ -1191,8 +1189,8 @@ class Client(object):
             human being
         64 bits: offset (unsigned)
         """
-        code, message = self._receive_error_chunk(length - 8)
-        offset = self._receive_fmt("!Q")[0]
+        code, message = self._recv_error_chunk(length - 8)
+        offset = self._recv_fmt("!Q")[0]
         errors.append((offset, ReplyError(code, message)))
 
     def _handle_data_chunk(self, length, buf, offset):
@@ -1203,7 +1201,7 @@ class Client(object):
         length - 8 bytes: data
         """
         # TODO: Validate that chunk offset and size are within requested range.
-        chunk_offset = self._receive_fmt("!Q")[0]
+        chunk_offset = self._recv_fmt("!Q")[0]
         chunk_size = length - 8
 
         log.debug("Receive data chunk offset=%s size=%s",
@@ -1211,7 +1209,7 @@ class Client(object):
 
         buf_offset = chunk_offset - offset
         view = memoryview(buf)[buf_offset:buf_offset + chunk_size]
-        self._receive_into(view)
+        self._recv_into(view)
 
     def _handle_hole_chunk(self, length, buf, offset):
         """
@@ -1223,7 +1221,7 @@ class Client(object):
         if length != 12:
             raise InvalidLength(REPLY_TYPE_OFFSET_HOLE, length, 12)
 
-        chunk_offset, chunk_size = self._receive_fmt("!QI")
+        chunk_offset, chunk_size = self._recv_fmt("!QI")
         if chunk_size == 0:
             raise ProtocolError("Invalid hole chunk with zero size")
 
@@ -1233,22 +1231,22 @@ class Client(object):
         buf_offset = chunk_offset - offset
         buf[buf_offset:buf_offset + chunk_size] = b"\0" * chunk_size
 
-    def _receive_error_chunk(self, length):
-        code, msg_len = self._receive_fmt("!IH")
+    def _recv_error_chunk(self, length):
+        code, msg_len = self._recv_fmt("!IH")
 
         if msg_len != length - 6:
             raise ProtocolError(
                 "Invalid structure reply error message length {}, expected={}"
                 .format(msg_len, length - 6))
 
-        message = self._receive(msg_len)
+        message = self._recv(msg_len)
         return code, message
 
     # Structured I/O
 
-    def _receive_fmt(self, fmt):
+    def _recv_fmt(self, fmt):
         s = struct.Struct(fmt)
-        data = self._receive(s.size)
+        data = self._recv(s.size)
         return s.unpack(data)
 
     # Plain I/O
@@ -1256,12 +1254,12 @@ class Client(object):
     def _send(self, data):
         self._sock.sendall(data)
 
-    def _receive(self, length):
+    def _recv(self, length):
         buf = bytearray(length)
-        self._receive_into(buf)
+        self._recv_into(buf)
         return buf
 
-    def _receive_into(self, buf):
+    def _recv_into(self, buf):
         length = len(buf)
         pos = 0
         while pos < length:
