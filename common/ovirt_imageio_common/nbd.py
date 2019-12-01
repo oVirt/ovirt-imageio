@@ -155,6 +155,22 @@ REPLY_ERRORS = {
     108: errno.ESHUTDOWN,
 }
 
+# NBD command struct
+# C: 32 bits, 0x25609513, magic (REQUEST_MAGIC)
+# C: 16 bits, command flags
+# C: 16 bits, type
+# C: 64 bits, handle
+# C: 64 bits, offset (unsigned)
+# C: 32 bits, length (unsigned)
+# C: (length bytes of data if the request is of type CMD_WRITE)
+COMMAND = struct.Struct("!IHHQQI")
+
+# NBD Option struct
+# C: 64 bits, 0x49484156454F5054 (ASCII 'IHAVEOPT')
+# C: 32 bits, option
+# C: 32 bits, length of option data (unsigned)
+OPTION = struct.Struct("!QII")
+
 # Maximum NBD request length (unsigned 32 bit integer).
 MAX_LENGTH = 2**32 - 1
 
@@ -558,7 +574,8 @@ class Client(object):
 
     def _send_client_flags(self, flags):
         log.debug("Sending client flags: %x", flags)
-        self._send_struct("!I", flags)
+        b = struct.pack("!I", flags)
+        self._send(b)
 
     # Negotiating options
 
@@ -785,14 +802,10 @@ class Client(object):
         """
         Send an option with optional data to the server. The caller must call
         _receive_option_reply() to get a reply.
-
-        C: 64 bits, 0x49484156454F5054 (ASCII 'IHAVEOPT')
-        C: 32 bits, option
-        C: 32 bits, length of option data (unsigned)
-        C: any data needed for the chosen option, of length as specified above.
         """
         log.debug("Sending option: %r data: %r", opt, data)
-        self._send_struct("!QII", IHAVEOPT, opt, len(data))
+        b = OPTION.pack(IHAVEOPT, opt, len(data))
+        self._send(b)
         if data:
             self._send(data)
 
@@ -898,17 +911,10 @@ class Client(object):
     # Commands
 
     def _send_command(self, type, handle, offset, length):
-        # C: 32 bits, 0x25609513, magic (REQUEST_MAGIC)
-        # C: 16 bits, command flags
-        # C: 16 bits, type
-        # C: 64 bits, handle
-        # C: 64 bits, offset (unsigned)
-        # C: 32 bits, length (unsigned)
-        # C: (length bytes of data if the request is of type CMD_WRITE)
         log.debug("Sending command type=%s handle=%s offset=%s length=%s",
                   type, handle, offset, length)
-        self._send_struct("!IHHQQI", REQUEST_MAGIC, 0, type, handle,
-                          offset, length)
+        b = COMMAND.pack(REQUEST_MAGIC, 0, type, handle, offset, length)
+        self._send(b)
 
     def _receive_reply(self, handle, length=0, offset=0,
                        only_structured=False):
@@ -1244,10 +1250,6 @@ class Client(object):
         s = struct.Struct(fmt)
         data = self._receive(s.size)
         return s.unpack(data)
-
-    def _send_struct(self, fmt, *args):
-        data = struct.pack(fmt, *args)
-        self._sock.sendall(data)
 
     # Plain I/O
 
