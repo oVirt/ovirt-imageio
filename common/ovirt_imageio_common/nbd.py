@@ -19,8 +19,6 @@ import re
 import socket
 import struct
 
-from collections import namedtuple
-
 import six
 
 from . import util
@@ -184,8 +182,6 @@ MAX_LENGTH = 2**32 - 1
 MAX_EXTENTS = MAX_LENGTH // 4096
 
 log = logging.getLogger("nbd")
-
-Extent = namedtuple("Extent", "length,zero")
 
 
 class Error(Exception):
@@ -1079,20 +1075,13 @@ class Client(object):
         """
         Receive block status payload.
 
-        The payload starts with
-        32 bits, metadata context ID
-
-        and is followed by a list of one or more descriptors, each with
-        this layout:
-
-        32 bits, length of the extent to which the status below applies
-            (unsigned, MUST be nonzero)
-        32 bits, status flags
+        The payload starts with 32 bits, metadata context ID
+        and is followed by a list of one or more Extent descriptors.
 
         Return tuple (meta_contxt_name, list of Extent objects).
         """
         ctx_id_size = 4
-        extents_count, reminder = divmod(length, 8)
+        extents_count, reminder = divmod(length, Extent.size)
 
         if extents_count == 0 or reminder != ctx_id_size:
             raise ProtocolError(
@@ -1112,14 +1101,12 @@ class Client(object):
                 "Received unexpected metadata context id {}".format(ctx_id))
 
         extents = []
-        for ext_len, ext_flags in self._recv_extents(length - ctx_id_size):
-            if ext_len == 0 or ext_len % self.minimum_block_size:
+        for ext in self._recv_extents(length - ctx_id_size):
+            if ext.length % self.minimum_block_size:
                 raise ProtocolError(
                     "Invalid extent length {}: not an integer multiple "
                     "of minimum block size {}"
-                    .format(ext_len, self.minimum_block_size))
-
-            ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
+                    .format(ext.length, self.minimum_block_size))
             extents.append(ext)
 
         return ctx_name, extents
@@ -1129,11 +1116,11 @@ class Client(object):
         Iterator receiving and unpacking extents descriptors form block status
         payload.
 
-        Yield tuple (length, flags) for every extent descriptor.
+        Yield Extent object for every extent descriptor.
         """
         # We don't expect many extents in 4 GiB, so 1024 extents per call
         # should be more than enough.
-        buf = bytearray(min(length, 8 * 1024))
+        buf = bytearray(min(length, Extent.size * 1024))
 
         while length:
             # Shrink buffer for the last receive.
@@ -1147,8 +1134,8 @@ class Client(object):
             # Unpack extents in buffer.
             view = memoryview(buf)
             while len(view):
-                yield struct.unpack("!II", view[:8])
-                view = view[8:]
+                yield Extent.unpack(view[:Extent.size])
+                view = view[Extent.size:]
 
     def _handle_none_chunk(self, flags, length):
         if not flags & REPLY_FLAG_DONE:
@@ -1286,3 +1273,56 @@ class Client(object):
             if t is None:
                 raise
             log.exeption("Error closing")
+
+
+class Extent(object):
+    """
+    A mutable extent of data or zeroes.
+
+    The length field is mutable to allow merging consecutive extents received
+    from the server, and splitting large extents when trimming extents that
+    exceed the requested range.
+
+    The zero field is read-only since we don't have a use case for changing it.
+
+    Since this class is mutable, it must not implement __hash__.
+    """
+
+    __slots__ = ("length", "_zero")
+
+    # 32 bits, length of the extent to which the status below applies
+    #     (unsigned, MUST be nonzero)
+    # 32 bits, status flags
+    wire_format = struct.Struct("!II")
+
+    size = wire_format.size
+
+    def __init__(self, length, zero):
+        self.length = length
+        self._zero = zero
+
+    @classmethod
+    def unpack(cls, data):
+        length, flags = cls.wire_format.unpack(data)
+        if length == 0:
+            raise ProtocolError(
+                "Invalid extent length=0 flags={}".format(flags))
+
+        zero = bool(flags & STATE_ZERO)
+        return cls(length, zero)
+
+    @property
+    def zero(self):
+        return self._zero
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__ and
+                self.length == other.length and
+                self.zero == other.zero)
+
+    # TODO: For python 2; remove when we require python 3.
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return "Extent(length={}, zero={})".format(self.length, self.zero)

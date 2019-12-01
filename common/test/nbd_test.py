@@ -501,15 +501,14 @@ def all_extents(client, offset, length, meta_ctx):
     pos = 0
 
     while pos < length:
-        res = client.extents(offset + pos, length - pos)[meta_ctx]
-        for ext in res:
+        res = client.extents(offset + pos, length - pos)
+        for ext in res[meta_ctx]:
             pos += ext.length
             # The server can return consecutive extents of same type; merge
             # them so we can have simpler assertions at the end of the
             # test.
             if extents and extents[-1].zero == ext.zero:
-                extents[-1] = nbd.Extent(
-                    extents[-1].length + ext.length, ext.zero)
+                extents[-1].length += ext.length
             else:
                 extents.append(ext)
 
