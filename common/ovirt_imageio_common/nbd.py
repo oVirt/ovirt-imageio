@@ -1099,7 +1099,6 @@ class Client(object):
                 .format(extents_count, MAX_EXTENTS))
 
         meta_context_id = self._receive_struct("!I")[0]
-        todo = length - 4
 
         ctx_name = self._meta_context.get(meta_context_id)
         if ctx_name is None:
@@ -1107,36 +1106,44 @@ class Client(object):
                 "Received unexpected metadata context id chunk {}"
                 .format(meta_context_id))
 
+        extents = []
+        for ext_len, ext_flags in self._receive_extents(length - 4):
+            if ext_len == 0 or ext_len % self.minimum_block_size:
+                raise ProtocolError(
+                    "Invalid extent length {}: not an integer multiple "
+                    "of minimum block size {}"
+                    .format(ext_len, self.minimum_block_size))
+
+            ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
+            extents.append(ext)
+
+        return ctx_name, extents
+
+    def _receive_extents(self, length):
+        """
+        Iterator receiving and unpacking extents descriptors form block status
+        payload.
+
+        Yield tuple (length, flags) for every extent descriptor.
+        """
         # We don't expect many extents in 4 GiB, so 1024 extents per call
         # should be more than enough.
-        buf = bytearray(min(todo, 8 * 1024))
-        extents = []
+        buf = bytearray(min(length, 8 * 1024))
 
-        while todo:
+        while length:
             # Shrink buffer for the last receive.
-            if todo < len(buf):
-                buf = memoryview(buf)[:todo]
+            if length < len(buf):
+                buf = memoryview(buf)[:length]
 
             # Receive next buffer.
             self._receive_into(buf)
-            todo -= len(buf)
+            length -= len(buf)
 
             # Unpack extents in buffer.
             view = memoryview(buf)
             while len(view):
-                ext_len, ext_flags = struct.unpack("!II", view[:8])
+                yield struct.unpack("!II", view[:8])
                 view = view[8:]
-
-                if ext_len == 0 or ext_len % self.minimum_block_size:
-                    raise ProtocolError(
-                        "Invalid extent length {}: not an integer multiple "
-                        "of minimum block size {}"
-                        .format(ext_len, self.minimum_block_size))
-
-                ext = Extent(ext_len, bool(ext_flags & STATE_ZERO))
-                extents.append(ext)
-
-        return ctx_name, extents
 
     def _handle_none_chunk(self, flags, length):
         if not flags & REPLY_FLAG_DONE:
