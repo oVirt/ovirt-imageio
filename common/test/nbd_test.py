@@ -281,40 +281,52 @@ def test_open_tcp(tmpdir, url_template, export):
             assert c.export_size == 1024**3
 
 
-def test_base_allocation_empty_raw(nbd_server, user_file):
-    # Maximum NBD request length.
-    size = 2**32 - 1
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_base_allocation_empty(nbd_server, user_file, fmt):
+    size = nbd.MAX_LENGTH
 
-    # Don't use qemu-img since it allocate the first block on Fedora, but not
-    # on CentOS 8.0, breaking our expected extents.
-    # TODO: Use qemu-img when we have CentOS 8.1 AV.
-    with io.open(user_file.path, "wb") as f:
-        f.truncate(size)
+    if fmt == "raw":
+        # qemu-img allocates the first block on Fedora, but not on CentOS 8.0.
+        # Allocate manually for consistent results.
+        # TODO: Use qemu-img when we have CentOS 8.1 AV.
+        with io.open(user_file.path, "wb") as f:
+            f.truncate(size)
+    else:
+        subprocess.check_call(
+            ["qemu-img", "create", "-f", "qcow2", user_file.path, str(size)])
 
     nbd_server.image = user_file.path
-    nbd_server.fmt = "raw"
+    nbd_server.fmt = fmt
     nbd_server.start()
 
     with nbd.open(nbd_server.url) as c:
+        # Entire image.
         extents = c.extents(0, size)["base:allocation"]
+        assert extents == [nbd.Extent(length=size, zero=True)]
 
-    assert extents == [nbd.Extent(length=size, zero=True)]
+        # First block.
+        extents = c.extents(0, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=True)]
 
+        # Last block.
+        extents = c.extents(size - 4096, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=True)]
 
-def test_base_allocation_empty_qcow2(nbd_server, user_file):
-    # Maximum NBD request length.
-    size = 2**32 - 1
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", "qcow2", user_file.path, str(size)])
+        # Some block.
+        extents = c.extents(4096, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=True)]
 
-    nbd_server.image = user_file.path
-    nbd_server.fmt = "qcow2"
-    nbd_server.start()
+        # Unaligned start.
+        extents = c.extents(4096 - 1, 4096 + 1)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 1, zero=True)]
 
-    with nbd.open(nbd_server.url) as c:
-        extents = c.extents(0, size)["base:allocation"]
+        # Unaligned end.
+        extents = c.extents(4096, 4096 + 1)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 1, zero=True)]
 
-    assert extents == [nbd.Extent(length=size, zero=True)]
+        # Unaligned start and end.
+        extents = c.extents(4096 - 1, 4096 + 2)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 2, zero=True)]
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -329,9 +341,34 @@ def test_base_allocation_full(nbd_server, user_file, fmt):
 
     with nbd.open(nbd_server.url) as c:
         c.write(0, b"x" * size)
-        extents = c.extents(0, size)["base:allocation"]
 
-    assert extents == [nbd.Extent(length=size, zero=False)]
+        # Entire image.
+        extents = c.extents(0, size)["base:allocation"]
+        assert extents == [nbd.Extent(length=size, zero=False)]
+
+        # First block.
+        extents = c.extents(0, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=False)]
+
+        # Last block.
+        extents = c.extents(size - 4096, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=False)]
+
+        # Some block.
+        extents = c.extents(4096, 4096)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096, zero=False)]
+
+        # Unaligned start.
+        extents = c.extents(4096 - 1, 4096 + 1)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 1, zero=False)]
+
+        # Unaligned end.
+        extents = c.extents(4096, 4096 + 1)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 1, zero=False)]
+
+        # Unaligned start and end.
+        extents = c.extents(4096 - 1, 4096 + 2)["base:allocation"]
+        assert extents == [nbd.Extent(length=4096 + 2, zero=False)]
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -362,6 +399,48 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
         nbd.Extent(length=data_length, zero=False),
         nbd.Extent(length=zero_length, zero=True),
     ]
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_base_allocation_some_data_unaligned(nbd_server, user_file, fmt):
+    size = 1024**2
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    data_length = 64 * 1024
+    data_offset = 2 * data_length
+
+    with nbd.open(nbd_server.url) as c:
+        # Create 3 extents: zero, data, zero.
+        c.write(data_offset, b"x" * data_length)
+
+        # Unaligned part from first extent and last extent.
+        extents = all_extents(
+            c, data_offset - 1, data_length + 2, "base:allocation")
+        assert extents == [
+            nbd.Extent(length=1, zero=True),
+            nbd.Extent(length=data_length, zero=False),
+            nbd.Extent(length=1, zero=True),
+        ]
+
+        # Unaligned part from second extent.
+        extents = all_extents(
+            c, data_offset + 1, data_length - 2, "base:allocation")
+        assert extents == [
+            nbd.Extent(length=data_length - 2, zero=False),
+        ]
+
+        # Unaligned part from second and last extents.
+        extents = all_extents(
+            c, data_offset + 1, data_length, "base:allocation")
+        assert extents == [
+            nbd.Extent(length=data_length - 1, zero=False),
+            nbd.Extent(length=1, zero=True),
+        ]
 
 
 def test_base_allocation_many_extents(nbd_server, user_file):
