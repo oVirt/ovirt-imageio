@@ -454,7 +454,7 @@ class Client(object):
     def extents(self, offset, length):
         cmd = BlockStatus(self._next_handle(), offset, length)
         self._send_command(cmd)
-        self._recv_block_status_reply(cmd)
+        self._recv_reply(cmd)
         return cmd.reply
 
     def close(self):
@@ -979,6 +979,8 @@ class Client(object):
             self._handle_data_chunk(length, cmd)
         elif type == REPLY_TYPE_OFFSET_HOLE:
             self._handle_hole_chunk(length, cmd)
+        elif type == REPLY_TYPE_BLOCK_STATUS:
+            self._handle_block_status_chunk(length, cmd)
         else:
             raise ProtocolError(
                 "Received unknown chunk type={} flags={} length={}"
@@ -986,60 +988,12 @@ class Client(object):
 
         return flags & REPLY_FLAG_DONE
 
-    def _recv_block_status_reply(self, cmd):
+    def _handle_block_status_chunk(self, length, cmd):
         """
-        Receive a reply to CMD_BLOCK_STATUS command.
-
-        Receive one chunk per metadata context id with this format:
-
-        S: 32 bits, magic
-        S: 16 bits, flags
-        S: 16 bits, type
-        S: 64 bits, handle
-        S: 32 bits, length of payload (unsigned)
-        S: length bytes of payload data. length must be 4 + (N * 8) and N > 0
-        """
-        errors = []
-
-        while True:
-            magic, flags, type, handle, length = self._recv_fmt("!IHHQI")
-
-            if magic != STRUCTURED_REPLY_MAGIC:
-                raise ProtocolError(
-                    "Unexpected reply magic {:x}, expecting "
-                    "structured reply magic {:x}"
-                    .format(magic, STRUCTURED_REPLY_MAGIC))
-
-            if handle != cmd.handle:
-                raise UnexpectedHandle(handle, cmd.handle)
-
-            if type == REPLY_TYPE_ERROR:
-                self._handle_error_chunk(length, flags)
-
-            if type == REPLY_TYPE_ERROR_OFFSET:
-                self._handle_error_offset_chunk(length, errors)
-            elif type == REPLY_TYPE_BLOCK_STATUS:
-                name, extents = self._recv_block_status_payload(length)
-                cmd.reply[name] = extents
-            else:
-                raise ProtocolError(
-                    "Received unexpected chunk type={} flags={} length={}"
-                    .format(type, flags, length))
-
-            if flags & REPLY_FLAG_DONE:
-                break
-
-        if errors:
-            raise RequestError("Errors receiving reply: {}".format(errors))
-
-    def _recv_block_status_payload(self, length):
-        """
-        Receive block status payload.
+        Receive block status chunk and populate cmd's reply dict.
 
         The payload starts with 32 bits, metadata context ID
         and is followed by a list of one or more Extent descriptors.
-
-        Return tuple (meta_contxt_name, list of Extent objects).
         """
         ctx_id_size = 4
         extents_count, reminder = divmod(length, Extent.size)
@@ -1070,7 +1024,7 @@ class Client(object):
                     .format(ext.length, self.minimum_block_size))
             extents.append(ext)
 
-        return ctx_name, extents
+        cmd.reply[ctx_name] = extents
 
     def _recv_extents(self, length):
         """
