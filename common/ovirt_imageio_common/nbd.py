@@ -420,11 +420,15 @@ class Client(object):
         return buf
 
     def readinto(self, offset, buf):
-        cmd = Read(self._next_handle(), offset, len(buf))
-        self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
-        # reply to CMD_READ.
-        self._recv_reply(cmd, buf=buf, only_structured=self._structured_reply)
+        # reply to NBD_CMD_READ.
+        cmd = Read(
+            self._next_handle(),
+            offset,
+            len(buf),
+            only_structured=self._structured_reply)
+        self._send_command(cmd)
+        self._recv_reply(cmd, buf=buf)
         return len(buf)
 
     def write(self, offset, data):
@@ -886,7 +890,7 @@ class Client(object):
         log.debug("Sending %s", cmd)
         self._send(cmd.to_bytes())
 
-    def _recv_reply(self, cmd, buf=None, only_structured=False):
+    def _recv_reply(self, cmd, buf=None):
         """
         Receive either a simple reply or structured reply info buffer buf.
         """
@@ -896,7 +900,7 @@ class Client(object):
             magic = self._recv_fmt("!I")[0]
 
             if magic == SIMPLE_REPLY_MAGIC:
-                if only_structured:
+                if cmd.only_structured:
                     raise ProtocolError(
                         "Unexpected simple reply magic {:x}, expecting "
                         "structured reply magic {:x}"
@@ -914,7 +918,7 @@ class Client(object):
 
                 # We started to received structured reply chunks, so simple
                 # reply is not allowed.
-                only_structured = True
+                cmd.only_structured = True
 
                 if self._recv_reply_chunk(cmd, buf, errors):
                     break
@@ -1263,6 +1267,7 @@ class Command(object):
         self.offset = offset
         self.length = length
         self.flags = flags
+        self.only_structured = False
 
     def to_bytes(self):
         return self.wire_format.pack(
@@ -1281,6 +1286,10 @@ class Command(object):
 class Read(Command):
     type = 0
     name = "NBD_CMD_READ"
+
+    def __init__(self, handle, offset, length, only_structured=False):
+        super(Read, self).__init__(handle, offset, length)
+        self.only_structured = only_structured
 
 
 class Write(Command):
@@ -1312,6 +1321,10 @@ class WriteZeroes(Command):
 class BlockStatus(Command):
     type = 7
     name = "NBD_CMD_BLOCK_STATUS"
+
+    def __init__(self, handle, offset, length):
+        super(BlockStatus, self).__init__(handle, offset, length)
+        self.only_structured = True
 
 
 class Extent(object):
