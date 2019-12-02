@@ -454,7 +454,8 @@ class Client(object):
     def extents(self, offset, length):
         cmd = BlockStatus(self._next_handle(), offset, length)
         self._send_command(cmd)
-        return self._recv_block_status_reply(cmd)
+        self._recv_block_status_reply(cmd)
+        return cmd.reply
 
     def close(self):
         if self._state in (HANDSHAKE, TRASMISSION):
@@ -997,10 +998,7 @@ class Client(object):
         S: 64 bits, handle
         S: 32 bits, length of payload (unsigned)
         S: length bytes of payload data. length must be 4 + (N * 8) and N > 0
-
-        Return mapping of meta context name to list of Extent objects.
         """
-        result = {}
         errors = []
 
         while True:
@@ -1022,7 +1020,7 @@ class Client(object):
                 self._handle_error_offset_chunk(length, errors)
             elif type == REPLY_TYPE_BLOCK_STATUS:
                 name, extents = self._recv_block_status_payload(length)
-                result[name] = extents
+                cmd.reply[name] = extents
             else:
                 raise ProtocolError(
                     "Received unexpected chunk type={} flags={} length={}"
@@ -1033,8 +1031,6 @@ class Client(object):
 
         if errors:
             raise RequestError("Errors receiving reply: {}".format(errors))
-
-        return result
 
     def _recv_block_status_payload(self, length):
         """
@@ -1326,6 +1322,8 @@ class BlockStatus(Command):
     def __init__(self, handle, offset, length):
         super(BlockStatus, self).__init__(handle, offset, length)
         self.only_structured = True
+        # Mapping of meta context name to list of Extent objects.
+        self.reply = {}
 
 
 class Extent(object):
