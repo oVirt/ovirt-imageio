@@ -423,12 +423,10 @@ class Client(object):
         # If structured reply was negotiated, the server must send structured
         # reply to NBD_CMD_READ.
         cmd = Read(
-            self._next_handle(),
-            offset,
-            len(buf),
+            self._next_handle(), offset, buf,
             only_structured=self._structured_reply)
         self._send_command(cmd)
-        self._recv_reply(cmd, buf=buf)
+        self._recv_reply(cmd)
         return len(buf)
 
     def write(self, offset, data):
@@ -890,9 +888,9 @@ class Client(object):
         log.debug("Sending %s", cmd)
         self._send(cmd.to_bytes())
 
-    def _recv_reply(self, cmd, buf=None):
+    def _recv_reply(self, cmd):
         """
-        Receive either a simple reply or structured reply info buffer buf.
+        Receive either a simple reply or structured reply for cmd.
         """
         errors = []
 
@@ -906,7 +904,7 @@ class Client(object):
                         "structured reply magic {:x}"
                         .format(magic, STRUCTURED_REPLY_MAGIC))
 
-                self._recv_simple_reply(cmd, buf)
+                self._recv_simple_reply(cmd)
                 return
 
             elif magic == STRUCTURED_REPLY_MAGIC:
@@ -920,7 +918,7 @@ class Client(object):
                 # reply is not allowed.
                 cmd.only_structured = True
 
-                if self._recv_reply_chunk(cmd, buf, errors):
+                if self._recv_reply_chunk(cmd, errors):
                     break
 
             else:
@@ -933,7 +931,7 @@ class Client(object):
             # fail the entire request.
             raise RequestError("Errors receiving reply: {}".format(errors))
 
-    def _recv_simple_reply(self, cmd, buf):
+    def _recv_simple_reply(self, cmd):
         """
         Receive a simple reply (magic was already read).
 
@@ -950,10 +948,10 @@ class Client(object):
         if handle != cmd.handle:
             raise UnexpectedHandle(handle, cmd.handle)
 
-        if buf:
-            self._recv_into(buf)
+        if cmd.buf:
+            self._recv_into(cmd.buf)
 
-    def _recv_reply_chunk(self, cmd, buf, errors):
+    def _recv_reply_chunk(self, cmd, errors):
         """
         Receive a structured reply chunk (magic was already read). Return True
         if this was the last chunk.
@@ -977,9 +975,9 @@ class Client(object):
         elif type == REPLY_TYPE_NONE:
             self._handle_none_chunk(flags, length)
         elif type == REPLY_TYPE_OFFSET_DATA:
-            self._handle_data_chunk(length, buf, cmd.offset)
+            self._handle_data_chunk(length, cmd)
         elif type == REPLY_TYPE_OFFSET_HOLE:
-            self._handle_hole_chunk(length, buf, cmd.offset)
+            self._handle_hole_chunk(length, cmd)
         else:
             raise ProtocolError(
                 "Received unknown chunk type={} flags={} length={}"
@@ -1148,9 +1146,9 @@ class Client(object):
         offset = self._recv_fmt("!Q")[0]
         errors.append((offset, ReplyError(code, message)))
 
-    def _handle_data_chunk(self, length, buf, offset):
+    def _handle_data_chunk(self, length, cmd):
         """
-        Receive data chunk payload into buf.
+        Receive data chunk payload into cmd's buf.
 
         64 bits: offset (unsigned)
         length - 8 bytes: data
@@ -1162,13 +1160,13 @@ class Client(object):
         log.debug("Receive data chunk offset=%s size=%s",
                   chunk_offset, chunk_size)
 
-        buf_offset = chunk_offset - offset
-        view = memoryview(buf)[buf_offset:buf_offset + chunk_size]
+        buf_offset = chunk_offset - cmd.offset
+        view = memoryview(cmd.buf)[buf_offset:buf_offset + chunk_size]
         self._recv_into(view)
 
-    def _handle_hole_chunk(self, length, buf, offset):
+    def _handle_hole_chunk(self, length, cmd):
         """
-        Handle hole chunk, zeroing byte range in buf.
+        Handle hole chunk, zeroing byte range in cmd's buf.
 
         64 bits: offset (unsigned)
         32 bits: hole size (unsigned, MUST be nonzero)
@@ -1183,8 +1181,8 @@ class Client(object):
         log.debug("Receive hole chunk offset=%s size=%s",
                   chunk_offset, chunk_size)
 
-        buf_offset = chunk_offset - offset
-        buf[buf_offset:buf_offset + chunk_size] = b"\0" * chunk_size
+        buf_offset = chunk_offset - cmd.offset
+        cmd.buf[buf_offset:buf_offset + chunk_size] = b"\0" * chunk_size
 
     def _recv_error_chunk(self, length):
         code, msg_len = self._recv_fmt("!IH")
@@ -1261,6 +1259,7 @@ class Command(object):
     # Attributes defined by sub classes.
     name = None
     type = None
+    buf = None
 
     def __init__(self, handle, offset=0, length=0, flags=0):
         self.handle = handle
@@ -1287,8 +1286,10 @@ class Read(Command):
     type = 0
     name = "NBD_CMD_READ"
 
-    def __init__(self, handle, offset, length, only_structured=False):
-        super(Read, self).__init__(handle, offset, length)
+    def __init__(self, handle, offset, buf, only_structured=False):
+        super(Read, self).__init__(handle, offset, len(buf))
+        # Buffer for storing the payload from the server.
+        self.buf = buf
         self.only_structured = only_structured
 
 
