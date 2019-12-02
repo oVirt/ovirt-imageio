@@ -82,6 +82,7 @@ def download(args):
 
             # Start by truncating the file to the right size. Ignoring EINVAL
             # allows coping to /dev/null for testing read throughput.
+            logging.debug("truncate length=%s", src.export_size)
             try:
                 dst.truncate(src.export_size)
             except EnvironmentError as e:
@@ -93,6 +94,7 @@ def download(args):
             for ext in _extents(src):
                 if ext.zero:
                     # Seek over zeroes, creating a hole.
+                    logging.debug("zero offset=%s length=%s", offset, ext.length)
                     offset += ext.length
                     dst.seek(offset)
                     pb.update(ext.length)
@@ -106,6 +108,7 @@ def download(args):
                         view = memoryview(buf)[:step]
 
                         src.readinto(offset, view)
+                        logging.debug("write offset=%s length=%s", offset, step)
                         dst.write(view)
 
                         todo -= step
@@ -115,6 +118,7 @@ def download(args):
             # Finally wait until the data reasch the underlying storage.
             # Ignoring EINVAL so we can copy to /dev/null for testing read
             # throughput.
+            logging.debug("flush")
             try:
                 os.fsync(dst.fileno())
             except OSError as e:
@@ -156,6 +160,7 @@ def _extents(src):
 
 
 def _map(path):
+    logging.debug("getting extents")
     out = subprocess.check_output([
         "qemu-img",
         "map",
@@ -185,8 +190,9 @@ def _copy_range(dst, src, start, length, pb, block_size):
         if not chunk:
             raise Exception("Unexpected end of file, expecting {} bytes"
                             .format(length))
-        dst.write(start, chunk)
         n = len(chunk)
+        logging.debug("read offset=%s, length=%s", start, n)
+        dst.write(start, chunk)
         start += n
         length -= n
         pb.update(n)
