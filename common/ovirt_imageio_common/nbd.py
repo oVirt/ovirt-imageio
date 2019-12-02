@@ -415,59 +415,46 @@ class Client(object):
         return self._meta_context["base:allocation"] is not None
 
     def read(self, offset, length):
-        handle = next(self._counter)
-        cmd = Read(handle, offset, length)
+        cmd = Read(self._next_handle(), offset, length)
         self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
-        return self._recv_reply(
-            handle,
-            length=length,
-            offset=offset,
-            only_structured=self._structured_reply)
+        return self._recv_reply(cmd, only_structured=self._structured_reply)
 
     def readinto(self, offset, buf):
-        handle = next(self._counter)
-        cmd = Read(handle, offset, len(buf))
+        cmd = Read(self._next_handle(), offset, len(buf))
         self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
         return self._recv_reply_into(
-            handle,
-            buf,
-            offset=offset,
-            only_structured=self._structured_reply)
+            cmd, buf, only_structured=self._structured_reply)
 
     def write(self, offset, data):
-        handle = next(self._counter)
-        cmd = Write(handle, offset, len(data))
+        cmd = Write(self._next_handle(), offset, len(data))
         self._send_command(cmd)
         self._send(data)
-        self._recv_reply(handle)
+        self._recv_reply(cmd)
 
     def zero(self, offset, length):
         if self.transmission_flags & FLAG_SEND_WRITE_ZEROES == 0:
             raise UnsupportedRequest(
                 "Server does not support CMD_WRITE_ZEROES")
-        handle = next(self._counter)
-        cmd = WriteZeroes(handle, offset, length)
+        cmd = WriteZeroes(self._next_handle(), offset, length)
         self._send_command(cmd)
-        self._recv_reply(handle)
+        self._recv_reply(cmd)
 
     def flush(self):
         # TODO: is this the best way to handle this?
         if self.transmission_flags & FLAG_SEND_FLUSH == 0:
             return
-        handle = next(self._counter)
-        cmd = Flush(handle)
+        cmd = Flush(self._next_handle())
         self._send_command(cmd)
-        self._recv_reply(handle)
+        self._recv_reply(cmd)
 
     def extents(self, offset, length):
-        handle = next(self._counter)
-        cmd = BlockStatus(handle, offset, length)
+        cmd = BlockStatus(self._next_handle(), offset, length)
         self._send_command(cmd)
-        return self._recv_block_status_reply(handle)
+        return self._recv_block_status_reply(cmd)
 
     def close(self):
         if self._state in (HANDSHAKE, TRASMISSION):
@@ -865,8 +852,7 @@ class Client(object):
             if self._state == HANDSHAKE:
                 self._send_option(OPT_ABORT)
             elif self._state == TRASMISSION:
-                handle = next(self._counter)
-                cmd = Disc(handle)
+                cmd = Disc(self._next_handle())
                 self._send_command(cmd)
             else:
                 raise AssertionError(
@@ -895,20 +881,23 @@ class Client(object):
 
     # Commands
 
+    def _next_handle(self):
+        return next(self._counter)
+
     def _send_command(self, cmd):
         log.debug("Sending %s", cmd)
         self._send(cmd.to_bytes())
 
-    def _recv_reply(self, handle, length=0, offset=0, only_structured=False):
+    def _recv_reply(self, cmd, only_structured=False):
         """
         Receive either a simple reply or structured reply.
         """
-        buf = bytearray(length)
-        self._recv_reply_into(
-            handle, buf, offset=offset, only_structured=only_structured)
+        # TODO: This buffer is useful only for Read command.
+        buf = bytearray(cmd.reply_length)
+        self._recv_reply_into(cmd, buf, only_structured=only_structured)
         return buf
 
-    def _recv_reply_into(self, handle, buf, offset=0, only_structured=False):
+    def _recv_reply_into(self, cmd, buf, only_structured=False):
         """
         Receive either a simple reply or structured reply info buffer buf.
         """
@@ -924,7 +913,7 @@ class Client(object):
                         "structured reply magic {:x}"
                         .format(magic, STRUCTURED_REPLY_MAGIC))
 
-                self._recv_simple_reply_into(handle, buf)
+                self._recv_simple_reply_into(cmd, buf)
                 return len(buf)
 
             elif magic == STRUCTURED_REPLY_MAGIC:
@@ -938,7 +927,7 @@ class Client(object):
                 # reply is not allowed.
                 only_structured = True
 
-                if self._recv_reply_chunk_into(handle, buf, offset, errors):
+                if self._recv_reply_chunk_into(cmd, buf, errors):
                     break
 
             else:
@@ -953,7 +942,7 @@ class Client(object):
 
         return len(buf)
 
-    def _recv_simple_reply_into(self, expected_handle, buf):
+    def _recv_simple_reply_into(self, cmd, buf):
         """
         Receive a simple reply (magic was already read).
 
@@ -967,13 +956,13 @@ class Client(object):
         if error != 0:
             raise ReplyError(error)
 
-        if handle != expected_handle:
-            raise UnexpectedHandle(handle, expected_handle)
+        if handle != cmd.handle:
+            raise UnexpectedHandle(handle, cmd.handle)
 
         if len(buf):
             self._recv_into(buf)
 
-    def _recv_reply_chunk_into(self, expected_handle, buf, offset, errors):
+    def _recv_reply_chunk_into(self, cmd, buf, errors):
         """
         Receive a structured reply chunk (magic was already read). Return True
         if this was the last chunk.
@@ -986,8 +975,8 @@ class Client(object):
         """
         flags, type, handle, length = self._recv_fmt("!HHQI")
 
-        if handle != expected_handle:
-            raise UnexpectedHandle(handle, expected_handle)
+        if handle != cmd.handle:
+            raise UnexpectedHandle(handle, cmd.handle)
 
         if type == REPLY_TYPE_ERROR:
             self._handle_error_chunk(length, flags)
@@ -997,9 +986,9 @@ class Client(object):
         elif type == REPLY_TYPE_NONE:
             self._handle_none_chunk(flags, length)
         elif type == REPLY_TYPE_OFFSET_DATA:
-            self._handle_data_chunk(length, buf, offset)
+            self._handle_data_chunk(length, buf, cmd.offset)
         elif type == REPLY_TYPE_OFFSET_HOLE:
-            self._handle_hole_chunk(length, buf, offset)
+            self._handle_hole_chunk(length, buf, cmd.offset)
         else:
             raise ProtocolError(
                 "Received unknown chunk type={} flags={} length={}"
@@ -1007,7 +996,7 @@ class Client(object):
 
         return flags & REPLY_FLAG_DONE
 
-    def _recv_block_status_reply(self, expected_handle):
+    def _recv_block_status_reply(self, cmd):
         """
         Receive a reply to CMD_BLOCK_STATUS command.
 
@@ -1034,8 +1023,8 @@ class Client(object):
                     "structured reply magic {:x}"
                     .format(magic, STRUCTURED_REPLY_MAGIC))
 
-            if handle != expected_handle:
-                raise UnexpectedHandle(handle, expected_handle)
+            if handle != cmd.handle:
+                raise UnexpectedHandle(handle, cmd.handle)
 
             if type == REPLY_TYPE_ERROR:
                 self._handle_error_chunk(length, flags)
@@ -1288,6 +1277,10 @@ class Command(object):
         self.length = length
         self.flags = flags
 
+    @property
+    def reply_length(self):
+        return 0
+
     def to_bytes(self):
         return self.wire_format.pack(
             REQUEST_MAGIC,
@@ -1305,6 +1298,10 @@ class Command(object):
 class Read(Command):
     type = 0
     name = "NBD_CMD_READ"
+
+    @property
+    def reply_length(self):
+        return self.length
 
 
 class Write(Command):
