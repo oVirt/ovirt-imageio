@@ -415,19 +415,17 @@ class Client(object):
         return self._meta_context["base:allocation"] is not None
 
     def read(self, offset, length):
-        cmd = Read(self._next_handle(), offset, length)
-        self._send_command(cmd)
-        # If structured reply was negotiated, the server must send structured
-        # reply to CMD_READ.
-        return self._recv_reply(cmd, only_structured=self._structured_reply)
+        buf = bytearray(length)
+        self.readinto(offset, buf)
+        return buf
 
     def readinto(self, offset, buf):
         cmd = Read(self._next_handle(), offset, len(buf))
         self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
-        return self._recv_reply_into(
-            cmd, buf, only_structured=self._structured_reply)
+        return self._recv_reply(
+            cmd, buf=buf, only_structured=self._structured_reply)
 
     def write(self, offset, data):
         cmd = Write(self._next_handle(), offset, len(data))
@@ -888,16 +886,7 @@ class Client(object):
         log.debug("Sending %s", cmd)
         self._send(cmd.to_bytes())
 
-    def _recv_reply(self, cmd, only_structured=False):
-        """
-        Receive either a simple reply or structured reply.
-        """
-        # TODO: This buffer is useful only for Read command.
-        buf = bytearray(cmd.reply_length)
-        self._recv_reply_into(cmd, buf, only_structured=only_structured)
-        return buf
-
-    def _recv_reply_into(self, cmd, buf, only_structured=False):
+    def _recv_reply(self, cmd, buf=None, only_structured=False):
         """
         Receive either a simple reply or structured reply info buffer buf.
         """
@@ -913,8 +902,8 @@ class Client(object):
                         "structured reply magic {:x}"
                         .format(magic, STRUCTURED_REPLY_MAGIC))
 
-                self._recv_simple_reply_into(cmd, buf)
-                return len(buf)
+                self._recv_simple_reply(cmd, buf)
+                return cmd.reply_length
 
             elif magic == STRUCTURED_REPLY_MAGIC:
                 if not self._structured_reply:
@@ -927,7 +916,7 @@ class Client(object):
                 # reply is not allowed.
                 only_structured = True
 
-                if self._recv_reply_chunk_into(cmd, buf, errors):
+                if self._recv_reply_chunk(cmd, buf, errors):
                     break
 
             else:
@@ -940,9 +929,9 @@ class Client(object):
             # fail the entire request.
             raise RequestError("Errors receiving reply: {}".format(errors))
 
-        return len(buf)
+        return cmd.reply_length
 
-    def _recv_simple_reply_into(self, cmd, buf):
+    def _recv_simple_reply(self, cmd, buf):
         """
         Receive a simple reply (magic was already read).
 
@@ -959,10 +948,10 @@ class Client(object):
         if handle != cmd.handle:
             raise UnexpectedHandle(handle, cmd.handle)
 
-        if len(buf):
+        if buf:
             self._recv_into(buf)
 
-    def _recv_reply_chunk_into(self, cmd, buf, errors):
+    def _recv_reply_chunk(self, cmd, buf, errors):
         """
         Receive a structured reply chunk (magic was already read). Return True
         if this was the last chunk.
