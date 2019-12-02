@@ -424,8 +424,8 @@ class Client(object):
         self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
-        return self._recv_reply(
-            cmd, buf=buf, only_structured=self._structured_reply)
+        self._recv_reply(cmd, buf=buf, only_structured=self._structured_reply)
+        return len(buf)
 
     def write(self, offset, data):
         cmd = Write(self._next_handle(), offset, len(data))
@@ -903,7 +903,7 @@ class Client(object):
                         .format(magic, STRUCTURED_REPLY_MAGIC))
 
                 self._recv_simple_reply(cmd, buf)
-                return cmd.reply_length
+                return
 
             elif magic == STRUCTURED_REPLY_MAGIC:
                 if not self._structured_reply:
@@ -928,8 +928,6 @@ class Client(object):
             # partial failures since content chunks may be fragmented, so
             # fail the entire request.
             raise RequestError("Errors receiving reply: {}".format(errors))
-
-        return cmd.reply_length
 
     def _recv_simple_reply(self, cmd, buf):
         """
@@ -1266,10 +1264,6 @@ class Command(object):
         self.length = length
         self.flags = flags
 
-    @property
-    def reply_length(self):
-        return 0
-
     def to_bytes(self):
         return self.wire_format.pack(
             REQUEST_MAGIC,
@@ -1287,10 +1281,6 @@ class Command(object):
 class Read(Command):
     type = 0
     name = "NBD_CMD_READ"
-
-    @property
-    def reply_length(self):
-        return self.length
 
 
 class Write(Command):
