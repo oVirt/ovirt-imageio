@@ -90,14 +90,6 @@ REPLY_TYPE_ERROR_OFFSET = REPLY_ERROR_BASE + 2
 INFO_EXPORT = 0
 INFO_BLOCK_SIZE = 3
 
-# Commands
-CMD_READ = 0
-CMD_WRITE = 1
-CMD_DISC = 2
-CMD_FLUSH = 3
-CMD_WRITE_ZEROES = 6
-CMD_BLOCK_STATUS = 7
-
 # Error replies
 ERR_BASE = 2**31
 REP_ERR_UNSUP = ERR_BASE + 1
@@ -152,16 +144,6 @@ REPLY_ERRORS = {
     75: errno.EOVERFLOW,
     108: errno.ESHUTDOWN,
 }
-
-# NBD command struct
-# C: 32 bits, 0x25609513, magic (REQUEST_MAGIC)
-# C: 16 bits, command flags
-# C: 16 bits, type
-# C: 64 bits, handle
-# C: 64 bits, offset (unsigned)
-# C: 32 bits, length (unsigned)
-# C: (length bytes of data if the request is of type CMD_WRITE)
-COMMAND = struct.Struct("!IHHQQI")
 
 # NBD Option struct
 # C: 64 bits, 0x49484156454F5054 (ASCII 'IHAVEOPT')
@@ -434,7 +416,8 @@ class Client(object):
 
     def read(self, offset, length):
         handle = next(self._counter)
-        self._send_command(CMD_READ, handle, offset, length)
+        cmd = Read(handle, offset, length)
+        self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
         return self._recv_reply(
@@ -445,7 +428,8 @@ class Client(object):
 
     def readinto(self, offset, buf):
         handle = next(self._counter)
-        self._send_command(CMD_READ, handle, offset, len(buf))
+        cmd = Read(handle, offset, len(buf))
+        self._send_command(cmd)
         # If structured reply was negotiated, the server must send structured
         # reply to CMD_READ.
         return self._recv_reply_into(
@@ -456,7 +440,8 @@ class Client(object):
 
     def write(self, offset, data):
         handle = next(self._counter)
-        self._send_command(CMD_WRITE, handle, offset, len(data))
+        cmd = Write(handle, offset, len(data))
+        self._send_command(cmd)
         self._send(data)
         self._recv_reply(handle)
 
@@ -465,7 +450,8 @@ class Client(object):
             raise UnsupportedRequest(
                 "Server does not support CMD_WRITE_ZEROES")
         handle = next(self._counter)
-        self._send_command(CMD_WRITE_ZEROES, handle, offset, length)
+        cmd = WriteZeroes(handle, offset, length)
+        self._send_command(cmd)
         self._recv_reply(handle)
 
     def flush(self):
@@ -473,12 +459,14 @@ class Client(object):
         if self.transmission_flags & FLAG_SEND_FLUSH == 0:
             return
         handle = next(self._counter)
-        self._send_command(CMD_FLUSH, handle, 0, 0)
+        cmd = Flush(handle)
+        self._send_command(cmd)
         self._recv_reply(handle)
 
     def extents(self, offset, length):
         handle = next(self._counter)
-        self._send_command(CMD_BLOCK_STATUS, handle, offset, length)
+        cmd = BlockStatus(handle, offset, length)
+        self._send_command(cmd)
         return self._recv_block_status_reply(handle)
 
     def close(self):
@@ -878,7 +866,8 @@ class Client(object):
                 self._send_option(OPT_ABORT)
             elif self._state == TRASMISSION:
                 handle = next(self._counter)
-                self._send_command(CMD_DISC, handle, 0, 0)
+                cmd = Disc(handle)
+                self._send_command(cmd)
             else:
                 raise AssertionError(
                     "Cannot initiate soft disconnect at state {!r}"
@@ -906,11 +895,9 @@ class Client(object):
 
     # Commands
 
-    def _send_command(self, type, handle, offset, length):
-        log.debug("Sending command type=%s handle=%s offset=%s length=%s",
-                  type, handle, offset, length)
-        b = COMMAND.pack(REQUEST_MAGIC, 0, type, handle, offset, length)
-        self._send(b)
+    def _send_command(self, cmd):
+        log.debug("Sending %s", cmd)
+        self._send(cmd.to_bytes())
 
     def _recv_reply(self, handle, length=0, offset=0, only_structured=False):
         """
@@ -1273,6 +1260,82 @@ class Client(object):
             if t is None:
                 raise
             log.exeption("Error closing")
+
+
+class Command(object):
+    """
+    Abstract NBD command.
+
+    All commands share the same wire format:
+
+        32 bits, 0x25609513, magic (REQUEST_MAGIC)
+        16 bits, command flags
+        16 bits, type
+        64 bits, handle
+        64 bits, offset (unsigned)
+        32 bits, length (unsigned)
+    """
+
+    wire_format = struct.Struct("!IHHQQI")
+
+    # Attributes defined by sub classes.
+    name = None
+    type = None
+
+    def __init__(self, handle, offset=0, length=0, flags=0):
+        self.handle = handle
+        self.offset = offset
+        self.length = length
+        self.flags = flags
+
+    def to_bytes(self):
+        return self.wire_format.pack(
+            REQUEST_MAGIC,
+            self.flags,
+            self.type,
+            self.handle,
+            self.offset,
+            self.length)
+
+    def __str__(self):
+        return "{} handle={} offset={} length={} flags={}".format(
+            self.name, self.handle, self.offset, self.length, self.flags)
+
+
+class Read(Command):
+    type = 0
+    name = "NBD_CMD_READ"
+
+
+class Write(Command):
+    type = 1
+    name = "NBD_CMD_WRITE"
+
+
+class Disc(Command):
+    type = 2
+    name = "NBD_CMD_DISC"
+
+    def __init__(self, handle):
+        super(Disc, self).__init__(handle, 0, 0)
+
+
+class Flush(Command):
+    type = 3
+    name = "NBD_CMD_FLUSH"
+
+    def __init__(self, handle):
+        super(Flush, self).__init__(handle, 0, 0)
+
+
+class WriteZeroes(Command):
+    type = 6
+    name = "NBD_CMD_WRITE_ZEROES"
+
+
+class BlockStatus(Command):
+    type = 7
+    name = "NBD_CMD_BLOCK_STATUS"
 
 
 class Extent(object):
