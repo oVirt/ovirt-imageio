@@ -13,6 +13,9 @@ http helpers.
 from __future__ import absolute_import
 from __future__ import print_function
 
+import errno
+import logging
+
 from pprint import pprint
 
 from six.moves import http_client
@@ -20,6 +23,8 @@ from six.moves import http_client
 from ovirt_imageio_daemon import pki
 from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import uhttp
+
+log = logging.getLogger("test")
 
 
 def connection():
@@ -48,7 +53,12 @@ def options(uri):
 
 def request(method, uri, body=None, headers=None):
     con = connection()
-    con.request(method, uri, body=body, headers=headers or {})
+    try:
+        con.request(method, uri, body=body, headers=headers or {})
+    except EnvironmentError as e:
+        if not (e.errno == errno.EPIPE and body):
+            raise
+        log.warning("Error sending request: %s", e)
     return response(con)
 
 
@@ -63,14 +73,27 @@ def raw_request(method, uri, body=None, headers=None):
         for name, value in headers.items():
             con.putheader(name, value)
     con.endheaders()
-    if body:
-        con.send(body)
+
+    try:
+        if body:
+            con.send(body)
+    except EnvironmentError as e:
+        if e.errno != errno.EPIPE:
+            raise
+        log.warning("Error sending body: %s", e)
+
     return response(con)
 
 
 def unix_request(socket, method, uri, body=None, headers=None):
     con = uhttp.UnixHTTPConnection(socket)
-    con.request(method, uri, body=body, headers=headers or {})
+    try:
+        con.request(method, uri, body=body, headers=headers or {})
+    except EnvironmentError as e:
+        if not (e.errno == errno.EPIPE and body):
+            raise
+        log.warning("Error sending request: %s", e)
+
     return response(con)
 
 
