@@ -284,16 +284,7 @@ def test_open_tcp(tmpdir, url_template, export):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_base_allocation_empty(nbd_server, user_file, fmt):
     size = nbd.MAX_LENGTH
-
-    if fmt == "raw":
-        # qemu-img allocates the first block on Fedora, but not on CentOS 8.0.
-        # Allocate manually for consistent results.
-        # TODO: Use qemu-img when we have CentOS 8.1 AV.
-        with io.open(user_file.path, "wb") as f:
-            f.truncate(size)
-    else:
-        subprocess.check_call(
-            ["qemu-img", "create", "-f", "qcow2", user_file.path, str(size)])
+    create_image(user_file.path, fmt, size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = fmt
@@ -332,8 +323,7 @@ def test_base_allocation_empty(nbd_server, user_file, fmt):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_base_allocation_full(nbd_server, user_file, fmt):
     size = 1024**2
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+    create_image(user_file.path, fmt, size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = fmt
@@ -374,8 +364,7 @@ def test_base_allocation_full(nbd_server, user_file, fmt):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_base_allocation_some_data(nbd_server, user_file, fmt):
     size = 1024**3
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+    create_image(user_file.path, fmt, size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = fmt
@@ -404,8 +393,7 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_base_allocation_some_data_unaligned(nbd_server, user_file, fmt):
     size = 1024**2
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+    create_image(user_file.path, fmt, size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = fmt
@@ -455,9 +443,7 @@ def test_base_allocation_many_extents(nbd_server, user_file):
     extents_count = 2000
 
     size = extents_count * extent_length
-
-    with io.open(user_file.path, "wb") as f:
-        f.truncate(size)
+    create_image(user_file.path, "raw", size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = "raw"
@@ -484,9 +470,7 @@ def test_extents_reply_error(nbd_server, user_file):
     request including one or more sectors beyond the size of the device.
     """
     size = 1024**2
-
-    with io.open(user_file.path, "wb") as f:
-        f.truncate(size)
+    create_image(user_file.path, "raw", size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = "raw"
@@ -630,3 +614,15 @@ def test_full_backup_complete_chain(tmpdir, transport):
                 # Every chunk comes from different image.
                 data = c.read(i * chunk_size, chunk_size)
                 assert data.startswith(b"%d\n\0" % i)
+
+
+def create_image(path, fmt, size):
+    if fmt == "raw":
+        # qemu-img allocates the first block on Fedora, but not on CentOS 8.0.
+        # Allocate manually for consistent results.
+        # TODO: Use qemu-img when we have CentOS 8.1 AV.
+        with io.open(path, "wb") as f:
+            f.truncate(size)
+    else:
+        subprocess.check_call(
+            ["qemu-img", "create", "-f", "qcow2", path, str(size)])
