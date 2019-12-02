@@ -72,24 +72,87 @@ def upload(args):
 def download(args):
     with nbd.open(urlparse(args.nbd_url)) as src, \
             io.open(args.filename, "wb") as dst:
+
         with ui.ProgressBar(src.export_size) as pb:
+            # NBD has a limit of 32 MiB for request length. We let the user
+            # choose a lower step size for tuning the copy.
             max_step = min(src.maximum_block_size, args.block_size)
-            offset = 0
+
             buf = bytearray(max_step)
 
-            while offset < src.export_size:
-                step = min(src.export_size - offset, max_step)
-                view = memoryview(buf)[:step]
-                src.readinto(offset, view)
-                dst.write(view)
-                offset += step
-                pb.update(step)
+            # Start by truncating the file to the right size. Ignoring EINVAL
+            # allows coping to /dev/null for testing read throughput.
+            try:
+                dst.truncate(src.export_size)
+            except EnvironmentError as e:
+                if e.errno != errno.EINVAL:
+                    raise
 
+            # Iterate over all extents in the image.
+            offset = 0
+            for ext in _extents(src):
+                if ext.zero:
+                    # Seek over zeroes, creating a hole.
+                    offset += ext.length
+                    dst.seek(offset)
+                    pb.update(ext.length)
+                else:
+                    # Copy data from source for data extents. Note that extents
+                    # length is 64 bits, but NBD supports up to 32 MiB per
+                    # request, so we must split the work to multiple calls.
+                    todo = ext.length
+                    while todo:
+                        step = min(todo, max_step)
+                        view = memoryview(buf)[:step]
+
+                        src.readinto(offset, view)
+                        dst.write(view)
+
+                        todo -= step
+                        offset += step
+                        pb.update(step)
+
+            # Finally wait until the data reasch the underlying storage.
+            # Ignoring EINVAL so we can copy to /dev/null for testing read
+            # throughput.
             try:
                 os.fsync(dst.fileno())
             except OSError as e:
                 if e.errno != errno.EINVAL:
                     raise
+
+
+def _extents(src):
+    # Keep the current extents, until we find a new extents with different
+    # zero value.
+    cur = None
+
+    # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
+    # number of extents kept in memory when working on very fragmented images.
+    max_len=1024**3
+
+    # Iterate over entire image length.
+    offset = 0
+    while offset < src.export_size:
+        # Get the extents for the current range.
+        length = min(src.export_size - offset, max_len)
+        res = src.extents(offset, length)
+
+        # Iterate on extents, merging extents with same zero value into
+        # current one.
+        for ext in res["base:allocation"]:
+            offset += ext.length
+            if cur is None:
+                cur = ext
+            elif cur.zero == ext.zero:
+                cur.length += ext.length
+            else:
+                yield cur
+                cur = ext
+
+    # No more extents. Time to yield the current extent. NBD spec and client
+    # ensure that we have at least one extent per image.
+    yield cur
 
 
 def _map(path):
