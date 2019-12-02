@@ -893,8 +893,6 @@ class Client(object):
         """
         Receive either a simple reply or structured reply for cmd.
         """
-        errors = []
-
         while True:
             magic = self._recv_fmt("!I")[0]
 
@@ -919,18 +917,18 @@ class Client(object):
                 # reply is not allowed.
                 cmd.only_structured = True
 
-                if self._recv_reply_chunk(cmd, errors):
+                if self._recv_reply_chunk(cmd):
                     break
 
             else:
                 raise ProtocolError("Unexpected reply magic {:x}"
                                     .format(magic))
 
-        if errors:
+        if cmd.errors:
             # Some chunks failed. We don't have a good way to report
             # partial failures since content chunks may be fragmented, so
             # fail the entire request.
-            raise RequestError("Errors receiving reply: {}".format(errors))
+            raise RequestError("Errors receiving reply: {}".format(cmd.errors))
 
     def _recv_simple_reply(self, cmd):
         """
@@ -952,7 +950,7 @@ class Client(object):
         if cmd.buf:
             self._recv_into(cmd.buf)
 
-    def _recv_reply_chunk(self, cmd, errors):
+    def _recv_reply_chunk(self, cmd):
         """
         Receive a structured reply chunk (magic was already read). Return True
         if this was the last chunk.
@@ -972,7 +970,7 @@ class Client(object):
             self._handle_error_chunk(length, flags)
 
         if type == REPLY_TYPE_ERROR_OFFSET:
-            self._handle_error_offset_chunk(length, errors)
+            self._handle_error_offset_chunk(length, cmd)
         elif type == REPLY_TYPE_NONE:
             self._handle_none_chunk(flags, length)
         elif type == REPLY_TYPE_OFFSET_DATA:
@@ -1081,7 +1079,7 @@ class Client(object):
                 "Unrecoverable error chunk code={} message={!r}"
                 .format(code, message))
 
-    def _handle_error_offset_chunk(self, length, errors):
+    def _handle_error_offset_chunk(self, length, cmd):
         """
         Handle error at offset (partial error). This may not be the last chunk,
         so we collect the error and continue to read the next chunk.
@@ -1094,7 +1092,7 @@ class Client(object):
         """
         code, message = self._recv_error_chunk(length - 8)
         offset = self._recv_fmt("!Q")[0]
-        errors.append((offset, ReplyError(code, message)))
+        cmd.errors.append((offset, ReplyError(code, message)))
 
     def _handle_data_chunk(self, length, cmd):
         """
@@ -1217,6 +1215,9 @@ class Command(object):
         self.length = length
         self.flags = flags
         self.only_structured = False
+        # NBD_REPLY_TYPE_ERROR_OFFSET chunks received when handling structued
+        # reply. Can happen only in Read, Write, and BlockStatus.
+        self.errors = []
 
     def to_bytes(self):
         return self.wire_format.pack(
