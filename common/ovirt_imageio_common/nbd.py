@@ -343,8 +343,13 @@ def _parse_url(url):
     # See https://qemu.weilnetz.de/doc/qemu-doc.html#disk_005fimages_005fnbd
     if ":" in url.netloc:
         host, port = url.netloc.rsplit(":", 1)
-        # Use qemu semantics, removing leading "/".
-        export = url.path.lstrip("/")
+        export = url.path
+        # According to NBD spec (and qemu implementation) the / starting the
+        # path component of the URL is not considered part of the export name.
+        # To create export name with leading /, the path must start with //.
+        # https://github.com/NetworkBlockDevice/nbd/blob/master/doc/uri.md
+        if export.startswith("/"):
+            export = export[1:]
         return TCPAddress(host, int(port)), export
 
     # Next try to documented NBD URL notation. This notiation is more flexible

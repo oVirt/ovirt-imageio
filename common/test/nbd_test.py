@@ -272,6 +272,7 @@ def test_open_unix(tmpdir, url, export):
     (u"nbd://localhost:{port}", u""),
     (u"nbd://localhost:{port}/", u""),
     (u"nbd://localhost:{port}/sda", u"sda"),
+    (u"nbd://localhost:{port}//sda", u"/sda"),
 ])
 def test_open_tcp(tmpdir, url_template, export):
     image = str(tmpdir.join("image"))
