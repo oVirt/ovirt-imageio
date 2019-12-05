@@ -56,74 +56,89 @@ from ovirt_imageio_common import ui
 def upload(args):
     size = os.path.getsize(args.filename)
     with io.open(args.filename, "rb") as src, \
-            nbd.open(urlparse(args.nbd_url)) as dst, \
-            ui.ProgressBar(size) as pb:
+            nbd.open(urlparse(args.nbd_url)) as dst:
         if dst.export_size < size:
             raise Exception("Destination size {} is smaller than source file "
                             "size {}".format(dst.export_size, size))
+        pb = None
+        if not args.silent:
+            pb = ui.ProgressBar(size)
+
         for zero, start, length in _map(args.filename):
             if zero:
                 _zero_range(dst, start, length, pb)
             else:
                 _copy_range(dst, src, start, length, pb, args.block_size)
+
         dst.flush()
+
+        if pb:
+            pb.close()
 
 
 def download(args):
     with nbd.open(urlparse(args.nbd_url)) as src, \
             io.open(args.filename, "wb") as dst:
 
-        with ui.ProgressBar(src.export_size) as pb:
-            # NBD has a limit of 32 MiB for request length. We let the user
-            # choose a lower step size for tuning the copy.
-            max_step = min(src.maximum_block_size, args.block_size)
+        pb = None
+        if not args.silent:
+            pb = ui.ProgressBar(src.export_size)
 
-            buf = bytearray(max_step)
+        # NBD has a limit of 32 MiB for request length. We let the user
+        # choose a lower step size for tuning the copy.
+        max_step = min(src.maximum_block_size, args.block_size)
 
-            # Start by truncating the file to the right size. Ignoring EINVAL
-            # allows coping to /dev/null for testing read throughput.
-            logging.debug("truncate length=%s", src.export_size)
-            try:
-                dst.truncate(src.export_size)
-            except EnvironmentError as e:
-                if e.errno != errno.EINVAL:
-                    raise
+        buf = bytearray(max_step)
 
-            # Iterate over all extents in the image.
-            offset = 0
-            for ext in _extents(src):
-                if ext.zero:
-                    # Seek over zeroes, creating a hole.
-                    logging.debug("zero offset=%s length=%s", offset, ext.length)
-                    offset += ext.length
-                    dst.seek(offset)
+        # Start by truncating the file to the right size. Ignoring EINVAL
+        # allows coping to /dev/null for testing read throughput.
+        logging.debug("truncate length=%s", src.export_size)
+        try:
+            dst.truncate(src.export_size)
+        except EnvironmentError as e:
+            if e.errno != errno.EINVAL:
+                raise
+
+        # Iterate over all extents in the image.
+        offset = 0
+        for ext in _extents(src):
+            if ext.zero:
+                # Seek over zeroes, creating a hole.
+                logging.debug("zero offset=%s length=%s", offset, ext.length)
+                offset += ext.length
+                dst.seek(offset)
+                if pb:
                     pb.update(ext.length)
-                else:
-                    # Copy data from source for data extents. Note that extents
-                    # length is 64 bits, but NBD supports up to 32 MiB per
-                    # request, so we must split the work to multiple calls.
-                    todo = ext.length
-                    while todo:
-                        step = min(todo, max_step)
-                        view = memoryview(buf)[:step]
+            else:
+                # Copy data from source for data extents. Note that extents
+                # length is 64 bits, but NBD supports up to 32 MiB per
+                # request, so we must split the work to multiple calls.
+                todo = ext.length
+                while todo:
+                    step = min(todo, max_step)
+                    view = memoryview(buf)[:step]
 
-                        src.readinto(offset, view)
-                        logging.debug("write offset=%s length=%s", offset, step)
-                        dst.write(view)
+                    src.readinto(offset, view)
+                    logging.debug("write offset=%s length=%s", offset, step)
+                    dst.write(view)
 
-                        todo -= step
-                        offset += step
+                    todo -= step
+                    offset += step
+                    if pb:
                         pb.update(step)
 
-            # Finally wait until the data reasch the underlying storage.
-            # Ignoring EINVAL so we can copy to /dev/null for testing read
-            # throughput.
-            logging.debug("flush")
-            try:
-                os.fsync(dst.fileno())
-            except OSError as e:
-                if e.errno != errno.EINVAL:
-                    raise
+        # Finally wait until the data reasch the underlying storage.
+        # Ignoring EINVAL so we can copy to /dev/null for testing read
+        # throughput.
+        logging.debug("flush")
+        try:
+            os.fsync(dst.fileno())
+        except OSError as e:
+            if e.errno != errno.EINVAL:
+                raise
+
+        if pb:
+            pb.close()
 
 
 def _extents(src):
@@ -179,7 +194,8 @@ def _zero_range(dst, start, length, pb):
         dst.zero(start, step)
         start += step
         length -= step
-        pb.update(step)
+        if pb:
+            pb.update(step)
 
 
 def _copy_range(dst, src, start, length, pb, block_size):
@@ -195,7 +211,8 @@ def _copy_range(dst, src, start, length, pb, block_size):
         dst.write(start, chunk)
         start += n
         length -= n
-        pb.update(n)
+        if pb:
+            pb.update(n)
 
 
 def kib(s):
@@ -214,6 +231,10 @@ parser.add_argument(
     "-v", "--verbose",
     action="store_true",
     help="Be more verbose")
+parser.add_argument(
+    "-s", "--silent",
+    action="store_true",
+    help="Disable progress")
 
 commands = parser.add_subparsers(title="commands")
 
