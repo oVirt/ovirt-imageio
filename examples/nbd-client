@@ -141,6 +141,53 @@ def download(args):
             pb.close()
 
 
+def copy(args):
+    with nbd.open(urlparse(args.src_url)) as src, \
+            nbd.open(urlparse(args.dst_url)) as dst:
+
+        # Note: no logging here, since nbd.Client logs are enough for both src
+        # and dst.
+
+        pb = None
+        if not args.silent:
+            pb = ui.ProgressBar(src.export_size)
+
+        # Compute the maximum step for write based on both destination and
+        # source NBD servers.
+        max_step = min(src.maximum_block_size, dst.maximum_block_size)
+        max_step = min(max_step, args.block_size)
+        buf = bytearray(max_step)
+
+        offset = 0
+        for ext in _extents(src):
+            if ext.zero:
+                # TODO: Fallback in case destination server does not
+                # support zero (unlikely).
+                _zero_range(dst, offset, ext.length, pb)
+                offset += ext.length
+            else:
+                # Read extent from source and write to destination,
+                # considering maximum read and write size limits.
+                todo = ext.length
+                while todo:
+                    step = min(todo, max_step)
+                    view = memoryview(buf)[:step]
+
+                    src.readinto(offset, view)
+                    dst.write(offset, view)
+
+                    todo -= step
+                    offset += step
+                    if pb:
+                        pb.update(step)
+
+        # Finally wait until the data reasch the underlying storage.
+        dst.flush()
+
+        if pb:
+            pb.close()
+
+
 def _extents(src):
     # Keep the current extents, until we find a new extents with different
     # zero value.
@@ -259,6 +306,17 @@ download_parser.add_argument(
 download_parser.add_argument(
     "filename",
     help="filename to write")
+
+copy_parser = commands.add_parser(
+    "copy",
+    help="copy image from nbd server to another")
+copy_parser.set_defaults(command=copy)
+copy_parser.add_argument(
+    "src_url",
+    help="source server NBD URL")
+copy_parser.add_argument(
+    "dst_url",
+    help="destination server NBD URL")
 
 args = parser.parse_args()
 
