@@ -46,11 +46,21 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 
+from collections import namedtuple
+
+from six import reraise
 from six.moves.urllib.parse import urlparse
+from six.moves import queue
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import ui
+
+# NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
+# qemu-nbd limit seems to be 2**31 - 512. Large zeros can delay more important
+# I/O so we like to zero is smaller steps.
+MAX_ZERO = 1024**3
 
 
 def upload(args):
@@ -145,47 +155,109 @@ def copy(args):
     with nbd.open(urlparse(args.src_url)) as src, \
             nbd.open(urlparse(args.dst_url)) as dst:
 
-        # Note: no logging here, since nbd.Client logs are enough for both src
-        # and dst.
-
         pb = None
         if not args.silent:
             pb = ui.ProgressBar(src.export_size)
 
-        # Compute the maximum step for write based on both destination and
-        # source NBD servers.
-        max_step = min(src.maximum_block_size, dst.maximum_block_size)
-        max_step = min(max_step, args.block_size)
-        buf = bytearray(max_step)
+        # Compute the buffer size considering both destination and source NBD
+        # servers and user selected block size.
+        buf_size = min(src.maximum_block_size, dst.maximum_block_size)
+        buf_size = min(buf_size, args.block_size)
 
-        offset = 0
-        for ext in _extents(src):
-            if ext.zero:
-                # TODO: Fallback in case destination server does not
-                # support zero (unlikely).
-                _zero_range(dst, offset, ext.length, pb)
-                offset += ext.length
-            else:
-                # Read extent from source and write to destination,
-                # considering maximum read and write size limits.
-                todo = ext.length
-                while todo:
-                    step = min(todo, max_step)
-                    view = memoryview(buf)[:step]
+        # Leave extra room for None buffer signaling that the writer failed.
+        buffers = queue.Queue(args.queue_depth + 1)
 
-                    src.readinto(offset, view)
-                    dst.write(offset, view)
+        # Allocate buffers for write requests.
+        for _ in range(args.queue_depth):
+            buffers.put(bytearray(buf_size))
 
-                    todo -= step
-                    offset += step
-                    if pb:
-                        pb.update(step)
+        # Keep room for queue_depth write requests (have buffer) and
+        # queue_depth zero requests (have no buffer).
+        requests = queue.Queue(args.queue_depth * 2)
 
-        # Finally wait until the data reasch the underlying storage.
-        dst.flush()
+        error = [None]
+        writer = threading.Thread(
+            target=_write,
+            args=(dst, requests, buffers, error, pb),
+            name="writer")
+        writer.daemon = True
+
+        logging.debug("starting writer thread")
+        writer.start()
+
+        # Read src and submit requests to queue.
+        _read(src, requests, buffers, error)
+
+        logging.debug("waiting for writer thread")
+        writer.join()
+
+        if error[0]:
+            reraise(*error[0])
 
         if pb:
             pb.close()
+
+
+Request = namedtuple("Request", "offset,length,buf")
+
+
+def _read(src, requests, buffers, error):
+    logging.debug("reader started")
+
+    offset = 0
+    for ext in _extents(src):
+        if error[0]:
+            logging.debug("reader stopped")
+            return
+
+        if ext.zero:
+            requests.put(Request(offset, ext.length, None))
+            offset += ext.length
+        else:
+            todo = ext.length
+            while todo:
+                buf = buffers.get()
+                if error[0]:
+                    logging.debug("reader stopped")
+                    return
+
+                step = min(todo, len(buf))
+                view = memoryview(buf)[:step]
+                src.readinto(offset, view)
+                requests.put(Request(offset, step, buf))
+                todo -= step
+                offset += step
+
+    requests.put(None)
+    logging.debug("reader finished")
+
+
+def _write(dst, requests, buffers, error, pb):
+    try:
+        logging.debug("writer started")
+
+        while True:
+            req = requests.get()
+            if req is None:
+                logging.debug("writer stopped")
+                break
+
+            if req.buf is None:
+                _zero_range(dst, req.offset, req.length, pb)
+            else:
+                view = memoryview(req.buf)[:req.length]
+                dst.write(req.offset, view)
+                buffers.put(req.buf)
+                if pb:
+                    pb.update(req.length)
+
+        dst.flush()
+
+        logging.debug("writer finished")
+    except Exception:
+        logging.debug("writer failed")
+        error[0] = sys.exc_info()
+        buffers.put(None)
 
 
 def _extents(src):
@@ -237,7 +309,7 @@ def _map(path):
 
 def _zero_range(dst, start, length, pb):
     while length:
-        step = min(dst.maximum_block_size, length)
+        step = min(length, MAX_ZERO)
         dst.zero(start, step)
         start += step
         length -= step
@@ -282,6 +354,11 @@ parser.add_argument(
     "-s", "--silent",
     action="store_true",
     help="Disable progress")
+parser.add_argument(
+    "-q", "--queue-depth",
+    type=int,
+    default=4,
+    help="Number of inflight I/O requests (default 4)")
 
 commands = parser.add_subparsers(title="commands")
 
@@ -322,6 +399,6 @@ args = parser.parse_args()
 
 logging.basicConfig(
     level=logging.DEBUG if args.verbose else logging.WARNING,
-    format="nbd-client: %(levelname)-7s %(message)s")
+    format="nbd-client: %(levelname)-7s [%(threadName)s] %(message)s")
 
 args.command(args)
