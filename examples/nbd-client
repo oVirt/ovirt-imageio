@@ -55,6 +55,7 @@ from six.moves.urllib.parse import urlparse
 from six.moves import queue
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common import ui
 
 # NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
@@ -111,7 +112,7 @@ def download(args):
 
         # Iterate over all extents in the image.
         offset = 0
-        for ext in _extents(src):
+        for ext in nbdutil.extents(src):
             if ext.zero:
                 # Seek over zeroes, creating a hole.
                 logging.debug("zero offset=%s length=%s", offset, ext.length)
@@ -205,7 +206,7 @@ def _read(src, requests, buffers, error):
     logging.debug("reader started")
 
     offset = 0
-    for ext in _extents(src):
+    for ext in nbdutil.extents(src):
         if error[0]:
             logging.debug("reader stopped")
             return
@@ -258,39 +259,6 @@ def _write(dst, requests, buffers, error, pb):
         logging.debug("writer failed")
         error[0] = sys.exc_info()
         buffers.put(None)
-
-
-def _extents(src):
-    # Keep the current extents, until we find a new extents with different
-    # zero value.
-    cur = None
-
-    # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
-    # number of extents kept in memory when working on very fragmented images.
-    max_len=1024**3
-
-    # Iterate over entire image length.
-    offset = 0
-    while offset < src.export_size:
-        # Get the extents for the current range.
-        length = min(src.export_size - offset, max_len)
-        res = src.extents(offset, length)
-
-        # Iterate on extents, merging extents with same zero value into
-        # current one.
-        for ext in res["base:allocation"]:
-            offset += ext.length
-            if cur is None:
-                cur = ext
-            elif cur.zero == ext.zero:
-                cur.length += ext.length
-            else:
-                yield cur
-                cur = ext
-
-    # No more extents. Time to yield the current extent. NBD spec and client
-    # ensure that we have at least one extent per image.
-    yield cur
 
 
 def _map(path):

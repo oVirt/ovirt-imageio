@@ -19,6 +19,7 @@ import pytest
 import userstorage
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common.compat import subprocess
 
 from . import qemu_nbd
@@ -380,7 +381,7 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt):
         c.write(0, b"x" * data_length)
         c.write(size // 2, b"x" * data_length)
 
-        extents = all_extents(c, 0, size, "base:allocation")
+        extents = list(nbdutil.extents(c))
 
     assert extents == [
         nbd.Extent(length=data_length, zero=False),
@@ -407,8 +408,7 @@ def test_base_allocation_some_data_unaligned(nbd_server, user_file, fmt):
         c.write(data_offset, b"x" * data_length)
 
         # Unaligned part from first extent and last extent.
-        extents = all_extents(
-            c, data_offset - 1, data_length + 2, "base:allocation")
+        extents = list(nbdutil.extents(c, data_offset - 1, data_length + 2))
         assert extents == [
             nbd.Extent(length=1, zero=True),
             nbd.Extent(length=data_length, zero=False),
@@ -416,15 +416,13 @@ def test_base_allocation_some_data_unaligned(nbd_server, user_file, fmt):
         ]
 
         # Unaligned part from second extent.
-        extents = all_extents(
-            c, data_offset + 1, data_length - 2, "base:allocation")
+        extents = list(nbdutil.extents(c, data_offset + 1, data_length - 2))
         assert extents == [
             nbd.Extent(length=data_length - 2, zero=False),
         ]
 
         # Unaligned part from second and last extents.
-        extents = all_extents(
-            c, data_offset + 1, data_length, "base:allocation")
+        extents = list(nbdutil.extents(c, data_offset + 1, data_length))
         assert extents == [
             nbd.Extent(length=data_length - 1, zero=False),
             nbd.Extent(length=1, zero=True),
@@ -455,7 +453,7 @@ def test_base_allocation_many_extents(nbd_server, user_file):
         for i in range(0, size, extent_length * 2):
             c.write(i, data)
 
-        extents = all_extents(c, 0, size, "base:allocation")
+        extents = list(nbdutil.extents(c))
 
     assert len(extents) == extents_count
 
@@ -485,34 +483,6 @@ def test_extents_reply_error(nbd_server, user_file):
 
         # The next request should succeed.
         assert c.read(4096, 1) == b"\0"
-
-
-def all_extents(client, offset, length, meta_ctx):
-    """
-    Return all extents for meta_ctx in given range, handling partial response
-    from server and merging consecutive extents with same type.
-
-    TODO: This functionality seems to be needed for every test and for the nbd
-    backend. Integrate into nbd.Client.extents()?
-    """
-    # The server is allowed to return only one extent (CentOS 8) or all
-    # extents (Fedora). We may need to call extents() multiple times.
-    extents = []
-    pos = 0
-
-    while pos < length:
-        res = client.extents(offset + pos, length - pos)
-        for ext in res[meta_ctx]:
-            pos += ext.length
-            # The server can return consecutive extents of same type; merge
-            # them so we can have simpler assertions at the end of the
-            # test.
-            if extents and extents[-1].zero == ext.zero:
-                extents[-1].length += ext.length
-            else:
-                extents.append(ext)
-
-    return extents
 
 
 # Communicate with qemu builtin NBD server
