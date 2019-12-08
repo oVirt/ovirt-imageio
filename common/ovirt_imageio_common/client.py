@@ -52,6 +52,23 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
             updating upload progress. The function will be called after every
             write or zero operation with the number bytes transferred.
     """
+    transfer = _create_transfer(
+        url, cafile, buffer_size=buffer_size, secure=secure, progress=progress)
+    try:
+        # If the server supports "zero", we can upload sparse files more
+        # efficiently.
+        with io.open(filename, "rb") as src:
+            transfer["file"] = src
+            if transfer["can_zero"]:
+                _upload_sparse(transfer)
+            else:
+                _upload(transfer)
+    finally:
+        transfer["con"].close()
+
+
+def _create_transfer(
+        url, cafile, buffer_size=128 * 1024, secure=True, progress=None):
     url = urlparse(url)
 
     context = ssl.create_default_context(
@@ -79,17 +96,11 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
                 transfer["con"].is_local()):
             transfer["con"].close()
             transfer["con"] = UnixHTTPConnection(server_options["unix_socket"])
-
-        # Upload the data. If the server supports "zero", we can upload
-        # sparse files more efficiently.
-        with io.open(filename, "rb") as src:
-            transfer["file"] = src
-            if transfer["can_zero"]:
-                _upload_sparse(transfer)
-            else:
-                _upload(transfer)
-    finally:
+    except:  # NOQA: E722 (bare 'except')
         transfer["con"].close()
+        raise
+
+    return transfer
 
 
 class HTTPSConnection(http_client.HTTPSConnection):
