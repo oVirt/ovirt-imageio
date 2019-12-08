@@ -23,6 +23,7 @@ from ovirt_imageio_common import util
 from ovirt_imageio_common import version
 
 from . import config
+from . import extents
 from . import images
 from . import pki
 from . import profile
@@ -148,6 +149,7 @@ class RemoteService(Service):
             config.images.port = self.port
         self._secure_server()
         self._server.app = http.Router([
+            (r"/images/(.*)/extents", extents.Handler(config)),
             (r"/images/(.*)", images.Handler(config)),
         ])
         log.debug("%s listening on port %d", self.name, self.port)
@@ -182,6 +184,7 @@ class LocalService(Service):
         if config.images.socket == "":
             config.images.socket = self.address
         self._server.app = http.Router([
+            (r"/images/(.*)/extents", extents.Handler(config)),
             (r"/images/(.*)", images.Handler(config)),
         ])
         log.debug("%s listening on %r", self.name, self.address)

@@ -85,6 +85,11 @@ def raw_request(method, uri, body=None, headers=None):
     return response(con)
 
 
+def local(method, uri, body=None, headers=None):
+    return unix_request(
+        config.images.socket, method, uri, body=body, headers=headers)
+
+
 def unix_request(socket, method, uri, body=None, headers=None):
     con = uhttp.UnixHTTPConnection(socket)
     try:
