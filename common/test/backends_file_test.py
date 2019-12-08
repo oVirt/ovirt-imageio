@@ -21,6 +21,7 @@ import userstorage
 
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
+from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.compat import subprocess
 
 from . import storage
@@ -612,3 +613,15 @@ def test_size(user_file):
         f.seek(size)
         f.zero(user_file.sector_size)
         assert f.size() == size + user_file.sector_size
+
+
+def test_extents(user_file):
+    size = user_file.sector_size * 2
+
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size)
+
+    with file.open(user_file.url, "r+", sparse=True) as f:
+        # We support detecting extents now; empty file reports one data
+        # extents.
+        assert list(f.extents()) == [image.Extent(0, size, False)]

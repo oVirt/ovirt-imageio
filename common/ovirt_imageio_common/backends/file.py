@@ -19,6 +19,8 @@ from .. import compat
 from .. import ioutil
 from .. import util
 
+from . import image
+
 # Default buffer size for a file backend.
 BUFFER_SIZE = 1024**2
 
@@ -142,6 +144,10 @@ class Backend(object):
     @property
     def block_size(self):
         return self._block_size
+
+    def extents(self):
+        # TODO: For file backend, use qemu-img map to get extents.
+        yield image.Extent(0, self.size(), False)
 
     # Debugging interface
 

@@ -12,6 +12,7 @@ import io
 from six.moves.urllib_parse import urlparse
 import pytest
 
+from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import memory
 
 
@@ -188,3 +189,8 @@ def test_size():
     m.seek(3)
     assert m.size() == 5
     assert m.tell() == 3
+
+
+def test_extents():
+    m = memory.Backend("r+", b"data")
+    assert list(m.extents()) == [image.Extent(0, 4, False)]

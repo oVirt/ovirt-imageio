@@ -12,6 +12,8 @@ import io
 import logging
 import os
 
+from . import image
+
 log = logging.getLogger("backends.memory")
 
 
@@ -97,6 +99,11 @@ class Backend(object):
     @property
     def block_size(self):
         return 1
+
+    def extents(self):
+        # TODO: We can detect zeroes in underlying buffer and return more
+        # interesting results.
+        yield image.Extent(0, self.size(), False)
 
     # Debugging interface
 

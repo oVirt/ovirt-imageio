@@ -12,6 +12,9 @@ import logging
 import os
 
 from .. import nbd
+from .. import nbdutil
+
+from . import image
 
 log = logging.getLogger("backends.nbd")
 
@@ -145,6 +148,12 @@ class Backend(object):
             if t is None:
                 raise
             log.exception("Error closing")
+
+    def extents(self):
+        start = 0
+        for ext in nbdutil.extents(self._client):
+            yield image.Extent(start, ext.length, ext.zero)
+            start += ext.length
 
     @property
     def block_size(self):

@@ -12,10 +12,30 @@ import io
 from contextlib import closing
 
 import pytest
+import userstorage
 
 from ovirt_imageio_common import util
+from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import nbd
 from ovirt_imageio_common.compat import subprocess
+
+from . import storage
+
+BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+
+
+@pytest.fixture(
+    params=[
+        BACKENDS["file-512-ext4"],
+        BACKENDS["file-512-xfs"],
+        BACKENDS["file-4k-ext4"],
+        BACKENDS["file-4k-xfs"],
+    ],
+    ids=str
+)
+def user_file(request):
+    with storage.Backend(request.param) as backend:
+        yield backend
 
 
 def test_debugging_interface(nbd_server):
@@ -275,3 +295,32 @@ def test_size(nbd_server, fmt):
     nbd_server.start()
     with nbd.open(nbd_server.url, "r") as b:
         assert b.size() == 150 * 1024**2
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_extents(nbd_server, user_file, fmt):
+    size = 6 * 1024**3
+    subprocess.check_call(
+        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+") as b:
+        # qcow2 extents resolution is cluster size.
+        data = b"x" * 64 * 1024
+        b.write(data)
+
+        # The second extent length is bigger than NBD maximum length, testing
+        # that our extent length is not limited by NBD limits. The backend
+        # sends multiple block status commands and merge the returned extents.
+        b.seek(5 * 1024**3)
+        b.write(data)
+
+        assert list(b.extents()) == [
+            image.Extent(0, len(data), False),
+            image.Extent(len(data), 5 * 1024**3 - len(data), True),
+            image.Extent(5 * 1024**3, len(data), False),
+            image.Extent(5 * 1024**3 + len(data), 1024**3 - len(data), True),
+        ]
