@@ -135,7 +135,7 @@ def test_images_zero(service, tmpdir):
 def test_options(service):
     res = http.unix_request(service.address, "OPTIONS", "/images/*")
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"zero", "flush"}
+    features = {"zero", "flush", "extents"}
     assert res.status == http_client.OK
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())

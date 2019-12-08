@@ -199,7 +199,7 @@ class Handler(object):
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
-            features = ["zero", "flush"]
+            features = ["extents", "zero", "flush"]
         else:
             # Reporting real image capabilities per ticket.
             try:
@@ -211,12 +211,12 @@ class Handler(object):
             ticket.touch()
 
             allow = ["OPTIONS"]
-            features = []
+            features = ["extents"]
             if ticket.may("read"):
                 allow.append("GET")
             if ticket.may("write"):
                 allow.extend(("PUT", "PATCH"))
-                features = ["zero", "flush"]
+                features.extend(("zero", "flush"))
 
         resp.headers["allow"] = ",".join(allow)
         msg = {"features": features, "unix_socket": self.config.images.socket}

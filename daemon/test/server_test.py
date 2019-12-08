@@ -1012,7 +1012,7 @@ def test_images_flush_ticket_readonly(tmpdir):
 def test_images_options_all():
     res = http.options("/images/*")
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"zero", "flush"}
+    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
@@ -1025,7 +1025,7 @@ def test_images_options_read_write():
     auth.add(ticket)
     res = http.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"zero", "flush"}
+    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
@@ -1036,7 +1036,7 @@ def test_images_options_read():
     auth.add(ticket)
     res = http.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET"}
-    features = set()
+    features = {"extents"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
@@ -1048,7 +1048,7 @@ def test_images_options_write():
     res = http.options("/images/" + ticket["uuid"])
     # Having "write" imply also "read".
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"zero", "flush"}
+    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     assert set(json.loads(res.read())["features"]) == features
