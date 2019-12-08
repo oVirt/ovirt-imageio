@@ -24,6 +24,7 @@ import six
 from six.moves import http_client
 from six.moves.urllib.parse import urlparse
 
+from . backends import image
 from . compat import subprocess
 
 # Higher values are more efficient, sending less requests, but may cause large
@@ -44,8 +45,8 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
             https://host:port/images/ticket-uuid
         cafile (str): Certificate file name, for example "ca.pem"
         buffer_size (int): Buffer size in bytes for reading from storage and
-            sending data over HTTP connection. The efault value of 128 kB seems
-            to give good performance in our tests, you may like to tweak it.
+            sending data over HTTP connection. The default value of 128 kB
+            seems to give good performance, but you may like to tweak it.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
         progress (ui.ProgressBar): an object implementing update(int).
@@ -67,6 +68,39 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
                 _upload_sparse(transfer)
             else:
                 _upload(transfer)
+    finally:
+        transfer["con"].close()
+
+
+def download(url, filename, cafile, buffer_size=128 * 1024, secure=True,
+             progress=None):
+    """
+    Download url to filename.
+
+    Args:
+        url (str): Transfer url in this format:
+            https://host:port/images/ticket-uuid
+        filename (str): Where to store downloaded data.
+        cafile (str): Certificate file name, for example "ca.pem"
+        buffer_size (int): Buffer size in bytes for reading from storage and
+            sending data over HTTP connection. The default value of 128 kB
+            seems to give good performance, but you may like to tweak it.
+        secure (bool): True for verifying server certificate and hostname.
+            Default is True.
+        progress (ui.ProgressBar): an object implementing update(int).
+            progress.update() will be called after every write or zero
+            operation with the number bytes transferred.
+    """
+    transfer = _create_transfer(
+        url, cafile, buffer_size=buffer_size, secure=secure, progress=progress)
+    try:
+        with io.open(filename, "wb") as dst:
+            transfer["file"] = dst
+
+            if transfer["can_extents"]:
+                _download_extents(transfer)
+            else:
+                _get(transfer)
     finally:
         transfer["con"].close()
 
@@ -102,6 +136,8 @@ def _create_transfer(
     try:
         # Check the server capabilities for this image.
         server_options = _options(transfer)
+
+        transfer["can_extents"] = "extents" in server_options["features"]
         transfer["can_zero"] = "zero" in server_options["features"]
         transfer["can_flush"] = "flush" in server_options["features"]
 
@@ -210,6 +246,90 @@ def _upload(transfer):
     # If flush option is supported flush once after sending all the data.
     if transfer["can_flush"]:
         _flush(transfer)
+
+
+def _download_extents(transfer):
+    size = 0
+    for extent in _extents(transfer):
+        size += extent.length
+        if extent.zero:
+            transfer["progress"].update(extent.length)
+        else:
+            transfer["file"].seek(extent.start)
+            _get(transfer, extent)
+
+    transfer["file"].truncate(size)
+
+
+def _extents(transfer):
+    """
+    Get image extents, return iterator over received extents.
+    """
+    # Send the request.
+    transfer["con"].request("GET", transfer["path"] + "/extents")
+
+    # Get the response and validate the status.
+    res = transfer["con"].getresponse()
+    if res.status != http_client.OK:
+        error = res.read(512)
+        raise RuntimeError(
+            "Failed to get image extents: {}".format(error))
+
+    data = res.read()
+    extents = json.loads(data.decode("utf-8"))
+
+    # Enable progress if needed.
+    if transfer["progress"] and not transfer["progress"].size:
+        transfer["progress"].size = sum(e["length"] for e in extents)
+
+    for ext in extents:
+        yield image.Extent(ext["start"], ext["length"], ext["zero"])
+
+
+def _get(transfer, extent=None):
+    """
+    Get an extent or entire image.
+    """
+    headers = {}
+    if extent:
+        end = extent.start + extent.length - 1
+        headers["range"] = "bytes={}-{}".format(extent.start, end)
+
+    transfer["con"].request("GET", transfer["path"], headers=headers)
+
+    # Get the response and validate the status.
+    res = transfer["con"].getresponse()
+    if res.status not in (http_client.PARTIAL_CONTENT, http_client.OK):
+        error = res.read(512)
+        raise RuntimeError(
+            "Failed to get extent={}: {}".format(extent, error))
+
+    content_length = int(res.getheader("content-length"))
+
+    if extent:
+        # When geting an extent we must get the requested length.
+        if content_length != extent.length:
+            raise RuntimeError(
+                "Got unexpected coontent_length={} extent={}"
+                .format(content_length, extent))
+    else:
+        # Enable progress if needed.
+        if transfer["progress"] and not transfer["progress"].size:
+            transfer["progress"].size = content_length
+
+    pos = 0
+    while pos < content_length:
+        n = min(content_length - pos, transfer["buffer_size"])
+        chunk = res.read(n)
+        if not chunk:
+            raise RuntimeError(
+                "Unexpected end of file, got {} of {} bytes"
+                .format(pos, content_length))
+
+        transfer["file"].write(chunk)
+        if transfer["progress"]:
+            transfer["progress"].update(len(chunk))
+        pos += len(chunk)
 
 
 def _put(transfer, start, length):
