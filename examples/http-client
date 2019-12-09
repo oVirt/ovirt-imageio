@@ -8,7 +8,7 @@
 # (at your option) any later version.
 
 """
-upload - example upload script
+http-client - upload and download images to ovirt-imageio
 
 How to use:
 
@@ -36,7 +36,11 @@ How to use:
 
 4. Upload an image:
 
-    ./upload --insecure /path/to/image https://host:54322/images/test
+    ./http-client upload --insecure /path/to/image https://host:54322/images/test
+
+5. Download an image:
+
+    ./http-client download --insecure https://host:54322/images/test /path/to/image
 
 """
 
@@ -47,15 +51,31 @@ import sys
 from ovirt_imageio_common import client
 from ovirt_imageio_common import ui
 
-parser = argparse.ArgumentParser(description="Upload images")
 
-parser.add_argument(
-    "filename",
-    help="path to image (e.g. /path/to/image.qcow2)")
+def upload(args):
+    image_size = os.path.getsize(args.filename)
+    with ui.ProgressBar(image_size) as pb:
+        client.upload(
+            args.filename,
+            args.url,
+            args.cafile,
+            buffer_size=args.buffer_size,
+            secure=args.secure,
+            progress=pb)
 
-parser.add_argument(
-    "url",
-    help="transfer URL (e.g. https://host:port/images/uuid)")
+
+def download(args):
+    with ui.ProgressBar() as pb:
+        client.download(
+            args.url,
+            args.filename,
+            args.cafile,
+            buffer_size=args.buffer_size,
+            secure=args.secure,
+            progress=pb)
+
+
+parser = argparse.ArgumentParser(description="HTTP client")
 
 # Note: unix socket works only when running this tool on the same host serving
 # the image.
@@ -78,15 +98,30 @@ parser.add_argument(
     help=("buffer size in kB for upload. The default (128 kB) provides best "
           "results in our tests, but you may like to tune this."))
 
+commands = parser.add_subparsers(title="commands")
+
+upload_parser = commands.add_parser(
+    "upload",
+    help="upload image")
+upload_parser.set_defaults(command=upload)
+upload_parser.add_argument(
+    "filename",
+    help="path to image")
+upload_parser.add_argument(
+    "url",
+    help="transfer URL")
+
+download_parser = commands.add_parser(
+    "download",
+    help="download image")
+download_parser.set_defaults(command=download)
+download_parser.add_argument(
+    "url",
+    help="transfer URL")
+download_parser.add_argument(
+    "filename",
+    help="path to image")
+
 args = parser.parse_args()
 
-image_size = os.path.getsize(args.filename)
-
-with ui.ProgressBar(image_size) as pb:
-    client.upload(
-        args.filename,
-        args.url,
-        args.cafile,
-        buffer_size=args.buffer_size,
-        secure=args.secure,
-        progress=pb)
+args.command(args)
