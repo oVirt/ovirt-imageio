@@ -48,9 +48,9 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
             to give good performance in our tests, you may like to tweak it.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
-        progress (function): Function accepting one integer argument for
-            updating upload progress. The function will be called after every
-            write or zero operation with the number bytes transferred.
+        progress (ui.ProgressBar): an object implementing update(int).
+            progress.update() will be called after every write or zero
+            operation with the number bytes transferred.
     """
     transfer = _create_transfer(
         url, cafile, buffer_size=buffer_size, secure=secure, progress=progress)
@@ -236,7 +236,7 @@ def _put(transfer, start, length):
         pos += len(chunk)
 
         if transfer["progress"]:
-            transfer["progress"](len(chunk))
+            transfer["progress"].update(len(chunk))
 
     res = transfer["con"].getresponse()
     error = res.read()
@@ -263,7 +263,7 @@ def _zero(transfer, start, length):
         length -= step
 
         if transfer["progress"]:
-            transfer["progress"](step)
+            transfer["progress"].update(step)
 
 
 def _flush(transfer):

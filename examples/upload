@@ -89,4 +89,4 @@ with ui.ProgressBar(image_size) as pb:
         args.cafile,
         buffer_size=args.buffer_size,
         secure=args.secure,
-        progress=pb.update)
+        progress=pb)

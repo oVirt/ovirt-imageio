@@ -59,6 +59,16 @@ def prepare_upload(dst, sparse=True, size=IMAGE_SIZE):
         server.remote_service.port, ticket["uuid"])
 
 
+class FakeProgress:
+
+    def __init__(self, size=0):
+        self.size = size
+        self.updates = []
+
+    def update(self, n):
+        self.updates.append(n)
+
+
 # TODO:
 # - All tests use secure=False to workaround our bad certificates. Once we fix
 #   the certificates we need to test with the default secure=True.
@@ -187,11 +197,11 @@ def test_progress(tmpdir):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(dst, sparse=True)
 
-    progress = []
+    progress = FakeProgress(IMAGE_SIZE)
     client.upload(src, url, pki.cert_file(config), secure=False,
-                  progress=progress.append)
+                  progress=progress)
 
-    assert progress == [
+    assert progress.updates == [
         # First write.
         4096,
         # First zero.
@@ -213,11 +223,11 @@ def test_split_big_zero(tmpdir):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(dst, size=size, sparse=True)
 
-    progress = []
+    progress = FakeProgress(IMAGE_SIZE)
     client.upload(src, url, pki.cert_file(config), secure=False,
-                  progress=progress.append)
+                  progress=progress)
 
-    assert progress == [
+    assert progress.updates == [
         client.MAX_ZERO_SIZE,
         client.MAX_ZERO_SIZE,
         client.MAX_ZERO_SIZE // 2,
