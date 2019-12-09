@@ -54,13 +54,7 @@ class ProgressBar(object):
 
         [1] https://github.com/tqdm/tqdm#manual
         """
-        if self.size and self.done == self.size:
-            return
-
         self.done += n
-        if self.size:
-            self.done = min(self.done, self.size)
-
         now = time.time()
         if now < self.next:
             return
