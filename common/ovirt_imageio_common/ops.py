@@ -180,6 +180,10 @@ class Zero(Operation):
     Zero byte range.
     """
 
+    # Limit zero size so we update self._done frequently enough to provide
+    # progress even with slow storage.
+    MAX_STEP = 1024**3
+
     def __init__(self, dst, size, offset=0, flush=False,
                  buffersize=BUFFERSIZE, clock=util.NullClock()):
         super(Zero, self).__init__(size=size, offset=offset,
@@ -191,10 +195,7 @@ class Zero(Operation):
         self._dst.seek(self._offset)
 
         while self._todo:
-            # Use small steps so we update self._done regularly, and avoid
-            # blocking in kernel for too long time. Zeroing 128 MiB take less
-            # than 1 second on my poor LIO storage.
-            step = min(self._todo, 128 * 1024**2)
+            step = min(self._todo, self.MAX_STEP)
             with self._clock.run("zero"):
                 self._done += self._dst.zero(step)
 
