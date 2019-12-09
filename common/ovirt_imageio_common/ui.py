@@ -17,10 +17,12 @@ GIB = 1024**3
 
 class ProgressBar(object):
 
-    def __init__(self, size, output=sys.stdout, step=0.1, width=79):
+    def __init__(self, size=0, output=sys.stdout, step=0.1, width=79):
         """
         Argumnets:
-            size (int): total number of bytes.
+            size (int): total number of bytes. If size is unknown when
+                creating, progress value is not displayed. The size can be set
+                later to enable progress display.
             output (fileobj): file to write progress to (default sys.stdout).
             step (float): mininum progress update interval in seconds (default
                 0.1 seconds).
@@ -34,6 +36,9 @@ class ProgressBar(object):
         self.start = time.time()
         self.next = 0
         self.done = 0
+
+        # The first update can take some time.
+        self.update(0)
 
     def update(self, n):
         """
@@ -49,12 +54,15 @@ class ProgressBar(object):
 
         [1] https://github.com/tqdm/tqdm#manual
         """
-        if self.done == self.size:
+        if self.size and self.done == self.size:
             return
 
-        self.done = min(self.done + n, self.size)
+        self.done += n
+        if self.size:
+            self.done = min(self.done, self.size)
+
         now = time.time()
-        if self.done < self.size and now < self.next:
+        if now < self.next:
             return
 
         self.next = now + self.step
@@ -69,8 +77,13 @@ class ProgressBar(object):
         elapsed = now - self.start
         done = float(self.done)
 
-        line = "[ %6.2f%% ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
-            done / self.size * 100,
+        if self.size:
+            progress = "%6.2f%%" % (done / self.size * 100)
+        else:
+            progress = "-------"
+
+        line = "[ %s ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
+            progress,
             done / GIB,
             elapsed,
             done / MIB / elapsed,
