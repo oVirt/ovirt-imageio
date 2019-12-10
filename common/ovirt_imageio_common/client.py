@@ -50,8 +50,12 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
             Default is True.
         progress (ui.ProgressBar): an object implementing update(int).
             progress.update() will be called after every write or zero
-            operation with the number bytes transferred.
+            operation with the number bytes transferred. For backward
+            compatibility, we still support passing an update callable.
     """
+    if callable(progress):
+        progress = ProgressWrapper(progress)
+
     transfer = _create_transfer(
         url, cafile, buffer_size=buffer_size, secure=secure, progress=progress)
     try:
@@ -65,6 +69,16 @@ def upload(filename, url, cafile, buffer_size=128 * 1024, secure=True,
                 _upload(transfer)
     finally:
         transfer["con"].close()
+
+
+class ProgressWrapper:
+    """
+    In older versions we supported passing an update() callable instead of an
+    object with update() method. Wrap the callable to make it work with current
+    code.
+    """
+    def __init__(self, update):
+        self.update = update
 
 
 def _create_transfer(

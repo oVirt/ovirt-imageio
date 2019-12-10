@@ -232,3 +232,18 @@ def test_split_big_zero(tmpdir):
         client.MAX_ZERO_SIZE,
         client.MAX_ZERO_SIZE // 2,
     ]
+
+
+def test_progress_callback(tmpdir):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+    url = prepare_upload(dst, size=IMAGE_SIZE, sparse=True)
+
+    progress = []
+    client.upload(src, url, pki.cert_file(config), secure=False,
+                  progress=progress.append)
+
+    assert progress == [IMAGE_SIZE]
