@@ -511,24 +511,17 @@ def test_full_backup_handshake(tmpdir, fmt, transport):
 
 @pytest.mark.parametrize("transport", ["unix", "tcp"])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_full_backup_single_image(tmpdir, fmt, transport):
-    chunk_size = 1024**2
+def test_full_backup_single_image(tmpdir, user_file, fmt, transport):
+    chunk_size = 1024**3
     disk_size = 5 * chunk_size
 
     # Create disk
-    disk = str(tmpdir.join("disk." + fmt))
-    subprocess.check_call([
-        "qemu-img",
-        "create",
-        "-f", fmt,
-        disk,
-        str(disk_size),
-    ])
+    create_image(user_file.path, fmt, disk_size)
 
     # Pupulate disk with data.
-    with qemu_nbd.open(disk, fmt) as d:
-        for i in range(0, disk_size, chunk_size):
-            d.write(i, b"%d\n" % i)
+    with qemu_nbd.open(user_file.path, fmt) as d:
+        for offset in range(0, disk_size, chunk_size):
+            d.write(offset, b"%d\n" % offset)
         d.flush()
 
     if transport == "unix":
@@ -537,12 +530,16 @@ def test_full_backup_single_image(tmpdir, fmt, transport):
         sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
 
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(tmpdir, disk, fmt, sock):
+    with backup.full_backup(tmpdir, user_file.path, fmt, sock):
         with nbd.Client(sock, "sda") as c:
             log.debug("Backing up data with nbd client")
-            for i in range(0, disk_size, chunk_size):
-                data = c.read(i, chunk_size)
-                assert data.startswith(b"%d\n\0" % i)
+            offset = 0
+            for ext in nbdutil.extents(c):
+                if not ext.zero:
+                    expected = b"%d\n" % offset
+                    data = c.read(offset, len(expected))
+                    assert data == expected
+                offset += ext.length
 
 
 @pytest.mark.parametrize("transport", ["unix", "tcp"])
@@ -567,7 +564,8 @@ def test_full_backup_complete_chain(tmpdir, transport):
 
         # This data can be read only from this disk.
         with qemu_nbd.open(disk, "qcow2") as d:
-            d.write(i * chunk_size, b"%d\n" % i)
+            offset = i * chunk_size
+            d.write(offset, b"%d\n" % offset)
             d.flush()
 
     if transport == "unix":
@@ -579,10 +577,13 @@ def test_full_backup_complete_chain(tmpdir, transport):
     with backup.full_backup(tmpdir, disk, "qcow2", sock):
         with nbd.Client(sock, "sda") as c:
             log.debug("Backing up data with nbd client")
-            for i in range(depth):
-                # Every chunk comes from different image.
-                data = c.read(i * chunk_size, chunk_size)
-                assert data.startswith(b"%d\n\0" % i)
+            offset = 0
+            for ext in nbdutil.extents(c):
+                if not ext.zero:
+                    expected = b"%d\n" % offset
+                    data = c.read(offset, len(expected))
+                    assert data == expected
+                offset += ext.length
 
 
 def create_image(path, fmt, size):
