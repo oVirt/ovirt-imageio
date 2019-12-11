@@ -23,7 +23,7 @@ log = logging.getLogger("backup")
 
 
 @contextmanager
-def full_backup(tmpdir, disk, fmt, nbd_sock):
+def full_backup(tmpdir, disk, fmt, nbd_sock, checkpoint=None):
     """
     Start qemu internal nbd server using address nbd_sock, exposing disk for
     full backup, creating temporary files in tmpdir.
@@ -34,19 +34,19 @@ def full_backup(tmpdir, disk, fmt, nbd_sock):
 
     with qemu.run(disk, fmt, qmp_sock, start_cpu=False), \
             qmp.Client(qmp_sock) as c:
-        start_backup(c, nbd_sock, disk, scratch_disk)
+        start_backup(c, nbd_sock, disk, scratch_disk, checkpoint=checkpoint)
         try:
             yield
         finally:
             stop_backup(c)
 
 
-def start_backup(c, nbd_sock, disk, scratch_disk):
+def start_backup(c, nbd_sock, disk, scratch_disk, checkpoint=None):
     log.debug("Starting backup")
     start_nbd_server(c, nbd_sock)
     device = qmp.find_node(c, disk)["device"]
     add_backup_node(c, "backup-sda", scratch_disk, device)
-    start_backup_job(c, "job0", "backup-sda", device)
+    start_backup_job(c, "job0", "backup-sda", device, checkpoint=checkpoint)
     add_to_nbd_server(c, "backup-sda", "sda")
 
 
@@ -108,20 +108,29 @@ def add_backup_node(c, name, scratch_disk, device):
     })
 
 
-def start_backup_job(c, job_id, target, device):
+def start_backup_job(c, job_id, target, device, checkpoint=None):
     log.debug("Starting backup job")
+    actions = []
 
-    actions = [
-        {
-            "type": "blockdev-backup",
+    if checkpoint:
+        actions.append({
+            "type": "block-dirty-bitmap-add",
             "data": {
-                "device": device,
-                "job-id": job_id,
-                "sync": "none",
-                "target": target,
+                "name": checkpoint,
+                "node": device,
+                "persistent": True,
             }
+        })
+
+    actions.append({
+        "type": "blockdev-backup",
+        "data": {
+            "device": device,
+            "job-id": job_id,
+            "sync": "none",
+            "target": target,
         }
-    ]
+    })
 
     c.execute("transaction", {
         "actions": actions
