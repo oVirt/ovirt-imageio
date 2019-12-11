@@ -527,15 +527,7 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(tmpdir, user_file.path, fmt, nbd_sock):
-        with nbd.Client(nbd_sock, "sda") as c:
-            log.debug("Backing up data with nbd client")
-            offset = 0
-            for ext in nbdutil.extents(c):
-                if not ext.zero:
-                    expected = b"%d\n" % offset
-                    data = c.read(offset, len(expected))
-                    assert data == expected
-                offset += ext.length
+        verify_full_backup(nbd_sock, "sda")
 
 
 def test_full_backup_complete_chain(tmpdir, nbd_sock):
@@ -565,15 +557,19 @@ def test_full_backup_complete_chain(tmpdir, nbd_sock):
 
     # Start full backup and copy the data, veifying what we read.
     with backup.full_backup(tmpdir, disk, "qcow2", nbd_sock):
-        with nbd.Client(nbd_sock, "sda") as c:
-            log.debug("Backing up data with nbd client")
-            offset = 0
-            for ext in nbdutil.extents(c):
-                if not ext.zero:
-                    expected = b"%d\n" % offset
-                    data = c.read(offset, len(expected))
-                    assert data == expected
-                offset += ext.length
+        verify_full_backup(nbd_sock, "sda")
+
+
+def verify_full_backup(sock, export_name):
+    with nbd.Client(sock, export_name) as c:
+        log.debug("Backing up data with nbd client")
+        offset = 0
+        for ext in nbdutil.extents(c):
+            if not ext.zero:
+                expected = b"%d\n" % offset
+                data = c.read(offset, len(expected))
+                assert data == expected
+            offset += ext.length
 
 
 def create_image(path, fmt, size):
