@@ -173,15 +173,15 @@ def test_qcow2_write_read(tmpdir):
             assert c.read(offset, len(data)) == data
 
 
-@pytest.mark.parametrize("format", ["raw", "qcow2"])
-def test_zero(tmpdir, format):
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_zero(tmpdir, fmt):
     size = 2 * 1024**2
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    create_image(image, format, size)
+    create_image(image, fmt, size)
 
-    with qemu_nbd.run(image, format, sock):
+    with qemu_nbd.run(image, fmt, sock):
         # Fill image with data
         with nbd.Client(sock) as c:
             c.write(0, b"x" * size)
@@ -196,14 +196,14 @@ def test_zero(tmpdir, format):
             assert c.read(offset, 4096) == b"\0" * 4096
 
 
-@pytest.mark.parametrize("format", ["raw", "qcow2"])
-def test_zero_max_block_size(tmpdir, format):
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_zero_max_block_size(tmpdir, fmt):
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    create_image(image, format, 1024**3)
+    create_image(image, fmt, 1024**3)
 
-    with qemu_nbd.run(image, format, sock):
+    with qemu_nbd.run(image, fmt, sock):
         # Fill range with data
         with nbd.Client(sock) as c:
             size = c.maximum_block_size
@@ -219,14 +219,14 @@ def test_zero_max_block_size(tmpdir, format):
             assert c.read(offset, size) == b"\0" * size
 
 
-@pytest.mark.parametrize("format", ["raw", "qcow2"])
-def test_zero_min_block_size(tmpdir, format):
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_zero_min_block_size(tmpdir, fmt):
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    create_image(image, format, 1024**3)
+    create_image(image, fmt, 1024**3)
 
-    with qemu_nbd.run(image, format, sock):
+    with qemu_nbd.run(image, fmt, sock):
         # Fill range with data
         with nbd.Client(sock) as c:
             size = c.minimum_block_size
