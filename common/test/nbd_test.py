@@ -46,6 +46,14 @@ def user_file(request):
         yield backend
 
 
+@pytest.fixture(params=["unix", "tcp"])
+def nbd_sock(request, tmpdir):
+    if request.param == "unix":
+        return nbd.UnixAddress(tmpdir.join("sock"))
+    else:
+        return nbd.TCPAddress("localhost", testutil.random_tcp_port())
+
+
 # Addresses
 
 @pytest.mark.parametrize("addr,export,url", [
@@ -488,19 +496,13 @@ def test_extents_reply_error(nbd_server, user_file):
 # Communicate with qemu builtin NBD server
 
 
-@pytest.mark.parametrize("transport", ["unix", "tcp"])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_full_backup_handshake(tmpdir, fmt, transport):
+def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
     image = str(tmpdir.join("image"))
     subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
 
-    if transport == "unix":
-        sock = nbd.UnixAddress(tmpdir.join("sock"))
-    else:
-        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
-
-    with backup.full_backup(tmpdir, image, fmt, sock):
-        with nbd.Client(sock, "sda") as c:
+    with backup.full_backup(tmpdir, image, fmt, nbd_sock):
+        with nbd.Client(nbd_sock, "sda") as c:
             # TODO: test transmission_flags?
             assert c.export_size == 1024**3
             assert c.minimum_block_size == 1
@@ -509,9 +511,8 @@ def test_full_backup_handshake(tmpdir, fmt, transport):
             assert c.base_allocation
 
 
-@pytest.mark.parametrize("transport", ["unix", "tcp"])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_full_backup_single_image(tmpdir, user_file, fmt, transport):
+def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     chunk_size = 1024**3
     disk_size = 5 * chunk_size
 
@@ -524,14 +525,9 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, transport):
             d.write(offset, b"%d\n" % offset)
         d.flush()
 
-    if transport == "unix":
-        sock = nbd.UnixAddress(tmpdir.join("sock"))
-    else:
-        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
-
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(tmpdir, user_file.path, fmt, sock):
-        with nbd.Client(sock, "sda") as c:
+    with backup.full_backup(tmpdir, user_file.path, fmt, nbd_sock):
+        with nbd.Client(nbd_sock, "sda") as c:
             log.debug("Backing up data with nbd client")
             offset = 0
             for ext in nbdutil.extents(c):
@@ -542,8 +538,7 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, transport):
                 offset += ext.length
 
 
-@pytest.mark.parametrize("transport", ["unix", "tcp"])
-def test_full_backup_complete_chain(tmpdir, transport):
+def test_full_backup_complete_chain(tmpdir, nbd_sock):
     depth = 3
     chunk_size = 1024**2
     disk_size = depth * chunk_size
@@ -568,14 +563,9 @@ def test_full_backup_complete_chain(tmpdir, transport):
             d.write(offset, b"%d\n" % offset)
             d.flush()
 
-    if transport == "unix":
-        sock = nbd.UnixAddress(tmpdir.join("sock"))
-    else:
-        sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
-
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(tmpdir, disk, "qcow2", sock):
-        with nbd.Client(sock, "sda") as c:
+    with backup.full_backup(tmpdir, disk, "qcow2", nbd_sock):
+        with nbd.Client(nbd_sock, "sda") as c:
             log.debug("Backing up data with nbd client")
             offset = 0
             for ext in nbdutil.extents(c):
