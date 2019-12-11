@@ -89,7 +89,7 @@ def test_tcp_address_invalid(host, port):
 ])
 def test_handshake(tmpdir, export, fmt):
     image = str(tmpdir.join("image"))
-    subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
+    create_image(image, fmt, 1024**3)
     sock = nbd.UnixAddress(tmpdir.join("sock"))
 
     with qemu_nbd.run(image, fmt, sock, export_name=export):
@@ -162,7 +162,7 @@ def test_qcow2_write_read(tmpdir):
     sock = nbd.UnixAddress(tmpdir.join("sock"))
     offset = 1024**2
     data = b"can read and write qcow2"
-    subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
+    create_image(image, "qcow2", 1024**3)
 
     with qemu_nbd.run(image, "qcow2", sock):
         with nbd.Client(sock) as c:
@@ -179,8 +179,7 @@ def test_zero(tmpdir, format):
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", format, image, str(size)])
+    create_image(image, format, size)
 
     with qemu_nbd.run(image, format, sock):
         # Fill image with data
@@ -202,8 +201,7 @@ def test_zero_max_block_size(tmpdir, format):
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", format, image, "1g"])
+    create_image(image, format, 1024**3)
 
     with qemu_nbd.run(image, format, sock):
         # Fill range with data
@@ -226,8 +224,7 @@ def test_zero_min_block_size(tmpdir, format):
     offset = 1024**2
     image = str(tmpdir.join("image"))
     sock = nbd.UnixAddress(tmpdir.join("sock"))
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", format, image, "1g"])
+    create_image(image, format, 1024**3)
 
     with qemu_nbd.run(image, format, sock):
         # Fill range with data
@@ -499,7 +496,7 @@ def test_extents_reply_error(nbd_server, user_file):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
     image = str(tmpdir.join("image"))
-    subprocess.check_call(["qemu-img", "create", "-f", fmt, image, "1g"])
+    create_image(image, fmt, 1024**3)
 
     with backup.full_backup(tmpdir, image, fmt, nbd_sock):
         with nbd.Client(nbd_sock, "sda") as c:
