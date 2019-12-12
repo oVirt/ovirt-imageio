@@ -34,19 +34,20 @@ def full_backup(tmpdir, disk, fmt, nbd_sock, checkpoint=None):
 
     with qemu.run(disk, fmt, qmp_sock, start_cpu=False), \
             qmp.Client(qmp_sock) as c:
-        start_backup(c, nbd_sock, disk, scratch_disk, checkpoint=checkpoint)
+        start_backup(c, nbd_sock, scratch_disk, checkpoint=checkpoint)
         try:
             yield
         finally:
             stop_backup(c)
 
 
-def start_backup(c, nbd_sock, disk, scratch_disk, checkpoint=None):
+def start_backup(c, nbd_sock, scratch_disk, checkpoint=None):
     log.debug("Starting backup")
     start_nbd_server(c, nbd_sock)
-    device = qmp.find_node(c, disk)["device"]
-    add_backup_node(c, "backup-sda", scratch_disk, device)
-    start_backup_job(c, "job0", "backup-sda", device, checkpoint=checkpoint)
+    # Use node name "file0" as a stable reference to our disk. It will not
+    # change when the block graph is modifed during backup.
+    add_backup_node(c, "backup-sda", scratch_disk, "file0")
+    start_backup_job(c, "job0", "backup-sda", "file0", checkpoint=checkpoint)
     add_to_nbd_server(c, "backup-sda", "sda")
 
 
@@ -94,8 +95,8 @@ def start_nbd_server(c, nbd_sock):
     c.execute("nbd-server-start", {"addr": addr})
 
 
-def add_backup_node(c, name, scratch_disk, device):
-    log.debug("Adding backup node for %s", device)
+def add_backup_node(c, name, scratch_disk, node_name):
+    log.debug("Adding backup node for %s", node_name)
 
     c.execute("blockdev-add", {
         "driver": "qcow2",
@@ -104,11 +105,11 @@ def add_backup_node(c, name, scratch_disk, device):
             "driver": "file",
             "filename": scratch_disk,
         },
-        "backing": device,
+        "backing": node_name,
     })
 
 
-def start_backup_job(c, job_id, target, device, checkpoint=None):
+def start_backup_job(c, job_id, target, node_name, checkpoint=None):
     log.debug("Starting backup job")
     actions = []
 
@@ -117,7 +118,7 @@ def start_backup_job(c, job_id, target, device, checkpoint=None):
             "type": "block-dirty-bitmap-add",
             "data": {
                 "name": checkpoint,
-                "node": device,
+                "node": node_name,
                 "persistent": True,
             }
         })
@@ -125,7 +126,7 @@ def start_backup_job(c, job_id, target, device, checkpoint=None):
     actions.append({
         "type": "blockdev-backup",
         "data": {
-            "device": device,
+            "device": node_name,
             "job-id": job_id,
             "sync": "none",
             "target": target,

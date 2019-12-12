@@ -43,9 +43,8 @@ def test_add_bitmap(tmpdir):
 
     with qemu.run(image, "qcow2", qmp_sock, start_cpu=False):
         with qmp.Client(qmp_sock) as c:
-            b = qmp.find_node(c, image)
             c.execute("block-dirty-bitmap-add", {
-                "node": b["device"],
+                "node": "file0",
                 "name": "bitmap0",
             })
             b = qmp.find_node(c, image)
