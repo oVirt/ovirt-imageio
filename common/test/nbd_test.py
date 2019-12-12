@@ -517,7 +517,12 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             distro.is_centos("8.0") and ("OVIRT_CI" in os.environ),
             reason="unaligned write fails on el8/oVirt CI")
     ),
-    "qcow2",
+    pytest.param(
+        "qcow2",
+        marks=pytest.mark.xfail(
+            distro.is_centos("8.0"),
+            reason="Advanced virt stream not available"),
+    ),
 ])
 def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     chunk_size = 1024**3
@@ -532,12 +537,30 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
             d.write(offset, b"%d\n" % offset)
         d.flush()
 
+    checkpoint = "check1" if fmt == "qcow2" else None
+
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(tmpdir, user_file.path, fmt, nbd_sock):
+    with backup.full_backup(
+            tmpdir, user_file.path, fmt, nbd_sock, checkpoint=checkpoint):
         verify_full_backup(nbd_sock, "sda")
 
+    if checkpoint:
+        bitmaps = list_bitmaps(user_file.path)
+        assert len(bitmaps) == 1
+        assert bitmaps[0]["name"] == checkpoint
 
-def test_full_backup_complete_chain(tmpdir, nbd_sock):
+
+@pytest.mark.parametrize("checkpoint", [
+    pytest.param(None, id="no-checkpoint"),
+    pytest.param(
+        "check1",
+        id="with-checkpoint",
+        marks=pytest.mark.xfail(
+            distro.is_centos("8.0"),
+            reason="Advanced virt stream not available"),
+    ),
+])
+def test_full_backup_complete_chain(tmpdir, nbd_sock, checkpoint):
     depth = 3
     chunk_size = 1024**2
     disk_size = depth * chunk_size
@@ -557,8 +580,19 @@ def test_full_backup_complete_chain(tmpdir, nbd_sock):
             d.flush()
 
     # Start full backup and copy the data, veifying what we read.
-    with backup.full_backup(tmpdir, disk, "qcow2", nbd_sock):
+    with backup.full_backup(
+            tmpdir, disk, "qcow2", nbd_sock, checkpoint=checkpoint):
         verify_full_backup(nbd_sock, "sda")
+
+    if checkpoint:
+        bitmaps = list_bitmaps(disk)
+        assert len(bitmaps) == 1
+        assert bitmaps[0]["name"] == checkpoint
+
+
+def list_bitmaps(image):
+    info = qemu_img.info(image)
+    return info["format-specific"]["data"]["bitmaps"]
 
 
 def verify_full_backup(sock, export_name):
