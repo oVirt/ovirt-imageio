@@ -20,10 +20,10 @@ import userstorage
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
-from ovirt_imageio_common.compat import subprocess
 
 from . import backup
 from . import distro
+from . import qemu_img
 from . import qemu_nbd
 from . import storage
 from . import testutil
@@ -544,17 +544,11 @@ def test_full_backup_complete_chain(tmpdir, nbd_sock):
 
     for i in range(depth):
         # Create disk based on previous one.
-        disk = str(tmpdir.join("disk.%d" % i))
-        cmd = ["qemu-img", "create", "-f", "qcow2"]
-
-        if i > 0:
-            cmd.append("-b")
-            cmd.append("disk.%d" % (i - 1))
-
-        cmd.append(disk)
-        cmd.append(str(disk_size))
-
-        subprocess.check_call(cmd)
+        disk = str(tmpdir.join("disk.{}".format(i)))
+        if i == 0:
+            qemu_img.create(disk, "qcow2", size=disk_size)
+        else:
+            qemu_img.create(disk, "qcow2", backing="disk.{}".format(i - 1))
 
         # This data can be read only from this disk.
         with qemu_nbd.open(disk, "qcow2") as d:
@@ -587,5 +581,4 @@ def create_image(path, fmt, size):
         with io.open(path, "wb") as f:
             f.truncate(size)
     else:
-        subprocess.check_call(
-            ["qemu-img", "create", "-f", "qcow2", path, str(size)])
+        qemu_img.create(path, "qcow2", size=size)

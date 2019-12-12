@@ -17,8 +17,8 @@ import userstorage
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import nbd
-from ovirt_imageio_common.compat import subprocess
 
+from . import qemu_img
 from . import storage
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
@@ -289,19 +289,18 @@ def test_dirty(nbd_server):
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_size(nbd_server, fmt):
+    size = 150 * 1024**2
     nbd_server.fmt = fmt
-    subprocess.check_call(["qemu-img", "create", "-f",
-                           fmt, nbd_server.image, "150m"])
+    qemu_img.create(nbd_server.image, fmt, size=size)
     nbd_server.start()
     with nbd.open(nbd_server.url, "r") as b:
-        assert b.size() == 150 * 1024**2
+        assert b.size() == size
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_extents(nbd_server, user_file, fmt):
     size = 6 * 1024**3
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", fmt, user_file.path, str(size)])
+    qemu_img.create(user_file.path, fmt, size=size)
 
     nbd_server.image = user_file.path
     nbd_server.fmt = fmt

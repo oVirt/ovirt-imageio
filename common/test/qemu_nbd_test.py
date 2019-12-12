@@ -15,8 +15,8 @@ from six.moves import urllib_parse
 import pytest
 
 from ovirt_imageio_common import nbd
-from ovirt_imageio_common.compat import subprocess
 
+from . import qemu_img
 from . import qemu_nbd
 from . import testutil
 
@@ -37,14 +37,7 @@ def test_server_url(addr, export, url):
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_open(tmpdir, fmt):
     disk = str(tmpdir.join("disk." + fmt))
-
-    subprocess.check_call([
-        "qemu-img",
-        "create",
-        "-f", fmt,
-        disk,
-        "1m",
-    ])
+    qemu_img.create(disk, fmt, size=1024**2)
 
     offset = 64 * 1024
     data = b"it works"

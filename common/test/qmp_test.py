@@ -11,10 +11,10 @@ from __future__ import absolute_import
 import logging
 
 from ovirt_imageio_common import nbd
-from ovirt_imageio_common.compat import subprocess
 
-from . import qmp
 from . import qemu
+from . import qemu_img
+from . import qmp
 
 log = logging.getLogger("test")
 
@@ -37,7 +37,7 @@ def test_add_bitmap(tmpdir):
     # Test command with arguments. This is also interesting for incremental
     # backup flows.
     image = str(tmpdir.join("image.qcow2"))
-    subprocess.check_call(["qemu-img", "create", "-f", "qcow2", image, "1g"])
+    qemu_img.create(image, "qcow2", size=1024**3)
 
     qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
 

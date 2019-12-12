@@ -14,9 +14,9 @@ import logging
 import pytest
 
 from ovirt_imageio_common import nbd
-from ovirt_imageio_common.compat import subprocess
 
 from . import backup
+from . import qemu_img
 from . import qemu_nbd
 from . import testutil
 
@@ -32,13 +32,7 @@ def test_full_backup(tmpdir, fmt, transport):
     backup_disk = str(tmpdir.join("backup.raw"))
 
     # Create disk
-    subprocess.check_call([
-        "qemu-img",
-        "create",
-        "-f", fmt,
-        disk,
-        str(disk_size),
-    ])
+    qemu_img.create(disk, fmt, size=disk_size)
 
     # Pupulate disk with data.
     with qemu_nbd.open(disk, fmt) as d:
@@ -55,15 +49,12 @@ def test_full_backup(tmpdir, fmt, transport):
     # Backup using qemu-img convert.
     with backup.full_backup(tmpdir, disk, fmt, nbd_sock):
         log.debug("Backing up image with qemu-img")
-        subprocess.check_call([
-            "qemu-img",
-            "convert",
-            "-p",
-            "-f", "raw",
-            "-O", "raw",
+        qemu_img.convert(
             nbd_sock.url("sda"),
             backup_disk,
-        ])
+            src_fmt="raw",
+            dst_fmt="raw",
+            progress=True)
 
     # Compare source and backup disks.
     with qemu_nbd.open(disk, fmt, read_only=True) as d, \

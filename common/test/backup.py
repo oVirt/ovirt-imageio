@@ -14,9 +14,9 @@ import time
 from contextlib import contextmanager
 
 from ovirt_imageio_common import nbd
-from ovirt_imageio_common.compat import subprocess
 
 from . import qemu
+from . import qemu_img
 from . import qmp
 
 log = logging.getLogger("backup")
@@ -66,8 +66,7 @@ def stop_backup(c):
 
 def create_scratch_disk(path, disk):
     log.debug("Creating scratch disk")
-    subprocess.check_call(
-        ["qemu-img", "create", "-f", "qcow2", "-b", disk, path])
+    qemu_img.create(path, "qcow2", backing=disk)
 
 
 def start_nbd_server(c, nbd_sock):
