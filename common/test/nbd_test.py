@@ -22,10 +22,11 @@ from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common.compat import subprocess
 
-from . import qemu_nbd
 from . import backup
-from . import testutil
+from . import distro
+from . import qemu_nbd
 from . import storage
+from . import testutil
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
@@ -509,7 +510,15 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             assert c.base_allocation
 
 
-@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("fmt", [
+    pytest.param(
+        "raw",
+        marks=pytest.mark.xfail(
+            distro.is_centos("8.0") and ("OVIRT_CI" in os.environ),
+            reason="unaligned write fails on el8/oVirt CI")
+    ),
+    "qcow2",
+])
 def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     chunk_size = 1024**3
     disk_size = 5 * chunk_size
