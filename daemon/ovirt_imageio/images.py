@@ -58,7 +58,7 @@ class Handler(object):
 
         validate.allowed_range(offset, size, ticket)
 
-        log.info(
+        log.debug(
             "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
             req.client_addr, size, offset, flush, close, ticket_id)
 
@@ -114,7 +114,7 @@ class Handler(object):
         else:
             size = min(ticket.size, backend.size()) - offset
 
-        log.info(
+        log.debug(
             "[%s] READ size=%d offset=%d close=%s ticket=%s",
             req.client_addr, size, offset, close, ticket_id)
 
@@ -175,7 +175,7 @@ class Handler(object):
 
         validate.allowed_range(offset, size, ticket)
 
-        log.info(
+        log.debug(
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
