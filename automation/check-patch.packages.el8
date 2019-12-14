@@ -1,6 +1,7 @@
 e2fsprogs
 gcc
 git
+libguestfs-tools-c
 make
 openssl
 python3-devel

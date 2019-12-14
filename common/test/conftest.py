@@ -8,13 +8,30 @@
 
 from __future__ import absolute_import
 
+import errno
 import io
+import logging
+import os
+import platform
+
 import pytest
 from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common.compat import subprocess
 
 from . import qemu_nbd
+
+log = logging.getLogger("test")
+
+# We keep test images here. The images are created once per test session if
+# they do not exist.
+IMAGES_DIR = "/var/tmp/imageio-images"
+
+# CirrOS is a minimal Linux distribution with extremly fast boot. This is the
+# latest version supported by virt-builder.
+# https://docs.openstack.org/image-guide/obtain-images.html
+BASE_IMAGE = "cirros-0.3.5"
 
 
 @pytest.fixture
@@ -57,3 +74,37 @@ def nbd_server(tmpdir):
         yield server
     finally:
         server.stop()
+
+
+@pytest.fixture(scope="session")
+@pytest.mark.skipif(
+    platform.machine() != "x86_64",
+    reason="{} not available for {}".format(BASE_IMAGE, platform.machine()))
+def base_image():
+    path = os.path.join(IMAGES_DIR, BASE_IMAGE)
+    if os.path.exists(path):
+        return path
+
+    log.info("Creating base image: %s", path)
+    try:
+        os.makedirs(IMAGES_DIR)
+    except EnvironmentError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    env = dict(os.environ)
+    env["LIBGUESTFS_BACKEND"] = "direct"
+
+    cmd = [
+        "virt-builder",
+        BASE_IMAGE,
+        # Disable cloundinit on startup, delaying boot.
+        "--write", '/etc/cirros-init/config:DATASOURCE_LIST="nocloud"',
+        "--root-password", "password:",
+        "-o", path,
+    ]
+
+    log.debug("Running: %s", cmd)
+    subprocess.check_call(cmd, env=env)
+
+    return path

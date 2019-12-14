@@ -1,6 +1,7 @@
 e2fsprogs
 gcc
 git
+libguestfs-tools-c
 m2crypto
 openssl
 python-devel
