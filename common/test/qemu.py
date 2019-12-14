@@ -52,11 +52,15 @@ def run(image, fmt, qmp_sock, start_cpu=True):
         QEMU,
         # Use kvm if available, othrewise fallback to tcg. This allows running
         # qemu on Travis CI which does not support nested virtualization.
+        "-nodefaults",
         "-machine", "accel=kvm:tcg",
         "-drive",
         "if=virtio,id=drive0,node-name=file0,file={},format={}".format(
             image, fmt),
         "-nographic",
+        "-net", "none",
+        "-monitor", "none",
+        "-serial", "stdio",
         "-qmp", "unix:{},server,nowait".format(qmp_sock),
     ]
 
@@ -71,11 +75,15 @@ def run(image, fmt, qmp_sock, start_cpu=True):
         cmd.append("-S")
 
     log.debug("Starting qemu %s", cmd)
-    p = subprocess.Popen(cmd, env=env())
+    p = subprocess.Popen(
+        cmd,
+        env=env(),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE)
     try:
         if not testutil.wait_for_socket(qmp_sock, 1):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
-        yield p
+        yield Guest(p)
     finally:
         log.debug("Terminating qemu gracefully")
         p.terminate()
@@ -86,3 +94,40 @@ def run(image, fmt, qmp_sock, start_cpu=True):
             p.kill()
             p.wait()
         log.debug("qemu terminated with exit code %s", p.returncode)
+
+
+class Guest(object):
+
+    def __init__(self, p):
+        self._stdin = p.stdin
+        self._stdout = p.stdout
+        self._logged = False
+
+    def login(self, name, password):
+        assert not self._logged
+        self._wait_for("login: ")
+        self._send(name)
+        self._wait_for("Password: ")
+        self._send(password)
+        self._wait_for("# ")
+        self._logged = True
+
+    def run(self, command):
+        self._send(command)
+        return self._wait_for("# ")
+
+    def _send(self, s):
+        log.debug("Sending: %r", s)
+        self._stdin.write(s.encode("utf-8") + b"\n")
+        self._stdin.flush()
+        self._wait_for(s + "\r\n")
+
+    def _wait_for(self, s):
+        log.debug("Waiting for: %r", s)
+        data = s.encode("utf-8")
+        buf = bytearray()
+        while True:
+            buf += self._stdout.read(1)
+            if buf.endswith(data):
+                rep = buf[:-len(data)]
+                return rep.decode("utf-8")
