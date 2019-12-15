@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 from __future__ import absolute_import
+from __future__ import division
 
 import sys
 import time
@@ -69,18 +70,17 @@ class ProgressBar(object):
 
     def _draw(self, now, last=False):
         elapsed = now - self.start
-        done = float(self.done)
 
         if self.size:
-            progress = "%6.2f%%" % (done / self.size * 100)
+            progress = "%6.2f%%" % (self.done / self.size * 100)
         else:
             progress = "-------"
 
         line = "[ %s ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
             progress,
-            done / GIB,
+            self.done / GIB,
             elapsed,
-            done / MIB / elapsed,
+            self.done / MIB / elapsed,
         )
 
         line = line.ljust(self.width, " ")
