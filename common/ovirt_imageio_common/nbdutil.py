@@ -199,7 +199,17 @@ def copy(src_client, dst_client, block_size=4 * 1024**2, queue_depth=4,
         six.reraise(*error[0])
 
 
-Request = namedtuple("Request", "offset,length,buf")
+# Request ops.
+WRITE = "write"
+ZERO = "zero"
+FLUSH = "flush"
+
+
+class Request(namedtuple("Request", "op,offset,length,buf")):
+    __slots__ = ()
+
+    def __new__(cls, op, offset=0, length=0, buf=None):
+        return tuple.__new__(cls, (op, offset, length, buf))
 
 
 def _read(client, requests, buffers, error):
@@ -215,7 +225,7 @@ def _read(client, requests, buffers, error):
                     return
 
                 step = min(todo, MAX_ZERO)
-                requests.put(Request(offset, step, None))
+                requests.put(Request(ZERO, offset, step))
                 offset += step
                 todo -= step
         else:
@@ -228,10 +238,11 @@ def _read(client, requests, buffers, error):
                 step = min(todo, len(buf))
                 view = memoryview(buf)[:step]
                 client.readinto(offset, view)
-                requests.put(Request(offset, step, buf))
+                requests.put(Request(WRITE, offset, step, buf))
                 offset += step
                 todo -= step
 
+    requests.put(Request(FLUSH))
     requests.put(None)
     log.debug("reader finished")
 
@@ -246,17 +257,19 @@ def _write(client, requests, buffers, error, progress=None):
                 log.debug("writer stopped")
                 break
 
-            if req.buf is None:
+            if req.op is ZERO:
                 client.zero(req.offset, req.length)
-            else:
+            elif req.op is WRITE:
                 view = memoryview(req.buf)[:req.length]
                 client.write(req.offset, view)
                 buffers.put(req.buf)
+            elif req.op is FLUSH:
+                client.flush()
+            else:
+                raise RuntimeError("Unknown request: {}".format(req))
 
             if progress:
                 progress.update(req.length)
-
-        client.flush()
 
         log.debug("writer finished")
     except Exception:
