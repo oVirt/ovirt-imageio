@@ -46,22 +46,12 @@ import logging
 import os
 import subprocess
 import sys
-import threading
 
-from collections import namedtuple
-
-from six import reraise
 from six.moves.urllib.parse import urlparse
-from six.moves import queue
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common import ui
-
-# NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
-# qemu-nbd limit seems to be 2**31 - 512. Large zeros can delay more important
-# I/O so we like to zero is smaller steps.
-MAX_ZERO = 1024**3
 
 
 def upload(args):
@@ -155,110 +145,19 @@ def download(args):
 def copy(args):
     with nbd.open(urlparse(args.src_url)) as src, \
             nbd.open(urlparse(args.dst_url)) as dst:
-
-        pb = None
+        progress = None
         if not args.silent:
-            pb = ui.ProgressBar(src.export_size)
+            progress = ui.ProgressBar(src.export_size)
 
-        # Compute the buffer size considering both destination and source NBD
-        # servers and user selected block size.
-        buf_size = min(src.maximum_block_size, dst.maximum_block_size)
-        buf_size = min(buf_size, args.block_size)
+        nbdutil.copy(
+            src,
+            dst,
+            block_size=args.block_size,
+            queue_depth=args.queue_depth,
+            progress=progress)
 
-        # Leave extra room for None buffer signaling that the writer failed.
-        buffers = queue.Queue(args.queue_depth + 1)
-
-        # Allocate buffers for write requests.
-        for _ in range(args.queue_depth):
-            buffers.put(bytearray(buf_size))
-
-        # Keep room for queue_depth write requests (have buffer) and
-        # queue_depth zero requests (have no buffer).
-        requests = queue.Queue(args.queue_depth * 2)
-
-        error = [None]
-        writer = threading.Thread(
-            target=_write,
-            args=(dst, requests, buffers, error, pb),
-            name="writer")
-        writer.daemon = True
-
-        logging.debug("starting writer thread")
-        writer.start()
-
-        # Read src and submit requests to queue.
-        _read(src, requests, buffers, error)
-
-        logging.debug("waiting for writer thread")
-        writer.join()
-
-        if error[0]:
-            reraise(*error[0])
-
-        if pb:
-            pb.close()
-
-
-Request = namedtuple("Request", "offset,length,buf")
-
-
-def _read(src, requests, buffers, error):
-    logging.debug("reader started")
-
-    offset = 0
-    for ext in nbdutil.extents(src):
-        if error[0]:
-            logging.debug("reader stopped")
-            return
-
-        if ext.zero:
-            requests.put(Request(offset, ext.length, None))
-            offset += ext.length
-        else:
-            todo = ext.length
-            while todo:
-                buf = buffers.get()
-                if error[0]:
-                    logging.debug("reader stopped")
-                    return
-
-                step = min(todo, len(buf))
-                view = memoryview(buf)[:step]
-                src.readinto(offset, view)
-                requests.put(Request(offset, step, buf))
-                todo -= step
-                offset += step
-
-    requests.put(None)
-    logging.debug("reader finished")
-
-
-def _write(dst, requests, buffers, error, pb):
-    try:
-        logging.debug("writer started")
-
-        while True:
-            req = requests.get()
-            if req is None:
-                logging.debug("writer stopped")
-                break
-
-            if req.buf is None:
-                _zero_range(dst, req.offset, req.length, pb)
-            else:
-                view = memoryview(req.buf)[:req.length]
-                dst.write(req.offset, view)
-                buffers.put(req.buf)
-                if pb:
-                    pb.update(req.length)
-
-        dst.flush()
-
-        logging.debug("writer finished")
-    except Exception:
-        logging.debug("writer failed")
-        error[0] = sys.exc_info()
-        buffers.put(None)
+        if progress:
+            progress.close()
 
 
 def _map(path):
@@ -277,7 +176,7 @@ def _map(path):
 
 def _zero_range(dst, start, length, pb):
     while length:
-        step = min(length, MAX_ZERO)
+        step = min(length, nbdutil.MAX_ZERO)
         dst.zero(start, step)
         start += step
         length -= step

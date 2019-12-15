@@ -85,6 +85,22 @@ Result:   [xxxxxxxxxxxxx|0000000000000|xxxxxx]
 
 from __future__ import absolute_import
 
+import logging
+import sys
+from collections import namedtuple
+
+import six
+from six.moves import queue
+
+from . import util
+
+# NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
+# qemu-nbd limit seems to be 2**31 - 512. Large zeros can delay more important
+# I/O so we like to zero is smaller steps.
+MAX_ZERO = 1024**3
+
+log = logging.getLogger("nbdutil")
+
 
 def extents(client, offset=0, length=None):
     """
@@ -140,3 +156,110 @@ def extents(client, offset=0, length=None):
                 break
 
     yield cur
+
+
+def copy(src_client, dst_client, block_size=4 * 1024**2, queue_depth=4,
+         progress=None):
+    """
+    Copy export from src_client to dst_client.
+
+    Both exports must have identical size, but can have different format.
+    """
+
+    # Consider both requested block size and clients limits.
+    buf_size = min(
+        block_size,
+        min(src_client.maximum_block_size, dst_client.maximum_block_size))
+
+    # Leave extra room for None buffer signaling that the writer failed.
+    buffers = queue.Queue(queue_depth + 1)
+
+    # Allocate buffers for write requests.
+    for _ in range(queue_depth):
+        buffers.put(bytearray(buf_size))
+
+    # Keep room for queue_depth write requests (have buffer) and
+    # queue_depth zero requests (have no buffer).
+    requests = queue.Queue(queue_depth * 2)
+
+    error = [None]
+
+    log.debug("starting writer thread")
+    writer = util.start_thread(
+        _write,
+        args=(dst_client, requests, buffers, error, progress),
+        name="writer")
+
+    _read(src_client, requests, buffers, error)
+
+    log.debug("waiting for writer thread")
+    writer.join()
+
+    if error[0]:
+        six.reraise(*error[0])
+
+
+Request = namedtuple("Request", "offset,length,buf")
+
+
+def _read(client, requests, buffers, error):
+    log.debug("reader started")
+
+    offset = 0
+    for ext in extents(client):
+        todo = ext.length
+        if ext.zero:
+            while todo:
+                if error[0]:
+                    log.debug("reader stopped")
+                    return
+
+                step = min(todo, MAX_ZERO)
+                requests.put(Request(offset, step, None))
+                offset += step
+                todo -= step
+        else:
+            while todo:
+                buf = buffers.get()
+                if error[0]:
+                    log.debug("reader stopped")
+                    return
+
+                step = min(todo, len(buf))
+                view = memoryview(buf)[:step]
+                client.readinto(offset, view)
+                requests.put(Request(offset, step, buf))
+                offset += step
+                todo -= step
+
+    requests.put(None)
+    log.debug("reader finished")
+
+
+def _write(client, requests, buffers, error, progress=None):
+    try:
+        log.debug("writer started")
+
+        while True:
+            req = requests.get()
+            if req is None:
+                log.debug("writer stopped")
+                break
+
+            if req.buf is None:
+                client.zero(req.offset, req.length)
+            else:
+                view = memoryview(req.buf)[:req.length]
+                client.write(req.offset, view)
+                buffers.put(req.buf)
+
+            if progress:
+                progress.update(req.length)
+
+        client.flush()
+
+        log.debug("writer finished")
+    except Exception:
+        log.debug("writer failed")
+        error[0] = sys.exc_info()
+        buffers.put(None)
