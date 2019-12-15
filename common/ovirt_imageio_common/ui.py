@@ -12,9 +12,6 @@ from __future__ import division
 import sys
 import time
 
-MIB = 1024**2
-GIB = 1024**3
-
 
 class ProgressBar(object):
 
@@ -76,11 +73,11 @@ class ProgressBar(object):
         else:
             progress = "-------"
 
-        line = "[ %s ] %.2f GiB, %.2f seconds, %.2f MiB/s" % (
+        line = "[ %s ] %s, %.2f seconds, %s/s" % (
             progress,
-            self.done / GIB,
+            humansize(self.done),
             elapsed,
-            self.done / MIB / elapsed,
+            humansize(self.done / elapsed if elapsed else 0),
         )
 
         line = line.ljust(self.width, " ")
@@ -99,3 +96,12 @@ class ProgressBar(object):
 
     def __exit__(self, t, v, tb):
         self.close()
+
+
+def humansize(n):
+    for unit in ("bytes", "KiB", "MiB", "GiB", "TiB", "PiB"):
+        if n < 1024:
+            break
+        n /= 1024
+    return "{:.{precision}f} {}".format(
+        n, unit, precision=0 if unit == "bytes" else 2)
