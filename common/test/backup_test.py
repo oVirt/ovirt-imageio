@@ -13,8 +13,10 @@ import logging
 import os
 
 import pytest
+from six.moves.urllib.parse import urlparse
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 
 from . import backup
 from . import qemu
@@ -108,8 +110,10 @@ def test_full_backup_guest(tmpdir, base_image):
         assert guest.run("touch during-backup; sync") == ""
 
         log.info("Backing up disk to %s", backup_disk)
-        qemu_img.convert(
-            nbd_sock.url("sda"), backup_disk, src_fmt="raw", dst_fmt="qcow2")
+        backup_url = urlparse(nbd_sock.url("sda"))
+        with nbd.open(backup_url) as src_client, \
+                qemu_nbd.open(backup_disk, "qcow2") as dst_client:
+            nbdutil.copy(src_client, dst_client)
 
         log.info("Stopping backup check1")
         backup.stop_backup(qmp_client)
