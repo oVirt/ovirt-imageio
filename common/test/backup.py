@@ -32,7 +32,7 @@ def full_backup(tmpdir, disk, fmt, nbd_sock, checkpoint=None):
     create_scratch_disk(scratch_disk, disk)
     qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
 
-    with qemu.run(disk, fmt, qmp_sock, start_cpu=False), \
+    with qemu.run(disk, fmt, qmp_sock, start_cpu=False, shutdown_timeout=10), \
             qmp.Client(qmp_sock) as c:
         start_backup(c, nbd_sock, scratch_disk, checkpoint=checkpoint)
         try:

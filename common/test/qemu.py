@@ -43,7 +43,7 @@ def env():
 
 
 @contextmanager
-def run(image, fmt, qmp_sock, start_cpu=True):
+def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
     # NOTES:
     # - Let qemu pick default memory size, since on some platforms memory have
     #   strange alignment. Here is a failure from ppc64le host:
@@ -88,7 +88,7 @@ def run(image, fmt, qmp_sock, start_cpu=True):
         log.debug("Terminating qemu gracefully")
         p.terminate()
         try:
-            p.wait(1)
+            p.wait(shutdown_timeout)
         except subprocess.TimeoutExpired:
             log.warning("Timeout terminating qemu - killing it")
             p.kill()

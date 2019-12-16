@@ -91,7 +91,7 @@ def test_full_backup_guest(tmpdir, base_image):
 
     log.info("Starting vm")
 
-    with qemu.run(disk, "qcow2", qmp_sock) as guest, \
+    with qemu.run(disk, "qcow2", qmp_sock, shutdown_timeout=10) as guest, \
             qmp.Client(qmp_sock) as qmp_client:
 
         log.info("Logging in")
