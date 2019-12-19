@@ -43,7 +43,7 @@ def env():
 
 
 @contextmanager
-def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
+def run(image, fmt, qmp_sock=None, start_cpu=True, shutdown_timeout=1):
     # NOTES:
     # - Let qemu pick default memory size, since on some platforms memory have
     #   strange alignment. Here is a failure from ppc64le host:
@@ -61,8 +61,11 @@ def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
         "-net", "none",
         "-monitor", "none",
         "-serial", "stdio",
-        "-qmp", "unix:{},server,nowait".format(qmp_sock),
     ]
+
+    if qmp_sock:
+        cmd.append("-qmp")
+        cmd.append("unix:{},server,nowait".format(qmp_sock))
 
     # Workaround for bug in qemu-4.0.0-rc0 on Fedora, failing to start VM
     # becuase initilizing real audio driver failed.
@@ -81,7 +84,7 @@ def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE)
     try:
-        if not testutil.wait_for_socket(qmp_sock, 1):
+        if qmp_sock and not testutil.wait_for_socket(qmp_sock, 1):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
         yield Guest(p)
     finally:
