@@ -42,7 +42,7 @@ def full_backup(tmpdir, disk, fmt, nbd_sock, checkpoint=None):
 
 
 def start_backup(c, nbd_sock, scratch_disk, checkpoint=None):
-    log.debug("Starting backup")
+    log.info("Statring backup checkpoint=%s", checkpoint)
     start_nbd_server(c, nbd_sock)
     # Use node name "file0" as a stable reference to our disk. It will not
     # change when the block graph is modifed during backup.
@@ -52,6 +52,7 @@ def start_backup(c, nbd_sock, scratch_disk, checkpoint=None):
 
 
 def stop_backup(c):
+    log.info("Stopping backup")
     # Give qemu time to detect that the NBD client disconnected before
     # we tear down the nbd server.
     log.debug("Waiting before tearing down nbd server")

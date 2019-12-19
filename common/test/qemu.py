@@ -74,7 +74,7 @@ def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
     if not start_cpu:
         cmd.append("-S")
 
-    log.debug("Starting qemu %s", cmd)
+    log.info("Starting qemu %s", cmd)
     p = subprocess.Popen(
         cmd,
         env=env(),
@@ -85,7 +85,7 @@ def run(image, fmt, qmp_sock, start_cpu=True, shutdown_timeout=1):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
         yield Guest(p)
     finally:
-        log.debug("Terminating qemu gracefully")
+        log.info("Terminating qemu gracefully")
         p.terminate()
         try:
             p.wait(shutdown_timeout)
@@ -104,6 +104,7 @@ class Guest(object):
         self._logged = False
 
     def login(self, name, password):
+        log.info("Logging in to guest")
         assert not self._logged
         self._wait_for("login: ")
         self._send(name)
@@ -113,6 +114,7 @@ class Guest(object):
         self._logged = True
 
     def run(self, command):
+        log.info("Running command in guest: %s", command)
         self._send(command)
         return self._wait_for("# ")
 

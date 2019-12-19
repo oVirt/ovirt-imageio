@@ -91,22 +91,15 @@ def test_full_backup_guest(tmpdir, base_image):
     qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
     nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
 
-    log.info("Starting vm")
-
     with qemu.run(disk, "qcow2", qmp_sock, shutdown_timeout=10) as guest, \
             qmp.Client(qmp_sock) as qmp_client:
-
-        log.info("Logging in")
         guest.login("root", "")
 
-        log.info("Creating file before backup")
         assert guest.run("touch before-backup; sync") == ""
 
-        log.info("Statring full backup check1")
         backup.start_backup(
             qmp_client, nbd_sock, scratch_disk, checkpoint="check1")
 
-        log.info("Creating file during backup")
         assert guest.run("touch during-backup; sync") == ""
 
         log.info("Backing up disk to %s", backup_disk)
@@ -115,18 +108,13 @@ def test_full_backup_guest(tmpdir, base_image):
                 qemu_nbd.open(backup_disk, "qcow2") as dst_client:
             nbdutil.copy(src_client, dst_client)
 
-        log.info("Stopping backup check1")
         backup.stop_backup(qmp_client)
 
     log.info("Verifying backup")
-
     preview_disk = str(tmpdir.join("preview.qcow2"))
     qemu_img.create(preview_disk, "qcow2", backing=backup_disk)
 
     with qemu.run(preview_disk, "qcow2", qmp_sock) as guest:
-
-        log.info("Logging in")
         guest.login("root", "")
-
         out = guest.run("ls -1 --color=never")
         assert out.splitlines() == ["before-backup"]
