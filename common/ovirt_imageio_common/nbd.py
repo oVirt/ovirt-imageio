@@ -74,8 +74,12 @@ REP_META_CONTEXT = 4
 # Structured reply flags
 REPLY_FLAG_DONE = (1 << 0)
 
+# Flags for base:allocation meta context.
 STATE_HOLE = (1 << 0)
 STATE_ZERO = (1 << 1)
+
+# Flags for qemu:dirty-bitmap meta context.
+STATE_DIRTY = (1 << 0)
 
 # Structured reply types
 REPLY_TYPE_NONE = 0
@@ -322,12 +326,12 @@ class TCPAddress(tuple):
         return s
 
 
-def open(url):
+def open(url, dirty=False):
     """
     Open parsed NBD URL and return a connected Client instance.
     """
     address, name = _parse_url(url)
-    return Client(address, name)
+    return Client(address, name, dirty=dirty)
 
 
 def _parse_url(url):
@@ -381,8 +385,12 @@ CLOSED = 3
 
 class Client(object):
 
-    def __init__(self, address, export_name=None):
+    def __init__(self, address, export_name=None, dirty=False):
         self.export_name = export_name or ""
+
+        # Libvirt uses this name for the dirty bitmap.
+        self.dirty_bitmap = "backup-" + self.export_name if dirty else None
+
         self.export_size = None
         self.transmission_flags = None
 
@@ -400,6 +408,11 @@ class Client(object):
         self._structured_reply = False
         # TODO: support "qemu:dirty-bitmap".
         self._meta_context = {"base:allocation": None}
+
+        # Available only when connecting to qemu during incremental backup.
+        if self.dirty_bitmap:
+            ctx_name = "qemu:dirty-bitmap:{}".format(self.dirty_bitmap)
+            self._meta_context[ctx_name] = None
 
         self._counter = itertools.count()
         self._state = CONNECTING
@@ -1294,12 +1307,13 @@ class Extent(object):
     from the server, and splitting large extents when trimming extents that
     exceed the requested range.
 
-    The zero field is read-only since we don't have a use case for changing it.
+    The flags field is read-only since we don't have a use case for changing
+    it.
 
     Since this class is mutable, it must not implement __hash__.
     """
 
-    __slots__ = ("length", "_zero")
+    __slots__ = ("length", "_flags")
 
     # 32 bits, length of the extent to which the status below applies
     #     (unsigned, MUST be nonzero)
@@ -1308,9 +1322,9 @@ class Extent(object):
 
     size = wire_format.size
 
-    def __init__(self, length, zero):
+    def __init__(self, length, flags):
         self.length = length
-        self._zero = zero
+        self._flags = flags
 
     @classmethod
     def unpack(cls, data):
@@ -1319,21 +1333,35 @@ class Extent(object):
             raise ProtocolError(
                 "Invalid extent length=0 flags={}".format(flags))
 
-        zero = bool(flags & STATE_ZERO)
-        return cls(length, zero)
+        return cls(length, flags)
+
+    @property
+    def flags(self):
+        return self._flags
 
     @property
     def zero(self):
-        return self._zero
+        """
+        For base:allocation extent, True if extents will read as zeros.
+        """
+        return bool(self._flags & STATE_ZERO)
+
+    @property
+    def dirty(self):
+        """
+        For qemu:dirty-bitmap extent, True if extents was modified and is
+        included in this incremental backup.
+        """
+        return bool(self._flags & STATE_DIRTY)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
                 self.length == other.length and
-                self.zero == other.zero)
+                self.flags == other.flags)
 
     # TODO: For python 2; remove when we require python 3.
     def __ne__(self, other):
         return not self.__eq__(other)
 
     def __repr__(self):
-        return "Extent(length={}, zero={})".format(self.length, self.zero)
+        return "Extent(length={}, flags={})".format(self.length, self._flags)

@@ -18,8 +18,8 @@ class Client:
 
     export_size = 6 * 1024**3
 
-    def __init__(self, zero):
-        self.zero = zero
+    def __init__(self, flags):
+        self.flags = flags
 
     def extents(self, offset, length):
         assert 0 < length <= nbd.MAX_LENGTH
@@ -36,7 +36,7 @@ class CompleteReply(Client):
     """
 
     def reply(self, offset, length):
-        return {"base:allocation": [nbd.Extent(length, self.zero)]}
+        return {"base:allocation": [nbd.Extent(length, self.flags)]}
 
 
 class SingleExtent(Client):
@@ -46,7 +46,7 @@ class SingleExtent(Client):
 
     def reply(self, offset, length):
         length = min(length, 128 * 1024**2)
-        return {"base:allocation": [nbd.Extent(length, self.zero)]}
+        return {"base:allocation": [nbd.Extent(length, self.flags)]}
 
 
 class ShortReply(Client):
@@ -63,10 +63,10 @@ class ShortReply(Client):
 
         extents = []
         while length > max_extent:
-            extents.append(nbd.Extent(max_extent, self.zero))
+            extents.append(nbd.Extent(max_extent, self.flags))
             length -= max_extent
 
-        extents.append(nbd.Extent(length, self.zero))
+        extents.append(nbd.Extent(length, self.flags))
 
         return {"base:allocation": extents}
 
@@ -83,11 +83,11 @@ class ExcceedsLength(Client):
 
         if offset + length + extra < self.export_size and length > extra:
             extents = [
-                nbd.Extent(length - extra, self.zero),
-                nbd.Extent(2 * extra, self.zero),
+                nbd.Extent(length - extra, self.flags),
+                nbd.Extent(2 * extra, self.flags),
             ]
         else:
-            extents = [nbd.Extent(length, self.zero)]
+            extents = [nbd.Extent(length, self.flags)]
 
         return {"base:allocation": extents}
 
@@ -104,12 +104,12 @@ class SomeData(Client):
 
     def reply(self, offset, length):
         index = offset // self.extent_size
-        zero = bool(index % 2)
+        flags = nbd.STATE_ZERO if index % 2 else 0
 
         max_length = self.extent_size - (offset % self.extent_size)
         length = min(length, max_length)
 
-        return {"base:allocation": [nbd.Extent(length, zero)]}
+        return {"base:allocation": [nbd.Extent(length, flags)]}
 
 
 OFFSET_PARAMS = [
@@ -125,90 +125,90 @@ OFFSET_LENGTH_PARAMS = [
 ]
 
 
-@pytest.mark.parametrize("zero", [True, False])
-def test_complete_reply(zero):
-    c = CompleteReply(zero)
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
+def test_complete_reply(flags):
+    c = CompleteReply(flags)
     extents = list(nbdutil.extents(c))
-    assert extents == [nbd.Extent(c.export_size, zero)]
+    assert extents == [nbd.Extent(c.export_size, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset", OFFSET_PARAMS)
-def test_complete_reply_offset(zero, offset):
-    c = CompleteReply(zero)
+def test_complete_reply_offset(flags, offset):
+    c = CompleteReply(flags)
     extents = list(nbdutil.extents(c, offset=offset))
-    assert extents == [nbd.Extent(c.export_size - offset, zero)]
+    assert extents == [nbd.Extent(c.export_size - offset, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset,length", OFFSET_LENGTH_PARAMS)
-def test_complete_reply_offset_length(zero, offset, length):
-    c = CompleteReply(zero)
+def test_complete_reply_offset_length(flags, offset, length):
+    c = CompleteReply(flags)
     extents = list(nbdutil.extents(c, offset=offset, length=length))
-    assert extents == [nbd.Extent(length, zero)]
+    assert extents == [nbd.Extent(length, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
-def test_single_extent(zero):
-    c = SingleExtent(zero)
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
+def test_single_extent(flags):
+    c = SingleExtent(flags)
     extents = list(nbdutil.extents(c))
-    assert extents == [nbd.Extent(c.export_size, zero)]
+    assert extents == [nbd.Extent(c.export_size, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset", OFFSET_PARAMS)
-def test_single_extent_offset(zero, offset):
-    c = SingleExtent(zero)
+def test_single_extent_offset(flags, offset):
+    c = SingleExtent(flags)
     extents = list(nbdutil.extents(c, offset=offset))
-    assert extents == [nbd.Extent(c.export_size - offset, zero)]
+    assert extents == [nbd.Extent(c.export_size - offset, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset,length", OFFSET_LENGTH_PARAMS)
-def test_single_extent_offset_length(zero, offset, length):
-    c = SingleExtent(zero)
+def test_single_extent_offset_length(flags, offset, length):
+    c = SingleExtent(flags)
     extents = list(nbdutil.extents(c, offset=offset, length=length))
-    assert extents == [nbd.Extent(length, zero)]
+    assert extents == [nbd.Extent(length, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
-def test_short_reply(zero):
-    c = ShortReply(zero)
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
+def test_short_reply(flags):
+    c = ShortReply(flags)
     extents = list(nbdutil.extents(c))
-    assert extents == [nbd.Extent(c.export_size, zero)]
+    assert extents == [nbd.Extent(c.export_size, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset", OFFSET_PARAMS)
-def test_short_reply_offset(zero, offset):
-    c = ShortReply(zero)
+def test_short_reply_offset(flags, offset):
+    c = ShortReply(flags)
     extents = list(nbdutil.extents(c, offset=offset))
-    assert extents == [nbd.Extent(c.export_size - offset, zero)]
+    assert extents == [nbd.Extent(c.export_size - offset, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset,length", OFFSET_LENGTH_PARAMS)
-def test_short_reply_offset_length(zero, offset, length):
-    c = ShortReply(zero)
+def test_short_reply_offset_length(flags, offset, length):
+    c = ShortReply(flags)
     extents = list(nbdutil.extents(c, offset=offset, length=length))
-    assert extents == [nbd.Extent(length, zero)]
+    assert extents == [nbd.Extent(length, flags)]
 
 
-@pytest.mark.parametrize("zero", [True, False])
+@pytest.mark.parametrize("flags", [nbd.STATE_ZERO, 0])
 @pytest.mark.parametrize("offset,length", OFFSET_LENGTH_PARAMS)
-def test_last_extent_exceeds_length(zero, offset, length):
-    c = ExcceedsLength(zero)
+def test_last_extent_exceeds_length(flags, offset, length):
+    c = ExcceedsLength(flags)
     extents = list(nbdutil.extents(c, offset=offset, length=length))
-    assert extents == [nbd.Extent(length, zero)]
+    assert extents == [nbd.Extent(length, flags)]
 
 
 def test_some_data():
     c = SomeData()
     extents = list(nbdutil.extents(c))
     assert extents == [
-        nbd.Extent(c.extent_size, False),
-        nbd.Extent(c.extent_size, True),
-        nbd.Extent(c.extent_size, False),
+        nbd.Extent(c.extent_size, 0),
+        nbd.Extent(c.extent_size, nbd.STATE_ZERO),
+        nbd.Extent(c.extent_size, 0),
     ]
 
 
@@ -216,9 +216,9 @@ def test_some_data_offset():
     c = SomeData()
     extents = list(nbdutil.extents(c, offset=0))
     assert extents == [
-        nbd.Extent(c.extent_size, False),
-        nbd.Extent(c.extent_size, True),
-        nbd.Extent(c.extent_size, False),
+        nbd.Extent(c.extent_size, 0),
+        nbd.Extent(c.extent_size, nbd.STATE_ZERO),
+        nbd.Extent(c.extent_size, 0),
     ]
 
 
@@ -226,9 +226,9 @@ def test_some_data_offset_length():
     c = SomeData()
     extents = list(nbdutil.extents(c, offset=0, length=c.export_size))
     assert extents == [
-        nbd.Extent(c.extent_size, False),
-        nbd.Extent(c.extent_size, True),
-        nbd.Extent(c.extent_size, False),
+        nbd.Extent(c.extent_size, 0),
+        nbd.Extent(c.extent_size, nbd.STATE_ZERO),
+        nbd.Extent(c.extent_size, 0),
     ]
 
 
@@ -236,8 +236,8 @@ def test_some_data_offset_unaligned():
     c = SomeData()
     extents = list(nbdutil.extents(c, offset=c.extent_size // 2 * 3))
     assert extents == [
-        nbd.Extent(c.extent_size // 2, True),
-        nbd.Extent(c.extent_size, False),
+        nbd.Extent(c.extent_size // 2, nbd.STATE_ZERO),
+        nbd.Extent(c.extent_size, 0),
     ]
 
 
@@ -246,7 +246,7 @@ def test_some_data_offset_length_unaligned():
     extents = list(nbdutil.extents(
         c, offset=c.extent_size // 2, length=c.extent_size * 2))
     assert extents == [
-        nbd.Extent(c.extent_size // 2, False),
-        nbd.Extent(c.extent_size, True),
-        nbd.Extent(c.extent_size // 2, False),
+        nbd.Extent(c.extent_size // 2, 0),
+        nbd.Extent(c.extent_size, nbd.STATE_ZERO),
+        nbd.Extent(c.extent_size // 2, 0),
     ]
