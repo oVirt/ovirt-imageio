@@ -102,11 +102,16 @@ def test_full_backup_guest(tmpdir, base_image):
 
             backup.copy_disk(nbd_sock.url("sda"), backup_disk)
 
+    verify_backup(backup_disk, ["before-backup"])
+
+
+def verify_backup(backup_disk, expected_files):
     log.info("Verifying backup")
-    preview_disk = str(tmpdir.join("preview.qcow2"))
+
+    preview_disk = backup_disk + ".preview"
     qemu_img.create(preview_disk, "qcow2", backing=backup_disk)
 
-    with qemu.run(preview_disk, "qcow2", qmp_sock) as guest:
+    with qemu.run(preview_disk, "qcow2") as guest:
         guest.login("root", "")
         out = guest.run("ls -1 --color=never")
-        assert out.splitlines() == ["before-backup"]
+        assert out.splitlines() == expected_files
