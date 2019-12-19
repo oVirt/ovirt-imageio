@@ -37,12 +37,18 @@ def full_backup(tmpdir, disk, fmt, nbd_sock, checkpoint=None):
     qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
 
     with qemu.run(disk, fmt, qmp_sock, start_cpu=False, shutdown_timeout=10), \
-            qmp.Client(qmp_sock) as c:
-        start_backup(c, nbd_sock, scratch_disk, checkpoint=checkpoint)
-        try:
-            yield
-        finally:
-            stop_backup(c)
+            qmp.Client(qmp_sock) as c, \
+            run(c, nbd_sock, scratch_disk, checkpoint=checkpoint):
+        yield
+
+
+@contextmanager
+def run(c, nbd_sock, scratch_disk, checkpoint=None):
+    start_backup(c, nbd_sock, scratch_disk, checkpoint=checkpoint)
+    try:
+        yield
+    finally:
+        stop_backup(c)
 
 
 def start_backup(c, nbd_sock, scratch_disk, checkpoint=None):

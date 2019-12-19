@@ -95,14 +95,12 @@ def test_full_backup_guest(tmpdir, base_image):
 
         assert guest.run("touch before-backup; sync") == ""
 
-        backup.start_backup(
-            qmp_client, nbd_sock, scratch_disk, checkpoint="check1")
+        with backup.run(
+                qmp_client, nbd_sock, scratch_disk, checkpoint="check1"):
 
-        assert guest.run("touch during-backup; sync") == ""
+            assert guest.run("touch during-backup; sync") == ""
 
-        backup.copy_disk(nbd_sock.url("sda"), backup_disk)
-
-        backup.stop_backup(qmp_client)
+            backup.copy_disk(nbd_sock.url("sda"), backup_disk)
 
     log.info("Verifying backup")
     preview_disk = str(tmpdir.join("preview.qcow2"))
