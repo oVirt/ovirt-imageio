@@ -102,7 +102,7 @@ MAX_ZERO = 1024**3
 log = logging.getLogger("nbdutil")
 
 
-def extents(client, offset=0, length=None):
+def extents(client, offset=0, length=None, dirty=False):
     """
     Iterate over all extents for requested range.
 
@@ -118,12 +118,16 @@ def extents(client, offset=0, length=None):
     else:
         end = offset + length
 
+    if dirty:
+        meta_context = "qemu:dirty-bitmap:" + client.dirty_bitmap
+    else:
+        meta_context = "base:allocation"
+
     # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
     # number of extents kept in memory when accessing very fragmented images.
     max_step = 2 * 1024**3
 
-    # Keep the current extent, until we find a new extent with different zero
-    # value.
+    # Keep the current extent, until we find a new extent with different flags.
     cur = None
 
     while offset < end:
@@ -133,7 +137,7 @@ def extents(client, offset=0, length=None):
         step = min(end - offset, max_step)
         res = client.extents(offset, step)
 
-        for ext in res["base:allocation"]:
+        for ext in res[meta_context]:
             # Handle the case of last extent of the last block status command
             # exceeding requested range.
             if offset + ext.length > end:
@@ -141,10 +145,10 @@ def extents(client, offset=0, length=None):
 
             offset += ext.length
 
-            # Handle the case of consecutive extents with same zero value.
+            # Handle the case of consecutive extents with same flags.
             if cur is None:
                 cur = ext
-            elif cur.zero == ext.zero:
+            elif cur.flags == ext.flags:
                 cur.length += ext.length
             else:
                 yield cur
