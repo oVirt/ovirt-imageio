@@ -13,10 +13,14 @@ import time
 
 from contextlib import contextmanager
 
+from six.moves.urllib.parse import urlparse
+
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 
 from . import qemu
 from . import qemu_img
+from . import qemu_nbd
 from . import qmp
 
 log = logging.getLogger("backup")
@@ -164,3 +168,15 @@ def cancel_block_job(c, job_id):
 def remove_backup_node(c, node_name):
     log.debug("Removing backup node %s", node_name)
     c.execute("blockdev-del", {"node-name": node_name})
+
+
+# Backup data helpers.
+
+
+def copy_disk(nbd_url, backup_disk):
+    log.info("Backing up %s to %s", nbd_url, backup_disk)
+    backup_url = urlparse(nbd_url)
+
+    with nbd.open(backup_url) as src_client, \
+            qemu_nbd.open(backup_disk, "qcow2") as dst_client:
+        nbdutil.copy(src_client, dst_client)
