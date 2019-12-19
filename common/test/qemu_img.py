@@ -34,6 +34,11 @@ def convert(src, dst, src_fmt, dst_fmt, progress=False):
     subprocess.check_call(cmd)
 
 
+def unsafe_rebase(path, backing):
+    cmd = ["qemu-img", "rebase", "-u", "-b", backing, path]
+    subprocess.check_call(cmd)
+
+
 def info(path):
     cmd = ["qemu-img", "info", "--output", "json", path]
     out = subprocess.check_output(cmd)
