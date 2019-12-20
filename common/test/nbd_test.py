@@ -28,6 +28,8 @@ from . import qemu_nbd
 from . import storage
 from . import testutil
 
+from . marks import requires_advanced_virt
+
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
 log = logging.getLogger("test")
@@ -526,12 +528,7 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             distro.is_centos("8.0") and ("OVIRT_CI" in os.environ),
             reason="unaligned write fails on el8/oVirt CI")
     ),
-    pytest.param(
-        "qcow2",
-        marks=pytest.mark.xfail(
-            distro.is_centos("8.0"),
-            reason="Advanced virt stream not available"),
-    ),
+    pytest.param("qcow2", marks=requires_advanced_virt),
 ])
 def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     chunk_size = 1024**3
