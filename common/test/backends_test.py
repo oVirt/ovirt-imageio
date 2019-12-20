@@ -19,11 +19,12 @@ from . import testutil
 
 class Ticket(object):
 
-    def __init__(self, uuid, url, ops=("read",), sparse=False):
+    def __init__(self, uuid, url, ops=("read",), sparse=False, dirty=False):
         self.uuid = uuid
         self.url = url
         self.ops = ops
         self.sparse = sparse
+        self.dirty = dirty
 
 
 class Request(object):

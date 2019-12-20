@@ -272,6 +272,7 @@ def test_invalid_argument(arg):
     {"transfer_id": 1},
     {"filename": 1},
     {"sparse": 1},
+    {"dirty": 1},
 ])
 def test_invalid_parameter(kw):
     with pytest.raises(errors.InvalidTicketParameter):
@@ -286,6 +287,16 @@ def test_sparse_unset():
 def test_sparse():
     ticket = Ticket(testutils.create_ticket(sparse=True))
     assert ticket.sparse
+
+
+def test_dirty_unset():
+    ticket = Ticket(testutils.create_ticket())
+    assert not ticket.dirty
+
+
+def test_dirty():
+    ticket = Ticket(testutils.create_ticket(dirty=True))
+    assert ticket.dirty
 
 
 def test_transfer_id_unset():

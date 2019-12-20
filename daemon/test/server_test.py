@@ -85,7 +85,7 @@ def test_tickets_no_method():
 
 def test_tickets_get(fake_time):
     ticket = testutils.create_ticket(
-        ops=["read"], sparse=False, transfer_id="123")
+        ops=["read"], sparse=False, dirty=False, transfer_id="123")
     auth.add(ticket)
     fake_time.now += 200
     res = http.unix_request(
@@ -107,7 +107,7 @@ def test_tickets_get_not_found():
 
 
 def test_tickets_put(fake_time):
-    ticket = testutils.create_ticket(sparse=False)
+    ticket = testutils.create_ticket(sparse=False, dirty=False)
     body = json.dumps(ticket)
     res = http.unix_request(
         config.tickets.socket, "PUT", "/tickets/%(uuid)s" % ticket, body)
@@ -203,7 +203,7 @@ def test_tickets_put_url_scheme_not_supported():
 
 
 def test_tickets_extend(fake_time):
-    ticket = testutils.create_ticket(sparse=False)
+    ticket = testutils.create_ticket(sparse=False, dirty=False)
     auth.add(ticket)
     patch = {"timeout": 300}
     body = json.dumps(patch)

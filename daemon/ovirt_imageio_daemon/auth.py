@@ -52,6 +52,7 @@ class Ticket(object):
             ticket_dict, "transfer_id", six.string_types)
         self._filename = _optional(ticket_dict, "filename", six.string_types)
         self._sparse = _optional(ticket_dict, "sparse", bool, default=False)
+        self._dirty = _optional(ticket_dict, "dirty", bool, default=False)
 
         self._operations = []
         self._lock = threading.Lock()
@@ -97,6 +98,13 @@ class Ticket(object):
     @property
     def sparse(self):
         return self._sparse
+
+    @property
+    def dirty(self):
+        """
+        Return True if ticket's url should provide dirty extents information.
+        """
+        return self._dirty
 
     @property
     def idle_time(self):
@@ -176,6 +184,7 @@ class Ticket(object):
             "ops": list(self._ops),
             "size": self._size,
             "sparse": self._sparse,
+            "dirty": self._dirty,
             "timeout": self._timeout,
             "url": urllib_parse.urlunparse(self._url),
             "uuid": self._uuid,
@@ -202,6 +211,7 @@ class Ticket(object):
                 "ops={self.ops!r} "
                 "size={self.size!r} "
                 "sparse={self.sparse!r} "
+                "dirty={self.dirty!r} "
                 "transfer_id={self.transfer_id!r} "
                 "transferred={transferred!r} "
                 "url={url!r} "
