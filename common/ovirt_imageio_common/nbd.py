@@ -64,6 +64,7 @@ FLAG_SEND_CACHE = (1 << 10)
 OPT_ABORT = 2
 OPT_GO = 7
 OPT_STRUCTURED_REPLY = 8
+OPT_LIST_META_CONTEXT = 9
 OPT_SET_META_CONTEXT = 10
 
 # Replies
@@ -387,10 +388,6 @@ class Client(object):
 
     def __init__(self, address, export_name=None, dirty=False):
         self.export_name = export_name or ""
-
-        # Libvirt uses this name for the dirty bitmap.
-        self.dirty_bitmap = "backup-" + self.export_name if dirty else None
-
         self.export_size = None
         self.transmission_flags = None
 
@@ -404,15 +401,14 @@ class Client(object):
         self.preferred_block_size = 4096
         self.maximum_block_size = 32 * 1024**2
 
+        # Set to "qemu:dirty-bitmap:bitmap-name" if dirty is True, server
+        # supports structued replies, and exports a dirty bitmap. Use this name
+        # with extents() results to extract dirty extents.
+        self.dirty_bitmap = None
+
         # Server capabilities discovered during handshake.
         self._structured_reply = False
-        # TODO: support "qemu:dirty-bitmap".
-        self._meta_context = {"base:allocation": None}
-
-        # Available only when connecting to qemu during incremental backup.
-        if self.dirty_bitmap:
-            ctx_name = "qemu:dirty-bitmap:{}".format(self.dirty_bitmap)
-            self._meta_context[ctx_name] = None
+        self._meta_context = {}
 
         self._counter = itertools.count()
         self._state = CONNECTING
@@ -421,7 +417,7 @@ class Client(object):
 
         self._sock = self._connect(address)
         try:
-            self._newstyle_handshake()
+            self._newstyle_handshake(dirty)
         except:  # noqa: E722
             self.close()
             raise
@@ -430,7 +426,7 @@ class Client(object):
 
     @property
     def base_allocation(self):
-        return self._meta_context["base:allocation"] is not None
+        return "base:allocation" in self._meta_context
 
     def read(self, offset, length):
         buf = bytearray(length)
@@ -528,7 +524,7 @@ class Client(object):
 
     # NBD fixed newstyle handshake
 
-    def _newstyle_handshake(self):
+    def _newstyle_handshake(self, dirty=False):
         assert self._state == CONNECTING
         self._state = HANDSHAKE
 
@@ -556,7 +552,8 @@ class Client(object):
         self._negotiate_structured_reply_option()
 
         if self._structured_reply:
-            self._negotiate_meta_context()
+            dirty_bitmap = self._query_dirty_bitmap() if dirty else None
+            self._set_meta_context(dirty_bitmap)
 
         self._negotiate_go_option()
 
@@ -590,9 +587,42 @@ class Client(object):
             log.debug("Structured reply enabled")
             self._structured_reply = True
 
-    def _negotiate_meta_context(self):
+    def _query_dirty_bitmap(self):
+        """
+        Query the server for dirty bitmap and return the context name if the
+        server exports one, or None if server does not export any, or exports
+        more than one.
+        """
+        opt = OPT_LIST_META_CONTEXT
+        data = self._format_meta_context_data("qemu:dirty-bitmap:")
+        self._send_option(opt, data)
+
+        bitmaps = list(self._iter_meta_context_replies(opt))
+
+        if len(bitmaps) == 0:
+            log.warning(
+                "Server does not support qemu:dirty-bitmap meta context")
+            return None
+
+        if len(bitmaps) > 1:
+            log.warning("Cannot use multiple dirty bitmaps: %s", bitmaps)
+            return None
+
+        ctx_name, _ = bitmaps[0]
+        log.debug("Server has dirty bitmap %s", ctx_name)
+        return ctx_name
+
+    def _set_meta_context(self, dirty_bitmap=None):
+        """
+        Register wanted meta context with the server.
+        """
         opt = OPT_SET_META_CONTEXT
-        data = self._format_meta_context_data(*list(self._meta_context))
+
+        queries = ["base:allocation"]
+        if dirty_bitmap:
+            queries.append(dirty_bitmap)
+
+        data = self._format_meta_context_data(*queries)
         self._send_option(opt, data)
 
         # If the server supports OPT_SET_META_CONTEXT and all the contexts
@@ -610,30 +640,29 @@ class Client(object):
         # - https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
         #   #option-types (see OPT_SET_META_CONTEXT).
 
-        while True:
-            reply, length = self._recv_option_reply(opt)
+        for ctx_name, ctx_id in self._iter_meta_context_replies(opt):
+            if ctx_name not in queries:
+                raise ProtocolError(
+                    "Unexpected context {}, expecting one of {}"
+                    .format(ctx_name, queries))
 
-            if reply in ERROR_REPLY:
-                try:
-                    self._handle_option_error(opt, reply, length)
-                except OptionUnsupported as e:
-                    log.warning("Meta context is not supported: %s", e)
-                    return
+            log.debug("Meta context %s is available id=%s", ctx_name, ctx_id)
 
-            if reply == REP_ACK:
-                if length != 0:
-                    raise InvalidLength(reply, length, 0)
-                break
+            # Keep also reverse mapping to find name from id.
+            self._meta_context[ctx_name] = ctx_id
+            self._meta_context[ctx_id] = ctx_name
 
-            if reply != REP_META_CONTEXT:
-                raise UnexpectedOptionReply(reply, opt, REP_META_CONTEXT)
+        # Warn if we failed to activate some meta context. This is a
+        # performance issue.
 
-            self._recv_meta_context_reply(length)
+        if "base:allocation" not in self._meta_context:
+            log.warning("Failed to activate base:allocation")
 
-        # Warn if server does not support all requested meta contexts.
-        for ctx_name, ctx_id in six.iteritems(self._meta_context):
-            if ctx_id is None:
-                log.warning("Meta context %s is not available", ctx_name)
+        if dirty_bitmap:
+            if dirty_bitmap in self._meta_context:
+                self.dirty_bitmap = dirty_bitmap
+            else:
+                log.warning("Failed to activate %s", dirty_bitmap)
 
     def _format_meta_context_data(self, *queries):
         """
@@ -659,6 +688,31 @@ class Client(object):
 
         return data
 
+    def _iter_meta_context_replies(self, opt):
+        """
+        Receive replies for NBD_LIST_META_CONTEXT and NBD_OPT_SET_META_CONTEXT
+        commands. We assume that the replies and errors are identical.
+        """
+        while True:
+            reply, length = self._recv_option_reply(opt)
+
+            if reply in ERROR_REPLY:
+                try:
+                    self._handle_option_error(opt, reply, length)
+                except OptionUnsupported as e:
+                    log.warning("Meta context is not supported: %s", e)
+                    return
+
+            if reply == REP_ACK:
+                if length != 0:
+                    raise InvalidLength(reply, length, 0)
+                break
+
+            if reply != REP_META_CONTEXT:
+                raise UnexpectedOptionReply(reply, opt, REP_META_CONTEXT)
+
+            yield self._recv_meta_context_reply(length)
+
     def _recv_meta_context_reply(self, length):
         """
         Receive reply to OPT_SET_META_CONTEXT, and store the meta context
@@ -673,17 +727,9 @@ class Client(object):
 
         data = self._recv(length)
         ctx_id = struct.unpack("!I", data[:4])[0]
-
         ctx_name = data[4:].decode("utf-8")
-        if ctx_name not in self._meta_context:
-            raise ProtocolError("Unexpected context {}, expecting one of {}"
-                                .format(ctx_name, list(self._meta_context)))
 
-        log.debug("Meta context %s is available id=%s", ctx_name, ctx_id)
-        self._meta_context[ctx_name] = ctx_id
-
-        # Keep also reverse mapping to find name from id.
-        self._meta_context[ctx_id] = ctx_name
+        return ctx_name, ctx_id
 
     def _negotiate_go_option(self):
         # Here we can announce that we can honour server block size constraints

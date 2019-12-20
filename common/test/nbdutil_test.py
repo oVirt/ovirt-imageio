@@ -20,7 +20,7 @@ class Client:
 
     def __init__(self, flags, dirty):
         self.flags = flags
-        self.dirty_bitmap = "backup-sda" if dirty else None
+        self.dirty_bitmap = "qemu:dirty-bitmap:bitmap-name" if dirty else None
 
     def extents(self, offset, length):
         assert 0 < length <= nbd.MAX_LENGTH
@@ -31,7 +31,7 @@ class Client:
         res = {"base:allocation": extents}
 
         if self.dirty_bitmap:
-            res["qemu:dirty-bitmap:" + self.dirty_bitmap] = extents
+            res[self.dirty_bitmap] = extents
 
         return res
 

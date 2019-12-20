@@ -118,10 +118,7 @@ def extents(client, offset=0, length=None, dirty=False):
     else:
         end = offset + length
 
-    if dirty:
-        meta_context = "qemu:dirty-bitmap:" + client.dirty_bitmap
-    else:
-        meta_context = "base:allocation"
+    meta_context = client.dirty_bitmap if dirty else "base:allocation"
 
     # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
     # number of extents kept in memory when accessing very fragmented images.
