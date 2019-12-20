@@ -318,8 +318,9 @@ def test_extents(nbd_server, user_file, fmt):
         b.write(data)
 
         assert list(b.extents()) == [
-            image.Extent(0, len(data), False),
-            image.Extent(len(data), 5 * 1024**3 - len(data), True),
-            image.Extent(5 * 1024**3, len(data), False),
-            image.Extent(5 * 1024**3 + len(data), 1024**3 - len(data), True),
+            image.ZeroExtent(0, len(data), False),
+            image.ZeroExtent(len(data), 5 * 1024**3 - len(data), True),
+            image.ZeroExtent(5 * 1024**3, len(data), False),
+            image.ZeroExtent(
+                5 * 1024**3 + len(data), 1024**3 - len(data), True),
         ]

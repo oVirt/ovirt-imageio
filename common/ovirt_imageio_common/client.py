@@ -283,7 +283,7 @@ def _extents(transfer):
         transfer["progress"].size = sum(e["length"] for e in extents)
 
     for ext in extents:
-        yield image.Extent(ext["start"], ext["length"], ext["zero"])
+        yield image.ZeroExtent(ext["start"], ext["length"], ext["zero"])
 
 
 def _get(transfer, extent=None):

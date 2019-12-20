@@ -152,7 +152,7 @@ class Backend(object):
     def extents(self):
         start = 0
         for ext in nbdutil.extents(self._client):
-            yield image.Extent(start, ext.length, ext.zero)
+            yield image.ZeroExtent(start, ext.length, ext.zero)
             start += ext.length
 
     @property

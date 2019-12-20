@@ -103,7 +103,7 @@ class Backend(object):
     def extents(self):
         # TODO: We can detect zeroes in underlying buffer and return more
         # interesting results.
-        yield image.Extent(0, self.size(), False)
+        yield image.ZeroExtent(0, self.size(), False)
 
     # Debugging interface
 

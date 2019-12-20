@@ -624,4 +624,4 @@ def test_extents(user_file):
     with file.open(user_file.url, "r+", sparse=True) as f:
         # We support detecting extents now; empty file reports one data
         # extents.
-        assert list(f.extents()) == [image.Extent(0, size, False)]
+        assert list(f.extents()) == [image.ZeroExtent(0, size, False)]

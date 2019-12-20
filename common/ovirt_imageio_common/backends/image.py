@@ -11,9 +11,9 @@ from __future__ import absolute_import
 from collections import namedtuple
 
 
-class Extent(namedtuple("Extent", "start,length,zero")):
+class ZeroExtent(namedtuple("ZeroExtent", "start,length,zero")):
     """
-    An image extent.
+    An image extent describing image data.
 
     Fields:
         start (int): offset in bytes.
@@ -23,4 +23,18 @@ class Extent(namedtuple("Extent", "start,length,zero")):
     The extent describes either raw guest data, or raw host data, depending on
     the the backend. For example, file backend always reutrn host data, while
     NBD backend always return guest data.
+    """
+
+
+class DirtyExtent(namedtuple("DirtyExtent", "start,length,dirty")):
+    """
+    An image extent describing dirty areas that have changed since a previous
+    checkpoint. This information is available during incremental backup.
+
+    Fields:
+        start (int): offset in bytes.
+        length (int): lenth in bytes.
+        dirty (bool): if True, this area was changed since the last checkpoint.
+
+    The extent always describes raw guest data.
     """

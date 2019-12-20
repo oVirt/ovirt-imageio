@@ -146,8 +146,8 @@ class Backend(object):
         return self._block_size
 
     def extents(self):
-        # TODO: For file backend, use qemu-img map to get extents.
-        yield image.Extent(0, self.size(), False)
+        # TODO: Use qemu-img map to get extents.
+        yield image.ZeroExtent(0, self.size(), False)
 
     # Debugging interface
 

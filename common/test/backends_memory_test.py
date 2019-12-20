@@ -193,4 +193,4 @@ def test_size():
 
 def test_extents():
     m = memory.Backend("r+", b"data")
-    assert list(m.extents()) == [image.Extent(0, 4, False)]
+    assert list(m.extents()) == [image.ZeroExtent(0, 4, False)]
