@@ -12,12 +12,13 @@ import io
 import logging
 import os
 
+from .. import errors
 from . import image
 
 log = logging.getLogger("backends.memory")
 
 
-def open(url, mode, sparse=False, buffer_size=0):
+def open(url, mode, sparse=False, dirty=False, buffer_size=0):
     """
     Open a memory backend.
 
@@ -25,6 +26,7 @@ def open(url, mode, sparse=False, buffer_size=0):
         url: (url): ignored, for consistency with other backends.
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): ignored, memory backend does not support sparseness.
+        dirty (bool): ignored, memory backend does not support dirty extents.
         buffer_size (int): ignored, memory backend does not allocate buffers.
     """
     return Backend(mode)
@@ -100,7 +102,12 @@ class Backend(object):
     def block_size(self):
         return 1
 
-    def extents(self):
+    def extents(self, context="zero"):
+        if context != "zero":
+            raise errors.UnsupportedOperation(
+                "Backend {} does not support {} extents"
+                .format(self.name, context))
+
         # TODO: We can detect zeroes in underlying buffer and return more
         # interesting results.
         yield image.ZeroExtent(0, self.size(), False)

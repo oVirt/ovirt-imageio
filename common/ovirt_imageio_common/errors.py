@@ -50,3 +50,10 @@ class AuthorizationError(Error):
 
     def __init__(self, reason):
         self.reason = reason
+
+
+class UnsupportedOperation(Error):
+    msg = "Operation not supported: {self.reason}"
+
+    def __init__(self, reason):
+        self.reason = reason

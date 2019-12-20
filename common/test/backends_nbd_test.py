@@ -14,6 +14,7 @@ from contextlib import closing
 import pytest
 import userstorage
 
+from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import nbd
@@ -298,7 +299,7 @@ def test_size(nbd_server, fmt):
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_extents(nbd_server, user_file, fmt):
+def test_extents_zero(nbd_server, user_file, fmt):
     size = 6 * 1024**3
     qemu_img.create(user_file.path, fmt, size=size)
 
@@ -324,3 +325,14 @@ def test_extents(nbd_server, user_file, fmt):
             image.ZeroExtent(
                 5 * 1024**3 + len(data), 1024**3 - len(data), True),
         ]
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_extents_dirty_not_availabe(nbd_server, fmt):
+    qemu_img.create(nbd_server.image, fmt, 65536)
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+", dirty=True) as b:
+        with pytest.raises(errors.UnsupportedOperation):
+            list(b.extents(context="dirty"))

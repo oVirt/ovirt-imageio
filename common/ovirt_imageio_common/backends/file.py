@@ -16,6 +16,7 @@ import stat
 from contextlib import closing
 
 from .. import compat
+from .. import errors
 from .. import ioutil
 from .. import util
 
@@ -27,7 +28,7 @@ BUFFER_SIZE = 1024**2
 log = logging.getLogger("backends.file")
 
 
-def open(url, mode, sparse=False, buffer_size=BUFFER_SIZE):
+def open(url, mode, sparse=False, dirty=False, buffer_size=BUFFER_SIZE):
     """
     Open a file backend.
 
@@ -35,6 +36,7 @@ def open(url, mode, sparse=False, buffer_size=BUFFER_SIZE):
         url (url): parsed file url of underlying file.
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
+        dirty (bool): ignored, file backend does not support dirty extents.
         buffer_size (int): size of buffer to allocate if needed.
     """
     fio = util.open(url.path, mode, direct=True)
@@ -145,7 +147,12 @@ class Backend(object):
     def block_size(self):
         return self._block_size
 
-    def extents(self):
+    def extents(self, context="zero"):
+        if context != "zero":
+            raise errors.UnsupportedOperation(
+                "Backend {} does not support {} extents"
+                .format(self.name, context))
+
         # TODO: Use qemu-img map to get extents.
         yield image.ZeroExtent(0, self.size(), False)
 

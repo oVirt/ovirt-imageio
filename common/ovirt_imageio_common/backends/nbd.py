@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import logging
 import os
 
+from .. import errors
 from .. import nbd
 from .. import nbdutil
 
@@ -24,7 +25,7 @@ Error = nbd.Error
 BUFFER_SIZE = 1024**2
 
 
-def open(url, mode, sparse=True, buffer_size=BUFFER_SIZE):
+def open(url, mode, sparse=True, dirty=False, buffer_size=BUFFER_SIZE):
     """
     Open a NBD backend.
 
@@ -37,9 +38,11 @@ def open(url, mode, sparse=True, buffer_size=BUFFER_SIZE):
         sparse (bool): ignored, NBD backend does not support sparseness. This
             must be controlled by the nbd server. It seems that qemu-nbd and
             qemu always deallocate space when zeroing.
+        dirty (bool): if True, configure the client to report dirty extents.
+            Can work only when connecting to qemu during incremental backup.
         buffer_size (int): size of buffer to allocate if needed.
     """
-    client = nbd.open(url)
+    client = nbd.open(url, dirty=dirty)
     try:
         return Backend(client, mode, buffer_size=buffer_size)
     except:  # noqa: E722
@@ -149,10 +152,31 @@ class Backend(object):
                 raise
             log.exception("Error closing")
 
-    def extents(self):
+    def extents(self, context="zero"):
+        if context not in ("zero", "dirty"):
+            raise errors.UnsupportedOperation(
+                "Backend nbd does not support {} extents".format(context))
+
+        # If server does not support base:allocation, we can safely report one
+        # data extent like other backends.
+        if context == "zero" and not self._client.base_allocation:
+            yield image.ZeroExtent(0, self._client.export_size, False)
+            return
+
+        # If dirty extents are not available, client may be able to use zero
+        # extents for eficient download, so we should not fake the response.
+        if context == "dirty" and self._client.dirty_bitmap is None:
+            raise errors.UnsupportedOperation(
+                "NBD export {!r} does not support dirty extents"
+                .format(self._client.export_name))
+
+        dirty = context == "dirty"
         start = 0
-        for ext in nbdutil.extents(self._client):
-            yield image.ZeroExtent(start, ext.length, ext.zero)
+        for ext in nbdutil.extents(self._client, dirty=dirty):
+            if dirty:
+                yield image.DirtyExtent(start, ext.length, ext.dirty)
+            else:
+                yield image.ZeroExtent(start, ext.length, ext.zero)
             start += ext.length
 
     @property

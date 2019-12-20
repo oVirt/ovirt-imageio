@@ -44,6 +44,7 @@ def get(req, ticket, buffer_size=1024**2):
             ticket.url,
             mode,
             sparse=ticket.sparse,
+            dirty=ticket.dirty,
             buffer_size=buffer_size)
 
         req.context[ticket.uuid] = backend

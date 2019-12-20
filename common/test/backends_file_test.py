@@ -19,6 +19,7 @@ from six.moves import urllib_parse
 import pytest
 import userstorage
 
+from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 from ovirt_imageio_common.backends import image
@@ -625,3 +626,9 @@ def test_extents(user_file):
         # We support detecting extents now; empty file reports one data
         # extents.
         assert list(f.extents()) == [image.ZeroExtent(0, size, False)]
+
+
+def test_extents_dirty(user_file):
+    with file.open(user_file.url, "r+", dirty=True) as f:
+        with pytest.raises(errors.UnsupportedOperation):
+            list(f.extents(context="dirty"))
