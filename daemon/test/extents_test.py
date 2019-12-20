@@ -93,7 +93,11 @@ def test_ticket_expired(http_request, fake_time):
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_file(http_request, user_file, fmt):
+@pytest.mark.parametrize("path", [
+    "/images/%(uuid)s/extents",
+    "/images/%(uuid)s/extents?context=zero",
+])
+def test_file_zero(http_request, user_file, fmt, path):
     subprocess.check_call(
         ["qemu-img", "create", "-f", fmt, user_file.path, "1g"])
 
@@ -103,9 +107,37 @@ def test_file(http_request, user_file, fmt):
     ticket = testutils.create_ticket(url="file://" + user_file.path, size=size)
     auth.add(ticket)
 
-    res = http_request("GET", "/images/%(uuid)s/extents" % ticket)
+    res = http_request("GET", path % ticket)
     data = res.read()
     assert res.status == 200
 
     extents = json.loads(data.decode("utf-8"))
     assert extents == [{"start": 0, "length": size, "zero": False}]
+
+
+def test_file_ticket_not_dirty(http_request, tmpfile):
+    with open(str(tmpfile), "wb") as f:
+        f.truncate(65536)
+
+    ticket = testutils.create_ticket(
+        url="file://{}".format(tmpfile), size=65536, dirty=False)
+    auth.add(ticket)
+
+    res = http_request(
+        "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)
+    res.read()
+    assert res.status == 404
+
+
+def test_file_does_not_support_dirty(http_request, tmpfile):
+    with open(str(tmpfile), "wb") as f:
+        f.truncate(65536)
+
+    ticket = testutils.create_ticket(
+        url="file://{}".format(tmpfile), size=65536, dirty=True)
+    auth.add(ticket)
+
+    res = http_request(
+        "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)
+    res.read()
+    assert res.status == 404

@@ -13,6 +13,7 @@ import logging
 from ovirt_imageio_common import backends
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import http
+from ovirt_imageio_common import validate
 
 from . import auth
 
@@ -36,14 +37,27 @@ class Handler(object):
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        log.info("[%s] EXTENTS ticket=%s", req.client_addr, ticket_id)
+        context = validate.enum(
+            req.query, "context", ("zero", "dirty"), default="zero")
+
+        if context == "dirty" and not ticket.dirty:
+            raise http.Error(
+                http.NOT_FOUND, "Ticket does not support dirty extents")
+
+        log.info("[%s] EXTENTS ticket=%s context=%s",
+                 req.client_addr, ticket_id, context)
 
         backend = backends.get(
             req, ticket, buffer_size=self.config.daemon.buffer_size)
 
-        extents = [
-            {"start": ext.start, "length": ext.length, "zero": ext.zero}
-            for ext in backend.extents()
-        ]
+        try:
+            extents = [
+                {"start": ext.start,
+                 "length": ext.length,
+                 context: getattr(ext, context)}
+                for ext in backend.extents(context=context)
+            ]
+        except errors.UnsupportedOperation as e:
+            raise http.Error(http.NOT_FOUND, str(e))
 
         resp.send_json(extents)
