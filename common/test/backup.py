@@ -46,7 +46,8 @@ def full_backup(tmpdir, disk, fmt, sock, checkpoint=None):
 
 @contextmanager
 def run(qmp, sock, scratch_disk, checkpoint=None, incremental=None):
-    b = Backup(qmp, sock, scratch_disk, checkpoint=checkpoint)
+    b = Backup(qmp, sock, scratch_disk, checkpoint=checkpoint,
+               incremental=incremental)
     b.start()
     try:
         yield b
@@ -56,11 +57,13 @@ def run(qmp, sock, scratch_disk, checkpoint=None, incremental=None):
 
 class Backup(object):
 
-    def __init__(self, qmp, sock, scratch_disk, checkpoint=None):
+    def __init__(self, qmp, sock, scratch_disk, checkpoint=None,
+                 incremental=None):
         self.qmp = qmp
         self.sock = sock
         self.scratch_disk = scratch_disk
         self.checkpoint = checkpoint
+        self.incremental = incremental
 
         # Hardcoded value, good enough for now.
         self.export = "sda"
@@ -71,19 +74,26 @@ class Backup(object):
 
         self.job = "job0"
 
-        # Libvirt uses something like "backup-libvit-42-format".
+        # Libvirt uses something like "backup-libvirt-42-format".
         self.node = "backup-file0"
+        self.bitmap = self.node if self.incremental else None
 
     def start(self):
-        log.info("Starting backup checkpoint=%s", self.checkpoint)
+        log.info("Starting backup checkpoint=%s incremental=%s",
+                 self.checkpoint, self.incremental)
 
         self.start_nbd_server()
         self.add_backup_node()
+
+        if self.incremental:
+            self.add_dirty_bitmap()
+
         self.run_backup_transaction()
         self.add_to_nbd_server()
 
     def stop(self):
-        log.info("Stopping backup checkpoint=%s", self.checkpoint)
+        log.info("Stopping backup checkpoint=%s incremental=%s",
+                 self.checkpoint, self.incremental)
 
         # Give qemu time to detect that the NBD client disconnected before
         # we tear down the nbd server.
@@ -94,6 +104,9 @@ class Backup(object):
         self.stop_nbd_server()
         self.cancel_block_job()
         self.remove_backup_node()
+
+        if self.incremental:
+            self.remove_dirty_bitmap()
 
     def start_nbd_server(self):
         log.debug("Starting nbd server listening on %s", self.sock)
@@ -123,9 +136,40 @@ class Backup(object):
             "backing": self.file,
         })
 
+    def add_dirty_bitmap(self):
+        """
+        Real backup code get a list of all checkpoints since incremental, and
+        merge all of them into the temporary bitmap.
+        """
+        log.debug("Adding dirty bitmap %s for incremental backup since: %s",
+                  self.bitmap, self.incremental)
+
+        self.qmp.execute("block-dirty-bitmap-add", {
+            "node": self.file,
+            "name": self.bitmap,
+            "disabled": True,
+        })
+
+        self.qmp.execute("block-dirty-bitmap-merge", {
+            "node": self.file,
+            "target": self.bitmap,
+            "bitmaps": [self.incremental],
+        })
+
     def run_backup_transaction(self):
         log.debug("Running backup transaction")
         actions = []
+
+        if self.incremental:
+            # Disbale the previous active dirty bitmap. Changes after this
+            # point will be recorded in the new bitmap.
+            actions.append({
+                "type": "block-dirty-bitmap-disable",
+                "data": {
+                    "node": self.file,
+                    "name": self.incremental,
+                }
+            })
 
         if self.checkpoint:
             actions.append({
@@ -150,8 +194,11 @@ class Backup(object):
         self.qmp.execute("transaction", {"actions": actions})
 
     def add_to_nbd_server(self):
-        log.debug("Adding node %s to nbd server", self.node)
+        log.debug("Adding node %s and bitmap %s to nbd server",
+                  self.node, self.bitmap)
         arguments = {"name": self.export, "device": self.node}
+        if self.bitmap:
+            arguments["bitmap"] = self.bitmap
         self.qmp.execute("nbd-server-add", arguments)
 
     def remove_from_nbd_server(self):
@@ -183,9 +230,33 @@ class Backup(object):
 
 
 def copy_disk(nbd_url, backup_disk):
-    log.info("Backing up %s to %s", nbd_url, backup_disk)
+    log.info("Backing up data extents from %s to %s", nbd_url, backup_disk)
     backup_url = urlparse(nbd_url)
 
     with nbd.open(backup_url) as src_client, \
             qemu_nbd.open(backup_disk, "qcow2") as dst_client:
         nbdutil.copy(src_client, dst_client)
+
+
+def copy_dirty(nbd_url, backup_disk):
+    log.info("Backing up dirty extents from %s to %s", nbd_url, backup_disk)
+    backup_url = urlparse(nbd_url)
+
+    with nbd.open(backup_url, dirty=True) as src_client, \
+            qemu_nbd.open(backup_disk, "qcow2") as dst_client:
+
+        buf = bytearray(4 * 1024**2)
+
+        offset = 0
+        for ext in nbdutil.extents(src_client, dirty=True):
+            if ext.dirty:
+                todo = ext.length
+                while todo:
+                    step = min(todo, len(buf))
+                    view = memoryview(buf)[:step]
+                    src_client.readinto(offset, view)
+                    dst_client.write(offset, view)
+                    offset += step
+                    todo -= step
+            else:
+                offset += ext.length
