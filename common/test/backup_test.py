@@ -23,6 +23,8 @@ from . import qemu_nbd
 from . import qmp
 from . import testutil
 
+from . marks import requires_advanced_virt
+
 log = logging.getLogger("test")
 
 
@@ -103,6 +105,53 @@ def test_full_backup_guest(tmpdir, base_image):
             backup.copy_disk(nbd_sock.url("sda"), backup_disk)
 
     verify_backup(backup_disk, ["before-backup"])
+
+
+@pytest.mark.timeout(120)
+@pytest.mark.xfail(
+    "OVIRT_CI" in os.environ, reason="Always times out", run=False)
+@requires_advanced_virt
+def test_incremental_backup_guest(tmpdir, base_image):
+    disk_size = qemu_img.info(base_image)["virtual-size"]
+
+    disk = str(tmpdir.join("disk.qcow2"))
+    qemu_img.create(disk, "qcow2", backing=base_image)
+
+    scratch_disk = str(tmpdir.join("scratch.qcow2"))
+    qemu_img.create(scratch_disk, "qcow2", size=disk_size)
+
+    full_backup_disk = str(tmpdir.join("full-backup.qcow2"))
+    qemu_img.create(full_backup_disk, "qcow2", size=disk_size)
+
+    incr_backup_disk = str(tmpdir.join("incr-backup.qcow2"))
+    qemu_img.create(incr_backup_disk, "qcow2", size=disk_size)
+
+    qmp_sock = nbd.UnixAddress(tmpdir.join("qmp.sock"))
+    nbd_sock = nbd.UnixAddress(tmpdir.join("nbd.sock"))
+
+    with qemu.run(disk, "qcow2", qmp_sock, shutdown_timeout=10) as guest, \
+            qmp.Client(qmp_sock) as qmp_client:
+        guest.login("root", "")
+
+        with backup.run(
+                qmp_client, nbd_sock, scratch_disk, checkpoint="check1"):
+
+            backup.copy_disk(nbd_sock.url("sda"), full_backup_disk)
+
+        qemu_img.create(scratch_disk, "qcow2", size=disk_size)
+
+        assert guest.run("touch before-backup; sync") == ""
+
+        with backup.run(
+                qmp_client, nbd_sock, scratch_disk, checkpoint="check2",
+                incremental="check1"):
+
+            assert guest.run("touch during-backup; sync") == ""
+
+            backup.copy_dirty(nbd_sock.url("sda"), incr_backup_disk)
+
+    qemu_img.unsafe_rebase(incr_backup_disk, full_backup_disk)
+    verify_backup(incr_backup_disk, ["before-backup"])
 
 
 def verify_backup(backup_disk, expected_files):
