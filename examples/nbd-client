@@ -266,6 +266,7 @@ args = parser.parse_args()
 
 logging.basicConfig(
     level=logging.DEBUG if args.verbose else logging.WARNING,
-    format="nbd-client: %(levelname)-7s [%(threadName)s] %(message)s")
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+            "%(message)s"))
 
 args.command(args)
