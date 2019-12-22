@@ -45,6 +45,7 @@ How to use:
 """
 
 import argparse
+import logging
 
 from ovirt_imageio_common import client
 from ovirt_imageio_common import ui
@@ -94,6 +95,11 @@ parser.add_argument(
     help="buffer size in KiB for performance tuning (default {})"
          .format(client.BUFFER_SIZE // 1024))
 
+parser.add_argument(
+    "-v", "--verbose",
+    action="store_true",
+    help="Be more verbose")
+
 commands = parser.add_subparsers(title="commands")
 
 upload_parser = commands.add_parser(
@@ -130,5 +136,10 @@ download_parser.add_argument(
     help="path to image")
 
 args = parser.parse_args()
+
+logging.basicConfig(
+    level=logging.DEBUG if args.verbose else logging.WARNING,
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+            "%(message)s"))
 
 args.command(args)
