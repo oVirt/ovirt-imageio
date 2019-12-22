@@ -27,11 +27,21 @@ BUFFER_SIZE = 4 * 1024**2
 log = logging.getLogger("io")
 
 
-def copy(src, dst, buffer_size=BUFFER_SIZE, zero=True, progress=None):
+def copy(src, dst, dirty=False, buffer_size=BUFFER_SIZE, zero=True,
+         progress=None):
     buffer_size = min(buffer_size, MAX_BUFFER_SIZE)
     buf = bytearray(buffer_size)
 
-    for ext in src.extents():
+    if dirty:
+        _copy_dirty(src, dst, buf, progress)
+    else:
+        _copy_data(src, dst, buf, zero, progress)
+
+    dst.flush()
+
+
+def _copy_data(src, dst, buf, zero, progress):
+    for ext in src.extents("zero"):
         if not ext.zero:
             _copy_extent(src, dst, ext, buf, progress)
         elif zero:
@@ -39,7 +49,13 @@ def copy(src, dst, buffer_size=BUFFER_SIZE, zero=True, progress=None):
         elif progress:
             progress.update(ext.length)
 
-    dst.flush()
+
+def _copy_dirty(src, dst, buf, progress):
+    for ext in src.extents("dirty"):
+        if ext.dirty:
+            _copy_extent(src, dst, ext, buf, progress)
+        elif progress:
+            progress.update(ext.length)
 
 
 def _copy_extent(src, dst, ext, buf, progress):

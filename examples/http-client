@@ -118,6 +118,11 @@ download_parser.add_argument(
     help=("download image format. The default qcow2 is usually best choice "
           "since it supports incremental backups"))
 download_parser.add_argument(
+    "--incremental",
+    action="store_true",
+    help=("download only changed blocks. Can be used only during incremental "
+          "backup and requires --format=qcow2"))
+download_parser.add_argument(
     "url",
     help="transfer URL")
 download_parser.add_argument(

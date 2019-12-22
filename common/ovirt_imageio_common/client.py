@@ -61,8 +61,8 @@ def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
         io.copy(src, dst, buffer_size=buffer_size, progress=progress)
 
 
-def download(url, filename, cafile, fmt="qcow2", buffer_size=BUFFER_SIZE,
-             secure=True, progress=None):
+def download(url, filename, cafile, fmt="qcow2", incremental=False,
+             buffer_size=BUFFER_SIZE, secure=True, progress=None):
     """
     Download url to filename.
 
@@ -73,7 +73,9 @@ def download(url, filename, cafile, fmt="qcow2", buffer_size=BUFFER_SIZE,
         cafile (str): Certificate file name, for example "ca.pem"
         fmt (str): Download file format ("raw", "qcow2"). The default is
             "qcow2" is usually the best option, supporting sparsness regardless
-            of the local file system.
+            of the local file system, and incremental backups.
+        incremental (bool): Download only changed blocks. Valid only during
+            incremetnal backup and require format="qcow2".
         buffer_size (int): Buffer size in bytes for reading from storage and
             sending data over HTTP connection.
         secure (bool): True for verifying server certificate and hostname.
@@ -82,6 +84,11 @@ def download(url, filename, cafile, fmt="qcow2", buffer_size=BUFFER_SIZE,
             progress.update() will be called after every write or zero
             operation with the number bytes transferred.
     """
+    if incremental and fmt != "qcow2":
+        raise ValueError(
+            "incremental={} is incompatible with fmt={}"
+            .format(incremental, fmt))
+
     http_url = urlparse(url)
 
     with http.open(http_url, "r", cafile=cafile, secure=secure) as src:
@@ -96,6 +103,7 @@ def download(url, filename, cafile, fmt="qcow2", buffer_size=BUFFER_SIZE,
             io.copy(
                 src,
                 dst,
+                dirty=incremental,
                 buffer_size=buffer_size,
                 zero=False,
                 progress=progress)

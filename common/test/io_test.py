@@ -152,6 +152,38 @@ def test_copy_write_to(zero):
     assert dst.data() == src.data()
 
 
+def test_copy_dirty():
+    size = 1024
+    chunk_size = size // 4
+
+    def fake_extents(context="zero"):
+        return [
+            image.DirtyExtent(0 * chunk_size, chunk_size, True),
+            image.DirtyExtent(1 * chunk_size, chunk_size, False),
+            image.DirtyExtent(2 * chunk_size, chunk_size, True),
+            image.DirtyExtent(3 * chunk_size, chunk_size, False),
+        ]
+
+    src = memory.Backend("r", (
+        b"a" * chunk_size +
+        b"b" * chunk_size +
+        b"c" * chunk_size +
+        b"d" * chunk_size
+    ))
+    src.extents = fake_extents
+
+    dst = memory.Backend("r+", b"\0" * size)
+
+    io.copy(src, dst, dirty=True)
+
+    assert dst.data() == (
+        b"a" * chunk_size +
+        b"\0" * chunk_size +
+        b"c" * chunk_size +
+        b"\0" * chunk_size
+    )
+
+
 class FakeProgress:
 
     def __init__(self):
@@ -162,7 +194,7 @@ class FakeProgress:
 
 
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_progress(zero):
+def test_copy_data_progress(zero):
     size = 1024
     chunk_size = size // 4
 
@@ -186,6 +218,38 @@ def test_copy_progress(zero):
 
     p = FakeProgress()
     io.copy(src, dst, zero=zero, progress=p)
+
+    # Report at least every extent.
+    assert len(p.updates) >= 4
+
+    # Report entire image size.
+    assert sum(p.updates) == size
+
+
+def test_copy_dirty_progress():
+    size = 1024
+    chunk_size = size // 4
+
+    def fake_extents(context="zero"):
+        return [
+            image.DirtyExtent(0 * chunk_size, chunk_size, True),
+            image.DirtyExtent(1 * chunk_size, chunk_size, False),
+            image.DirtyExtent(2 * chunk_size, chunk_size, True),
+            image.DirtyExtent(3 * chunk_size, chunk_size, False),
+        ]
+
+    src = memory.Backend("r", (
+        b"x" * chunk_size +
+        b"\0" * chunk_size +
+        b"x" * chunk_size +
+        b"\0" * chunk_size
+    ))
+    src.extents = fake_extents
+
+    dst = memory.Backend("r+", b"\0" * size)
+
+    p = FakeProgress()
+    io.copy(src, dst, dirty=True, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4
