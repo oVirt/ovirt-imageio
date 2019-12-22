@@ -45,16 +45,13 @@ How to use:
 """
 
 import argparse
-import os
-import sys
 
 from ovirt_imageio_common import client
 from ovirt_imageio_common import ui
 
 
 def upload(args):
-    image_size = os.path.getsize(args.filename)
-    with ui.ProgressBar(image_size) as pb:
+    with ui.ProgressBar() as pb:
         client.upload(
             args.filename,
             args.url,
@@ -70,6 +67,7 @@ def download(args):
             args.url,
             args.filename,
             args.cafile,
+            fmt=args.format,
             buffer_size=args.buffer_size,
             secure=args.secure,
             progress=pb)
@@ -77,8 +75,6 @@ def download(args):
 
 parser = argparse.ArgumentParser(description="HTTP client")
 
-# Note: unix socket works only when running this tool on the same host serving
-# the image.
 parser.add_argument(
     "-c", "--cafile",
     help="path to oVirt engine certificate for verifying server.")
@@ -94,9 +90,9 @@ parser.add_argument(
 parser.add_argument(
     "-b", "--buffer-size",
     type=lambda v: int(v) * 1024,
-    default=128 * 1024,
-    help=("buffer size in kB for upload. The default (128 kB) provides best "
-          "results in our tests, but you may like to tune this."))
+    default=client.BUFFER_SIZE,
+    help="buffer size in KiB for performance tuning (default {})"
+         .format(client.BUFFER_SIZE // 1024))
 
 commands = parser.add_subparsers(title="commands")
 
@@ -115,6 +111,12 @@ download_parser = commands.add_parser(
     "download",
     help="download image")
 download_parser.set_defaults(command=download)
+download_parser.add_argument(
+    "-f", "--format",
+    choices=("raw", "qcow2"),
+    default="qcow2",
+    help=("download image format. The default qcow2 is usually best choice "
+          "since it supports incremental backups"))
 download_parser.add_argument(
     "url",
     help="transfer URL")
