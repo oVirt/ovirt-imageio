@@ -34,7 +34,7 @@ def open(url, mode, sparse=False, dirty=False, buffer_size=BUFFER_SIZE):
 
     Arguments:
         url (url): parsed file url of underlying file.
-        mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
+        mode: (str): "r" for readonly, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
         dirty (bool): ignored, file backend does not support dirty extents.
         buffer_size (int): size of buffer to allocate if needed.
@@ -326,57 +326,38 @@ class FileBackend(Backend):
         Detect the unserlying storage block size by checking the minimal block
         size that works for direct I/O.
 
-        Note that on XFS unaligned read from hole succeed, so the only way to
-        find the minimal block size is to write.
+        There are 2 cases when we cannot detect the block size:
+        - Reading from unallocated file in local XFS or Gluster over XFS. This
+          should not happen now since qemu-img create always allocate the first
+          block to mitigate this issue.
+        - NFS, since O_DIRECT s not passed to the server
 
-        On NFS no alignment is required for direct I/O so we always use 512.
+        When we cannot detect the block size we fallback to 4096.
         """
-        initial_size = os.path.getsize(self._fio.name)
+        for block_size in (1, 512, 4096):
+            log.debug("Trying block size %s", block_size)
+            buf = util.aligned_buffer(block_size)
+            with closing(buf):
+                self.seek(0)
+                try:
+                    self.readinto(buf)
+                except EnvironmentError as e:
+                    if e.errno != errno.EINVAL:
+                        raise
+                    continue
 
-        # On Gluster if performance.strict-o-direct is off, unaligned direct
-        # I/O can succeed. Using O_SYNC solves this issue.
-        with util.open(self._fio.name, "r+", direct=True, sync=True) as f:
-            for block_size in (512, 4096):
-                log.debug("Trying block size %s", block_size)
-                buf = util.aligned_buffer(block_size)
-                with closing(buf):
-                    # 1. Read one block from storage. We expect to get entire
-                    # block, or if the initial size is smaller than one block,
-                    # all bytes in the file.
-                    expected_read = min(initial_size, block_size)
+            self.seek(0)
 
-                    f.seek(0)
-                    try:
-                        read = util.uninterruptible(f.readinto, buf)
-                    except EnvironmentError as e:
-                        if e.errno != errno.EINVAL:
-                            raise
-                        continue
+            if block_size == 1:
+                log.debug("Cannot detect block size - using 4096")
+                block_size = 4096
+            else:
+                log.debug("Detected block size %s", block_size)
 
-                    if read < expected_read:
-                        raise RuntimeError(
-                            "Short read using direct I/O read={} expected={}"
-                            .format(read, expected_read))
+            return block_size
 
-                    # 2. Write the buffer back to storage. If the file size
-                    # smaller than block_size, it will enlarge the file to
-                    # block_size bytes by padding zeroes.
-                    f.seek(0)
-                    try:
-                        util.uninterruptible(f.write, buf)
-                    except EnvironmentError as e:
-                        if e.errno != errno.EINVAL:
-                            raise
-                        continue
-
-                    # 3. Restore file size if needed.
-                    if initial_size < block_size:
-                        f.truncate(initial_size)
-
-                    log.debug("Detected block size %s", block_size)
-                    return block_size
-
-        raise RuntimeError("Cannot detect {} block size".format(f.name))
+        raise RuntimeError(
+            "Cannot use direct I/O with {}".format(self._fio.path))
 
     def _zero(self, count):
         offset = self.tell()

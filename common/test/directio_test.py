@@ -112,19 +112,17 @@ def test_recv_repr(tmpfile):
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])
 def test_receive_unbuffered_stream(tmpfile, bufsize):
-    chunks = [b"1" * 1024,
-              b"2" * 1024,
-              b"3" * 42,
-              b"4" * 982]
+    chunks = [b"a" * 8192,
+              b"b" * 42,
+              b"c" * (8192 - 42)]
     data = b''.join(chunks)
     assert receive_unbuffered(tmpfile, chunks, len(data), bufsize) == data
 
 
 def test_receive_unbuffered_stream_partial_content(tmpfile):
-    chunks = [b"1" * 1024,
-              b"2" * 1024,
-              b"3" * 42,
-              b"4" * 982]
+    chunks = [b"a" * 8192,
+              b"b" * 42,
+              b"c" * (8192 - 42)]
     data = b''.join(chunks)
     with pytest.raises(errors.PartialContent):
         receive_unbuffered(tmpfile, chunks, len(data) + 1, 2048)
