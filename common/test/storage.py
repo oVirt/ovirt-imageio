@@ -18,7 +18,7 @@ class Backend(object):
     simplify fixtures.
     """
 
-    def __init__(self, storage):
+    def __init__(self, storage, can_detect_sector_size=True):
         if not storage.exists():
             pytest.xfail("Storage {} is not available".format(storage.name))
 
@@ -26,6 +26,7 @@ class Backend(object):
         self.path = storage.path
         self.url = urllib_parse.urlparse("file:" + storage.path)
         self.sector_size = storage.sector_size
+        self.can_detect_sector_size = can_detect_sector_size
 
     def __enter__(self):
         self._storage.setup()

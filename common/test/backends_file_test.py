@@ -31,17 +31,18 @@ BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
 @pytest.fixture(
     params=[
-        BACKENDS["file-512-ext2"],
-        BACKENDS["file-512-ext4"],
-        BACKENDS["file-512-xfs"],
-        BACKENDS["file-4k-ext2"],
-        BACKENDS["file-4k-ext4"],
-        BACKENDS["file-4k-xfs"],
+        # backend, can_detect_sector_size
+        (BACKENDS["file-512-ext2"], True),
+        (BACKENDS["file-512-ext4"], True),
+        (BACKENDS["file-512-xfs"], False),
+        (BACKENDS["file-4k-ext2"], True),
+        (BACKENDS["file-4k-ext4"], True),
+        (BACKENDS["file-4k-xfs"], True),
     ],
-    ids=str
+    ids=lambda x: str(x[0]),
 )
 def user_file(request):
-    with storage.Backend(request.param) as backend:
+    with storage.Backend(*request.param) as backend:
         yield backend
 
 
@@ -51,26 +52,6 @@ def test_debugging_interface(user_file):
         assert f.writable()
         assert not f.sparse
         assert f.name == "file"
-
-
-def test_open_write_only(user_file):
-    with file.open(user_file.url, "w") as f, \
-            closing(util.aligned_buffer(user_file.sector_size)) as buf:
-        assert not f.readable()
-        assert f.writable()
-        buf.write(b"x" * user_file.sector_size)
-        f.write(buf)
-    with io.open(user_file.path, "rb") as f:
-        assert f.read() == b"x" * user_file.sector_size
-
-
-def test_open_write_only_truncate(user_file):
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * user_file.sector_size)
-    with file.open(user_file.url, "w") as f:
-        pass
-    with io.open(user_file.path, "rb") as f:
-        assert f.read() == b""
 
 
 def test_open_read_only(user_file):
@@ -108,13 +89,16 @@ def test_open_no_create(mode):
     assert e.value.errno == errno.ENOENT
 
 
-@pytest.mark.parametrize("size", [0, 511, 4097])
+@pytest.mark.parametrize("size", [511, 4097])
 def test_block_size_sparse(user_file, size):
     with io.open(user_file.path, "wb") as f:
         f.truncate(size)
 
     with file.open(user_file.url, "r") as f:
-        assert f.block_size == user_file.sector_size
+        if user_file.can_detect_sector_size:
+            assert f.block_size == user_file.sector_size
+        else:
+            assert f.block_size in (user_file.sector_size, 4096)
 
     with io.open(user_file.path, "rb") as f:
         assert f.read(size) == b"\0" * size
@@ -128,22 +112,29 @@ def test_block_size_preallocated(user_file, size):
         ["fallocate", "--posix", "--length", str(size), user_file.path])
 
     with file.open(user_file.url, "r") as f:
-        assert f.block_size == user_file.sector_size
+        if user_file.can_detect_sector_size:
+            assert f.block_size == user_file.sector_size
+        else:
+            assert f.block_size in (user_file.sector_size, 4096)
 
     with io.open(user_file.path, "rb") as f:
         assert f.read(size) == b"\0" * size
 
 
-@pytest.mark.parametrize("hole_size", [511, 4097])
-def test_block_size_hole(user_file, hole_size):
-    data_size = 8192 - hole_size
+def test_block_size_first_block_unallocated(user_file):
+    # Assumes file system block size <= 4096.
+    hole_size = 4096
+    data_size = 4096
 
     with io.open(user_file.path, "wb") as f:
         f.seek(hole_size)
         f.write(b"x" * data_size)
 
     with file.open(user_file.url, "r") as f:
-        assert f.block_size == user_file.sector_size
+        if user_file.can_detect_sector_size:
+            assert f.block_size == user_file.sector_size
+        else:
+            assert f.block_size in (user_file.sector_size, 4096)
 
     with io.open(user_file.path, "rb") as f:
         assert f.read(hole_size) == b"\0" * hole_size
@@ -600,7 +591,7 @@ def test_dirty(user_file):
 
 
 def test_size(user_file):
-    size = user_file.sector_size * 2
+    size = 4096
 
     with io.open(user_file.path, "wb") as f:
         f.truncate(size)
@@ -613,5 +604,5 @@ def test_size(user_file):
 
         # Check that size() updates when file size is modified.
         f.seek(size)
-        f.zero(user_file.sector_size)
-        assert f.size() == size + user_file.sector_size
+        f.zero(4096)
+        assert f.size() == 8192
