@@ -30,6 +30,8 @@ from . import testutil
 
 from . marks import requires_advanced_virt, requires_python3
 
+pytestmark = requires_python3
+
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
 log = logging.getLogger("test")

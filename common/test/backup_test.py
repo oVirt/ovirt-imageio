@@ -23,7 +23,9 @@ from . import qemu
 from . import qmp
 from . import testutil
 
-from . marks import requires_advanced_virt
+from . marks import requires_advanced_virt, requires_python3
+
+pytestmark = requires_python3
 
 log = logging.getLogger("test")
 

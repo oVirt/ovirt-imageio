@@ -21,6 +21,9 @@ from ovirt_imageio_common import qemu_img
 from ovirt_imageio_common import qemu_nbd
 
 from . import testutil
+from . marks import requires_python3
+
+pytestmark = requires_python3
 
 
 @pytest.mark.parametrize("addr,export,url", [

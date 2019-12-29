@@ -15,6 +15,7 @@ from ovirt_imageio_common import nbd
 from ovirt_imageio_common import backends
 
 from . import testutil
+from . marks import requires_python3
 
 
 class Ticket(object):
@@ -86,6 +87,7 @@ def test_get_sparse(tmpurl, sparse):
     assert b.sparse == sparse
 
 
+@requires_python3
 @pytest.mark.parametrize("transport", ["unix", "tcp"])
 def test_get_nbd_backend(tmpdir, nbd_server, transport):
     if transport == "unix":
