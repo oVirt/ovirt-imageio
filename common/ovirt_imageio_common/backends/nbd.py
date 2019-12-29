@@ -40,7 +40,7 @@ def open(url, mode, sparse=True, dirty=False, buffer_size=BUFFER_SIZE):
             qemu always deallocate space when zeroing.
         dirty (bool): if True, configure the client to report dirty extents.
             Can work only when connecting to qemu during incremental backup.
-        buffer_size (int): size of buffer to allocate if needed.
+        buffer_size (int): ignored, nbd backend does not allocate buffers.
     """
     client = nbd.open(url, dirty=dirty)
     try:
@@ -60,7 +60,6 @@ class Backend(object):
             raise ValueError("Unsupported mode %r" % mode)
         self._client = client
         self._mode = mode
-        self._buffer = bytearray(buffer_size)
         self._position = 0
         self._dirty = False
 
@@ -82,26 +81,6 @@ class Backend(object):
         buf[:length] = bytes(data)
 
         self._position += length
-        return length
-
-    def write_to(self, dst, length):
-        """
-        Copy up to length bytes at current position from NBD server to dst
-        file-like object.
-        """
-        if not self.readable():
-            raise IOError("Unsupported operation: write_to")
-
-        max_step = min(self._client.maximum_block_size, len(self._buffer))
-        end = self._position + length
-
-        while self._position < end:
-            step = min(end - self._position, max_step)
-            buf = memoryview(self._buffer)[:step]
-            self._client.readinto(self._position, buf)
-            dst.write(buf)
-            self._position += step
-
         return length
 
     def write(self, buf):
