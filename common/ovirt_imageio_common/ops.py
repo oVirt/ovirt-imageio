@@ -12,7 +12,6 @@ import logging
 
 from contextlib import closing
 
-from . import compat
 from . import errors
 from . import util
 
@@ -107,8 +106,9 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
-        with self._clock.run("write"):
-            self._dst.write(compat.bufview(buf, skip, size))
+        with memoryview(buf)[skip:skip + size] as view:
+            with self._clock.run("write"):
+                self._dst.write(view)
         self._done += size
 
 
