@@ -703,31 +703,51 @@ def test_options_all(srv, client):
     assert set(options["features"]) == features
     assert options["unix_socket"] == srv.config.local.socket
 
+    # Maximum connections reported only for actual ticket since this depends on
+    # the backend.
+    assert "max_readers" not in options
+    assert "max_writers" not in options
 
-def test_options_read_write(srv, client):
-    ticket = testutil.create_ticket(ops=["read", "write"])
+
+def test_options_read_write(srv, client, tmpdir):
+    size = 128 * 1024
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=size, ops=["read", "write"])
     srv.auth.add(ticket)
     res = client.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
     features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == features
+    options = json.loads(res.read())
+    assert set(options["features"]) == features
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == 1  # Using file backend.
 
 
-def test_options_read(srv, client):
-    ticket = testutil.create_ticket(ops=["read"])
+def test_options_read(srv, client, tmpdir):
+    size = 128 * 1024
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=size, ops=["read"])
     srv.auth.add(ticket)
     res = client.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET"}
     features = {"extents"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == features
+    options = json.loads(res.read())
+    assert set(options["features"]) == features
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == 1  # Using file backend.
 
 
-def test_options_write(srv, client):
-    ticket = testutil.create_ticket(ops=["write"])
+def test_options_write(srv, client, tmpdir):
+    size = 128 * 1024
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=size, ops=["write"])
     srv.auth.add(ticket)
     res = client.options("/images/" + ticket["uuid"])
     # Having "write" imply also "read".
@@ -735,11 +755,16 @@ def test_options_write(srv, client):
     features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
-    assert set(json.loads(res.read())["features"]) == features
+    options = json.loads(res.read())
+    assert set(options["features"]) == features
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == 1  # Using file backend.
 
 
-def test_options_extends_ticket(srv, client, fake_time):
-    ticket = testutil.create_ticket()
+def test_options_extends_ticket(srv, client, tmpdir, fake_time):
+    size = 128 * 1024
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
     server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
@@ -768,8 +793,11 @@ def test_options_for_nonexistent_ticket(srv, client):
     assert res.status == 403
 
 
-def test_options_ticket_expired(srv, client, fake_time):
-    ticket = testutil.create_ticket(timeout=300)
+def test_options_ticket_expired(srv, client, tmpdir, fake_time):
+    size = 128 * 1024
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=size, timeout=300)
     srv.auth.add(ticket)
     server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300

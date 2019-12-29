@@ -214,10 +214,15 @@ class Handler(object):
 
         log.info("[%s] OPTIONS ticket=%s", req.client_addr, ticket_id)
 
+        options = {}
+
+        if self.config.local.enable:
+            options["unix_socket"] = self.config.local.socket
+
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
-            features = ["extents", "zero", "flush"]
+            options["features"] = ["extents", "zero", "flush"]
         else:
             # Reporting real image capabilities per ticket.
             try:
@@ -229,15 +234,19 @@ class Handler(object):
             ticket.touch()
 
             allow = ["OPTIONS"]
-            features = ["extents"]
+            options["features"] = ["extents"]
+
             if ticket.may("read"):
                 allow.append("GET")
+
             if ticket.may("write"):
                 allow.extend(("PUT", "PATCH"))
-                features.extend(("zero", "flush"))
+                options["features"].extend(("zero", "flush"))
+
+            # Backend specific options.
+            ctx = backends.get(req, ticket, self.config)
+            options["max_readers"] = ctx.backend.max_readers
+            options["max_writers"] = ctx.backend.max_writers
 
         resp.headers["allow"] = ",".join(allow)
-        msg = {"features": features}
-        if self.config.local.enable:
-            msg["unix_socket"] = self.config.local.socket
-        resp.send_json(msg)
+        resp.send_json(options)
