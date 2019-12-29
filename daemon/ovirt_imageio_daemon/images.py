@@ -57,7 +57,7 @@ class Handler(object):
             req.client_addr, size, offset, flush, ticket_id)
 
         op = ops.Receive(
-            self._backend(req, ticket),
+            backends.get(req, ticket),
             req,
             size,
             offset=offset,
@@ -94,7 +94,7 @@ class Handler(object):
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        backend = self._backend(req, ticket)
+        backend = backends.get(req, ticket)
 
         if size is not None:
             validate.allowed_range(offset, size, ticket)
@@ -120,7 +120,7 @@ class Handler(object):
                 offset, offset + size - 1, ticket.size)
 
         op = ops.Send(
-            self._backend(req, ticket),
+            backends.get(req, ticket),
             resp,
             size,
             offset=offset,
@@ -168,7 +168,7 @@ class Handler(object):
             req.client_addr, size, offset, flush, ticket_id)
 
         op = ops.Zero(
-            self._backend(req, ticket),
+            backends.get(req, ticket),
             size,
             offset=offset,
             flush=flush,
@@ -187,7 +187,7 @@ class Handler(object):
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
 
-        op = ops.Flush(self._backend(req, ticket), clock=req.clock)
+        op = ops.Flush(backends.get(req, ticket), clock=req.clock)
         ticket.run(op)
 
     def options(self, req, resp, ticket_id):
@@ -221,7 +221,3 @@ class Handler(object):
         resp.headers["allow"] = ",".join(allow)
         msg = {"features": features, "unix_socket": self.config.images.socket}
         resp.send_json(msg)
-
-    def _backend(self, req, ticket):
-        return backends.get(
-            req, ticket, buffer_size=self.config.daemon.buffer_size)

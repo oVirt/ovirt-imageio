@@ -22,7 +22,7 @@ def supports(name):
     return name in _modules
 
 
-def get(req, ticket, buffer_size=1024**2):
+def get(req, ticket):
     """
     Return a connection backend for this ticket.
 
@@ -44,8 +44,7 @@ def get(req, ticket, buffer_size=1024**2):
             ticket.url,
             mode,
             sparse=ticket.sparse,
-            dirty=ticket.dirty,
-            buffer_size=buffer_size)
+            dirty=ticket.dirty)
 
         req.context[ticket.uuid] = backend
 

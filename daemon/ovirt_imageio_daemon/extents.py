@@ -47,8 +47,7 @@ class Handler(object):
         log.info("[%s] EXTENTS ticket=%s context=%s",
                  req.client_addr, ticket_id, context)
 
-        backend = backends.get(
-            req, ticket, buffer_size=self.config.daemon.buffer_size)
+        backend = backends.get(req, ticket)
 
         try:
             extents = [

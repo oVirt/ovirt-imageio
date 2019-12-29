@@ -18,7 +18,7 @@ from . import image
 log = logging.getLogger("backends.memory")
 
 
-def open(url, mode, sparse=False, dirty=False, buffer_size=0):
+def open(url, mode, sparse=False, dirty=False):
     """
     Open a memory backend.
 
@@ -27,7 +27,6 @@ def open(url, mode, sparse=False, dirty=False, buffer_size=0):
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): ignored, memory backend does not support sparseness.
         dirty (bool): ignored, memory backend does not support dirty extents.
-        buffer_size (int): ignored, memory backend does not allocate buffers.
     """
     return Backend(mode)
 

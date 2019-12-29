@@ -26,8 +26,7 @@ from . import image
 log = logging.getLogger("backends.http")
 
 
-def open(url, mode, sparse=True, dirty=False, buffer_size=None, cafile=None,
-         secure=True):
+def open(url, mode, sparse=True, dirty=False, cafile=None, secure=True):
     """
     Open a HTTP backend.
 
@@ -37,7 +36,6 @@ def open(url, mode, sparse=True, dirty=False, buffer_size=None, cafile=None,
         sparse (bool): ignored, http backend does not support sparseness.
         dirty (bool): ignored, http backend does not require configuration for
             getting dirty extents.
-        buffer_size (int): ignored, not used by http backend.
         cafile (str): path to CA certificates to trust for certificate
             verification. If not set, trust system's default CA certificates
             instead.

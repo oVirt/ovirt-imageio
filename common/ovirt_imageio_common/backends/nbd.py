@@ -21,11 +21,8 @@ log = logging.getLogger("backends.nbd")
 
 Error = nbd.Error
 
-# Default buffer size for copying.
-BUFFER_SIZE = 1024**2
 
-
-def open(url, mode, sparse=True, dirty=False, buffer_size=BUFFER_SIZE):
+def open(url, mode, sparse=True, dirty=False):
     """
     Open a NBD backend.
 
@@ -40,11 +37,10 @@ def open(url, mode, sparse=True, dirty=False, buffer_size=BUFFER_SIZE):
             qemu always deallocate space when zeroing.
         dirty (bool): if True, configure the client to report dirty extents.
             Can work only when connecting to qemu during incremental backup.
-        buffer_size (int): ignored, nbd backend does not allocate buffers.
     """
     client = nbd.open(url, dirty=dirty)
     try:
-        return Backend(client, mode, buffer_size=buffer_size)
+        return Backend(client, mode)
     except:  # noqa: E722
         client.close()
         raise
@@ -55,7 +51,7 @@ class Backend(object):
     NBD backend.
     """
 
-    def __init__(self, client, mode, buffer_size=BUFFER_SIZE):
+    def __init__(self, client, mode):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
         self._client = client

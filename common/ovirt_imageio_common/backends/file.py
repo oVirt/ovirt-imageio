@@ -24,7 +24,7 @@ from . import image
 log = logging.getLogger("backends.file")
 
 
-def open(url, mode, sparse=False, dirty=False, buffer_size=None):
+def open(url, mode, sparse=False, dirty=False):
     """
     Open a file backend.
 
@@ -33,7 +33,6 @@ def open(url, mode, sparse=False, dirty=False, buffer_size=None):
         mode: (str): "r" for readonly, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
         dirty (bool): ignored, file backend does not support dirty extents.
-        buffer_size (int): ignored, file backend does not allocate buffers.
     """
     fio = util.open(url.path, mode, direct=True)
     try:
