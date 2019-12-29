@@ -84,13 +84,6 @@ class Backend(object):
 
     # Backend interface.
 
-    def write_to(self, dst, length):
-        if not self.readable():
-            raise IOError("Unsupproted operation: write_to")
-        data = self._buf.read(length)
-        dst.write(data)
-        return len(data)
-
     def zero(self, count):
         if not self.writable():
             raise IOError("Unsupproted operation: truncate")

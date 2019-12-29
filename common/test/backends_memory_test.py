@@ -8,7 +8,6 @@
 
 from __future__ import absolute_import
 
-import io
 from six.moves.urllib_parse import urlparse
 import pytest
 
@@ -45,11 +44,6 @@ def test_open_read_write():
     assert m.readinto(b) == size
     assert b == content
 
-    dst = io.BytesIO()
-    m.seek(0)
-    assert m.write_to(dst, 8) == 8
-    assert dst.getvalue() == content
-
 
 def test_open_readonly():
     m = memory.Backend("r")
@@ -65,12 +59,6 @@ def test_open_readonly():
     assert m.readinto(b) == 0
     assert b == b"before"
 
-    dst = io.BytesIO()
-    m.seek(0)
-    assert m.write_to(dst, 0) == 0
-    assert dst.getvalue() == b""
-    m.flush()
-
 
 def test_open_writeonly():
     m = memory.Backend("w")
@@ -82,9 +70,6 @@ def test_open_writeonly():
     assert m.tell() == len(data)
     with pytest.raises(IOError):
         m.readinto(bytearray(10))
-    m.seek(0)
-    with pytest.raises(IOError):
-        m.write_to(io.BytesIO(), 10)
     m.flush()
 
 
