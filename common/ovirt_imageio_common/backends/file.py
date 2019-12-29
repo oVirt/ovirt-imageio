@@ -15,20 +15,16 @@ import stat
 
 from contextlib import closing
 
-from .. import compat
 from .. import errors
 from .. import ioutil
 from .. import util
 
 from . import image
 
-# Default buffer size for a file backend.
-BUFFER_SIZE = 1024**2
-
 log = logging.getLogger("backends.file")
 
 
-def open(url, mode, sparse=False, dirty=False, buffer_size=BUFFER_SIZE):
+def open(url, mode, sparse=False, dirty=False, buffer_size=None):
     """
     Open a file backend.
 
@@ -37,14 +33,14 @@ def open(url, mode, sparse=False, dirty=False, buffer_size=BUFFER_SIZE):
         mode: (str): "r" for readonly, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
         dirty (bool): ignored, file backend does not support dirty extents.
-        buffer_size (int): size of buffer to allocate if needed.
+        buffer_size (int): ignored, file backend does not allocate buffers.
     """
     fio = util.open(url.path, mode, direct=True)
     try:
         fio.name = url.path
         mode = os.fstat(fio.fileno()).st_mode
         backend = BlockBackend if stat.S_ISBLK(mode) else FileBackend
-        return backend(fio, sparse=sparse, buffer_size=buffer_size)
+        return backend(fio, sparse=sparse)
     except:  # noqa: E722
         fio.close()
         raise
@@ -55,20 +51,18 @@ class Backend(object):
     Base class for file backends.
     """
 
-    def __init__(self, fio, sparse=False, buffer_size=BUFFER_SIZE):
+    def __init__(self, fio, sparse=False):
         """
         Initizlie an I/O backend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
-            buffer_size (int): size of buffer to allocate if needed.
         """
-        log.debug("Open backend path=%s mode=%s sparse=%s buffer_size=%d)",
-                  fio.name, fio.mode, sparse, buffer_size)
+        log.debug("Open backend path=%s mode=%s sparse=%s)",
+                  fio.name, fio.mode, sparse)
         self._fio = fio
         self._sparse = sparse
-        self._buffer_size = buffer_size
         self._dirty = False
 
     # io.FileIO interface
@@ -83,11 +77,12 @@ class Backend(object):
             return self._write_unaligned(buf)
         else:
             # The fast path.
-            if not self._aligned(len(buf)):
+            if self._aligned(len(buf)):
+                return util.uninterruptible(self._fio.write, buf)
+            else:
                 count = util.round_down(len(buf), self._block_size)
-                buf = compat.bufview(buf, 0, count)
-
-            return util.uninterruptible(self._fio.write, buf)
+                with memoryview(buf)[:count] as view:
+                    return util.uninterruptible(self._fio.write, view)
 
     def tell(self):
         return self._fio.tell()
@@ -240,17 +235,15 @@ class BlockBackend(Backend):
     Block device backend.
     """
 
-    def __init__(self, fio, sparse=False, buffer_size=BUFFER_SIZE):
+    def __init__(self, fio, sparse=False):
         """
         Initialize a BlockBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
-            buffer_size (int): size of buffer to allocate if needed.
         """
-        super(BlockBackend, self).__init__(
-            fio, sparse=sparse, buffer_size=buffer_size)
+        super(BlockBackend, self).__init__(fio, sparse=sparse)
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
@@ -300,25 +293,20 @@ class FileBackend(Backend):
     Regular file backend.
     """
 
-    def __init__(self, fio, sparse=False, buffer_size=BUFFER_SIZE):
+    def __init__(self, fio, sparse=False):
         """
         Initialize a FileBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
-            buffer_size (int): size of buffer to allocate if needed.
         """
-        super(FileBackend, self).__init__(
-            fio, sparse=sparse, buffer_size=buffer_size)
+        super(FileBackend, self).__init__(fio, sparse=sparse)
         # These will be set to False if the first call to fallocate() reveal
         # that it is not supported on the current file system.
         self._can_zero_range = True
         self._can_punch_hole = True
         self._can_fallocate = True
-        # If we cannot use fallocate, we fallback to manual zero, using this
-        # buffer.
-        self._buf = None
         self._block_size = self._detect_block_size()
 
     def _detect_block_size(self):
@@ -453,17 +441,7 @@ class FileBackend(Backend):
         """
         Write zeros manually.
         """
-        if self._buf is None:
-            self._buf = util.aligned_buffer(self._buffer_size)
-        while count:
-            step = min(self._buffer_size, count)
-            wbuf = compat.bufview(self._buf, 0, step)
-            count -= self.write(wbuf)
-
-    def close(self):
-        if self._buf:
-            try:
-                self._buf.close()
-            finally:
-                self._buf = None
-        super(FileBackend, self).close()
+        buf_size = min(count, 1024**2)
+        with util.aligned_buffer(buf_size) as buf, memoryview(buf) as view:
+            while count:
+                count -= self.write(view[:count])
