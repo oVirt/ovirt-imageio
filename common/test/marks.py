@@ -18,3 +18,6 @@ xfail_python3 = pytest.mark.xfail(six.PY3, reason="Needs porting to python 3")
 requires_advanced_virt = pytest.mark.skipif(
     distro.is_centos("8.0"),
     reason="Advanced virt stream not available")
+
+
+requires_python3 = pytest.mark.skipif(six.PY2, reason="Requires python 3")
