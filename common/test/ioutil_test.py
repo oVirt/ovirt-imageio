@@ -13,12 +13,15 @@ import os
 
 from contextlib import closing
 
-import six
 import pytest
 
 from ovirt_imageio_common import ioutil
 from ovirt_imageio_common import util
 from ovirt_imageio_common.compat import subprocess
+
+from . marks import requires_python3
+
+pytestmark = requires_python3
 
 BLOCKSIZE = 4096
 
@@ -113,17 +116,6 @@ def test_is_zero_empty(buf):
     assert ioutil.is_zero(buf)
 
 
-@pytest.mark.skipif(six.PY3, reason="buffer not available")
-@pytest.mark.parametrize("buf", [
-    pytest.param(u"", id="unicode"),
-    pytest.param("", id="str"),
-    pytest.param(b"", id="bytes"),
-    pytest.param(bytearray(), id="bytearray"),
-])
-def test_is_zero_empty_buffer(buf):
-    assert ioutil.is_zero(buffer(buf))  # noqa: F821
-
-
 @pytest.mark.parametrize("buf", [
     pytest.param(b"", id="bytes"),
     pytest.param(bytearray(), id="bytearray"),
@@ -142,17 +134,6 @@ def test_is_zero_empty_memoryview(buf):
 ])
 def test_is_zero(buf):
     assert ioutil.is_zero(buf)
-
-
-@pytest.mark.skipif(six.PY3, reason="buffer not available")
-@pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 512, id="unicode"),
-    pytest.param("\0" * 512, id="str"),
-    pytest.param(b"\0" * 512, id="bytes"),
-    pytest.param(bytearray(512), id="bytearray"),
-])
-def test_is_zero_buffer(buf):
-    assert ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [
@@ -175,17 +156,6 @@ def test_is_not_zero_head(buf):
     assert not ioutil.is_zero(buf)
 
 
-@pytest.mark.skipif(six.PY3, reason="buffer not available")
-@pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 15 + u"x", id="unicode"),
-    pytest.param("\0" * 15 + "x", id="str"),
-    pytest.param(b"\0" * 15 + b"x", id="bytes"),
-    pytest.param(bytearray(b"\0" * 15 + b"x"), id="bytearray"),
-])
-def test_is_not_zero_head_buffer(buf):
-    assert not ioutil.is_zero(buffer(buf))  # noqa: F821
-
-
 @pytest.mark.parametrize("buf", [
     pytest.param(b"\0" * 15 + b"x", id="bytes"),
     pytest.param(bytearray(b"\0" * 15 + b"x"), id="bytearray"),
@@ -204,17 +174,6 @@ def test_is_not_zero_head_memoryview(buf):
 ])
 def test_is_not_zero(buf):
     assert not ioutil.is_zero(buf)
-
-
-@pytest.mark.skipif(six.PY3, reason="buffer not available")
-@pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 511 + u"x", id="unicode"),
-    pytest.param("\0" * 511 + "x", id="str"),
-    pytest.param(b"\0" * 511 + b"x", id="bytes"),
-    pytest.param(bytearray(b"\0" * 511 + b"x"), id="bytearray"),
-])
-def test_is_not_zero_buffer(buf):
-    assert not ioutil.is_zero(buffer(buf))  # noqa: F821
 
 
 @pytest.mark.parametrize("buf", [
