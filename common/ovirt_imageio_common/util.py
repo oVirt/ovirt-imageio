@@ -272,3 +272,8 @@ class UnbufferedStream(object):
         if chunk:
             self.chunks.appendleft(chunk)
         return res
+
+    def readinto(self, buf):
+        chunk = self.read(len(buf))
+        buf[:len(chunk)] = chunk
+        return len(chunk)

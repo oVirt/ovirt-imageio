@@ -151,25 +151,23 @@ class Receive(Operation):
 
     def _receive_chunk(self, buf, count):
         buf.seek(0)
-        toread = count
-        while toread:
-            with self._clock.run("read"):
-                chunk = self._src.read(toread)
-            if not chunk:
-                break
-            buf.write(chunk)
-            toread -= len(chunk)
+        with memoryview(buf)[:count] as view:
+            read = 0
+            while read < count:
+                with self._clock.run("read"):
+                    n = self._src.readinto(view[read:])
+                if not n:
+                    break
+                read += n
 
-        towrite = buf.tell()
-        while towrite:
-            offset = buf.tell() - towrite
-            size = buf.tell() - offset
-            with self._clock.run("write"):
-                written = self._dst.write(compat.bufview(buf, offset, size))
-            towrite -= written
+            pos = 0
+            while pos < read:
+                with self._clock.run("write"):
+                    n = self._dst.write(view[pos:read])
+                pos += n
 
-        self._done += buf.tell()
-        if buf.tell() < count:
+        self._done += read
+        if read < count:
             if self._size is None:
                 raise EOF
             raise errors.PartialContent(self.size, self.done)

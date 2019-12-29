@@ -26,6 +26,10 @@ import pytest
 from ovirt_imageio_common import http
 from ovirt_imageio_common import util
 
+from . marks import requires_python3
+
+pytestmark = requires_python3
+
 log = logging.getLogger("test")
 
 
@@ -49,7 +53,7 @@ class Demo(object):
         resp.headers["allow"] = "GET,DELETE,OPTIONS"
 
 
-class Echo(object):
+class EchoRead(object):
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
@@ -64,6 +68,25 @@ class Echo(object):
                 raise http.Error(http.BAD_REQUEST, "Client disconnected")
             resp.write(chunk)
             count -= len(chunk)
+
+
+class EchoReadinto(object):
+
+    def put(self, req, resp, ticket):
+        if req.headers.get("expect") == "100-continue":
+            resp.send_info(http.CONTINUE)
+
+        count = req.content_length
+        resp.headers["content-length"] = count
+
+        buf = bytearray(1024**2)
+        with memoryview(buf) as view:
+            while count:
+                n = req.readinto(buf)
+                if not n:
+                    raise http.Error(http.BAD_REQUEST, "Client disconnected")
+                resp.write(view[:n])
+                count -= n
 
 
 class JSON(object):
@@ -287,7 +310,8 @@ def server():
 
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
-        (r"/echo/(.*)", Echo()),
+        (r"/echo-read/(.*)", EchoRead()),
+        (r"/echo-readinto/(.*)", EchoReadinto()),
         (r"/json/", JSON()),
         (r"/range-demo/", RangeDemo()),
         (r"/request-info/(.*)", RequestInfo()),
@@ -385,10 +409,20 @@ def test_demo_options(server):
 
 
 @pytest.mark.parametrize("data", [b"it works!", b""])
-def test_echo(server, data):
+def test_echo_read(server, data):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
-        con.request("PUT", "/echo/test", body=data)
+        con.request("PUT", "/echo-read/test", body=data)
+        r = con.getresponse()
+        assert r.status == http.OK
+        assert r.read() == data
+
+
+@pytest.mark.parametrize("data", [b"it works!", b""])
+def test_echo_readinto(server, data):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("PUT", "/echo-readinto/test", body=data)
         r = con.getresponse()
         assert r.status == http.OK
         assert r.read() == data
@@ -400,7 +434,7 @@ def test_echo_100_continue(server):
     with closing(con):
         con.request(
             "PUT",
-            "/echo/test",
+            "/echo-read/test",
             body=data,
             headers={"expect": "100-continue"})
         r = con.getresponse()

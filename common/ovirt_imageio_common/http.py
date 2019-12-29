@@ -344,6 +344,19 @@ class Request(object):
 
         return data
 
+    def readinto(self, buf):
+        # TODO: support chunked encoding.
+        if not self.length:
+            return 0
+
+        length = min(len(buf), self._length)
+
+        with memoryview(buf)[:length] as view:
+            n = self._con.rfile.readinto(view)
+
+        self._length -= n
+        return n
+
     def connection_lost(self):
         """
         Return True if the underlying socket was disconnected.
