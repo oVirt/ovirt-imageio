@@ -1173,8 +1173,8 @@ class Client(object):
                   chunk_offset, chunk_size)
 
         buf_offset = chunk_offset - cmd.offset
-        view = memoryview(cmd.buf)[buf_offset:buf_offset + chunk_size]
-        self._recv_into(view)
+        with memoryview(cmd.buf)[buf_offset:buf_offset + chunk_size] as view:
+            self._recv_into(view)
 
     def _handle_hole_chunk(self, length, cmd):
         """
@@ -1225,17 +1225,17 @@ class Client(object):
         return buf
 
     def _recv_into(self, buf):
-        length = len(buf)
-        pos = 0
-        while pos < length:
-            view = memoryview(buf)[pos:]
-            n = util.uninterruptible(self._sock.recv_into, view)
-            if not n:
-                raise ProtocolError(
-                    "Server closed the connection, read {} bytes, expected "
-                    "{} bytes"
-                    .format(pos, length))
-            pos += n
+        with memoryview(buf) as view:
+            length = len(view)
+            pos = 0
+            while pos < length:
+                n = util.uninterruptible(self._sock.recv_into, view[pos:])
+                if not n:
+                    raise ProtocolError(
+                        "Server closed the connection, read {} bytes, "
+                        "expected {} bytes"
+                        .format(pos, length))
+                pos += n
 
     # Conetext manager
 
