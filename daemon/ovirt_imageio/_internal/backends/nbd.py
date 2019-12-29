@@ -22,7 +22,7 @@ log = logging.getLogger("backends.nbd")
 Error = nbd.Error
 
 
-def open(url, mode, sparse=True, dirty=False, **options):
+def open(url, mode, sparse=True, dirty=False, max_connections=8, **options):
     """
     Open a NBD backend.
 
@@ -37,11 +37,14 @@ def open(url, mode, sparse=True, dirty=False, **options):
             qemu always deallocate space when zeroing.
         dirty (bool): if True, configure the client to report dirty extents.
             Can work only when connecting to qemu during incremental backup.
+        max_connections (int): maximum number of connections per backend
+            allowed on this server. Limit backends's max_readers and
+            max_writers.
         **options: ignored, nbd backend does not have any options.
     """
     client = nbd.open(url, dirty=dirty)
     try:
-        return Backend(client, mode)
+        return Backend(client, mode, max_connections=max_connections)
     except:  # noqa: E722
         client.close()
         raise
@@ -52,15 +55,24 @@ class Backend(object):
     NBD backend.
     """
 
-    def __init__(self, client, mode):
+    def __init__(self, client, mode, max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
-        log.info("Open backend address=%r export_name=%r",
-                 client.address, client.export_name)
+        log.info("Open backend address=%r export_name=%r max_connections=%r",
+                 client.address, client.export_name, max_connections)
         self._client = client
         self._mode = mode
         self._position = 0
         self._dirty = False
+        self._max_connections = max_connections
+
+    @property
+    def max_readers(self):
+        return self._max_connections
+
+    @property
+    def max_writers(self):
+        return self._max_connections
 
     # Backend interface
 

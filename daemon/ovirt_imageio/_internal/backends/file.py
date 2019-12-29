@@ -24,7 +24,7 @@ from . import image
 log = logging.getLogger("backends.file")
 
 
-def open(url, mode, sparse=False, dirty=False, **options):
+def open(url, mode, sparse=False, dirty=False, max_connections=8, **options):
     """
     Open a file backend.
 
@@ -33,6 +33,9 @@ def open(url, mode, sparse=False, dirty=False, **options):
         mode: (str): "r" for readonly, "r+" for read write.
         sparse (bool): deallocate space when zeroing if possible.
         dirty (bool): ignored, file backend does not support dirty extents.
+        max_connections (int): maximum number of connections per backend
+            allowed on this server. Limit backends's max_readers and
+            max_writers.
         **options: ignored, file backend does not have any options.
     """
     fio = util.open(url.path, mode, direct=True)
@@ -40,7 +43,7 @@ def open(url, mode, sparse=False, dirty=False, **options):
         fio.name = url.path
         mode = os.fstat(fio.fileno()).st_mode
         backend = BlockBackend if stat.S_ISBLK(mode) else FileBackend
-        return backend(fio, sparse=sparse)
+        return backend(fio, sparse=sparse, max_connections=max_connections)
     except:  # noqa: E722
         fio.close()
         raise
@@ -51,7 +54,7 @@ class Backend(object):
     Base class for file backends.
     """
 
-    def __init__(self, fio, sparse=False):
+    def __init__(self, fio, sparse=False, max_connections=8):
         """
         Initizlie an I/O backend.
 
@@ -59,11 +62,16 @@ class Backend(object):
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
         """
-        log.info("Open backend path=%r mode=%r sparse=%r",
-                 fio.name, fio.mode, sparse)
+        log.info("Open backend path=%r mode=%r sparse=%r max_connections=%r",
+                 fio.name, fio.mode, sparse, max_connections)
         self._fio = fio
         self._sparse = sparse
         self._dirty = False
+        self._max_connections = max_connections
+
+    @property
+    def max_readers(self):
+        return self._max_connections
 
     # io.FileIO interface
 
@@ -235,20 +243,28 @@ class BlockBackend(Backend):
     Block device backend.
     """
 
-    def __init__(self, fio, sparse=False):
+    def __init__(self, fio, sparse=False, max_connections=8):
         """
         Initialize a BlockBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
+            max_connections (int): maximum number of connections per backend
+                allowed on this server. Limit backends's max_readers and
+                max_writers.
         """
-        super(BlockBackend, self).__init__(fio, sparse=sparse)
+        super(BlockBackend, self).__init__(
+            fio, sparse=sparse, max_connections=max_connections)
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
         # TODO: get block size using ioctl(BLKSSZGET).
         self._block_size = 512
+
+    @property
+    def max_writers(self):
+        return self._max_connections
 
     def _zero(self, count):
         """
@@ -293,21 +309,30 @@ class FileBackend(Backend):
     Regular file backend.
     """
 
-    def __init__(self, fio, sparse=False):
+    def __init__(self, fio, sparse=False, max_connections=8):
         """
         Initialize a FileBackend.
 
         Arguments:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
+            max_connections (int): maximum number of connections per backend
+                allowed on this server. Limit backends's max_readers.
         """
-        super(FileBackend, self).__init__(fio, sparse=sparse)
+        super(FileBackend, self).__init__(
+            fio, sparse=sparse, max_connections=max_connections)
         # These will be set to False if the first call to fallocate() reveal
         # that it is not supported on the current file system.
         self._can_zero_range = True
         self._can_punch_hole = True
         self._can_fallocate = True
         self._block_size = self._detect_block_size()
+
+    @property
+    def max_writers(self):
+        # Zeroing and trimming qcow2 format grows the file and assumes a single
+        # writer. User that wants best performance should use the nbd backend.
+        return 1
 
     def _detect_block_size(self):
         """

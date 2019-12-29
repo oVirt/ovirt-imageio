@@ -18,7 +18,7 @@ from . import image
 log = logging.getLogger("backends.memory")
 
 
-def open(url, mode, sparse=False, dirty=False, **options):
+def open(url, mode, sparse=False, dirty=False, max_connections=8, **options):
     """
     Open a memory backend.
 
@@ -27,9 +27,12 @@ def open(url, mode, sparse=False, dirty=False, **options):
         mode: (str): "r" for readonly, "w" for write only, "r+" for read write.
         sparse (bool): ignored, memory backend does not support sparseness.
         dirty (bool): ignored, memory backend does not support dirty extents.
+        max_connections (int): maximum number of connections per backend
+            allowed on this server. Limit backends's max_readers and
+            max_writers.
         **options: ignored, memory backend does not have any options.
     """
-    return Backend(mode)
+    return Backend(mode, max_connections=max_connections)
 
 
 class Backend(object):
@@ -37,13 +40,25 @@ class Backend(object):
     Memory backend for testing.
     """
 
-    def __init__(self, mode, data=None):
+    def __init__(self, mode, data=None, max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
-        log.info("Open backend mode=%r", mode)
+        log.info("Open backend mode=%r max_connections=%r",
+                 mode, max_connections)
         self._mode = mode
         self._buf = io.BytesIO(data)
         self._dirty = False
+        self._max_connections = max_connections
+
+    @property
+    def max_readers(self):
+        return self._max_connections
+
+    @property
+    def max_writers(self):
+        # This backend supports resize when writing or zeroing, so it cannot
+        # support more than one writer concurrently.
+        return 1
 
     # io.BaseIO interface
 

@@ -25,7 +25,7 @@ from . import image
 log = logging.getLogger("backends.http")
 
 
-def open(url, mode, sparse=True, dirty=False, **options):
+def open(url, mode, sparse=True, dirty=False, max_connections=8, **options):
     """
     Open a HTTP backend.
 
@@ -35,6 +35,8 @@ def open(url, mode, sparse=True, dirty=False, **options):
         sparse (bool): ignored, http backend does not support sparseness.
         dirty (bool): ignored, http backend does not require configuration for
             getting dirty extents.
+        max_connections (int): ignored, http backend reports the value
+            published by the remote server.
         **options: backend specific options:
             cafile (str): path to CA certificates to trust for certificate
                 verification. If not set, trust system's default CA
@@ -68,6 +70,14 @@ class Backend(object):
             self._can_zero = options.get("zero", False)
             self._can_flush = options.get("flush", False)
 
+            # In oVirt 4.3 qemu-nbd was configured to allow only single
+            # connection, so practicaly we can have only single reader.
+            self._max_readers = options.get("max_readers", 1)
+
+            # For safety, assume that old server that does not publish
+            # max_writers does not support multiple writers.
+            self._max_writers = options.get("max_writers", 1)
+
             self._optimize_connection(options.get("unix_socket"))
         except Exception:
             self._con.close()
@@ -76,6 +86,14 @@ class Backend(object):
     @property
     def block_size(self):
         return 1
+
+    @property
+    def max_readers(self):
+        return self._max_readers
+
+    @property
+    def max_writers(self):
+        return self._max_writers
 
     # Preferred interface.
 
