@@ -10,6 +10,21 @@
 # The default buffer size:
 #   buffer_size = 8388608
 
+# Maximum number of connections for same /image/ticket-id URL. Using more
+# connections improves throughput of a single image transfer. When transferring
+# images concurrently, using more connections per transfer may decrease
+# throughput.
+#
+# Some backends do not support more than 8 connections, regardless of this
+# value set here. Some backends limit the number of writers regardless of the
+# value set here.
+#
+# To disable multiple connections set the value to 1. This will ensure single
+# reader or writer for upload and downloads.
+#
+# The default value:
+#   max_connections = 8
+
 [tls]
 # Enable TLS. Note that without TLS transfer tickets and image data are
 # transferred in clear text. If TLS is enabled, paths to related files

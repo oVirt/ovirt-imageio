@@ -66,6 +66,7 @@ def get(req, ticket, config):
             mode,
             sparse=ticket.sparse,
             dirty=ticket.dirty,
+            max_connections=config.daemon.max_connections,
             cafile=config.tls.ca_file)
 
         buf = util.aligned_buffer(config.daemon.buffer_size)
