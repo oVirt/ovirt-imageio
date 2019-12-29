@@ -2,10 +2,10 @@ PYTHON_VERSION = 2
 
 targets = all check dist srpm rpm
 
-subdirs = common daemon
-
 ifeq ($(PYTHON_VERSION), 2)
-	subdirs += proxy
+	subdirs = common proxy
+else
+	subdirs = common daemon
 endif
 
 release_suffix := $(shell ./build-aux/release-suffix)
