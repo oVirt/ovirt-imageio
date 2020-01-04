@@ -14,6 +14,8 @@ import logging
 import os
 import platform
 
+from collections import namedtuple
+
 import pytest
 from six.moves import urllib_parse
 
@@ -108,3 +110,30 @@ def base_image():
     subprocess.check_call(cmd, env=env)
 
     return path
+
+
+# Arguments to ssl.{server,client}_context()
+PKI = namedtuple("PKI", "cafile,certfile,keyfile")
+
+
+@pytest.fixture(scope="session")
+def tmp_pki(tmpdir_factory):
+    tmpdir = tmpdir_factory.mktemp("pki")
+    certfile = str(tmpdir.join("cert.pem"))
+    keyfile = str(tmpdir.join("key.pem"))
+
+    cmd = [
+        "openssl", "req",
+        "-new",
+        "-x509",
+        "-nodes",
+        "-batch",
+        "-days", "2",
+        "-subj", "/CN=localhost",
+        "-out", certfile,
+        "-keyout", keyfile,
+    ]
+
+    subprocess.check_output(cmd)
+
+    return PKI(certfile, certfile, keyfile)
