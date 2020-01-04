@@ -1,5 +1,5 @@
-# ovirt-imageio-daemon
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# ovirt-imageio
+# Copyright (C) 2015-2020 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@ import socket
 import six
 from six.moves import http_client
 
-from ovirt_imageio_common import http
-from ovirt_imageio_common import util
+from . import http
+from . import util
 
 PUT = "PUT"
 DELETE = "DELETE"

@@ -19,6 +19,7 @@ import systemd.daemon
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import http
 from ovirt_imageio_common import ssl
+from ovirt_imageio_common import uhttp
 from ovirt_imageio_common import util
 from ovirt_imageio_common import version
 
@@ -28,7 +29,6 @@ from . import images
 from . import pki
 from . import profile
 from . import tickets
-from . import uhttp
 
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 

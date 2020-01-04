@@ -19,11 +19,7 @@ from contextlib import contextmanager
 import pytest
 
 from ovirt_imageio_common import util
-from ovirt_imageio_daemon import uhttp
-
-PKI_DIR = os.path.dirname(__file__)
-KEY_FILE = os.path.join(PKI_DIR, "pki/keys/vdsmkey.pem")
-CERT_FILE = os.path.join(PKI_DIR, "pki/certs/vdsmcert.pem")
+from ovirt_imageio_common import uhttp
 
 
 @pytest.fixture(scope="session")
