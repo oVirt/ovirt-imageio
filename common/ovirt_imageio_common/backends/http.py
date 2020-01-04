@@ -172,6 +172,9 @@ class Backend(object):
         """
         Send PATCH/zero request, writing zeroes at current position.
         """
+        if not self._can_zero:
+            return self._emulate_zero(length)
+
         msg = {
             "op": "zero",
             "offset": self._position,
@@ -187,7 +190,8 @@ class Backend(object):
         """
         Send a PATCH/flush request, flushing changes to storage.
         """
-        self._patch({"op": "flush"})
+        if self._can_flush:
+            self._patch({"op": "flush"})
 
     def extents(self, context="zero"):
         """
@@ -415,6 +419,31 @@ class Backend(object):
         self._con.close()
 
         return size
+
+    def _emulate_zero(self, length):
+        """
+        Emulate PATCH/zero with PUT for old server without zero support.
+        """
+        self._put_header(length)
+
+        buf = bytearray(128 * 1024)
+        todo = length
+        while todo > len(buf):
+            self._con.send(buf)
+            todo -= len(buf)
+        self._con.send(memoryview(buf)[:todo])
+
+        res = self._con.getresponse()
+
+        if res.status != http_client.OK:
+            error = res.read(512)
+            raise RuntimeError(
+                "Error PUT offset={} length={}: {}"
+                .format(self._position, length, error))
+
+        res.read()
+        self._position += length
+        return length
 
     def _read_all(self, res, buf):
         with memoryview(buf) as view:
