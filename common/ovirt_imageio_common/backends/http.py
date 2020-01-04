@@ -70,6 +70,74 @@ class Backend(object):
             self._con.close()
             raise
 
+    # Preferred interface.
+
+    def read_from(self, reader, length, buf):
+        """
+        Send PUT request and stream length bytes from reader to the HTTP
+        server.
+
+        Arguments:
+            reader (object): must implement readinto(buf)
+            length (int): number of bytes to read from reader
+            buf (buffer): buffer to used for reading and writing.
+        """
+        self._put_header(length)
+
+        with memoryview(buf) as view:
+            max_step = len(view)
+            todo = length
+            while todo:
+                step = min(todo, max_step)
+                n = reader.readinto(view[:step])
+                if n == 0:
+                    raise RuntimeError(
+                        "Expected {} bytes, got {} bytes"
+                        .format(length, length - todo))
+                self._con.send(view[:n])
+                todo -= n
+
+        res = self._con.getresponse()
+
+        if res.status != http_client.OK:
+            error = res.read(512)
+            raise RuntimeError(
+                "Error PUT offset={} length={}: {}"
+                .format(self._position, length, error))
+
+        res.read()
+        self._position += length
+        return length
+
+    def write_to(self, writer, length, buf):
+        """
+        Send GET request and stream length bytes to writer.
+
+        Arguments:
+            writer (object): must implement write(buf)
+            length (int): number of bytes to read from reader
+            buf (buffer): buffer to used for reading and writing.
+        """
+        res = self._get(length)
+
+        with memoryview(buf) as view:
+            max_step = len(view)
+            todo = length
+            while todo:
+                step = min(todo, max_step)
+                n = res.readinto(view[:step])
+                if n == 0:
+                    raise RuntimeError(
+                        "Expected {} bytes, got {} bytes"
+                        .format(length, length - todo))
+                writer.write(view[:n])
+                todo -= n
+
+        self._position += length
+        return length
+
+    # Generic interface.
+
     def readinto(self, buf):
         """
         Send GET request, reading bytes at current position into buf.
