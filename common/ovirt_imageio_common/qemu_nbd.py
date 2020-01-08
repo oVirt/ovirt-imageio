@@ -23,7 +23,7 @@ log = logging.getLogger("qemu_nbd")
 class Server(object):
 
     def __init__(self, image, fmt, sock, export_name="", read_only=False,
-                 timeout=1.0):
+                 timeout=10.0):
         self.image = image
         self.fmt = fmt
         self.sock = sock
