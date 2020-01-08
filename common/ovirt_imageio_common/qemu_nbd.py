@@ -86,9 +86,12 @@ class Server(object):
 
 
 @contextmanager
-def run(image, fmt, sock, export_name="", read_only=False):
+def run(image, fmt, sock, export_name="", read_only=False, timeout=10.0):
     server = Server(
-        image, fmt, sock, export_name=export_name, read_only=read_only)
+        image, fmt, sock,
+        export_name=export_name,
+        read_only=read_only,
+        timeout=timeout)
     server.start()
     try:
         yield
