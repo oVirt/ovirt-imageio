@@ -75,7 +75,7 @@ class Server(object):
             log.debug("Terminating qemu-nbd gracefully")
             self.proc.terminate()
             try:
-                self.proc.wait(1)
+                self.proc.wait(self.timeout)
             except subprocess.TimeoutExpired:
                 log.warning("Timeout terminating qemu-nbd - killing it")
                 self.proc.kill()
