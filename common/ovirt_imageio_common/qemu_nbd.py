@@ -40,8 +40,8 @@ class Server(object):
     def start(self):
         cmd = [
             "qemu-nbd",
-            "--format", self.fmt,
-            "--export-name", self.export_name.encode("utf-8"),
+            "--format={}".format(self.fmt),
+            "--export-name={}".format(self.export_name),
             "--persistent",
             "--cache=none",
             "--aio=native",

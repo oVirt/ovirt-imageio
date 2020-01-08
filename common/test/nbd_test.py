@@ -28,7 +28,7 @@ from . import qemu_img
 from . import storage
 from . import testutil
 
-from . marks import requires_advanced_virt
+from . marks import requires_advanced_virt, requires_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
@@ -88,7 +88,7 @@ def test_tcp_address_invalid(host, port):
 @pytest.mark.parametrize("export", [
     "",
     "ascii",
-    pytest.param(u"\u05d0", id="unicode"),
+    pytest.param(u"\u05d0", id="unicode", marks=requires_python3),
 ])
 def test_handshake(tmpdir, export, fmt):
     image = str(tmpdir.join("image"))
