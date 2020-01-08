@@ -49,10 +49,10 @@ class Server(object):
         ]
 
         if self.sock.transport == "unix":
-            cmd.append("--socket=%s" % self.sock.path)
+            cmd.append("--socket={}".format(self.sock.path))
         elif self.sock.transport == "tcp":
-            cmd.append("--bind=%s" % self.sock.host)
-            cmd.append("--port=%s" % self.sock.port)
+            cmd.append("--bind={}".format(self.sock.host))
+            cmd.append("--port={}".format(self.sock.port))
         else:
             raise RuntimeError("Unsupported transport: {}".format(self.sock))
 
