@@ -17,10 +17,10 @@ from six.moves.urllib.parse import urlparse
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
+from ovirt_imageio_common import qemu_nbd
 
 from . import qemu
 from . import qemu_img
-from . import qemu_nbd
 from . import qmp
 
 log = logging.getLogger("backup")

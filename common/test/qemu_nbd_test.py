@@ -16,9 +16,9 @@ import pytest
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
+from ovirt_imageio_common import qemu_nbd
 
 from . import qemu_img
-from . import qemu_nbd
 from . import testutil
 
 

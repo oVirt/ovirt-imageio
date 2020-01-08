@@ -20,9 +20,8 @@ import pytest
 from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import qemu_nbd
 from ovirt_imageio_common.compat import subprocess
-
-from . import qemu_nbd
 
 log = logging.getLogger("test")
 
