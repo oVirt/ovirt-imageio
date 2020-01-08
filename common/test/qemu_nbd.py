@@ -14,9 +14,8 @@ from contextlib import contextmanager
 from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common.compat import subprocess
-
-from . import testutil
 
 log = logging.getLogger("qemu_nbd")
 
@@ -65,7 +64,7 @@ class Server(object):
         log.debug("Starting qemu-nbd %s", cmd)
         self.proc = subprocess.Popen(cmd)
 
-        if not testutil.wait_for_socket(self.sock, self.timeout):
+        if not nbdutil.wait_for_socket(self.sock, self.timeout):
             self.stop()
             raise RuntimeError("Timeout waiting for qemu-nbd socket")
 

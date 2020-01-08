@@ -14,9 +14,8 @@ import re
 
 from contextlib import contextmanager
 
+from ovirt_imageio_common import nbdutil
 from ovirt_imageio_common.compat import subprocess
-
-from . import testutil
 
 QEMU = os.environ.get("QEMU", "qemu-kvm")
 
@@ -84,7 +83,7 @@ def run(image, fmt, qmp_sock=None, start_cpu=True, shutdown_timeout=1):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE)
     try:
-        if qmp_sock and not testutil.wait_for_socket(qmp_sock, 1):
+        if qmp_sock and not nbdutil.wait_for_socket(qmp_sock, 1):
             raise RuntimeError("Timeout waiting for socket: %s" % qmp_sock)
         yield Guest(p)
     finally:

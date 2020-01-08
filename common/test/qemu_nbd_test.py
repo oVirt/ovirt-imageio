@@ -15,6 +15,7 @@ from six.moves import urllib_parse
 import pytest
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import nbdutil
 
 from . import qemu_img
 from . import qemu_nbd
@@ -61,10 +62,10 @@ def test_run_unix(tmpdir):
 
     with qemu_nbd.run(image, "raw", addr):
         # The helper already waited for the NBD socket, not wait needed.
-        assert testutil.wait_for_socket(addr, 0.0)
+        assert nbdutil.wait_for_socket(addr, 0.0)
 
     # The socket must be closed, no wait needed.
-    assert not testutil.wait_for_socket(addr, 0.0)
+    assert not nbdutil.wait_for_socket(addr, 0.0)
 
 
 def test_run_tcp(tmpfile):
@@ -75,7 +76,7 @@ def test_run_tcp(tmpfile):
 
     with qemu_nbd.run(tmpfile, "raw", addr):
         # The helper already waited for the NBD socket, not wait needed.
-        assert testutil.wait_for_socket(addr, 0.0)
+        assert nbdutil.wait_for_socket(addr, 0.0)
 
     # The socket must be closed, no wait needed.
-    assert not testutil.wait_for_socket(addr, 0.0)
+    assert not nbdutil.wait_for_socket(addr, 0.0)
