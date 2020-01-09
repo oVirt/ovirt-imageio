@@ -15,11 +15,11 @@ import pytest
 import userstorage
 
 from ovirt_imageio_common import errors
+from ovirt_imageio_common import qemu_img
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import nbd
 
-from . import qemu_img
 from . import storage
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS

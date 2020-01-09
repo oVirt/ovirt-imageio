@@ -15,11 +15,11 @@ import os
 import pytest
 
 from ovirt_imageio_common import nbd
+from ovirt_imageio_common import qemu_img
 from ovirt_imageio_common import qemu_nbd
 
 from . import backup
 from . import qemu
-from . import qemu_img
 from . import qmp
 from . import testutil
 

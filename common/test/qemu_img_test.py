@@ -10,9 +10,9 @@ from __future__ import absolute_import
 
 import pytest
 
+from ovirt_imageio_common import qemu_img
 from ovirt_imageio_common import qemu_nbd
 
-from . import qemu_img
 from . marks import requires_python3
 
 
@@ -62,3 +62,15 @@ def test_compare_error(tmpdir):
 
     with pytest.raises(RuntimeError):
         qemu_img.compare(src, dst)
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_create_info(tmpdir, fmt):
+    size = 1024**2
+    image = str(tmpdir.join("image." + fmt))
+    qemu_img.create(image, fmt, size=size)
+    info = qemu_img.info(image)
+
+    assert info["filename"] == image
+    assert info["virtual-size"] == size
+    assert info["format"] == fmt
