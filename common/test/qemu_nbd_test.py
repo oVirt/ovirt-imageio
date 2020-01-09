@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import io
+import struct
 
 from six.moves import urllib_parse
 
@@ -80,3 +81,45 @@ def test_run_tcp(tmpfile):
 
     # The socket must be closed, no wait needed.
     assert not nbdutil.wait_for_socket(addr, 0.0)
+
+
+@pytest.mark.parametrize("cache,aio,discard", [
+    pytest.param("none", "native", "unmap", id="qemu_nbd defaults"),
+    pytest.param(None, None, None, id="qemu-nbd defaults"),
+])
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_options(tmpdir, fmt, cache, aio, discard):
+    size = 4 * 1024**2
+    chunk_size = 128 * 1024
+
+    src = str(tmpdir.join("src." + fmt))
+    qemu_img.create(src, fmt, size=size)
+
+    with qemu_nbd.open(src, fmt) as c:
+        for offset in range(0, size, chunk_size):
+            c.write(offset, struct.pack(">Q", offset))
+        c.flush()
+
+    dst = str(tmpdir.join("dst." + fmt))
+    qemu_img.create(dst, fmt, size=size)
+
+    src_addr = nbd.UnixAddress(str(tmpdir.join("src.sock")))
+    dst_addr = nbd.UnixAddress(str(tmpdir.join("dst.sock")))
+
+    with qemu_nbd.run(
+                src, fmt, src_addr,
+                read_only=True,
+                cache=cache,
+                aio=aio,
+                discard=discard), \
+            qemu_nbd.run(
+                dst, fmt, dst_addr,
+                cache=cache,
+                aio=aio,
+                discard=discard), \
+            nbd.Client(src_addr) as src_client, \
+            nbd.Client(dst_addr) as dst_client:
+
+        nbdutil.copy(src_client, dst_client)
+
+    qemu_img.compare(src, dst)
