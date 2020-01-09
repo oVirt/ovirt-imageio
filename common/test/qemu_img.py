@@ -16,6 +16,12 @@ from ovirt_imageio_common.compat import subprocess
 log = logging.getLogger("qemu_img")
 
 
+class ContentMismatch(Exception):
+    """
+    Raised when compared images differ.
+    """
+
+
 def create(path, fmt, size=None, backing=None):
     cmd = ["qemu-img", "create", "-f", fmt]
     if backing:
@@ -43,3 +49,15 @@ def info(path):
     cmd = ["qemu-img", "info", "--output", "json", path]
     out = subprocess.check_output(cmd)
     return json.loads(out.decode("utf-8"))
+
+
+def compare(a, b):
+    cmd = ["qemu-img", "compare", a, b]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if p.returncode == 0:
+        return
+    elif p.returncode == 1:
+        raise ContentMismatch(out.decode("utf-8"))
+    else:
+        raise RuntimeError(err.decode("utf-8"))
