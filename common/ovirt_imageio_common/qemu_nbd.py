@@ -23,7 +23,7 @@ log = logging.getLogger("qemu_nbd")
 class Server(object):
 
     def __init__(
-            self, image, fmt, sock, export_name="", read_only=False,
+            self, image, fmt, sock, export_name="", read_only=False, shared=1,
             cache="none", aio="native", discard="unmap", timeout=10.0):
         """
         Initialize qemu-nbd Server.
@@ -34,6 +34,7 @@ class Server(object):
             sock (nbd.Address): socket address to listen to
             export_name (str): expose export by name
             read_only (bool): export is read-only
+            shared (int): export can be shared by specified number of clients
             cache (str): cache mode (none, writeback, ...)
             aio (str): AIO mode (native or threads)
             discard (str): discard mode (ignore, unmap)
@@ -45,6 +46,7 @@ class Server(object):
         self.sock = sock
         self.export_name = export_name
         self.read_only = read_only
+        self.shared = shared
         self.cache = cache
         self.aio = aio
         self.discard = discard
@@ -62,6 +64,7 @@ class Server(object):
             "--format={}".format(self.fmt),
             "--export-name={}".format(self.export_name),
             "--persistent",
+            "--shared={}".format(self.shared),
         ]
 
         if self.sock.transport == "unix":
@@ -111,12 +114,13 @@ class Server(object):
 
 
 @contextmanager
-def run(image, fmt, sock, export_name="", read_only=False, cache="none",
-        aio="native", discard="unmap", timeout=10.0):
+def run(image, fmt, sock, export_name="", read_only=False, shared=1,
+        cache="none", aio="native", discard="unmap", timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
         read_only=read_only,
+        shared=shared,
         cache=cache,
         aio=aio,
         discard=discard,
