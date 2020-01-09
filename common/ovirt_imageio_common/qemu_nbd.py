@@ -22,13 +22,32 @@ log = logging.getLogger("qemu_nbd")
 
 class Server(object):
 
-    def __init__(self, image, fmt, sock, export_name="", read_only=False,
-                 timeout=10.0):
+    def __init__(
+            self, image, fmt, sock, export_name="", read_only=False,
+            cache="none", aio="native", discard="unmap", timeout=10.0):
+        """
+        Initialize qemu-nbd Server.
+
+        Arguments:
+            image (str): filename to open
+            fmt (str): image format (raw, qcow2, ...)
+            sock (nbd.Address): socket address to listen to
+            export_name (str): expose export by name
+            read_only (bool): export is read-only
+            cache (str): cache mode (none, writeback, ...)
+            aio (str): AIO mode (native or threads)
+            discard (str): discard mode (ignore, unmap)
+
+        See qemu-nbd(8) for more info on these options.
+        """
         self.image = image
         self.fmt = fmt
         self.sock = sock
         self.export_name = export_name
         self.read_only = read_only
+        self.cache = cache
+        self.aio = aio
+        self.discard = discard
         self.timeout = timeout
         self.proc = None
 
@@ -43,9 +62,6 @@ class Server(object):
             "--format={}".format(self.fmt),
             "--export-name={}".format(self.export_name),
             "--persistent",
-            "--cache=none",
-            "--aio=native",
-            "--discard=unmap",
         ]
 
         if self.sock.transport == "unix":
@@ -58,6 +74,15 @@ class Server(object):
 
         if self.read_only:
             cmd.append("--read-only")
+
+        if self.cache:
+            cmd.append("--cache={}".format(self.cache))
+
+        if self.aio:
+            cmd.append("--aio={}".format(self.aio))
+
+        if self.discard:
+            cmd.append("--discard={}".format(self.discard)),
 
         cmd.append(self.image)
 
@@ -86,11 +111,15 @@ class Server(object):
 
 
 @contextmanager
-def run(image, fmt, sock, export_name="", read_only=False, timeout=10.0):
+def run(image, fmt, sock, export_name="", read_only=False, cache="none",
+        aio="native", discard="unmap", timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
         read_only=read_only,
+        cache=cache,
+        aio=aio,
+        discard=discard,
         timeout=timeout)
     server.start()
     try:
