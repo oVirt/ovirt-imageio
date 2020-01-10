@@ -90,7 +90,7 @@ class Server(object):
         cmd.append(self.image)
 
         log.debug("Starting qemu-nbd %s", cmd)
-        self.proc = subprocess.Popen(cmd)
+        self.proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
 
         if not nbdutil.wait_for_socket(self.sock, self.timeout):
             self.stop()
@@ -102,14 +102,20 @@ class Server(object):
         if self.proc:
             log.debug("Terminating qemu-nbd gracefully")
             self.proc.terminate()
+
             try:
-                self.proc.wait(self.timeout)
+                _, err = self.proc.communicate(self.timeout)
             except subprocess.TimeoutExpired:
                 log.warning("Timeout terminating qemu-nbd - killing it")
                 self.proc.kill()
-                self.proc.wait()
-            log.debug("qemu-nbd terminated with exit code %s",
-                      self.proc.returncode)
+                _, err = self.proc.communicate(self.timeout)
+
+            if self.proc.returncode == 0:
+                log.debug("qemu-nbd terminated normally err=%r", err)
+            else:
+                log.warning("qemu-nbd failed rc=%s err=%r",
+                            self.proc.returncode, err)
+
             self.proc = None
 
 
