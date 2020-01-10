@@ -15,6 +15,8 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common.backends import image
 from ovirt_imageio_common.backends import memory
 
+from . marks import requires_python3
+
 
 def test_debugging_interface(tmpurl):
     with memory.open(urlparse("memory:"), "r+") as m:
@@ -186,3 +188,60 @@ def test_extents_zero():
     m = memory.Backend("r+", b"data")
     with pytest.raises(errors.UnsupportedOperation):
         list(m.extents(context="dirty"))
+
+
+@requires_python3
+def test_read_from():
+    size = 128
+    src = memory.Backend("r", b"x" * size)
+    dst = memory.ReaderFrom("r+", b"y" * size)
+    buf = bytearray(32)
+    dst.read_from(src, size, buf)
+
+    assert src.tell() == size
+    assert dst.tell() == size
+    assert src.data() == dst.data()
+
+
+@requires_python3
+def test_read_from_some():
+    src = memory.Backend("r", b"x" * 128)
+    dst = memory.ReaderFrom("r+", b"y" * 128)
+    buf = bytearray(32)
+
+    src.seek(32)
+    dst.seek(32)
+    dst.read_from(src, 64, buf)
+
+    assert src.tell() == 96
+    assert dst.tell() == 96
+    assert dst.data() == b"y" * 32 + b"x" * 64 + b"y" * 32
+
+
+@requires_python3
+def test_write_to():
+    size = 128
+    src = memory.WriterTo("r", b"x" * size)
+    dst = memory.Backend("r+", b"y" * size)
+    buf = bytearray(32)
+    src.write_to(dst, size, buf)
+
+    assert src.tell() == size
+    assert dst.tell() == size
+    assert src.data() == dst.data()
+
+
+@requires_python3
+def test_write_to_some():
+    size = 128
+    src = memory.WriterTo("r", b"x" * size)
+    dst = memory.Backend("r+", b"y" * size)
+    buf = bytearray(32)
+
+    src.seek(32)
+    dst.seek(32)
+    src.write_to(dst, 64, buf)
+
+    assert src.tell() == 96
+    assert dst.tell() == 96
+    assert dst.data() == b"y" * 32 + b"x" * 64 + b"y" * 32

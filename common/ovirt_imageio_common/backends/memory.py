@@ -134,3 +134,32 @@ class Backend(object):
         result = self._buf.tell()
         self._buf.seek(old_pos, os.SEEK_SET)
         return result
+
+    def data(self):
+        return self._buf.getvalue()
+
+
+class ReaderFrom(Backend):
+
+    def read_from(self, reader, length, buf):
+        _copy(reader, self, length, buf)
+
+
+class WriterTo(Backend):
+
+    def write_to(self, writer, length, buf):
+        _copy(self, writer, length, buf)
+
+
+def _copy(reader, writer, length, buf):
+    step = len(buf)
+    todo = length
+
+    while todo > step:
+        reader.readinto(buf)
+        writer.write(buf)
+        todo -= step
+
+    with memoryview(buf)[:todo] as view:
+        reader.readinto(view)
+        writer.write(view)
