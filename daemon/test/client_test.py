@@ -213,27 +213,6 @@ def test_progress(tmpdir):
     ]
 
 
-def test_split_big_zero(tmpdir):
-    # Large zero ranges shhould be splitted to smaller chunks.
-    size = client.MAX_ZERO_SIZE * 2 + client.MAX_ZERO_SIZE // 2
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(size)
-
-    dst = str(tmpdir.join("dst"))
-    url = prepare_upload(dst, size=size, sparse=True)
-
-    progress = FakeProgress(IMAGE_SIZE)
-    client.upload(src, url, pki.cert_file(config), secure=False,
-                  progress=progress)
-
-    assert progress.updates == [
-        client.MAX_ZERO_SIZE,
-        client.MAX_ZERO_SIZE,
-        client.MAX_ZERO_SIZE // 2,
-    ]
-
-
 def test_progress_callback(tmpdir):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
