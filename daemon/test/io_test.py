@@ -28,6 +28,15 @@ ZERO_PARAMS = [
 ]
 
 
+class FakeProgress:
+
+    def __init__(self):
+        self.updates = []
+
+    def update(self, n):
+        self.updates.append(n)
+
+
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
     ("qcow2", "qcow2"),
@@ -74,26 +83,38 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
     dst_sock = UnixAddress(tmpdir.join("dst.sock"))
     dst_url = urlparse(dst_sock.url())
 
-    with qemu_nbd.run(src, src_fmt, src_sock, read_only=True), \
-            qemu_nbd.run(dst, dst_fmt, dst_sock), \
+    # Note: We need extra worker for reading extents for source.
+    max_workers = 2
+    with qemu_nbd.run(
+                src, src_fmt, src_sock,
+                read_only=True,
+                shared=max_workers + 1), \
+            qemu_nbd.run(
+                dst, dst_fmt, dst_sock,
+                shared=max_workers), \
             nbd.open(src_url, "r") as src_backend, \
             nbd.open(dst_url, "r+") as dst_backend:
 
         # Because we copy to new image, we can alays use zero=False, but we
         # test both to verify that the result is the same.
-        io.copy(src_backend, dst_backend, zero=zero)
+        io.copy(src_backend, dst_backend, max_workers=max_workers, zero=zero)
 
     qemu_img.compare(src, dst)
 
 
+@pytest.mark.parametrize("buffer_size", [128, 1024])
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_generic(zero):
+@pytest.mark.parametrize("progress", [None, FakeProgress()])
+def test_copy_generic(buffer_size, zero, progress):
     size = 1024
     chunk_size = size // 2
 
+    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
+    dst_backing = bytearray((b"y" if zero else b"\0") * size)
+
     src = memory.Backend(
         mode="r",
-        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
+        data=src_backing,
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -102,23 +123,31 @@ def test_copy_generic(zero):
         }
     )
 
-    dst = memory.Backend(
-        "r+", data=bytearray((b"y" if zero else b"\0") * size))
+    dst = memory.Backend("r+", data=dst_backing)
 
-    io.copy(src, dst, buffer_size=128, zero=zero)
+    io.copy(
+        src, dst,
+        max_workers=1,
+        buffer_size=buffer_size,
+        zero=zero,
+        progress=progress)
 
-    assert dst.size() == src.size()
-    assert dst.data() == src.data()
+    assert dst_backing == src_backing
 
 
+@pytest.mark.parametrize("buffer_size", [128, 1024])
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_read_from(zero):
+@pytest.mark.parametrize("progress", [None, FakeProgress()])
+def test_copy_read_from(buffer_size, zero, progress):
     size = 1024
     chunk_size = size // 2
 
+    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
+    dst_backing = bytearray((b"y" if zero else b"\0") * size)
+
     src = memory.Backend(
         mode="r",
-        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
+        data=src_backing,
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -127,23 +156,31 @@ def test_copy_read_from(zero):
         }
     )
 
-    dst = memory.ReaderFrom(
-        "r+", data=bytearray((b"y" if zero else b"\0") * size))
+    dst = memory.ReaderFrom("r+", data=dst_backing)
 
-    io.copy(src, dst, buffer_size=128)
+    io.copy(
+        src, dst,
+        max_workers=1,
+        buffer_size=buffer_size,
+        zero=zero,
+        progress=progress)
 
-    assert dst.size() == src.size()
-    assert dst.data() == src.data()
+    assert dst_backing == src_backing
 
 
+@pytest.mark.parametrize("buffer_size", [128, 1024])
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_write_to(zero):
+@pytest.mark.parametrize("progress", [None, FakeProgress()])
+def test_copy_write_to(buffer_size, zero, progress):
     size = 1024
     chunk_size = size // 2
+
+    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
+    dst_backing = bytearray((b"y" if zero else b"\0") * size)
 
     src = memory.WriterTo(
         mode="r",
-        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
+        data=src_backing,
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -152,16 +189,20 @@ def test_copy_write_to(zero):
         }
     )
 
-    dst = memory.Backend(
-        "r+", data=bytearray((b"y" if zero else b"\0") * size))
+    dst = memory.Backend("r+", data=dst_backing)
 
-    io.copy(src, dst, buffer_size=128, zero=zero)
+    io.copy(
+        src, dst,
+        max_workers=1,
+        buffer_size=buffer_size,
+        zero=zero,
+        progress=progress)
 
-    assert dst.size() == src.size()
-    assert dst.data() == src.data()
+    assert dst_backing == src_backing
 
 
-def test_copy_dirty():
+@pytest.mark.parametrize("progress", [None, FakeProgress()])
+def test_copy_dirty(progress):
     size = 1024
     chunk_size = size // 4
 
@@ -183,25 +224,17 @@ def test_copy_dirty():
         }
     )
 
-    dst = memory.Backend("r+", data=bytearray(b"\0" * size))
+    dst_backing = bytearray(b"\0" * size)
+    dst = memory.Backend("r+", data=dst_backing)
 
-    io.copy(src, dst, dirty=True)
+    io.copy(src, dst, dirty=True, max_workers=1, progress=progress)
 
-    assert dst.data() == (
+    assert dst_backing == (
         b"a" * chunk_size +
         b"\0" * chunk_size +
         b"c" * chunk_size +
         b"\0" * chunk_size
     )
-
-
-class FakeProgress:
-
-    def __init__(self):
-        self.updates = []
-
-    def update(self, n):
-        self.updates.append(n)
 
 
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
@@ -230,7 +263,7 @@ def test_copy_data_progress(zero):
     dst = memory.Backend("r+", data=bytearray(b"\0" * size))
 
     p = FakeProgress()
-    io.copy(src, dst, zero=zero, progress=p)
+    io.copy(src, dst, max_workers=1, zero=zero, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4
@@ -264,7 +297,7 @@ def test_copy_dirty_progress():
     dst = memory.Backend("r+", bytearray(b"\0" * size))
 
     p = FakeProgress()
-    io.copy(src, dst, dirty=True, progress=p)
+    io.copy(src, dst, dirty=True, max_workers=1, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4
