@@ -93,7 +93,7 @@ def test_copy_generic(zero):
 
     src = memory.Backend(
         mode="r",
-        data=b"x" * chunk_size + b"\0" * chunk_size,
+        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -102,7 +102,8 @@ def test_copy_generic(zero):
         }
     )
 
-    dst = memory.Backend("r+", (b"y" if zero else b"\0") * size)
+    dst = memory.Backend(
+        "r+", data=bytearray((b"y" if zero else b"\0") * size))
 
     io.copy(src, dst, buffer_size=128, zero=zero)
 
@@ -117,7 +118,7 @@ def test_copy_read_from(zero):
 
     src = memory.Backend(
         mode="r",
-        data=b"x" * chunk_size + b"\0" * chunk_size,
+        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -126,7 +127,8 @@ def test_copy_read_from(zero):
         }
     )
 
-    dst = memory.ReaderFrom("r+", (b"y" if zero else b"\0") * size)
+    dst = memory.ReaderFrom(
+        "r+", data=bytearray((b"y" if zero else b"\0") * size))
 
     io.copy(src, dst, buffer_size=128)
 
@@ -141,7 +143,7 @@ def test_copy_write_to(zero):
 
     src = memory.WriterTo(
         mode="r",
-        data=b"x" * chunk_size + b"\0" * chunk_size,
+        data=bytearray(b"x" * chunk_size + b"\0" * chunk_size),
         extents={
             "zero": [
                 image.ZeroExtent(0 * chunk_size, chunk_size, False),
@@ -150,7 +152,8 @@ def test_copy_write_to(zero):
         }
     )
 
-    dst = memory.Backend("r+", (b"y" if zero else b"\0") * size)
+    dst = memory.Backend(
+        "r+", data=bytearray((b"y" if zero else b"\0") * size))
 
     io.copy(src, dst, buffer_size=128, zero=zero)
 
@@ -164,7 +167,7 @@ def test_copy_dirty():
 
     src = memory.Backend(
         mode="r",
-        data=(
+        data=bytearray(
             b"a" * chunk_size +
             b"b" * chunk_size +
             b"c" * chunk_size +
@@ -180,7 +183,7 @@ def test_copy_dirty():
         }
     )
 
-    dst = memory.Backend("r+", b"\0" * size)
+    dst = memory.Backend("r+", data=bytearray(b"\0" * size))
 
     io.copy(src, dst, dirty=True)
 
@@ -208,7 +211,7 @@ def test_copy_data_progress(zero):
 
     src = memory.Backend(
         mode="r",
-        data=(
+        data=bytearray(
             b"x" * chunk_size +
             b"\0" * chunk_size +
             b"x" * chunk_size +
@@ -224,7 +227,7 @@ def test_copy_data_progress(zero):
         }
     )
 
-    dst = memory.Backend("r+", b"\0" * size)
+    dst = memory.Backend("r+", data=bytearray(b"\0" * size))
 
     p = FakeProgress()
     io.copy(src, dst, zero=zero, progress=p)
@@ -242,7 +245,7 @@ def test_copy_dirty_progress():
 
     src = memory.Backend(
         mode="r",
-        data=(
+        data=bytearray(
             b"x" * chunk_size +
             b"\0" * chunk_size +
             b"x" * chunk_size +
@@ -258,7 +261,7 @@ def test_copy_dirty_progress():
         }
     )
 
-    dst = memory.Backend("r+", b"\0" * size)
+    dst = memory.Backend("r+", bytearray(b"\0" * size))
 
     p = FakeProgress()
     io.copy(src, dst, dirty=True, progress=p)

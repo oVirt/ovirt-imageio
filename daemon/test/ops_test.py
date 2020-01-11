@@ -92,7 +92,7 @@ def test_send_partial_content(user_file, offset, size):
 
 
 def test_send_seek():
-    src = memory.Backend("r", b"0123456789")
+    src = memory.Backend("r", bytearray(b"0123456789"))
     src.seek(8)
     dst = io.BytesIO()
     with util.aligned_buffer(32) as buf:
@@ -179,7 +179,7 @@ def test_receive_partial_content(user_file, offset, size):
 
 
 def test_receive_seek():
-    dst = memory.Backend("r+", b"a" * 10)
+    dst = memory.Backend("r+", bytearray(b"a" * 10))
     dst.seek(8)
     src = io.BytesIO(b"b" * 5)
     with util.aligned_buffer(32) as buf:
@@ -199,7 +199,7 @@ def test_receive_seek():
 ])
 def test_receive_flush(extra, dirty):
     size = 4096
-    dst = memory.Backend("r+", b"a" * size)
+    dst = memory.Backend("r+", bytearray(b"a" * size))
     src = io.BytesIO(b"b" * size)
     with util.aligned_buffer(4096) as buf:
         op = ops.Receive(dst, src, buf, size, **extra)
@@ -321,7 +321,7 @@ def test_zero_inside(user_file, offset, size, sparse):
 
 
 def test_zero_seek():
-    dst = memory.Backend("r+", b"a" * 10)
+    dst = memory.Backend("r+", bytearray(b"a" * 10))
     dst.seek(8)
     op = ops.Zero(dst, 5)
     op.run()
@@ -339,7 +339,7 @@ def test_zero_seek():
 ])
 def test_zero_flush(extra, dirty):
     size = 4096
-    dst = memory.Backend("r+", b"a" * size)
+    dst = memory.Backend("r+", bytearray(b"a" * size))
     op = ops.Zero(dst, size, **extra)
     op.run()
     assert dst.dirty == dirty

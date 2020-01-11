@@ -8,7 +8,6 @@
 
 from __future__ import absolute_import
 
-import io
 import logging
 import os
 
@@ -47,10 +46,12 @@ class Backend(object):
         log.info("Open backend mode=%r max_connections=%r",
                  mode, max_connections)
         self._mode = mode
-        self._buf = io.BytesIO(data)
+        self._buf = data or bytearray()
         # TODO: Make size constant so we can build the default extents here.
         self._extents = extents or {}
         self._dirty = False
+        self._position = 0
+        self._closed = False
         self._max_connections = max_connections
 
     @property
@@ -66,29 +67,54 @@ class Backend(object):
     # io.BaseIO interface
 
     def readinto(self, buf):
+        self._check_closed()
         if not self.readable():
             raise IOError("Unsupproted operation: read")
-        return self._buf.readinto(buf)
+
+        length = min(len(buf), self.size() - self._position)
+        buf[:length] = self._buf[self._position:self._position + length]
+        self._position += length
+
+        return length
 
     def write(self, buf):
+        self._check_closed()
         if not self.writable():
             raise IOError("Unsupproted operation: write")
+
+        length = len(buf)
+
+        extend = self._position + length - self.size()
+        if extend > 0:
+            self._buf.extend(extend * b"\0")
+
+        self._buf[self._position:self._position + length] = buf
+        self._position += length
         self._dirty = True
-        return self._buf.write(buf)
+
+        return length
 
     def tell(self):
-        return self._buf.tell()
+        self._check_closed()
+        return self._position
 
-    def seek(self, pos, how=os.SEEK_SET):
-        return self._buf.seek(pos, how)
+    def seek(self, n, how=os.SEEK_SET):
+        self._check_closed()
+        if how == os.SEEK_SET:
+            self._position = n
+        elif how == os.SEEK_CUR:
+            self._position += n
+        elif how == os.SEEK_END:
+            self._position = self.size() + n
+        return self._position
 
     def flush(self):
-        self._buf.flush()
+        self._check_closed()
         self._dirty = False
 
     def close(self):
         log.info("Close backend")
-        self._buf.close()
+        self._closed = True
 
     def __enter__(self):
         return self
@@ -105,17 +131,17 @@ class Backend(object):
     # Backend interface.
 
     def zero(self, count):
+        self._check_closed()
         if not self.writable():
-            raise IOError("Unsupproted operation: truncate")
-        self._dirty = True
-        self._buf.write(b"\0" * count)
-        return count
+            raise IOError("Unsupproted operation: zero")
+        return self.write(b"\0" * count)
 
     @property
     def block_size(self):
         return 1
 
     def extents(self, context="zero"):
+        self._check_closed()
         # If not configured, report single data extent.
         if not self._extents and context == "zero":
             yield image.ZeroExtent(0, self.size(), False)
@@ -132,9 +158,11 @@ class Backend(object):
     # Debugging interface
 
     def readable(self):
+        self._check_closed()
         return self._mode in ("r", "r+")
 
     def writable(self):
+        self._check_closed()
         return self._mode in ("w", "r+")
 
     @property
@@ -153,14 +181,16 @@ class Backend(object):
         return "memory"
 
     def size(self):
-        old_pos = self._buf.tell()
-        self._buf.seek(0, os.SEEK_END)
-        result = self._buf.tell()
-        self._buf.seek(old_pos, os.SEEK_SET)
-        return result
+        self._check_closed()
+        return len(self._buf)
 
     def data(self):
-        return self._buf.getvalue()
+        return self._buf[:]
+
+    def _check_closed(self):
+        if self._closed:
+            # Keeping io.FileIO behaviour.
+            raise ValueError("Operation on closed backend")
 
 
 class ReaderFrom(Backend):
