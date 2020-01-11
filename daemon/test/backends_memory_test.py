@@ -184,10 +184,30 @@ def test_extents():
     assert list(m.extents()) == [image.ZeroExtent(0, 4, False)]
 
 
-def test_extents_zero():
+def test_extents_dirty():
     m = memory.Backend("r+", data=b"data")
     with pytest.raises(errors.UnsupportedOperation):
         list(m.extents(context="dirty"))
+
+
+def test_user_extents():
+    extents = {
+        "zero": [
+            image.ZeroExtent(0, 32, False),
+            image.ZeroExtent(0, 32, True),
+        ],
+        "dirty": [
+            image.DirtyExtent(0, 16, True),
+            image.DirtyExtent(0, 48, False),
+        ]
+    }
+    data = b"a" * 32 + b"\0" * 32
+
+    m = memory.Backend(data=data, extents=extents)
+
+    assert list(m.extents()) == extents["zero"]
+    assert list(m.extents("zero")) == extents["zero"]
+    assert list(m.extents("dirty")) == extents["dirty"]
 
 
 @requires_python3

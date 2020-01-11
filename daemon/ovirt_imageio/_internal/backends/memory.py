@@ -41,13 +41,15 @@ class Backend(object):
     Memory backend for testing.
     """
 
-    def __init__(self, mode="r", data=None, max_connections=8):
+    def __init__(self, mode="r", data=None, max_connections=8, extents=None):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
         log.info("Open backend mode=%r max_connections=%r",
                  mode, max_connections)
         self._mode = mode
         self._buf = io.BytesIO(data)
+        # TODO: Make size constant so we can build the default extents here.
+        self._extents = extents or {}
         self._dirty = False
         self._max_connections = max_connections
 
@@ -114,14 +116,18 @@ class Backend(object):
         return 1
 
     def extents(self, context="zero"):
-        if context != "zero":
+        # If not configured, report single data extent.
+        if not self._extents and context == "zero":
+            yield image.ZeroExtent(0, self.size(), False)
+            return
+
+        if context not in self._extents:
             raise errors.UnsupportedOperation(
                 "Backend {} does not support {} extents"
                 .format(self.name, context))
 
-        # TODO: We can detect zeroes in underlying buffer and return more
-        # interesting results.
-        yield image.ZeroExtent(0, self.size(), False)
+        for ext in self._extents[context]:
+            yield ext
 
     # Debugging interface
 
