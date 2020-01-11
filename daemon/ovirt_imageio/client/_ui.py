@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 import sys
+import threading
 import time
 
 from .. _internal import util
@@ -36,6 +37,7 @@ class ProgressBar(object):
         # TODO: use current terminal width instead.
         self.width = width
         self.now = now
+        self.lock = threading.Lock()
         self.start = self.now()
         self.next = 0
         self.done = 0
@@ -57,18 +59,20 @@ class ProgressBar(object):
 
         [1] https://github.com/tqdm/tqdm#manual
         """
-        self.done += n
-        now = self.now()
-        if now < self.next:
-            return
+        with self.lock:
+            self.done += n
+            now = self.now()
+            if now < self.next:
+                return
 
-        self.next = now + self.step
-        self._draw(now)
+            self.next = now + self.step
+            self._draw(now)
 
     def close(self):
-        # If we wrote progress, we need to draw the last progress line.
-        if self.done > 0:
-            self._draw(self.now(), last=True)
+        with self.lock:
+            # If we wrote progress, we need to draw the last progress line.
+            if self.done > 0:
+                self._draw(self.now(), last=True)
 
     def _draw(self, now, last=False):
         elapsed = now - self.start
