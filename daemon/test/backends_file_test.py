@@ -65,7 +65,7 @@ def test_debugging_interface(user_file):
 def test_open_read_only(user_file):
     with io.open(user_file.path, "wb") as f:
         f.write(b"x" * user_file.sector_size)
-    with file.open(user_file.url, "r") as f, \
+    with file.open(user_file.url) as f, \
             closing(util.aligned_buffer(user_file.sector_size)) as buf:
         assert f.readable()
         assert not f.writable()
@@ -102,7 +102,7 @@ def test_block_size_sparse(user_file, size):
     with io.open(user_file.path, "wb") as f:
         f.truncate(size)
 
-    with file.open(user_file.url, "r") as f:
+    with file.open(user_file.url) as f:
         if user_file.can_detect_sector_size:
             assert f.block_size == user_file.sector_size
         else:
@@ -119,7 +119,7 @@ def test_block_size_preallocated(user_file, size):
     subprocess.check_output(
         ["fallocate", "--posix", "--length", str(size), user_file.path])
 
-    with file.open(user_file.url, "r") as f:
+    with file.open(user_file.url) as f:
         if user_file.can_detect_sector_size:
             assert f.block_size == user_file.sector_size
         else:
@@ -138,7 +138,7 @@ def test_block_size_first_block_unallocated(user_file):
         f.seek(hole_size)
         f.write(b"x" * data_size)
 
-    with file.open(user_file.url, "r") as f:
+    with file.open(user_file.url) as f:
         if user_file.can_detect_sector_size:
             assert f.block_size == user_file.sector_size
         else:
@@ -154,7 +154,7 @@ def test_block_size_allocated(user_file, size):
     with io.open(user_file.path, "wb") as f:
         f.write(b"x" * size)
 
-    with file.open(user_file.url, "r") as f:
+    with file.open(user_file.url) as f:
         assert f.block_size == user_file.sector_size
 
     with io.open(user_file.path, "rb") as f:
@@ -164,7 +164,7 @@ def test_block_size_allocated(user_file, size):
 def test_readinto(user_file):
     with io.open(user_file.path, "wb") as f:
         f.write(b"a" * 4096)
-    with file.open(user_file.url, "r") as f, \
+    with file.open(user_file.url) as f, \
             closing(util.aligned_buffer(4096)) as buf:
         n = f.readinto(buf)
         assert n == len(buf)
@@ -179,7 +179,7 @@ def test_readinto_short_aligned(user_file):
     with io.open(user_file.path, "wb") as f:
         f.write(b"a" * size)
 
-    with file.open(user_file.url, "r") as f, \
+    with file.open(user_file.url) as f, \
             closing(util.aligned_buffer(buf_size)) as buf:
         n = f.readinto(buf)
         assert n == size
@@ -195,7 +195,7 @@ def test_readinto_short_unaligned(user_file):
     with io.open(user_file.path, "wb") as f:
         f.write(b"a" * size)
 
-    with file.open(user_file.url, "r") as f, \
+    with file.open(user_file.url) as f, \
             closing(util.aligned_buffer(buf_size)) as buf:
         n = f.readinto(buf)
         assert n == size

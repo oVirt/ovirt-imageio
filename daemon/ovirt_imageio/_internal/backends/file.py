@@ -24,7 +24,8 @@ from . import image
 log = logging.getLogger("backends.file")
 
 
-def open(url, mode, sparse=False, dirty=False, max_connections=8, **options):
+def open(url, mode="r", sparse=False, dirty=False, max_connections=8,
+         **options):
     """
     Open a file backend.
 

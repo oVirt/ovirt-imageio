@@ -74,7 +74,7 @@ def test_open_read_write(nbd_server):
 def test_open_readonly(nbd_server):
     nbd_server.read_only = True
     nbd_server.start()
-    with nbd.open(nbd_server.url, "r") as b:
+    with nbd.open(nbd_server.url) as b:
         assert b.readable()
         assert not b.writable()
 
@@ -232,7 +232,7 @@ def test_size(nbd_server, fmt):
     nbd_server.fmt = fmt
     qemu_img.create(nbd_server.image, fmt, size=size)
     nbd_server.start()
-    with nbd.open(nbd_server.url, "r") as b:
+    with nbd.open(nbd_server.url) as b:
         assert b.size() == size
 
 

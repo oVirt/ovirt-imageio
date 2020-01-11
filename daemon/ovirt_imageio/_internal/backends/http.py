@@ -25,7 +25,8 @@ from . import image
 log = logging.getLogger("backends.http")
 
 
-def open(url, mode, sparse=True, dirty=False, max_connections=8, **options):
+def open(url, mode="r+", sparse=True, dirty=False, max_connections=8,
+         **options):
     """
     Open a HTTP backend.
 

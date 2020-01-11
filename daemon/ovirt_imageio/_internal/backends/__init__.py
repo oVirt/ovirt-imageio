@@ -63,7 +63,7 @@ def get(req, ticket, config):
 
         backend = module.open(
             ticket.url,
-            mode,
+            mode=mode,
             sparse=ticket.sparse,
             dirty=ticket.dirty,
             max_connections=config.daemon.max_connections,

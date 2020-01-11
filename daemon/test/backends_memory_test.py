@@ -48,7 +48,7 @@ def test_open_read_write():
 
 
 def test_open_readonly():
-    m = memory.Backend("r")
+    m = memory.Backend()
     assert m.readable()
     assert not m.writable()
 
@@ -137,7 +137,7 @@ def test_propagate_user_error():
 
 
 def test_create_with_bytes():
-    m = memory.Backend("r", b"data")
+    m = memory.Backend(data=b"data")
     assert m.readable()
     assert not m.writable()
 
@@ -148,7 +148,7 @@ def test_create_with_bytes():
 
 def test_dirty():
     # backend created clean
-    m = memory.Backend("r+", b"data")
+    m = memory.Backend("r+", data=b"data")
     assert not m.dirty
 
     # write ans zero dirty the backend
@@ -170,7 +170,7 @@ def test_dirty():
 
 
 def test_size():
-    m = memory.Backend("r+", b"data")
+    m = memory.Backend("r+", data=b"data")
     assert m.size() == 4
     assert m.tell() == 0
     m.zero(5)
@@ -180,12 +180,12 @@ def test_size():
 
 
 def test_extents():
-    m = memory.Backend("r+", b"data")
+    m = memory.Backend("r+", data=b"data")
     assert list(m.extents()) == [image.ZeroExtent(0, 4, False)]
 
 
 def test_extents_zero():
-    m = memory.Backend("r+", b"data")
+    m = memory.Backend("r+", data=b"data")
     with pytest.raises(errors.UnsupportedOperation):
         list(m.extents(context="dirty"))
 
@@ -193,7 +193,7 @@ def test_extents_zero():
 @requires_python3
 def test_read_from():
     size = 128
-    src = memory.Backend("r", b"x" * size)
+    src = memory.Backend(data=b"x" * size)
     dst = memory.ReaderFrom("r+", b"y" * size)
     buf = bytearray(32)
     dst.read_from(src, size, buf)
@@ -205,7 +205,7 @@ def test_read_from():
 
 @requires_python3
 def test_read_from_some():
-    src = memory.Backend("r", b"x" * 128)
+    src = memory.Backend(data=b"x" * 128)
     dst = memory.ReaderFrom("r+", b"y" * 128)
     buf = bytearray(32)
 
@@ -221,8 +221,8 @@ def test_read_from_some():
 @requires_python3
 def test_write_to():
     size = 128
-    src = memory.WriterTo("r", b"x" * size)
-    dst = memory.Backend("r+", b"y" * size)
+    src = memory.WriterTo(data=b"x" * size)
+    dst = memory.Backend("r+", data=b"y" * size)
     buf = bytearray(32)
     src.write_to(dst, size, buf)
 
@@ -234,8 +234,8 @@ def test_write_to():
 @requires_python3
 def test_write_to_some():
     size = 128
-    src = memory.WriterTo("r", b"x" * size)
-    dst = memory.Backend("r+", b"y" * size)
+    src = memory.WriterTo(data=b"x" * size)
+    dst = memory.Backend("r+", data=b"y" * size)
     buf = bytearray(32)
 
     src.seek(32)

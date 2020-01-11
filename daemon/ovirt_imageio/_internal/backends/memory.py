@@ -18,7 +18,8 @@ from . import image
 log = logging.getLogger("backends.memory")
 
 
-def open(url, mode, sparse=False, dirty=False, max_connections=8, **options):
+def open(url, mode="r", sparse=False, dirty=False, max_connections=8,
+         **options):
     """
     Open a memory backend.
 
@@ -32,7 +33,7 @@ def open(url, mode, sparse=False, dirty=False, max_connections=8, **options):
             max_writers.
         **options: ignored, memory backend does not have any options.
     """
-    return Backend(mode, max_connections=max_connections)
+    return Backend(mode=mode, max_connections=max_connections)
 
 
 class Backend(object):
@@ -40,7 +41,7 @@ class Backend(object):
     Memory backend for testing.
     """
 
-    def __init__(self, mode, data=None, max_connections=8):
+    def __init__(self, mode="r", data=None, max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
         log.info("Open backend mode=%r max_connections=%r",

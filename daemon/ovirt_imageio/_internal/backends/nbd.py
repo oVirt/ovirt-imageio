@@ -22,7 +22,8 @@ log = logging.getLogger("backends.nbd")
 Error = nbd.Error
 
 
-def open(url, mode, sparse=True, dirty=False, max_connections=8, **options):
+def open(url, mode="r", sparse=True, dirty=False, max_connections=8,
+         **options):
     """
     Open a NBD backend.
 
@@ -44,7 +45,7 @@ def open(url, mode, sparse=True, dirty=False, max_connections=8, **options):
     """
     client = nbd.open(url, dirty=dirty)
     try:
-        return Backend(client, mode, max_connections=max_connections)
+        return Backend(client, mode=mode, max_connections=max_connections)
     except:  # noqa: E722
         client.close()
         raise
@@ -55,7 +56,7 @@ class Backend(object):
     NBD backend.
     """
 
-    def __init__(self, client, mode, max_connections=8):
+    def __init__(self, client, mode="r", max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
         log.info("Open backend address=%r export_name=%r max_connections=%r",
