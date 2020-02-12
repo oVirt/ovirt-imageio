@@ -527,7 +527,7 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
     pytest.param(
         "raw",
         marks=pytest.mark.xfail(
-            distro.is_centos("8.0") and ("OVIRT_CI" in os.environ),
+            distro.is_centos("8") and ("OVIRT_CI" in os.environ),
             reason="unaligned write fails on el8/oVirt CI")
     ),
     pytest.param("qcow2", marks=requires_advanced_virt),
@@ -563,9 +563,7 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     pytest.param(
         "check1",
         id="with-checkpoint",
-        marks=pytest.mark.xfail(
-            distro.is_centos("8.0"),
-            reason="Advanced virt stream not available"),
+        marks=requires_advanced_virt
     ),
 ])
 def test_full_backup_complete_chain(tmpdir, nbd_sock, checkpoint):
