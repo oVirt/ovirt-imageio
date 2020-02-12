@@ -1,2 +1,3 @@
+six>=1.14.0
 tox>=3.14
 userstorage>=0.4
