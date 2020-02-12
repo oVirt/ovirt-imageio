@@ -13,7 +13,7 @@ import threading
 from ovirt_imageio_common import backends
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
-from ovirt_imageio_daemon import measure
+from ovirt_imageio_common import measure
 
 import six
 from six.moves import urllib_parse
