@@ -26,7 +26,14 @@ teardown() {
     make clean-storage || echo "WARNING: cleaning storage failed"
 }
 
+print_builder_info() {
+    echo -n "release: "
+    cat /etc/redhat-release
+}
+
 trap teardown EXIT
+
+print_builder_info
 
 # First upgrade pip, since older pip versions have issues with installing
 # correct version of requirements.
