@@ -17,8 +17,8 @@ import userstorage
 import pytest
 
 from ovirt_imageio_common import auth
+from ovirt_imageio_common import config
 from ovirt_imageio_common import configloader
-from ovirt_imageio_daemon import config
 from ovirt_imageio_daemon import server
 
 from . import testutils
