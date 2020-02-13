@@ -16,7 +16,7 @@ from six.moves import xrange
 
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
-from ovirt_imageio_daemon.auth import Ticket
+from ovirt_imageio_common.auth import Ticket
 
 from test import testutils
 
