@@ -21,6 +21,7 @@ from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import qemu_nbd
+from ovirt_imageio_common import util
 from ovirt_imageio_common.compat import subprocess
 
 log = logging.getLogger("test")
@@ -136,3 +137,25 @@ def tmp_pki(tmpdir_factory):
     subprocess.check_output(cmd)
 
     return PKI(certfile, certfile, keyfile)
+
+
+class FakeTime(object):
+
+    def __init__(self):
+        self.now = 0
+
+    def monotonic_time(self):
+        return self.now
+
+
+@pytest.fixture
+def fake_time(monkeypatch):
+    """
+    Monkeypatch util.monotonic_time for testing time related operations.
+
+    Returns FakeTime instance. Modifying instance.now change the value returned
+    from the monkeypatched util.monotonic_time().
+    """
+    time = FakeTime()
+    monkeypatch.setattr(util, "monotonic_time", time.monotonic_time)
+    return time

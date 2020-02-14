@@ -26,13 +26,16 @@ import pytest
 from ovirt_imageio_common import auth
 from ovirt_imageio_common import config
 from ovirt_imageio_common import configloader
+from ovirt_imageio_common import server
 from ovirt_imageio_common import tickets
 from ovirt_imageio_common import util
-from ovirt_imageio_daemon import server
 
 from . import testutils
 from . import http
 
+from . marks import requires_python3
+
+pytestmark = requires_python3
 
 # Disable client certificate verification introduced in Python > 2.7.9. We
 # trust our certificates.

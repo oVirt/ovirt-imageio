@@ -20,10 +20,10 @@ build: $(GENERATED)
 check: check-py$(PYTHON_VERSION)
 
 check-py2:
-	tox -e flake8,py27
+	tox -e flake8,test-py27
 
 check-py3:
-	tox -e flake8,py36,py37
+	tox -e flake8,test-py36,test-py37
 
 dist: $(SPEC_NAME)
 	rm -f dist/*

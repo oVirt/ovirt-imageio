@@ -21,9 +21,6 @@ METADATA = ovirt_imageio_daemon/version.py Makefile
 
 build: $(GENERATED)
 
-check:
-	tox -e "flake8,test-{py36,py37}"
-
 dist: $(SPEC_NAME)
 	rm -f dist/*
 	$(PYTHON) setup.py sdist

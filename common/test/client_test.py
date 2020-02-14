@@ -17,9 +17,13 @@ from ovirt_imageio_common import config
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import client
 from ovirt_imageio_common import pki
-from ovirt_imageio_daemon import server
+from ovirt_imageio_common import server
 
 from . import testutils
+
+from . marks import requires_python3
+
+pytestmark = requires_python3
 
 IMAGE_SIZE = 128 * 1024
 
