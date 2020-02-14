@@ -27,14 +27,24 @@ pytestmark = requires_python3
 BLOCKSIZE = 512
 
 
+def fill(b, size):
+    count, rest = divmod(size, len(b))
+    return b * count + b[:rest]
+
+
+BUFFER = fill(b"ABCDEFGHIJ", 1024**2)
+BLOCK = fill(b"abcdefghij", 512)
+BYTES = fill(b"0123456789", 42)
+
+
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-    testutil.BYTES,
+    BUFFER * 2,
+    BUFFER + BLOCK * 2,
+    BUFFER + BLOCK + BYTES,
+    BLOCK * 2,
+    BLOCK + BYTES,
+    BYTES,
 ], ids=testutil.head)
 def test_receive(tmpfile, data, offset):
     assert receive(tmpfile, data, len(data), offset=offset) == data
@@ -44,22 +54,22 @@ def test_receive(tmpfile, data, offset):
 @pytest.mark.parametrize("size", [
     511,
     513,
-    len(testutil.BUFFER) + 511,
-    len(testutil.BUFFER) + 513,
+    len(BUFFER) + 511,
+    len(BUFFER) + 513,
 ])
 def test_receive_partial(tmpfile, size, offset):
-    data = testutil.BUFFER * 2
+    data = BUFFER * 2
     assert receive(tmpfile, data, size, offset=offset) == data[:size]
 
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
-    testutil.BYTES,
+    BUFFER * 2,
+    BUFFER + BLOCK * 2,
+    BUFFER + BLOCK + BYTES,
+    BLOCK * 2,
+    BLOCK + BYTES,
+    BYTES,
 ], ids=testutil.head)
 def test_receive_partial_content(tmpfile, data, offset):
     with pytest.raises(errors.PartialContent) as e:
@@ -141,11 +151,11 @@ def receive_unbuffered(tmpfile, chunks, size, bufsize):
 
 @pytest.mark.parametrize("offset", [0, 42, 512])
 @pytest.mark.parametrize("data", [
-    testutil.BUFFER * 2,
-    testutil.BUFFER + testutil.BLOCK * 2,
-    testutil.BUFFER + testutil.BLOCK + testutil.BYTES,
-    testutil.BLOCK * 2,
-    testutil.BLOCK + testutil.BYTES,
+    BUFFER * 2,
+    BUFFER + BLOCK * 2,
+    BUFFER + BLOCK + BYTES,
+    BLOCK * 2,
+    BLOCK + BYTES,
 ], ids=testutil.head)
 def test_receive_no_size(tmpfile, data, offset):
     with open(tmpfile, "wb") as f:

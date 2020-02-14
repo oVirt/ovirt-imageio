@@ -21,7 +21,7 @@ from ovirt_imageio_common import config
 from ovirt_imageio_common import configloader
 from ovirt_imageio_common import server
 
-from . import testutils
+from . import testutil
 from . import http
 from . import storage
 
@@ -82,7 +82,7 @@ def test_no_ticket(http_request):
 
 
 def test_ticket_expired(http_request, fake_time):
-    ticket = testutils.create_ticket(timeout=300)
+    ticket = testutil.create_ticket(timeout=300)
     auth.add(ticket)
 
     # Make the ticket expire
@@ -104,7 +104,7 @@ def test_file_zero(http_request, user_file, fmt, path):
     # File backend uses actual size, not vitual size.
     size = os.path.getsize(user_file.path)
 
-    ticket = testutils.create_ticket(url="file://" + user_file.path, size=size)
+    ticket = testutil.create_ticket(url="file://" + user_file.path, size=size)
     auth.add(ticket)
 
     res = http_request("GET", path % ticket)
@@ -119,7 +119,7 @@ def test_file_ticket_not_dirty(http_request, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
-    ticket = testutils.create_ticket(
+    ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile), size=65536, dirty=False)
     auth.add(ticket)
 
@@ -133,7 +133,7 @@ def test_file_does_not_support_dirty(http_request, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
-    ticket = testutils.create_ticket(
+    ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile), size=65536, dirty=True)
     auth.add(ticket)
 

@@ -22,7 +22,7 @@ from ovirt_imageio_common import configloader
 from ovirt_imageio_common import server
 
 from . import http
-from . import testutils
+from . import testutil
 
 from . marks import requires_python3
 
@@ -74,7 +74,7 @@ def test_no_ticket(service, method, body):
 
 
 def test_put_forbidden(service):
-    ticket = testutils.create_ticket(
+    ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
     auth.add(ticket)
     res = http.unix_request(
@@ -84,8 +84,8 @@ def test_put_forbidden(service):
 
 def test_put(service, tmpdir):
     data = b"-------|after"
-    image = testutils.create_tempfile(tmpdir, "image", data)
-    ticket = testutils.create_ticket(url="file://" + str(image))
+    image = testutil.create_tempfile(tmpdir, "image", data)
+    ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
     res = http.unix_request(service.address, "PUT", uri, "content")
@@ -96,7 +96,7 @@ def test_put(service, tmpdir):
 
 
 def test_get_forbidden(service):
-    ticket = testutils.create_ticket(
+    ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=[])
     auth.add(ticket)
     res = http.unix_request(
@@ -106,8 +106,8 @@ def test_get_forbidden(service):
 
 def test_get(service, tmpdir):
     data = b"a" * 512 + b"b" * 512
-    image = testutils.create_tempfile(tmpdir, "image", data)
-    ticket = testutils.create_ticket(
+    image = testutil.create_tempfile(tmpdir, "image", data)
+    ticket = testutil.create_ticket(
         url="file://" + str(image), size=1024)
     auth.add(ticket)
     res = http.unix_request(
@@ -118,8 +118,8 @@ def test_get(service, tmpdir):
 
 def test_images_zero(service, tmpdir):
     data = b"x" * 512
-    image = testutils.create_tempfile(tmpdir, "image", data)
-    ticket = testutils.create_ticket(url="file://" + str(image))
+    image = testutil.create_tempfile(tmpdir, "image", data)
+    ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
     msg = {"op": "zero", "size": 20, "offset": 10, "future": True}
     size = msg["size"]

@@ -18,7 +18,7 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_common.auth import Ticket
 
-from test import testutils
+from test import testutil
 
 CHUNK_SIZE = 8 * 1024**2
 
@@ -38,12 +38,12 @@ class Operation(object):
 
 
 def test_transfered_nothing():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     assert ticket.transferred() == 0
 
 
 def test_transfered_inactive_empty_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.run(Operation(0, 0))
     assert ticket.transferred() == 0
 
@@ -52,7 +52,7 @@ def test_transfered_inactive_empty_ops():
 
 
 def test_transfered_inactive_ordered_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.run(Operation(0, 100))
     assert ticket.transferred() == 100
 
@@ -64,7 +64,7 @@ def test_transfered_inactive_ordered_ops():
 
 
 def test_transfered_inactive_unordered_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.run(Operation(100, 100))
     assert ticket.transferred() == 100
 
@@ -76,7 +76,7 @@ def test_transfered_inactive_unordered_ops():
 
 
 def test_transfered_inactive_overlapping_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.run(Operation(0, 120))
     assert ticket.transferred() == 120
 
@@ -88,7 +88,7 @@ def test_transfered_inactive_overlapping_ops():
 
 
 def test_transfered_inactive_non_continuous_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     # Run 2 non-continutes operations
     ticket.run(Operation(0, 100))
     ticket.run(Operation(200, 100))
@@ -100,7 +100,7 @@ def test_transfered_inactive_non_continuous_ops():
 
 
 def test_transfered_ongoing_concurrent_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
 
     # Start 2 ongoing operations:
     # ongoing: 0-0, 100-100
@@ -133,7 +133,7 @@ def test_transfered_ongoing_concurrent_ops():
 
 
 def test_transfered_ongoing_overlapping_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
 
     # Start 2 ongoing operations.
     # ongoing: 0-0, 80-80
@@ -163,7 +163,7 @@ def test_transfered_ongoing_overlapping_ops():
 
 
 def test_transfered_ongoing_non_continues_ops():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
 
     # Start 2 ongoing operations.
     # ongoing: 0-0, 200-200
@@ -193,7 +193,7 @@ def test_transfered_ongoing_non_continues_ops():
 @pytest.mark.benchmark
 def test_run_operation_benchmark():
     # Run 1000000 operations with 4 concurrent threads.
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     operations = 10**6
     workers = 4
     chunk = 10**9
@@ -225,7 +225,7 @@ def test_run_operation_benchmark():
 @pytest.mark.parametrize("concurrent", [1, 2, 4, 8])
 def test_transferred_benchmark(concurrent):
     # Time trransferred call with multiple ongoing and completed operations.
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
 
     calls = 10000
 
@@ -276,41 +276,41 @@ def test_invalid_argument(arg):
 ])
 def test_invalid_parameter(kw):
     with pytest.raises(errors.InvalidTicketParameter):
-        Ticket(testutils.create_ticket(**kw))
+        Ticket(testutil.create_ticket(**kw))
 
 
 def test_sparse_unset():
-    ticket = Ticket(testutils.create_ticket())
+    ticket = Ticket(testutil.create_ticket())
     assert not ticket.sparse
 
 
 def test_sparse():
-    ticket = Ticket(testutils.create_ticket(sparse=True))
+    ticket = Ticket(testutil.create_ticket(sparse=True))
     assert ticket.sparse
 
 
 def test_dirty_unset():
-    ticket = Ticket(testutils.create_ticket())
+    ticket = Ticket(testutil.create_ticket())
     assert not ticket.dirty
 
 
 def test_dirty():
-    ticket = Ticket(testutils.create_ticket(dirty=True))
+    ticket = Ticket(testutil.create_ticket(dirty=True))
     assert ticket.dirty
 
 
 def test_transfer_id_unset():
-    ticket = Ticket(testutils.create_ticket())
+    ticket = Ticket(testutil.create_ticket())
     assert ticket.transfer_id is None
 
 
 def test_transfer_id():
-    ticket = Ticket(testutils.create_ticket(transfer_id="123"))
+    ticket = Ticket(testutil.create_ticket(transfer_id="123"))
     assert ticket.transfer_id == "123"
 
 
 def test_repr():
-    ticket = Ticket(testutils.create_ticket(
+    ticket = Ticket(testutil.create_ticket(
         ops=["read"], filename="tmp_file"))
     ticket_repr = repr(ticket)
 
@@ -323,7 +323,7 @@ def test_repr():
 
 
 def test_ticket_run():
-    ticket = Ticket(testutils.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
     op = Operation(0, 100)
     assert ticket.transferred() == op.done
     assert op.done == 0

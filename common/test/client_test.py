@@ -19,7 +19,7 @@ from ovirt_imageio_common import client
 from ovirt_imageio_common import pki
 from ovirt_imageio_common import server
 
-from . import testutils
+from . import testutil
 
 from . marks import requires_python3
 
@@ -52,7 +52,7 @@ def prepare_upload(dst, sparse=True, size=IMAGE_SIZE):
         if not sparse:
             f.write(b"a" * size)
 
-    ticket = testutils.create_ticket(
+    ticket = testutil.create_ticket(
         url="file://" + dst,
         size=size,
         sparse=sparse)

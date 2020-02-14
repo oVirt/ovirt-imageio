@@ -1,5 +1,5 @@
-# ovirt-imageio-common
-# Copyright (C) 2015-2016 Red Hat, Inc.
+# ovirt-imageio-daemon
+# Copyright (C) 2015-2017 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -10,20 +10,11 @@ from __future__ import absolute_import
 
 import logging
 import socket
+import uuid
 
 from contextlib import closing
 
 log = logging.getLogger("test")
-
-
-def fill(b, size):
-    count, rest = divmod(size, len(b))
-    return b * count + b[:rest]
-
-
-BUFFER = fill(b"ABCDEFGHIJ", 1024**2)
-BLOCK = fill(b"abcdefghij", 512)
-BYTES = fill(b"0123456789", 42)
 
 
 def head(b):
@@ -44,3 +35,34 @@ def random_tcp_port():
         port = s.getsockname()[1]
         log.debug("Found unused TCP port %s", port)
         return port
+
+
+def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
+                  url="file:///var/run/vdsm/storage/foo", transfer_id=None,
+                  filename=None, sparse=None, dirty=None):
+    d = {
+        "uuid": uuid,
+        "timeout": timeout,
+        "ops": ["read", "write"] if ops is None else ops,
+        "size": size,
+        "url": url,
+    }
+    if transfer_id is not None:
+        d["transfer_id"] = transfer_id
+    if filename is not None:
+        d["filename"] = filename
+    if sparse is not None:
+        d["sparse"] = sparse
+    if dirty is not None:
+        d["dirty"] = dirty
+    return d
+
+
+def create_tempfile(tmpdir, name, data=b'', size=None):
+    file = tmpdir.join(name)
+    with open(str(file), 'wb') as f:
+        if size is not None:
+            f.truncate(size)
+        if data:
+            f.write(data)
+    return file
