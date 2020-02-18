@@ -13,7 +13,6 @@ threading.init()
 
 import systemd.daemon
 
-# import downloader
 import server
 
 

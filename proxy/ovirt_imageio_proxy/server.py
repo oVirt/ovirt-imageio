@@ -15,14 +15,11 @@
 # limitations under the License.
 #
 
-import httplib
 import logging
 import os
 import SocketServer
 import threading
 from wsgiref import simple_server
-
-import webob
 
 from ovirt_imageio_common import ssl
 from ovirt_imageio_common import version

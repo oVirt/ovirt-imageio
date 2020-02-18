@@ -1,6 +1,5 @@
 import auth
 import httplib
-import json
 import logging
 
 import requests
