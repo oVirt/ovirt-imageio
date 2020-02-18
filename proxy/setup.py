@@ -18,7 +18,7 @@ setup(
     license="GNU GPLv2+",
     name='ovirt-imageio-proxy',
     packages=['ovirt_imageio_proxy'],
-    requires=['ovirt_imageio_common', 'requests', 'webob'],
+    requires=['requests', 'webob'],
     scripts=['ovirt-imageio-proxy'],
     url="https://gerrit.ovirt.org/ovirt-imageio",
     version=version.string,

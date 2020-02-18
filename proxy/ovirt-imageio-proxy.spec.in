@@ -26,7 +26,6 @@ BuildArch:  noarch
 
 # NOTE: keep in sync with automation/check.packages
 Requires:   m2crypto
-Requires:   ovirt-imageio-common = %{version}
 Requires:   %{python}
 Requires:   %{python}-requests
 Requires:   %{python}-webob
