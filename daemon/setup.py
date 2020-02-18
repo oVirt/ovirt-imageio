@@ -8,7 +8,11 @@
 
 from distutils.core import setup
 
-from ovirt_imageio_daemon import version
+import sys
+
+sys.path = ["../common"] + sys.path
+
+from ovirt_imageio_common import version
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram, Daniel Erez",
