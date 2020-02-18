@@ -18,9 +18,11 @@ GENERATED = \
 
 METADATA = $(COMMON_VERSION_MODULE) Makefile
 
-.PHONY: build check dist srpm rpm clean $(SPEC_NAME)
+.PHONY: build dist srpm rpm clean $(SPEC_NAME)
 
 build: $(GENERATED)
+
+check:
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
