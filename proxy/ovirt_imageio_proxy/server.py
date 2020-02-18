@@ -22,11 +22,11 @@ import threading
 from wsgiref import simple_server
 
 from ovirt_imageio_common import ssl
-from ovirt_imageio_common import version
 
 from . import images
 from . import info
 from . import tickets
+from . import version
 from . import web
 
 log = logging.getLogger("server")
