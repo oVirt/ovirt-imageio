@@ -8,10 +8,44 @@
 
 from __future__ import absolute_import
 
+import collections
 import io
 
-from ovirt_imageio_common import util
 from ovirt_imageio_proxy import web
+
+
+class UnbufferedStream(object):
+    """
+    Unlike regular file object, read may return any amount of bytes up to the
+    requested size. This behavior is probably the result of doing one syscall
+    per read, without any buffering.
+
+    This stream will break code assuming that read(n) retruns n bytes. This
+    assumption is normally true, but not all file-like objects behave in this
+    way.
+
+    This simulate libvirt stream behavior used to copy imaged directly from
+    libvirt.
+    https://libvirt.org/html/libvirt-libvirt-stream.html#virStreamRecv
+    """
+
+    def __init__(self, chunks):
+        self.chunks = collections.deque(chunks)
+
+    def read(self, size):
+        if not self.chunks:
+            return b''
+        chunk = self.chunks.popleft()
+        res = chunk[:size]
+        chunk = chunk[size:]
+        if chunk:
+            self.chunks.appendleft(chunk)
+        return res
+
+    def readinto(self, buf):
+        chunk = self.read(len(buf))
+        buf[:len(chunk)] = chunk
+        return len(chunk)
 
 
 def test_capped_stream_iter():
@@ -45,7 +79,7 @@ def test_capped_stream_read_size():
 
 
 def test_capped_stream_short_reads():
-    stream = util.UnbufferedStream([b"1" * 123, b"2" * 456])
+    stream = UnbufferedStream([b"1" * 123, b"2" * 456])
     capped_stream = web.CappedStream(stream, 1024)
     assert capped_stream.read(1024) == b"1" * 123
     assert capped_stream.read(1024) == b"2" * 456

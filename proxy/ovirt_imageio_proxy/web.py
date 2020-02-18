@@ -8,9 +8,13 @@
 
 from __future__ import absolute_import
 
+import collections
 import json
 import logging
 import re
+import time
+
+from contextlib import contextmanager
 
 from six.moves import http_client
 
@@ -23,8 +27,6 @@ from webob.exc import (
     HTTPNotFound,
     HTTPInternalServerError,
 )
-
-from ovirt_imageio_common import util
 
 log = logging.getLogger("web")
 
@@ -77,6 +79,101 @@ class LoggingAppIter(object):
         log.debug("FINISH %s %s %s", self.req, self.res, self.clock)
 
 
+class Timer(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.total = 0.0
+        self.count = 0
+        self.started = None
+
+
+class Clock(object):
+    """
+    Measure time for complex flows.
+
+    This clock is useful for timing complex flows, when you want to record
+    multiple timings for a single flow. For example, the total time, and the
+    time of each step in the flow.
+
+    This is similar to MoinMoin.util.clock.Clock:
+    https://bitbucket.org/thomaswaldmann/moin-2.0/src/
+
+    And vdsm.common.time.Clock:
+    https://github.com/oVirt/vdsm/blob/master/lib/vdsm/common/time.py#L45
+
+    Usage::
+
+        clock = time.Clock()
+        ...
+        clock.start("total")
+        ...
+        clock.start("read")
+        clock.stop("read")
+        clock.start("write")
+        clock.stop("write")
+        clock.start("read")
+        clock.stop("read")
+        clock.start("write")
+        clock.stop("write")
+        ...
+        clock.start("sync")
+        clock.stop("sync")
+        ...
+        clock.stop("total")
+        log.info("times=%s", clock)
+
+    """
+
+    def __init__(self):
+        # Keep insertion order for nicer output in __repr__.
+        self._timers = collections.OrderedDict()
+
+    def start(self, name):
+        t = self._timers.get(name)
+        if t is None:
+            t = self._timers[name] = Timer(name)
+
+        if t.started is not None:
+            raise RuntimeError("Timer %r is running" % name)
+
+        t.started = time.time()
+        t.count += 1
+
+    def stop(self, name):
+        t = self._timers.get(name)
+        if t is None:
+            raise RuntimeError("No such timer %r" % name)
+
+        if t.started is None:
+            raise RuntimeError("Timer %r is not running" % name)
+
+        elapsed = time.time() - t.started
+        t.total += elapsed
+        t.started = None
+
+        return elapsed
+
+    @contextmanager
+    def run(self, name):
+        self.start(name)
+        try:
+            yield
+        finally:
+            self.stop(name)
+
+    def __repr__(self):
+        now = time.time()
+        timers = []
+        for t in self._timers.values():
+            if t.started is not None:
+                total = now - t.started
+            else:
+                total = t.total
+            timers.append("%s=%.6f/%d" % (t.name, total, t.count))
+        return "[%s]" % ", ".join(timers)
+
+
 class Application(object):
     ALLOWED_METHODS = frozenset(['GET', 'PUT', 'PATCH', 'POST',
                                  'DELETE', 'OPTIONS', 'HEAD'])
@@ -90,7 +187,7 @@ class Application(object):
         self.routes = [(re.compile(pattern), cls) for pattern, cls in routes]
 
     def __call__(self, env, start_response):
-        clock = util.Clock()
+        clock = Clock()
         clock.start("request")
         request = webob.Request(env)
         req = RequestInfo(request)
