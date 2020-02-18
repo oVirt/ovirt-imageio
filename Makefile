@@ -3,7 +3,7 @@ PYTHON_VERSION = 2
 targets = all check dist srpm rpm
 
 ifeq ($(PYTHON_VERSION), 2)
-	subdirs = common proxy
+	subdirs = proxy
 else
 	subdirs = common daemon
 endif
