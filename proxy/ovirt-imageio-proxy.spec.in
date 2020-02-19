@@ -28,6 +28,7 @@ BuildArch:  noarch
 Requires:   m2crypto
 Requires:   %{python}
 Requires:   %{python}-requests
+Requires:   %{python}-subprocess32
 Requires:   %{python}-webob
 
 %if 0%{?rhel}

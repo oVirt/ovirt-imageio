@@ -1,11 +1,5 @@
 %global python_version @PYTHON_VERSION@
-
-%if 0%{?rhel} == 7 && %{python_version} == 2
-%global python python
-%else
 %global python python%{python_version}
-%endif
-
 %global logdir @LOGDIR@
 
 Name:      @PACKAGE_NAME@
@@ -21,23 +15,8 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 # NOTE: keep in sync with automation/check.packages
 Requires:  %{python}
 Requires:  %{python}-six
-
-%if 0%{?rhel} == 7
-Requires:   systemd-python
-%else
-Requires:   %{python}-systemd
-%endif
-
-%if %{python_version} == 2
-Requires:  %{python}-subprocess32
-%endif
-
-%if 0%{?rhel} == 7
-# qemu-img is old and crippled on rhel 7.
-Requires: qemu-img-rhev
-%else
-Requires: qemu-img
-%endif
+Requires:  %{python}-systemd
+Requires:  qemu-img
 
 # We run as vdsm so we can access vdsm images and pki files, so vdsm must be
 # installed before installing the imageio daemon.
