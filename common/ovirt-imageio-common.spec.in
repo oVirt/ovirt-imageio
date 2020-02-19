@@ -2,6 +2,10 @@
 %global python python%{python_version}
 %global logdir @LOGDIR@
 
+# TODO: Use imageio own user and dedicated group.
+%global user vdsm
+%global group kvm
+
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
 Release:   0%{?release_suffix}%{?dist}
@@ -58,10 +62,10 @@ rm -rf $RPM_BUILD_ROOT
 %config %{_sysconfdir}/%{name}/daemon.conf
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
-%dir %attr(755, vdsm, kvm) %{logdir}
+%dir %attr(755, %{user}, %{group}) %{logdir}
 # The log files belongs to the package, so they will be removed with the package.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-GHOST-DIRECTIVE
-%ghost %attr(644, vdsm, kvm) %{logdir}/daemon.log*
+%ghost %attr(644, %{user}, %{group}) %{logdir}/daemon.log*
 
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
