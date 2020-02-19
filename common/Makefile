@@ -1,5 +1,5 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
-PYTHON_VERSION=2
+PYTHON_VERSION=3
 
 PYTHON=python$(PYTHON_VERSION)
 PACKAGE_NAME=ovirt-imageio-common
@@ -9,7 +9,12 @@ RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
 
-GENERATED = $(SPEC_NAME)
+LOGDIR=/var/log/$(PACKAGE_NAME)
+
+GENERATED = \
+    $(SPEC_NAME) \
+    data/logger.conf
+
 METADATA = ovirt_imageio_common/version.py Makefile
 
 .PHONY: build check check-py2 check-py3 dist srpm rpm clean $(SPEC_NAME)
@@ -52,6 +57,7 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
+		-e 's|@LOGDIR@|$(LOGDIR)|g' \
 		-e 's|@PYTHON_VERSION@|$(PYTHON_VERSION)|g' \
 		$< > $@
 	@echo "generated $@"

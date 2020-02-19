@@ -3,9 +3,13 @@ include Makefile
 include bench
 include build-aux/release-suffix
 include ovirt-imageio-common.spec
+include ovirt-imageio-daemon
 include *.in
 include *.ini
 
 global-include *.py
+
+recursive-include data *
+recursive-include test *.py *.pem
 
 prune .tox
