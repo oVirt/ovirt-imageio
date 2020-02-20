@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import errno
 import io
 import os
+import subprocess
 
 from contextlib import closing
 
@@ -23,7 +24,6 @@ from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_common.backends import file
 from ovirt_imageio_common.backends import image
-from ovirt_imageio_common.compat import subprocess
 
 from . import storage
 from . marks import requires_python3

@@ -9,13 +9,14 @@
 from __future__ import absolute_import
 
 import logging
+import subprocess
+
 from contextlib import contextmanager
 
 from six.moves import urllib_parse
 
 from ovirt_imageio_common import nbd
 from ovirt_imageio_common import nbdutil
-from ovirt_imageio_common.compat import subprocess
 
 log = logging.getLogger("qemu_nbd")
 

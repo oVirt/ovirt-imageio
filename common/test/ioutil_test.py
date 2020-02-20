@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import os
+import subprocess
 
 from contextlib import closing
 
@@ -17,7 +18,6 @@ import pytest
 
 from ovirt_imageio_common import ioutil
 from ovirt_imageio_common import util
-from ovirt_imageio_common.compat import subprocess
 
 from . marks import requires_python3
 

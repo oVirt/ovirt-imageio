@@ -10,8 +10,7 @@ from __future__ import absolute_import
 
 import json
 import logging
-
-from ovirt_imageio_common.compat import subprocess
+import subprocess
 
 log = logging.getLogger("qemu_img")
 

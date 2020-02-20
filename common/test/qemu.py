@@ -11,11 +11,11 @@ from __future__ import absolute_import
 import logging
 import os
 import re
+import subprocess
 
 from contextlib import contextmanager
 
 from ovirt_imageio_common import nbdutil
-from ovirt_imageio_common.compat import subprocess
 
 QEMU = os.environ.get("QEMU", "qemu-kvm")
 
