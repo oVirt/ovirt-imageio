@@ -17,7 +17,7 @@ Changes to this module must be tested with /usr/libexec/vdsm/kvm2ovirt.
 
 from __future__ import absolute_import
 
-from six.moves import urllib_parse
+import urllib.parse as urllib_parse
 
 from . import ops
 from . import util
