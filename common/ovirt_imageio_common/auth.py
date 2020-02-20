@@ -9,14 +9,12 @@
 import bisect
 import logging
 import threading
+import urllib.parse as urllib_parse
 
 from ovirt_imageio_common import backends
 from ovirt_imageio_common import errors
 from ovirt_imageio_common import util
 from ovirt_imageio_common import measure
-
-import six
-from six.moves import urllib_parse
 
 log = logging.getLogger("tickets")
 _tickets = {}
@@ -29,16 +27,16 @@ class Ticket(object):
             raise errors.InvalidTicket(
                 "Invalid ticket: %r, expecting a dict" % ticket_dict)
 
-        self._uuid = _required(ticket_dict, "uuid", six.string_types)
-        self._size = _required(ticket_dict, "size", six.integer_types)
+        self._uuid = _required(ticket_dict, "uuid", str)
+        self._size = _required(ticket_dict, "size", int)
         self._ops = _required(ticket_dict, "ops", list)
 
-        self._timeout = _required(ticket_dict, "timeout", six.integer_types)
+        self._timeout = _required(ticket_dict, "timeout", int)
         now = int(util.monotonic_time())
         self._expires = now + self._timeout
         self._access_time = now
 
-        url_str = _required(ticket_dict, "url", six.string_types)
+        url_str = _required(ticket_dict, "url", str)
         try:
             self._url = urllib_parse.urlparse(url_str)
         except (ValueError, AttributeError, TypeError) as e:
@@ -48,9 +46,8 @@ class Ticket(object):
                 "url", url_str,
                 "Unsupported url scheme: %s" % self._url.scheme)
 
-        self._transfer_id = _optional(
-            ticket_dict, "transfer_id", six.string_types)
-        self._filename = _optional(ticket_dict, "filename", six.string_types)
+        self._transfer_id = _optional(ticket_dict, "transfer_id", str)
+        self._filename = _optional(ticket_dict, "filename", str)
         self._sparse = _optional(ticket_dict, "sparse", bool, default=False)
         self._dirty = _optional(ticket_dict, "dirty", bool, default=False)
 
