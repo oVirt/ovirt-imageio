@@ -59,8 +59,7 @@ b"value" or "value") are not supported.
 
 from __future__ import absolute_import
 
-import six
-from six.moves import configparser
+import configparser
 
 from . import util
 
@@ -104,7 +103,7 @@ def _validate_bool(s):
 
 
 _validators = {
-    six.text_type: util.ensure_text,
+    str: util.ensure_text,
     int: int,
     float: float,
     bool: _validate_bool,
