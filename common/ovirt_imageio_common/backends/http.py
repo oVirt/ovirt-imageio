@@ -11,14 +11,12 @@ http - HTTP backend.
 
 from __future__ import absolute_import
 
+import http.client as http_client
 import json
 import logging
 import os
 import socket
 import ssl
-
-# TODO: needed since we run common tests with python 2.
-from six.moves import http_client
 
 from .. import errors
 from . import image
