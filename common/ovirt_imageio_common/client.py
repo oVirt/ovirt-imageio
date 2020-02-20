@@ -16,8 +16,7 @@ import shutil
 import tempfile
 
 from contextlib import contextmanager
-
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from . import io
 from . import qemu_img
