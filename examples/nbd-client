@@ -45,7 +45,6 @@ import json
 import logging
 import os
 import subprocess
-import sys
 
 from six.moves.urllib.parse import urlparse
 

@@ -8,9 +8,7 @@
 # (at your option) any later version.
 
 import argparse
-import os
 import sys
-import time
 import threading
 
 from ovirt_imageio import ops
