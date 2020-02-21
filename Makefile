@@ -5,7 +5,7 @@ targets = all check dist srpm rpm
 ifeq ($(PYTHON_VERSION), 2)
 	subdirs = proxy
 else
-	subdirs = common
+	subdirs = daemon
 endif
 
 release_suffix := $(shell ./build-aux/release-suffix)
