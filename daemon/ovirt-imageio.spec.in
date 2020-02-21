@@ -1,26 +1,78 @@
 %global python_version @PYTHON_VERSION@
 %global python python%{python_version}
 %global logdir @LOGDIR@
+# TODO: should be ovirt-imageio (%{name}) in the future.
+%global confdir ovirt-imageio-daemon
 
 # TODO: Use imageio own user and dedicated group.
 %global user vdsm
 %global group kvm
 
+%global srcname ovirt_imageio
+
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
 Release:   0%{?release_suffix}%{?dist}
-Summary:   oVirt imageio common library
+Summary:   oVirt imageio
 
 Group:     Development/Libraries
 License:   GPLv2+
 Url:       https://gerrit.ovirt.org/ovirt-imageio
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 
+%description
+Image data transfer on oVirt virtualization hosts.
+
+%prep
+%setup -q
+
+%build
+%py3_build
+
+%install
+%py3_install
+install -D -m 0755 --directory %{buildroot}%{logdir}
+# Create a dummy log file to make rpm happy during build
+touch %{buildroot}%{logdir}/daemon.log
+# TODO: should be /etc/ovirt-imageio in the future.
+install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{confdir}
+install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{confdir}
+install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{confdir}
+install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%package common
+Summary:   oVirt imageio library
+
+# NOTE: keep in sync with automation/build-artifacts.packages
+BuildRequires: %{python}-devel
+
 # NOTE: keep in sync with automation/check.packages
 Requires:  %{python}
 Requires:  %{python}-six
-Requires:  %{python}-systemd
 Requires:  qemu-img
+
+%description common
+Common library for image data transfer on oVirt virtualization hosts.
+
+%files common
+%license COPYING
+%{python3_sitearch}/%{srcname}
+%{python3_sitearch}/%{srcname}-*.egg-info
+
+
+%package daemon
+Summary:   oVirt imageio daemon
+
+# NOTE: keep in sync with automation/build-artifacts.packages
+BuildRequires: systemd
+
+# NOTE: keep in sync with automation/check.packages
+Requires:  @PACKAGE_NAME@-common
+Requires:  %{python}-systemd
 
 # We run as vdsm so we can access vdsm images and pki files, so vdsm must be
 # installed before installing the imageio daemon.
@@ -28,38 +80,16 @@ Requires:  qemu-img
 # access what we need.
 Requires(pre): vdsm
 
-# NOTE: keep in sync with automation/build-artifacts.packages
-BuildRequires: %{python}-devel
-BuildRequires: systemd
-
-%description
+%description daemon
 Daemon to manage image data transfer on oVirt virtualization hosts.
 
-%prep
-%setup -q
-
-%build
-%{python} setup.py build
-
-%install
-%{python} setup.py install -O1 --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
-install -D -m 0755 --directory %{buildroot}%{logdir}
-# Create a dummy log file to make rpm happy during build
-touch %{buildroot}%{logdir}/daemon.log
-install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
-
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-%files -f INSTALLED_FILES
-%license COPYING
+%files daemon
+%{_bindir}/ovirt-imageio-daemon
 %{_unitdir}/ovirt-imageio-daemon.service
-%dir %{_sysconfdir}/%{name}
-%config %{_sysconfdir}/%{name}/logger.conf
-%config %{_sysconfdir}/%{name}/daemon.conf
+# TODO: should be /etc/ovirt-imageio in the future.
+%dir %{_sysconfdir}/%{confdir}
+%config %{_sysconfdir}/%{confdir}/logger.conf
+%config %{_sysconfdir}/%{confdir}/daemon.conf
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
 %dir %attr(755, %{user}, %{group}) %{logdir}
@@ -70,15 +100,14 @@ rm -rf $RPM_BUILD_ROOT
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
 
-%post
+%post daemon
 # After installation, synchronize service state with preset files.
 %systemd_post ovirt-imageio-daemon.service
 
-%preun
+%preun daemon
 # Before uninstalling, stop and disable the service.
 %systemd_preun ovirt-imageio-daemon.service
 
-%postun
+%postun daemon
 # After upgrading, restart the service.
 %systemd_postun_with_restart ovirt-imageio-daemon.service
-

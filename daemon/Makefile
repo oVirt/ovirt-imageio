@@ -2,7 +2,7 @@ RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
 PYTHON_VERSION=3
 
 PYTHON=python$(PYTHON_VERSION)
-PACKAGE_NAME=ovirt-imageio-common
+PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
