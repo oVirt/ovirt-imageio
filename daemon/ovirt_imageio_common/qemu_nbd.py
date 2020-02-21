@@ -15,8 +15,8 @@ from contextlib import contextmanager
 
 from six.moves import urllib_parse
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import nbdutil
+from . import nbd
+from . import nbdutil
 
 log = logging.getLogger("qemu_nbd")
 

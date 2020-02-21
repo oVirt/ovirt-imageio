@@ -10,11 +10,11 @@ from __future__ import absolute_import
 
 import logging
 
-from ovirt_imageio_common import auth
-from ovirt_imageio_common import backends
-from ovirt_imageio_common import errors
-from ovirt_imageio_common import http
-from ovirt_imageio_common import validate
+from . import auth
+from . import backends
+from . import errors
+from . import http
+from . import validate
 
 log = logging.getLogger("extents")
 

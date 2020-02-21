@@ -11,10 +11,10 @@ import logging
 import threading
 import urllib.parse as urllib_parse
 
-from ovirt_imageio_common import backends
-from ovirt_imageio_common import errors
-from ovirt_imageio_common import util
-from ovirt_imageio_common import measure
+from . import backends
+from . import errors
+from . import util
+from . import measure
 
 log = logging.getLogger("tickets")
 _tickets = {}

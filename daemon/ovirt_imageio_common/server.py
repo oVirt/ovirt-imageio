@@ -16,18 +16,18 @@ import sys
 
 import systemd.daemon
 
-from ovirt_imageio_common import config
-from ovirt_imageio_common import configloader
-from ovirt_imageio_common import extents
-from ovirt_imageio_common import http
-from ovirt_imageio_common import images
-from ovirt_imageio_common import pki
-from ovirt_imageio_common import profile
-from ovirt_imageio_common import ssl
-from ovirt_imageio_common import tickets
-from ovirt_imageio_common import uhttp
-from ovirt_imageio_common import util
-from ovirt_imageio_common import version
+from . import config
+from . import configloader
+from . import extents
+from . import http
+from . import images
+from . import pki
+from . import profile
+from . import ssl
+from . import tickets
+from . import uhttp
+from . import util
+from . import version
 
 CONF_DIR = "/etc/ovirt-imageio-daemon"
 

@@ -14,8 +14,8 @@ try:
 except ImportError:
     yappi = None
 
-from ovirt_imageio_common import http
-from ovirt_imageio_common import validate
+from . import http
+from . import validate
 
 log = logging.getLogger("profile")
 lock = threading.Lock()

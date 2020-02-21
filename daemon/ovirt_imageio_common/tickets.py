@@ -11,10 +11,10 @@ from __future__ import absolute_import
 import json
 import logging
 
-from ovirt_imageio_common import auth
-from ovirt_imageio_common import errors
-from ovirt_imageio_common import http
-from ovirt_imageio_common import validate
+from . import auth
+from . import errors
+from . import http
+from . import validate
 
 log = logging.getLogger("tickets")
 
