@@ -12,10 +12,10 @@ from contextlib import contextmanager
 
 import pytest
 
-from ovirt_imageio_common import config
-from ovirt_imageio_common import configloader
-from ovirt_imageio_common import server
-from ovirt_imageio_common.ssl import check_protocol
+from ovirt_imageio import config
+from ovirt_imageio import configloader
+from ovirt_imageio import server
+from ovirt_imageio.ssl import check_protocol
 
 TEST_DIR = os.path.dirname(__file__)
 

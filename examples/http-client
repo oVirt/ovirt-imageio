@@ -47,8 +47,8 @@ How to use:
 import argparse
 import logging
 
-from ovirt_imageio_common import client
-from ovirt_imageio_common import ui
+from ovirt_imageio import client
+from ovirt_imageio import ui
 
 
 def upload(args):

@@ -15,14 +15,14 @@ import logging
 from six.moves.urllib_parse import urlparse
 import pytest
 
-from ovirt_imageio_common import http
-from ovirt_imageio_common import ssl
-from ovirt_imageio_common import uhttp
-from ovirt_imageio_common import util
-from ovirt_imageio_common import errors
+from ovirt_imageio import http
+from ovirt_imageio import ssl
+from ovirt_imageio import uhttp
+from ovirt_imageio import util
+from ovirt_imageio import errors
 
-from ovirt_imageio_common.backends import image
-from ovirt_imageio_common.backends.http import Backend
+from ovirt_imageio.backends import image
+from ovirt_imageio.backends.http import Backend
 
 from . marks import requires_python3
 

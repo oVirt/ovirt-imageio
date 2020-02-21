@@ -16,8 +16,8 @@ from contextlib import closing
 
 import pytest
 
-from ovirt_imageio_common import ioutil
-from ovirt_imageio_common import util
+from ovirt_imageio import ioutil
+from ovirt_imageio import util
 
 from . marks import requires_python3
 

@@ -16,10 +16,10 @@ import os
 import pytest
 from six.moves import http_client
 
-from ovirt_imageio_common import auth
-from ovirt_imageio_common import config
-from ovirt_imageio_common import configloader
-from ovirt_imageio_common import server
+from ovirt_imageio import auth
+from ovirt_imageio import config
+from ovirt_imageio import configloader
+from ovirt_imageio import server
 
 from . import http
 from . import testutil

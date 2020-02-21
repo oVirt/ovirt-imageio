@@ -49,9 +49,9 @@ import sys
 
 from six.moves.urllib.parse import urlparse
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import nbdutil
-from ovirt_imageio_common import ui
+from ovirt_imageio import nbd
+from ovirt_imageio import nbdutil
+from ovirt_imageio import ui
 
 
 def upload(args):

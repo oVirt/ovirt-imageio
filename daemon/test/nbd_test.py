@@ -18,10 +18,10 @@ from six.moves.urllib_parse import urlparse
 import pytest
 import userstorage
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import nbdutil
-from ovirt_imageio_common import qemu_img
-from ovirt_imageio_common import qemu_nbd
+from ovirt_imageio import nbd
+from ovirt_imageio import nbdutil
+from ovirt_imageio import qemu_img
+from ovirt_imageio import qemu_nbd
 
 from . import backup
 from . import distro

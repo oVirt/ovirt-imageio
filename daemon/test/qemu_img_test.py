@@ -10,8 +10,8 @@ from __future__ import absolute_import
 
 import pytest
 
-from ovirt_imageio_common import qemu_img
-from ovirt_imageio_common import qemu_nbd
+from ovirt_imageio import qemu_img
+from ovirt_imageio import qemu_nbd
 
 from . marks import requires_python3
 

@@ -11,8 +11,8 @@ from __future__ import absolute_import
 from six.moves.urllib_parse import urlparse
 import pytest
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import backends
+from ovirt_imageio import nbd
+from ovirt_imageio import backends
 
 from . import testutil
 from . marks import requires_python3

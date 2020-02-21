@@ -9,7 +9,7 @@
 from distutils.core import setup
 from distutils.core import Extension
 
-from ovirt_imageio_common import version
+from ovirt_imageio import version
 
 setup(
     author="Nir Soffer, Greg Padgett, Amit Aviram, Daniel Erez",
@@ -19,8 +19,8 @@ setup(
     license="GNU GPLv2+",
     name="ovirt-imageio-common",
     packages=[
-        "ovirt_imageio_common",
-        "ovirt_imageio_common.backends"
+        "ovirt_imageio",
+        "ovirt_imageio.backends"
     ],
     platforms=["Linux"],
     scripts=["ovirt-imageio-daemon"],
@@ -28,7 +28,7 @@ setup(
     version=version.string,
     ext_modules=[
         Extension(
-            "ovirt_imageio_common/ioutil",
-            sources=["ovirt_imageio_common/ioutil.c"]),
+            "ovirt_imageio/ioutil",
+            sources=["ovirt_imageio/ioutil.c"]),
     ]
 )

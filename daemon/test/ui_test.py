@@ -10,7 +10,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from ovirt_imageio_common import ui
+from ovirt_imageio import ui
 
 
 class FakeTime(object):

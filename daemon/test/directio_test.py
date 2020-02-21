@@ -13,10 +13,10 @@ import os
 
 import pytest
 
-from ovirt_imageio_common import directio
-from ovirt_imageio_common import errors
-from ovirt_imageio_common import ops
-from ovirt_imageio_common import util
+from ovirt_imageio import directio
+from ovirt_imageio import errors
+from ovirt_imageio import ops
+from ovirt_imageio import util
 
 from . import testutil
 from . marks import requires_python3

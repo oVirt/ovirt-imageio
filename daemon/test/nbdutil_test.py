@@ -15,8 +15,8 @@ from contextlib import closing
 
 import pytest
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import nbdutil
+from ovirt_imageio import nbd
+from ovirt_imageio import nbdutil
 
 
 class Client:

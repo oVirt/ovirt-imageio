@@ -14,9 +14,9 @@ import pytest
 
 from six.moves import xrange
 
-from ovirt_imageio_common import errors
-from ovirt_imageio_common import util
-from ovirt_imageio_common.auth import Ticket
+from ovirt_imageio import errors
+from ovirt_imageio import util
+from ovirt_imageio.auth import Ticket
 
 from test import testutil
 

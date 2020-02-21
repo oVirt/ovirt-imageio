@@ -14,9 +14,9 @@ import os
 
 import pytest
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import qemu_img
-from ovirt_imageio_common import qemu_nbd
+from ovirt_imageio import nbd
+from ovirt_imageio import qemu_img
+from ovirt_imageio import qemu_nbd
 
 from . import backup
 from . import qemu

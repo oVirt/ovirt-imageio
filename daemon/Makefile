@@ -3,7 +3,7 @@ PYTHON_VERSION=3
 
 PYTHON=python$(PYTHON_VERSION)
 PACKAGE_NAME=ovirt-imageio-common
-PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio_common/version.py)
+PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -15,7 +15,7 @@ GENERATED = \
     $(SPEC_NAME) \
     data/logger.conf
 
-METADATA = ovirt_imageio_common/version.py Makefile
+METADATA = ovirt_imageio/version.py Makefile
 
 .PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
@@ -44,7 +44,7 @@ clean:
 	$(PYTHON) setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
-	rm -f ovirt_imageio_common/*.so
+	rm -f ovirt_imageio/*.so
 	rm -rf build
 	rm -rf dist
 

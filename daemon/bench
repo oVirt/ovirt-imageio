@@ -13,8 +13,8 @@ import sys
 import time
 import threading
 
-from ovirt_imageio_common import ops
-from ovirt_imageio_common import util
+from ovirt_imageio import ops
+from ovirt_imageio import util
 
 MB = 1024 * 1024
 

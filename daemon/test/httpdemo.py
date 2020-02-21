@@ -43,8 +43,8 @@ Transfer/sec:    578.34KB
 from __future__ import absolute_import
 import argparse
 import logging
-from ovirt_imageio_common import http
-from ovirt_imageio_common import util
+from ovirt_imageio import http
+from ovirt_imageio import util
 
 log = logging.getLogger("httpdemo")
 

@@ -23,12 +23,12 @@ from six.moves import http_client
 
 import pytest
 
-from ovirt_imageio_common import auth
-from ovirt_imageio_common import config
-from ovirt_imageio_common import configloader
-from ovirt_imageio_common import server
-from ovirt_imageio_common import tickets
-from ovirt_imageio_common import util
+from ovirt_imageio import auth
+from ovirt_imageio import config
+from ovirt_imageio import configloader
+from ovirt_imageio import server
+from ovirt_imageio import tickets
+from ovirt_imageio import util
 
 from . import testutil
 from . import http

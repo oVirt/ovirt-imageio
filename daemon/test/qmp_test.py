@@ -10,8 +10,8 @@ from __future__ import absolute_import
 
 import logging
 
-from ovirt_imageio_common import nbd
-from ovirt_imageio_common import qemu_img
+from ovirt_imageio import nbd
+from ovirt_imageio import qemu_img
 
 from . import qemu
 from . import qmp

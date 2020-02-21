@@ -7,8 +7,10 @@
 # (at your option) any later version.
 
 from __future__ import absolute_import
+
 import pytest
-from ovirt_imageio_common import configloader
+
+from ovirt_imageio import configloader
 
 
 @pytest.fixture

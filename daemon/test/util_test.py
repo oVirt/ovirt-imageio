@@ -16,7 +16,7 @@ import time
 import pytest
 import six
 
-from ovirt_imageio_common import util
+from ovirt_imageio import util
 
 
 def test_uninterruptible_interrupt():

@@ -15,7 +15,7 @@ import subprocess
 
 from contextlib import contextmanager
 
-from ovirt_imageio_common import nbdutil
+from ovirt_imageio import nbdutil
 
 QEMU = os.environ.get("QEMU", "qemu-kvm")
 

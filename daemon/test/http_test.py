@@ -23,8 +23,8 @@ from six.moves import http_client
 
 import pytest
 
-from ovirt_imageio_common import http
-from ovirt_imageio_common import util
+from ovirt_imageio import http
+from ovirt_imageio import util
 
 from . marks import requires_python3
 

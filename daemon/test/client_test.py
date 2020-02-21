@@ -12,12 +12,12 @@ import os
 
 import pytest
 
-from ovirt_imageio_common import auth
-from ovirt_imageio_common import config
-from ovirt_imageio_common import configloader
-from ovirt_imageio_common import client
-from ovirt_imageio_common import pki
-from ovirt_imageio_common import server
+from ovirt_imageio import auth
+from ovirt_imageio import config
+from ovirt_imageio import configloader
+from ovirt_imageio import client
+from ovirt_imageio import pki
+from ovirt_imageio import server
 
 from . import testutil
 
