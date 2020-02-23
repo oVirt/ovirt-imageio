@@ -20,86 +20,96 @@ from pprint import pprint
 
 from six.moves import http_client
 
-from ovirt_imageio import config
 from ovirt_imageio import pki
 from ovirt_imageio import uhttp
 
 log = logging.getLogger("test")
 
 
-def connection():
-    return http_client.HTTPSConnection(
-        config.images.host,
-        config.images.port,
-        pki.key_file(config),
-        pki.cert_file(config))
+class Client:
+
+    def __init__(self, cfg):
+        self.con = http_client.HTTPSConnection(
+            cfg.images.host,
+            cfg.images.port,
+            pki.key_file(cfg),
+            pki.cert_file(cfg))
+
+    def get(self, uri, headers=None):
+        return self.request("GET", uri, headers=headers)
+
+    def put(self, uri, body, headers=None):
+        return self.request("PUT", uri, body=body, headers=headers)
+
+    def patch(self, uri, body, headers=None):
+        return self.request("PATCH", uri, body=body, headers=headers)
+
+    def options(self, uri):
+        return self.request("OPTIONS", uri)
+
+    def request(self, method, uri, body=None, headers=None):
+        try:
+            self.con.request(method, uri, body=body, headers=headers or {})
+        except EnvironmentError as e:
+            if not (e.errno == errno.EPIPE and body):
+                raise
+            log.warning("Error sending request: %s", e)
+        return response(self.con)
+
+    def raw_request(self, method, uri, body=None, headers=None):
+        """
+        Use this to send bad requests - this will send only the headers set in
+        headers, no attempt is made to create a correct request.
+        """
+        self.con.putrequest(method, uri)
+        if headers:
+            for name, value in headers.items():
+                self.con.putheader(name, value)
+        self.con.endheaders()
+
+        try:
+            if body:
+                self.con.send(body)
+        except EnvironmentError as e:
+            if e.errno != errno.EPIPE:
+                raise
+            log.warning("Error sending body: %s", e)
+
+        return response(self.con)
+
+    def close(self):
+        self.con.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
 
-def get(uri, headers=None):
-    return request("GET", uri, headers=headers)
+class UnixClient:
 
+    def __init__(self, socket):
+        self.con = uhttp.UnixHTTPConnection(socket)
 
-def put(uri, body, headers=None):
-    return request("PUT", uri, body=body, headers=headers)
+    def request(self, method, uri, body=None, headers=None):
+        try:
+            self.con.request(method, uri, body=body, headers=headers or {})
+        except EnvironmentError as e:
+            if not (e.errno == errno.EPIPE and body):
+                raise
+            log.warning("Error sending request: %s", e)
 
+        return response(self.con)
 
-def patch(uri, body, headers=None):
-    return request("PATCH", uri, body=body, headers=headers)
+    def close(self):
+        self.con.close()
 
+    def __enter__(self):
+        return self
 
-def options(uri):
-    return request("OPTIONS", uri)
-
-
-def request(method, uri, body=None, headers=None):
-    con = connection()
-    try:
-        con.request(method, uri, body=body, headers=headers or {})
-    except EnvironmentError as e:
-        if not (e.errno == errno.EPIPE and body):
-            raise
-        log.warning("Error sending request: %s", e)
-    return response(con)
-
-
-def raw_request(method, uri, body=None, headers=None):
-    """
-    Use this to send bad requests - this will send only the headers set in
-    headers, no attempt is made to create a correct request.
-    """
-    con = connection()
-    con.putrequest(method, uri)
-    if headers:
-        for name, value in headers.items():
-            con.putheader(name, value)
-    con.endheaders()
-
-    try:
-        if body:
-            con.send(body)
-    except EnvironmentError as e:
-        if e.errno != errno.EPIPE:
-            raise
-        log.warning("Error sending body: %s", e)
-
-    return response(con)
-
-
-def local(method, uri, body=None, headers=None):
-    return unix_request(
-        config.images.socket, method, uri, body=body, headers=headers)
-
-
-def unix_request(socket, method, uri, body=None, headers=None):
-    con = uhttp.UnixHTTPConnection(socket)
-    try:
-        con.request(method, uri, body=body, headers=headers or {})
-    except EnvironmentError as e:
-        if not (e.errno == errno.EPIPE and body):
-            raise
-        log.warning("Error sending request: %s", e)
-
-    return response(con)
+    def __exit__(self, *args):
+        self.close()
 
 
 def response(con):

@@ -57,38 +57,48 @@ def images_server():
     server.stop()
 
 
+def http_client():
+    return http.Client(config)
+
+
+def local_client():
+    return http.UnixClient(config.images.socket)
+
+
 @pytest.fixture(params=[
-    pytest.param(http.request, id="http"),
-    pytest.param(http.local, id="local"),
+    pytest.param(http_client, id="http"),
+    pytest.param(local_client, id="local"),
 ])
-def http_request(request, images_server):
+def client(request, images_server):
     auth.clear()
-    return request.param
+    client = request.param()
+    yield client
+    client.close()
 
 
-def test_unupported_method(http_request):
-    res = http_request("PUT", "/images/no-such-ticket/extents")
+def test_unupported_method(client):
+    res = client.request("PUT", "/images/no-such-ticket/extents")
     assert res.status == 405
 
 
-def test_no_ticket_id(http_request):
-    res = http_request("GET", "/images//extents")
+def test_no_ticket_id(client):
+    res = client.request("GET", "/images//extents")
     assert res.status == 400
 
 
-def test_no_ticket(http_request):
-    res = http_request("GET", "/images/no-such-ticket/extents")
+def test_no_ticket(client):
+    res = client.request("GET", "/images/no-such-ticket/extents")
     assert res.status == 403
 
 
-def test_ticket_expired(http_request, fake_time):
+def test_ticket_expired(client, fake_time):
     ticket = testutil.create_ticket(timeout=300)
     auth.add(ticket)
 
     # Make the ticket expire
     fake_time.now += 300
 
-    res = http_request("GET", "/images/%(uuid)s/extents" % ticket)
+    res = client.request("GET", "/images/%(uuid)s/extents" % ticket)
     assert res.status == 403
 
 
@@ -97,7 +107,7 @@ def test_ticket_expired(http_request, fake_time):
     "/images/%(uuid)s/extents",
     "/images/%(uuid)s/extents?context=zero",
 ])
-def test_file_zero(http_request, user_file, fmt, path):
+def test_file_zero(client, user_file, fmt, path):
     subprocess.check_call(
         ["qemu-img", "create", "-f", fmt, user_file.path, "1g"])
 
@@ -107,7 +117,7 @@ def test_file_zero(http_request, user_file, fmt, path):
     ticket = testutil.create_ticket(url="file://" + user_file.path, size=size)
     auth.add(ticket)
 
-    res = http_request("GET", path % ticket)
+    res = client.request("GET", path % ticket)
     data = res.read()
     assert res.status == 200
 
@@ -115,7 +125,7 @@ def test_file_zero(http_request, user_file, fmt, path):
     assert extents == [{"start": 0, "length": size, "zero": False}]
 
 
-def test_file_ticket_not_dirty(http_request, tmpfile):
+def test_file_ticket_not_dirty(client, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
@@ -123,13 +133,13 @@ def test_file_ticket_not_dirty(http_request, tmpfile):
         url="file://{}".format(tmpfile), size=65536, dirty=False)
     auth.add(ticket)
 
-    res = http_request(
+    res = client.request(
         "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)
     res.read()
     assert res.status == 404
 
 
-def test_file_does_not_support_dirty(http_request, tmpfile):
+def test_file_does_not_support_dirty(client, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
@@ -137,7 +147,7 @@ def test_file_does_not_support_dirty(http_request, tmpfile):
         url="file://{}".format(tmpfile), size=65536, dirty=True)
     auth.add(ticket)
 
-    res = http_request(
+    res = client.request(
         "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)
     res.read()
     assert res.status == 404
