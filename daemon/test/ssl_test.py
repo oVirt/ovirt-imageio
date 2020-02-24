@@ -14,7 +14,7 @@ import pytest
 
 from ovirt_imageio import config
 from ovirt_imageio import configloader
-from ovirt_imageio import server
+from ovirt_imageio import services
 from ovirt_imageio.ssl import check_protocol
 
 TEST_DIR = os.path.dirname(__file__)
@@ -30,7 +30,7 @@ def on_centos(version=""):
 def remote_service(config_file):
     path = os.path.join(TEST_DIR, config_file)
     configloader.load(config, [path])
-    s = server.RemoteService(config)
+    s = services.RemoteService(config)
     s.start()
     try:
         yield s
