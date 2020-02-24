@@ -15,7 +15,6 @@ import logging
 import os
 import ssl
 import time
-import uuid
 
 from six.moves import http_client
 
@@ -25,8 +24,6 @@ from ovirt_imageio import auth
 from ovirt_imageio import config
 from ovirt_imageio import configloader
 from ovirt_imageio import server
-from ovirt_imageio import tickets
-from ovirt_imageio import util
 
 from . import testutil
 from . import http
@@ -62,403 +59,31 @@ def setup_function(f):
     auth.clear()
 
 
-def test_local_service_running():
-    with http.UnixClient(config.images.socket) as c:
-        res = c.request("OPTIONS", "/images/*")
-        assert res.status == http_client.OK
-
-
-def test_tickets_method_not_allowed():
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("NO_SUCH_METHO", "/tickets/")
-        assert res.status == http_client.METHOD_NOT_ALLOWED
-
-
-def test_tickets_no_resource():
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("GET", "/no/such/resource")
-        assert res.status == 404
-
-
-def test_tickets_no_method():
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("FOO", "/tickets/")
-        assert res.status == 405
-
-
-def test_tickets_get(fake_time):
-    ticket = testutil.create_ticket(
-        ops=["read"], sparse=False, dirty=False, transfer_id="123")
-    auth.add(ticket)
-    fake_time.now += 200
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("GET", "/tickets/%(uuid)s" % ticket)
-        assert res.status == 200
-        server_ticket = json.loads(res.read())
-        # The server adds an expires key
-        del server_ticket["expires"]
-        ticket["active"] = False
-        ticket["transferred"] = 0
-        ticket["idle_time"] = 200
-        assert server_ticket == ticket
-
-
-def test_tickets_get_not_found():
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("GET", "/tickets/%s" % uuid.uuid4())
-        assert res.status == 404
-
-
-def test_tickets_put(fake_time):
-    ticket = testutil.create_ticket(sparse=False, dirty=False)
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        # Server adds expires key
-        ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
-        ticket["active"] = False
-        ticket["idle_time"] = 0
-        server_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 200
-        assert res.getheader("content-length") == "0"
-        assert server_ticket == ticket
-
-
-def test_tickets_put_bad_url_value(fake_time):
-    ticket = testutil.create_ticket(url='http://[1.2.3.4:33')
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_general_exception(monkeypatch):
-    def fail(*a, **kw):
-        raise Exception("SECRET")
-    monkeypatch.setattr(tickets.Handler, "get", fail)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("GET", "/tickets/%s" % uuid.uuid4())
-        error = res.read()
-        assert res.status == http_client.INTERNAL_SERVER_ERROR
-        assert b"SECRET" not in error
-
-
-def test_tickets_put_no_ticket_id():
-    ticket = testutil.create_ticket()
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/", body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_put_invalid_json():
-    ticket = testutil.create_ticket()
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request(
-            "PUT",
-            "/tickets/%(uuid)s" % ticket,
-            "invalid json")
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-# Using "timeout" confuses pytest-timeout plugin, workaround it by using
-# "-timeout".
-@pytest.mark.parametrize("missing", ["-timeout", "url", "size", "ops"])
-def test_tickets_put_mandatory_fields(missing):
-    ticket = testutil.create_ticket()
-    del ticket[missing.strip("-")]
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_put_invalid_timeout():
-    ticket = testutil.create_ticket()
-    ticket["timeout"] = "invalid"
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_put_url_type_error():
-    ticket = testutil.create_ticket()
-    ticket["url"] = 1
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_put_url_scheme_not_supported():
-    ticket = testutil.create_ticket()
-    ticket["url"] = "notsupported:path"
-    body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_extend(fake_time):
-    ticket = testutil.create_ticket(sparse=False, dirty=False)
-    auth.add(ticket)
-    patch = {"timeout": 300}
-    body = json.dumps(patch)
-    fake_time.now += 240
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-        ticket["expires"] = int(fake_time.now + ticket["timeout"])
-        ticket["active"] = False
-        ticket["idle_time"] = 240
-        server_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 200
-        assert res.getheader("content-length") == "0"
-        assert server_ticket == ticket
-
-
-def test_tickets_extend_negative_timeout():
-    ticket = testutil.create_ticket(sparse=False)
-    auth.add(ticket)
-    patch = {"timeout": -1}
-    body = json.dumps(patch)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 400
-
-
-def test_tickets_get_expired_ticket(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    # Make the ticket expire.
-    fake_time.now += 500
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("GET", "/tickets/%(uuid)s" % ticket)
-        assert res.status == 200
-
-
-def test_tickets_extend_expired_ticket(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    # Make the ticket expire.
-    fake_time.now += 500
-    server_ticket = auth.get(ticket["uuid"]).info()
-    # Extend the expired ticket.
-    body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-        assert res.status == 200
-        server_ticket = auth.get(ticket["uuid"]).info()
-        assert server_ticket["expires"] == 800
-
-
-def test_tickets_extend_no_ticket_id(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    prev_ticket = auth.get(ticket["uuid"]).info()
-    body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/", body)
-        cur_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 400
-        assert cur_ticket == prev_ticket
-
-
-def test_tickets_extend_invalid_json(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    prev_ticket = auth.get(ticket["uuid"]).info()
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, "{invalid}")
-        cur_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 400
-        assert cur_ticket == prev_ticket
-
-
-def test_tickets_extend_no_timeout(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    prev_ticket = auth.get(ticket["uuid"]).info()
-    body = json.dumps({"not-a-timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-        cur_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 400
-        assert cur_ticket == prev_ticket
-
-
-def test_tickets_extend_invalid_timeout(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    prev_ticket = auth.get(ticket["uuid"]).info()
-    body = json.dumps({"timeout": "invalid"})
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
-        cur_ticket = auth.get(ticket["uuid"]).info()
-        assert res.status == 400
-        assert cur_ticket == prev_ticket
-
-
-def test_tickets_extend_not_found():
-    ticket_id = str(uuid.uuid4())
-    body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("PATCH", "/tickets/%s" % ticket_id, body)
-        assert res.status == 404
-
-
-def test_tickets_idle_time_active(fake_time, tmpdir):
-    filename = tmpdir.join("image")
-    # Note: must be big enough so the request remain active.
-    size = 1024**2 * 10
-    with open(str(filename), 'wb') as image:
-        image.truncate(size)
-    ticket = testutil.create_ticket(
-        url="file://" + str(filename), ops=["read"], size=size)
-    auth.add(ticket)
-
-    # Start a download, but read only 1 byte to make sure the operation becomes
-    # active but do not complete.
-    with http.Client(config) as c:
-        res = c.get("/images/" + ticket["uuid"])
-        res.read(1)
-
-        # Active ticket idle time is always 0.
-        fake_time.now += 200
-        assert auth.get(ticket["uuid"]).idle_time == 0
-
-
-def test_tickets_idle_time_inactive(fake_time):
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-
-    # Ticket idle time starts with ticket is added.
-    assert auth.get(ticket["uuid"]).idle_time == 0
-
-    # Simulate time passing without any request.
-    fake_time.now += 200
-    assert auth.get(ticket["uuid"]).idle_time == 200
-
-
-def test_tickets_idle_time_put(fake_time, tmpdir):
-    image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
-    ticket = testutil.create_ticket(url="file://" + str(image))
-    auth.add(ticket)
-
-    # Request must reset idle time.
-    fake_time.now += 200
-    with http.Client(config) as c:
-        c.put("/images/" + ticket["uuid"], "b" * 8192)
-        assert auth.get(ticket["uuid"]).idle_time == 0
-
-
-def test_tickets_idle_time_get(fake_time, tmpdir):
-    image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
-    ticket = testutil.create_ticket(url="file://" + str(image))
-    auth.add(ticket)
-
-    # Request must reset idle time.
-    fake_time.now += 200
-    with http.Client(config) as c:
-        c.get("/images/" + ticket["uuid"])
-        assert auth.get(ticket["uuid"]).idle_time == 0
-
-
-@pytest.mark.parametrize("msg", [
-    pytest.param({"op": "zero", "size": 1}, id="zero"),
-    pytest.param({"op": "flush"}, id="flush"),
-])
-def test_tickets_idle_time_patch(fake_time, tmpdir, msg):
-    image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
-    ticket = testutil.create_ticket(url="file://" + str(image))
-    auth.add(ticket)
-
-    # Request must reset idle time.
-    fake_time.now += 200
-    body = json.dumps(msg).encode('ascii')
-
-    with http.Client(config) as c:
-        c.patch("/images/" + ticket["uuid"], body,
-                headers={"content-type": "application/json"})
-        assert auth.get(ticket["uuid"]).idle_time == 0
-
-
-def test_tickets_idle_time_options(fake_time):
-    ticket = testutil.create_ticket(url="file:///no/such/file")
-    auth.add(ticket)
-
-    # Request must reset idle time.
-    fake_time.now += 200
-    with http.Client(config) as c:
-        c.options("/images/" + ticket["uuid"])
-        assert auth.get(ticket["uuid"]).idle_time == 0
-
-
-def test_tickets_delete_one():
-    ticket = testutil.create_ticket()
-    auth.add(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("DELETE", "/tickets/%(uuid)s" % ticket)
-        assert res.status == 204
-        # Note: incorrect according to RFC, but required for vdsm.
-        assert res.getheader("content-length") == "0"
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_tickets_delete_one_not_found():
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("DELETE", "/tickets/no-such-ticket")
-        assert res.status == 204
-        # Note: incorrect according to RFC, but required for vdsm.
-        assert res.getheader("content-length") == "0"
-
-
-def test_tickets_delete_all():
-    # Example usage: move host to maintenance
-    for i in range(5):
-        ticket = testutil.create_ticket(
-            url="file:///var/run/vdsm/storage/foo%s" % i)
-        auth.add(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
-        res = c.request("DELETE", "/tickets/")
-        assert res.status == 204
-        # Note: incorrect according to RFC, but required for vdsm.
-        assert res.getheader("content-length") == "0"
-        pytest.raises(KeyError, auth.get, ticket["uuid"])
-
-
-def test_images_no_resource():
+def test_no_resource():
     with http.Client(config) as c:
         res = c.request("PUT", "/no/such/resource")
         assert res.status == 404
 
 
-def test_images_no_method():
+def test_no_method():
     with http.Client(config) as c:
         res = c.request("FOO", "/images/")
         assert res.status == 405
 
 
-def test_images_upload_no_ticket_id(tmpdir):
+def test_upload_no_ticket_id(tmpdir):
     with http.Client(config) as c:
         res = c.put("/images/", "content")
         assert res.status == 400
 
 
-def test_images_upload_no_ticket(tmpdir):
+def test_upload_no_ticket(tmpdir):
     with http.Client(config) as c:
         res = c.put("/images/no-such-ticket", "content")
         assert res.status == 403
 
 
-def test_images_upload_forbidden(tmpdir):
+def test_upload_forbidden(tmpdir):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
     auth.add(ticket)
@@ -467,7 +92,7 @@ def test_images_upload_forbidden(tmpdir):
         assert res.status == 403
 
 
-def test_images_upload_content_length_missing(tmpdir):
+def test_upload_content_length_missing(tmpdir):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     auth.add(ticket)
     with http.Client(config) as c:
@@ -475,7 +100,7 @@ def test_images_upload_content_length_missing(tmpdir):
         assert res.status == 400
 
 
-def test_images_upload_content_length_invalid(tmpdir):
+def test_upload_content_length_invalid(tmpdir):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     auth.add(ticket)
     with http.Client(config) as c:
@@ -484,7 +109,7 @@ def test_images_upload_content_length_invalid(tmpdir):
         assert res.status == 400
 
 
-def test_images_upload_content_length_negative(tmpdir):
+def test_upload_content_length_negative(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
@@ -494,7 +119,7 @@ def test_images_upload_content_length_negative(tmpdir):
         assert res.status == 400
 
 
-def test_images_upload_no_content(tmpdir):
+def test_upload_no_content(tmpdir):
     # This is a pointless request, but valid
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -504,7 +129,7 @@ def test_images_upload_no_content(tmpdir):
         assert res.status == 200
 
 
-def test_images_upload_extends_ticket(tmpdir, fake_time):
+def test_upload_extends_ticket(tmpdir, fake_time):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
@@ -529,7 +154,7 @@ def test_images_upload_extends_ticket(tmpdir, fake_time):
 # TODO: test that flush actually flushes data. Current tests just verify that
 # the server does not reject the query string.
 @pytest.mark.parametrize("flush", [None, "y", "n"])
-def test_images_upload(tmpdir, flush):
+def test_upload(tmpdir, flush):
     data = b"-------|after"
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -545,7 +170,7 @@ def test_images_upload(tmpdir, flush):
         assert res.getheader("content-length") == "0"
 
 
-def test_images_upload_invalid_flush(tmpdir):
+def test_upload_invalid_flush(tmpdir):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     auth.add(ticket)
     with http.Client(config) as c:
@@ -558,7 +183,7 @@ def test_images_upload_invalid_flush(tmpdir):
     ("bytes 0-6/*", b"-------|after", b"content|after"),
     ("bytes 0-*/*", b"-------|after", b"content|after"),
 ])
-def test_images_upload_with_range(tmpdir, crange, before, after):
+def test_upload_with_range(tmpdir, crange, before, after):
     image = testutil.create_tempfile(tmpdir, "image", before)
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
@@ -570,7 +195,7 @@ def test_images_upload_with_range(tmpdir, crange, before, after):
         assert res.status == 200
 
 
-def test_images_upload_max_size(tmpdir):
+def test_upload_max_size(tmpdir):
     image_size = 100
     content = b"b" * image_size
     image = testutil.create_tempfile(tmpdir, "image", b"")
@@ -584,7 +209,7 @@ def test_images_upload_max_size(tmpdir):
             assert f.read(len(content)) == content
 
 
-def test_images_upload_too_big(tmpdir):
+def test_upload_too_big(tmpdir):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"")
     ticket = testutil.create_ticket(
@@ -596,7 +221,7 @@ def test_images_upload_too_big(tmpdir):
         assert image.read() == ""
 
 
-def test_images_upload_last_byte(tmpdir):
+def test_upload_last_byte(tmpdir):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
@@ -610,7 +235,7 @@ def test_images_upload_last_byte(tmpdir):
             assert f.read(image_size) == b"a" * 99 + b"b"
 
 
-def test_images_upload_after_last_byte(tmpdir):
+def test_upload_after_last_byte(tmpdir):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
@@ -632,7 +257,7 @@ def test_images_upload_after_last_byte(tmpdir):
     "bytes 7-13",
     "bytes 13-7/20",
 ])
-def test_images_upload_invalid_range(tmpdir, content_range):
+def test_upload_invalid_range(tmpdir, content_range):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     with http.Client(config) as c:
@@ -641,13 +266,13 @@ def test_images_upload_invalid_range(tmpdir, content_range):
         assert res.status == 400
 
 
-def test_images_download_no_ticket_id():
+def test_download_no_ticket_id():
     with http.Client(config) as c:
         res = c.get("/images/")
         assert res.status == http_client.BAD_REQUEST
 
 
-def test_images_download_no_ticket():
+def test_download_no_ticket():
     with http.Client(config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status == http_client.FORBIDDEN
@@ -661,7 +286,7 @@ def test_images_download_no_ticket():
     ("bytes=0-511", 0, 512),
     ("bytes=0-512", 0, 513),
 ])
-def test_images_download(tmpdir, rng, start, end):
+def test_download(tmpdir, rng, start, end):
     data = b"a" * 512 + b"b" * 512 + b"c" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(
@@ -676,7 +301,7 @@ def test_images_download(tmpdir, rng, start, end):
         assert res.getheader("Content-Range") == content_range
 
 
-def test_images_download_image_size_gt_ticket_size(tmpdir):
+def test_download_image_size_gt_ticket_size(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
     auth.add(ticket)
@@ -686,7 +311,7 @@ def test_images_download_image_size_gt_ticket_size(tmpdir):
         assert len(res.read()) == 4096
 
 
-def test_images_download_ticket_size_gt_image_size(tmpdir):
+def test_download_ticket_size_gt_image_size(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     auth.add(ticket)
@@ -696,7 +321,7 @@ def test_images_download_ticket_size_gt_image_size(tmpdir):
         assert len(res.read()) == 4096
 
 
-def test_images_download_range_forbidden(tmpdir):
+def test_download_range_forbidden(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     auth.add(ticket)
@@ -707,7 +332,7 @@ def test_images_download_range_forbidden(tmpdir):
         assert res.getheader("Content-Range") == "bytes */8192"
 
 
-def test_images_download_range_unavailable(tmpdir):
+def test_download_range_unavailable(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
     auth.add(ticket)
@@ -718,7 +343,7 @@ def test_images_download_range_unavailable(tmpdir):
         assert res.getheader("Content-Range") == "bytes */4096"
 
 
-def test_images_download_no_range(tmpdir):
+def test_download_no_range(tmpdir):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
@@ -730,7 +355,7 @@ def test_images_download_no_range(tmpdir):
         assert received == b"\0" * size
 
 
-def test_images_download_extends_ticket(tmpdir, fake_time):
+def test_download_extends_ticket(tmpdir, fake_time):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
@@ -753,7 +378,7 @@ def test_images_download_extends_ticket(tmpdir, fake_time):
         assert server_ticket["expires"] == 500
 
 
-def test_images_download_empty(tmpdir):
+def test_download_empty(tmpdir):
     # Stupid edge case, but it should work, returning empty file :-)
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutil.create_ticket(url="file://" + str(image), size=0)
@@ -765,7 +390,7 @@ def test_images_download_empty(tmpdir):
         assert data == b""
 
 
-def test_images_download_partial_not_satistieble(tmpdir):
+def test_download_partial_not_satistieble(tmpdir):
     # Image is smaller than ticket size - may happen if engine failed to detect
     # actual image size reported by vdsm - one byte difference is enough to
     # cause a failure.
@@ -781,7 +406,7 @@ def test_images_download_partial_not_satistieble(tmpdir):
         assert res.status == http_client.REQUESTED_RANGE_NOT_SATISFIABLE
 
 
-def test_images_download_partial_no_range(tmpdir):
+def test_download_partial_no_range(tmpdir):
     # The image is smaller than the tiket size, but we don't request a range,
     # so we should get the existing length of the image, since the ticket size
     # is only an upper limit. Or maybe we should treat the ticket size as the
@@ -799,7 +424,7 @@ def test_images_download_partial_no_range(tmpdir):
         assert res.length == 1024
 
 
-def test_images_download_partial_no_range_empty(tmpdir):
+def test_download_partial_no_range_empty(tmpdir):
     # Image is empty, no range, should return an empty file - we return invalid
     # http response that fail on the client side with BadStatusLine: ''.
     # See https://bugzilla.redhat.com/1512312
@@ -812,7 +437,7 @@ def test_images_download_partial_no_range_empty(tmpdir):
         assert res.length == 0
 
 
-def test_images_download_no_range_end(tmpdir):
+def test_download_no_range_end(tmpdir):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
@@ -825,7 +450,7 @@ def test_images_download_no_range_end(tmpdir):
         assert received == b"\0" * size
 
 
-def test_images_download_holes(tmpdir):
+def test_download_holes(tmpdir):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
@@ -838,7 +463,7 @@ def test_images_download_holes(tmpdir):
         assert received == b"\0" * size
 
 
-def test_images_download_filename_in_ticket(tmpdir):
+def test_download_filename_in_ticket(tmpdir):
     size = 1024
     filename = u"\u05d0.raw"  # hebrew aleph
     image = testutil.create_tempfile(tmpdir, "image", size=size)
@@ -855,7 +480,7 @@ def test_images_download_filename_in_ticket(tmpdir):
 @pytest.mark.parametrize("rng,end", [
     ("bytes=0-1024", 512),
 ])
-def test_images_download_out_of_range(tmpdir, rng, end):
+def test_download_out_of_range(tmpdir, rng, end):
     data = b"a" * 512 + b"b" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image), size=end)
@@ -910,7 +535,7 @@ def test_download_progress(tmpdir, monkeypatch):
 
 # PATCH
 
-def test_images_patch_unkown_op():
+def test_patch_unkown_op():
     body = json.dumps({"op": "unknown"}).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/no-such-uuid", body)
@@ -923,7 +548,7 @@ def test_images_patch_unkown_op():
     {"op": "zero", "size": 20, "offset": 10, "flush": True},
     {"op": "zero", "size": 20, "offset": 10, "future": True},
 ])
-def test_images_zero(tmpdir, msg):
+def test_zero(tmpdir, msg):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -942,7 +567,7 @@ def test_images_zero(tmpdir, msg):
             assert f.read() == data[offset + size:]
 
 
-def test_images_zero_extends_ticket(tmpdir, fake_time):
+def test_zero_extends_ticket(tmpdir, fake_time):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -974,28 +599,28 @@ def test_images_zero_extends_ticket(tmpdir, fake_time):
     {"op": "zero", "size": 1, "offset": -1},
     {"op": "zero", "size": 1, "offset": 1, "flush": "not a boolean"},
 ])
-def test_images_zero_validation(msg):
+def test_zero_validation(msg):
     body = json.dumps(msg).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 400
 
 
-def test_images_zero_no_ticket_id():
+def test_zero_no_ticket_id():
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
-def test_images_zero_ticket_unknown():
+def test_zero_ticket_unknown():
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
 
-def test_images_zero_ticket_readonly(tmpdir):
+def test_zero_ticket_readonly(tmpdir):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
     auth.add(ticket)
@@ -1010,7 +635,7 @@ def test_images_zero_ticket_readonly(tmpdir):
     {"op": "flush"},
     {"op": "flush", "future": True},
 ])
-def test_images_flush(tmpdir, msg):
+def test_flush(tmpdir, msg):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -1023,7 +648,7 @@ def test_images_flush(tmpdir, msg):
         assert res.getheader("content-length") == "0"
 
 
-def test_images_flush_extends_ticket(tmpdir, fake_time):
+def test_flush_extends_ticket(tmpdir, fake_time):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
@@ -1047,21 +672,21 @@ def test_images_flush_extends_ticket(tmpdir, fake_time):
         assert server_ticket["expires"] == 500
 
 
-def test_images_flush_no_ticket_id():
+def test_flush_no_ticket_id():
     body = json.dumps({"op": "flush"}).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
-def test_images_flush_ticket_unknown():
+def test_flush_ticket_unknown():
     body = json.dumps({"op": "flush"}).encode("ascii")
     with http.Client(config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
 
-def test_images_flush_ticket_readonly(tmpdir):
+def test_flush_ticket_readonly(tmpdir):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
     auth.add(ticket)
@@ -1073,7 +698,7 @@ def test_images_flush_ticket_readonly(tmpdir):
 
 # Options
 
-def test_images_options_all():
+def test_options_all():
     with http.Client(config) as c:
         res = c.options("/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
@@ -1085,7 +710,7 @@ def test_images_options_all():
         assert options["unix_socket"] == config.images.socket
 
 
-def test_images_options_read_write():
+def test_options_read_write():
     ticket = testutil.create_ticket(ops=["read", "write"])
     auth.add(ticket)
     with http.Client(config) as c:
@@ -1097,7 +722,7 @@ def test_images_options_read_write():
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_images_options_read():
+def test_options_read():
     ticket = testutil.create_ticket(ops=["read"])
     auth.add(ticket)
     with http.Client(config) as c:
@@ -1109,7 +734,7 @@ def test_images_options_read():
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_images_options_write():
+def test_options_write():
     ticket = testutil.create_ticket(ops=["write"])
     auth.add(ticket)
     with http.Client(config) as c:
@@ -1122,7 +747,7 @@ def test_images_options_write():
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_images_options_extends_ticket(fake_time):
+def test_options_extends_ticket(fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     server_ticket = auth.get(ticket["uuid"]).info()
@@ -1143,19 +768,19 @@ def test_images_options_extends_ticket(fake_time):
         assert server_ticket["expires"] == 500
 
 
-def test_images_options_for_no_ticket():
+def test_options_for_no_ticket():
     with http.Client(config) as c:
         res = c.options("/images/")
         assert res.status == 400
 
 
-def test_images_options_for_nonexistent_ticket():
+def test_options_for_nonexistent_ticket():
     with http.Client(config) as c:
         res = c.options("/images/no-such-ticket")
         assert res.status == 403
 
 
-def test_images_options_ticket_expired(fake_time):
+def test_options_ticket_expired(fake_time):
     ticket = testutil.create_ticket(timeout=300)
     auth.add(ticket)
     server_ticket = auth.get(ticket["uuid"]).info()
@@ -1173,7 +798,7 @@ def test_images_options_ticket_expired(fake_time):
 
 # HTTP correctness
 
-def test_images_response_version_success(tmpdir):
+def test_response_version_success(tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", b"old")
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
@@ -1183,7 +808,7 @@ def test_images_response_version_success(tmpdir):
         assert res.version == 11
 
 
-def test_images_response_version_error(tmpdir):
+def test_response_version_error(tmpdir):
     with http.Client(config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status != 200
