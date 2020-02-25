@@ -12,6 +12,7 @@ from contextlib import contextmanager
 
 import pytest
 
+from ovirt_imageio import auth
 from ovirt_imageio import config
 from ovirt_imageio import services
 from ovirt_imageio.ssl import check_protocol
@@ -27,7 +28,7 @@ def on_centos(version=""):
 def remote_service(config_file):
     path = os.path.join("test/conf", config_file)
     cfg = config.load([path])
-    s = services.RemoteService(cfg)
+    s = services.RemoteService(cfg, auth)
     s.start()
     try:
         yield s

@@ -11,7 +11,6 @@ from __future__ import absolute_import
 import json
 import logging
 
-from . import auth
 from . import backends
 from . import ops
 from . import errors
@@ -26,8 +25,9 @@ class Handler(object):
     Handle requests for the /images/ resource.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self.config = config
+        self.auth = auth
 
     def put(self, req, resp, ticket_id):
         if not ticket_id:
@@ -45,7 +45,7 @@ class Handler(object):
         flush = (flush == "y")
 
         try:
-            ticket = auth.authorize(ticket_id, "write")
+            ticket = self.auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
@@ -89,7 +89,7 @@ class Handler(object):
                 # TODO: validate size with actual image size.
 
         try:
-            ticket = auth.authorize(ticket_id, "read")
+            ticket = self.auth.authorize(ticket_id, "read")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
@@ -156,7 +156,7 @@ class Handler(object):
         flush = validate.boolean(msg, "flush", default=False)
 
         try:
-            ticket = auth.authorize(ticket_id, "write")
+            ticket = self.auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
@@ -180,7 +180,7 @@ class Handler(object):
 
     def _flush(self, req, resp, ticket_id, msg):
         try:
-            ticket = auth.authorize(ticket_id, "write")
+            ticket = self.auth.authorize(ticket_id, "write")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
@@ -202,7 +202,7 @@ class Handler(object):
         else:
             # Reporting real image capabilities per ticket.
             try:
-                ticket = auth.authorize(ticket_id, "read")
+                ticket = self.auth.authorize(ticket_id, "read")
             except errors.AuthorizationError as e:
                 raise http.Error(http.FORBIDDEN, str(e))
 

@@ -59,7 +59,7 @@ class RemoteService(Service):
 
     name = "remote.service"
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self._config = config
         self._server = http.Server(
             (config.images.host, config.images.port),
@@ -70,8 +70,8 @@ class RemoteService(Service):
             config.images.port = self.port
         self._secure_server()
         self._server.app = http.Router([
-            (r"/images/(.*)/extents", extents.Handler(config)),
-            (r"/images/(.*)", images.Handler(config)),
+            (r"/images/(.*)/extents", extents.Handler(config, auth)),
+            (r"/images/(.*)", images.Handler(config, auth)),
         ])
         log.debug("%s listening on port %d", self.name, self.port)
 
@@ -97,7 +97,7 @@ class LocalService(Service):
 
     name = "local.service"
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self._config = config
         self._server = uhttp.Server(config.images.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
@@ -105,8 +105,8 @@ class LocalService(Service):
         if config.images.socket == "":
             config.images.socket = self.address
         self._server.app = http.Router([
-            (r"/images/(.*)/extents", extents.Handler(config)),
-            (r"/images/(.*)", images.Handler(config)),
+            (r"/images/(.*)/extents", extents.Handler(config, auth)),
+            (r"/images/(.*)", images.Handler(config, auth)),
         ])
         log.debug("%s listening on %r", self.name, self.address)
 
@@ -121,7 +121,7 @@ class ControlService(Service):
 
     name = "control.service"
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self._config = config
         self._server = uhttp.Server(config.tickets.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
@@ -129,7 +129,7 @@ class ControlService(Service):
         if config.tickets.socket == "":
             config.tickets.socket = self.address
         self._server.app = http.Router([
-            (r"/tickets/(.*)", tickets.Handler(config)),
-            (r"/profile/", profile.Handler(config)),
+            (r"/tickets/(.*)", tickets.Handler(config, auth)),
+            (r"/profile/", profile.Handler(config, auth)),
         ])
         log.debug("%s listening on %r", self.name, self.address)

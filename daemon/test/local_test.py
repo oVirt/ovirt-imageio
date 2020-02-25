@@ -30,7 +30,7 @@ pytestmark = requires_python3
 @pytest.fixture(scope="module")
 def service():
     cfg = config.load(["test/conf/daemon/conf"])
-    s = services.LocalService(cfg)
+    s = services.LocalService(cfg, auth)
     s.start()
     try:
         yield s

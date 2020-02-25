@@ -26,8 +26,9 @@ class Handler(object):
     Request handler for the /profile/ resource.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self.config = config
+        self.auth = auth
 
     def post(self, req, resp):
         """

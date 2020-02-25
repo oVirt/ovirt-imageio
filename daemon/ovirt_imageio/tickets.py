@@ -11,7 +11,6 @@ from __future__ import absolute_import
 import json
 import logging
 
-from . import auth
 from . import errors
 from . import http
 from . import validate
@@ -24,15 +23,16 @@ class Handler(object):
     Handle requests for the /tickets/ resource.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self.config = config
+        self.auth = auth
 
     def get(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
         try:
-            ticket = auth.get(ticket_id)
+            ticket = self.auth.get(ticket_id)
         except KeyError:
             raise http.Error(
                 http.NOT_FOUND, "No such ticket {!r}".format(ticket_id))
@@ -56,7 +56,7 @@ class Handler(object):
 
         log.info("[%s] ADD ticket=%s", req.client_addr, ticket_dict)
         try:
-            auth.add(ticket_dict)
+            self.auth.add(ticket_dict)
         except errors.InvalidTicket as e:
             raise http.Error(
                 http.BAD_REQUEST, "Invalid ticket: {}".format(e))
@@ -76,7 +76,7 @@ class Handler(object):
         timeout = validate.integer(patch, "timeout", minval=0)
 
         try:
-            ticket = auth.get(ticket_id)
+            ticket = self.auth.get(ticket_id)
         except KeyError:
             raise http.Error(
                 http.NOT_FOUND, "No such ticket: {}".format(ticket_id))
@@ -97,10 +97,10 @@ class Handler(object):
 
         if ticket_id:
             try:
-                auth.remove(ticket_id)
+                self.auth.remove(ticket_id)
             except KeyError:
                 log.debug("Ticket %s does not exists", ticket_id)
         else:
-            auth.clear()
+            self.auth.clear()
 
         resp.status_code = http.NO_CONTENT

@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import logging
 
-from . import auth
 from . import backends
 from . import errors
 from . import http
@@ -24,15 +23,16 @@ class Handler(object):
     Handle requests for the /images/ticket-id/extents resource.
     """
 
-    def __init__(self, config):
+    def __init__(self, config, auth):
         self.config = config
+        self.auth = auth
 
     def get(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
         try:
-            ticket = auth.authorize(ticket_id, "read")
+            ticket = self.auth.authorize(ticket_id, "read")
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 

@@ -17,6 +17,7 @@ import sys
 
 import systemd.daemon
 
+from . import auth
 from . import config
 from . import services
 from . import version
@@ -36,7 +37,7 @@ def main():
         cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
         signal.signal(signal.SIGINT, terminate)
         signal.signal(signal.SIGTERM, terminate)
-        start(cfg)
+        start(cfg, auth)
         try:
             systemd.daemon.notify("READY=1")
             log.info("Ready for requests")
@@ -74,20 +75,20 @@ def terminate(signo, frame):
     running = False
 
 
-def start(cfg):
+def start(cfg, auth):
     global remote_service, local_service, control_service
     assert not (remote_service or local_service or control_service)
 
     log.debug("Starting remote service on port %d", cfg.images.port)
-    remote_service = services.RemoteService(cfg)
+    remote_service = services.RemoteService(cfg, auth)
     remote_service.start()
 
     log.debug("Starting local service on socket %r", cfg.images.socket)
-    local_service = services.LocalService(cfg)
+    local_service = services.LocalService(cfg, auth)
     local_service.start()
 
     log.debug("Starting control service on socket %r", cfg.tickets.socket)
-    control_service = services.ControlService(cfg)
+    control_service = services.ControlService(cfg, auth)
     control_service.start()
 
 

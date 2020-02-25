@@ -46,7 +46,7 @@ logging.basicConfig(
 @pytest.fixture(scope="module")
 def cfg():
     cfg = config.load(["test/conf/daemon.conf"])
-    server.start(cfg)
+    server.start(cfg, auth)
     yield cfg
     server.stop()
 

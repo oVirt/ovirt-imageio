@@ -54,7 +54,7 @@ def cfg():
 
 @pytest.fixture(scope="module")
 def images_server(cfg):
-    server.start(cfg)
+    server.start(cfg, auth)
     yield
     server.stop()
 
