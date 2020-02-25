@@ -17,7 +17,6 @@ from six.moves import http_client
 
 from ovirt_imageio import auth
 from ovirt_imageio import config
-from ovirt_imageio import configloader
 from ovirt_imageio import services
 
 from . import http
@@ -30,8 +29,8 @@ pytestmark = requires_python3
 
 @pytest.fixture(scope="module")
 def service():
-    configloader.load(config, ["test/conf/daemon/conf"])
-    s = services.LocalService(config)
+    cfg = config.load(["test/conf/daemon/conf"])
+    s = services.LocalService(cfg)
     s.start()
     try:
         yield s

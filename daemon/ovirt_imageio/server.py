@@ -18,7 +18,6 @@ import sys
 import systemd.daemon
 
 from . import config
-from . import configloader
 from . import services
 from . import version
 
@@ -34,10 +33,10 @@ def main():
     configure_logger(args)
     try:
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
-        configloader.load(config, [os.path.join(args.conf_dir, "daemon.conf")])
+        cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
         signal.signal(signal.SIGINT, terminate)
         signal.signal(signal.SIGTERM, terminate)
-        start(config)
+        start(cfg)
         try:
             systemd.daemon.notify("READY=1")
             log.info("Ready for requests")
@@ -75,20 +74,20 @@ def terminate(signo, frame):
     running = False
 
 
-def start(config):
+def start(cfg):
     global remote_service, local_service, control_service
     assert not (remote_service or local_service or control_service)
 
-    log.debug("Starting remote service on port %d", config.images.port)
-    remote_service = services.RemoteService(config)
+    log.debug("Starting remote service on port %d", cfg.images.port)
+    remote_service = services.RemoteService(cfg)
     remote_service.start()
 
-    log.debug("Starting local service on socket %r", config.images.socket)
-    local_service = services.LocalService(config)
+    log.debug("Starting local service on socket %r", cfg.images.socket)
+    local_service = services.LocalService(cfg)
     local_service.start()
 
-    log.debug("Starting control service on socket %r", config.tickets.socket)
-    control_service = services.ControlService(config)
+    log.debug("Starting control service on socket %r", cfg.tickets.socket)
+    control_service = services.ControlService(cfg)
     control_service.start()
 
 

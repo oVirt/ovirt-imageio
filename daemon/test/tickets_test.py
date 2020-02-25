@@ -20,7 +20,6 @@ import pytest
 
 from ovirt_imageio import auth
 from ovirt_imageio import config
-from ovirt_imageio import configloader
 from ovirt_imageio import server
 from ovirt_imageio import tickets
 from ovirt_imageio import util
@@ -45,12 +44,11 @@ logging.basicConfig(
             "%(message)s"))
 
 
-def setup_module(m):
-    configloader.load(config, ["test/conf/daemon.conf"])
-    server.start(config)
-
-
-def teardown_module(m):
+@pytest.fixture(scope="module")
+def cfg():
+    cfg = config.load(["test/conf/daemon.conf"])
+    server.start(cfg)
+    yield cfg
     server.stop()
 
 
@@ -58,30 +56,30 @@ def setup_function(f):
     auth.clear()
 
 
-def test_method_not_allowed():
-    with http.UnixClient(config.tickets.socket) as c:
+def test_method_not_allowed(cfg):
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("NO_SUCH_METHO", "/tickets/")
         assert res.status == http_client.METHOD_NOT_ALLOWED
 
 
-def test_no_resource():
-    with http.UnixClient(config.tickets.socket) as c:
+def test_no_resource(cfg):
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("GET", "/no/such/resource")
         assert res.status == 404
 
 
-def test_no_method():
-    with http.UnixClient(config.tickets.socket) as c:
+def test_no_method(cfg):
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("FOO", "/tickets/")
         assert res.status == 405
 
 
-def test_get(fake_time):
+def test_get(cfg, fake_time):
     ticket = testutil.create_ticket(
         ops=["read"], sparse=False, dirty=False, transfer_id="123")
     auth.add(ticket)
     fake_time.now += 200
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("GET", "/tickets/%(uuid)s" % ticket)
         assert res.status == 200
         server_ticket = json.loads(res.read())
@@ -93,16 +91,16 @@ def test_get(fake_time):
         assert server_ticket == ticket
 
 
-def test_get_not_found():
-    with http.UnixClient(config.tickets.socket) as c:
+def test_get_not_found(cfg):
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("GET", "/tickets/%s" % uuid.uuid4())
         assert res.status == 404
 
 
-def test_put(fake_time):
+def test_put(cfg, fake_time):
     ticket = testutil.create_ticket(sparse=False, dirty=False)
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         # Server adds expires key
         ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
@@ -114,38 +112,38 @@ def test_put(fake_time):
         assert server_ticket == ticket
 
 
-def test_put_bad_url_value(fake_time):
+def test_put_bad_url_value(cfg, fake_time):
     ticket = testutil.create_ticket(url='http://[1.2.3.4:33')
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_general_exception(monkeypatch):
+def test_general_exception(cfg, monkeypatch):
     def fail(*a, **kw):
         raise Exception("SECRET")
     monkeypatch.setattr(tickets.Handler, "get", fail)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("GET", "/tickets/%s" % uuid.uuid4())
         error = res.read()
         assert res.status == http_client.INTERNAL_SERVER_ERROR
         assert b"SECRET" not in error
 
 
-def test_put_no_ticket_id():
+def test_put_no_ticket_id(cfg):
     ticket = testutil.create_ticket()
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/", body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_put_invalid_json():
+def test_put_invalid_json(cfg):
     ticket = testutil.create_ticket()
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request(
             "PUT",
             "/tickets/%(uuid)s" % ticket,
@@ -157,53 +155,53 @@ def test_put_invalid_json():
 # Using "timeout" confuses pytest-timeout plugin, workaround it by using
 # "-timeout".
 @pytest.mark.parametrize("missing", ["-timeout", "url", "size", "ops"])
-def test_put_mandatory_fields(missing):
+def test_put_mandatory_fields(cfg, missing):
     ticket = testutil.create_ticket()
     del ticket[missing.strip("-")]
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_put_invalid_timeout():
+def test_put_invalid_timeout(cfg):
     ticket = testutil.create_ticket()
     ticket["timeout"] = "invalid"
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_put_url_type_error():
+def test_put_url_type_error(cfg):
     ticket = testutil.create_ticket()
     ticket["url"] = 1
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_put_url_scheme_not_supported():
+def test_put_url_scheme_not_supported(cfg):
     ticket = testutil.create_ticket()
     ticket["url"] = "notsupported:path"
     body = json.dumps(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_extend(fake_time):
+def test_extend(cfg, fake_time):
     ticket = testutil.create_ticket(sparse=False, dirty=False)
     auth.add(ticket)
     patch = {"timeout": 300}
     body = json.dumps(patch)
     fake_time.now += 240
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         ticket["expires"] = int(fake_time.now + ticket["timeout"])
         ticket["active"] = False
@@ -214,27 +212,27 @@ def test_extend(fake_time):
         assert server_ticket == ticket
 
 
-def test_extend_negative_timeout():
+def test_extend_negative_timeout(cfg):
     ticket = testutil.create_ticket(sparse=False)
     auth.add(ticket)
     patch = {"timeout": -1}
     body = json.dumps(patch)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
 
 
-def test_get_expired_ticket(fake_time):
+def test_get_expired_ticket(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     # Make the ticket expire.
     fake_time.now += 500
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("GET", "/tickets/%(uuid)s" % ticket)
         assert res.status == 200
 
 
-def test_extend_expired_ticket(fake_time):
+def test_extend_expired_ticket(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     # Make the ticket expire.
@@ -242,69 +240,69 @@ def test_extend_expired_ticket(fake_time):
     server_ticket = auth.get(ticket["uuid"]).info()
     # Extend the expired ticket.
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         assert res.status == 200
         server_ticket = auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 800
 
 
-def test_extend_no_ticket_id(fake_time):
+def test_extend_no_ticket_id(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     prev_ticket = auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/", body)
         cur_ticket = auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
 
 
-def test_extend_invalid_json(fake_time):
+def test_extend_invalid_json(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     prev_ticket = auth.get(ticket["uuid"]).info()
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, "{invalid}")
         cur_ticket = auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
 
 
-def test_extend_no_timeout(fake_time):
+def test_extend_no_timeout(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     prev_ticket = auth.get(ticket["uuid"]).info()
     body = json.dumps({"not-a-timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         cur_ticket = auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
 
 
-def test_extend_invalid_timeout(fake_time):
+def test_extend_invalid_timeout(cfg, fake_time):
     ticket = testutil.create_ticket()
     auth.add(ticket)
     prev_ticket = auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": "invalid"})
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
         cur_ticket = auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
 
 
-def test_extend_not_found():
+def test_extend_not_found(cfg):
     ticket_id = str(uuid.uuid4())
     body = json.dumps({"timeout": 300})
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("PATCH", "/tickets/%s" % ticket_id, body)
         assert res.status == 404
 
 
-def test_idle_time_active(fake_time, tmpdir):
+def test_idle_time_active(cfg, fake_time, tmpdir):
     filename = tmpdir.join("image")
     # Note: must be big enough so the request remain active.
     size = 1024**2 * 10
@@ -316,7 +314,7 @@ def test_idle_time_active(fake_time, tmpdir):
 
     # Start a download, but read only 1 byte to make sure the operation becomes
     # active but do not complete.
-    with http.Client(config) as c:
+    with http.Client(cfg) as c:
         res = c.get("/images/" + ticket["uuid"])
         res.read(1)
 
@@ -337,26 +335,26 @@ def test_idle_time_inactive(fake_time):
     assert auth.get(ticket["uuid"]).idle_time == 200
 
 
-def test_idle_time_put(fake_time, tmpdir):
+def test_idle_time_put(cfg, fake_time, tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(config) as c:
+    with http.Client(cfg) as c:
         c.put("/images/" + ticket["uuid"], "b" * 8192)
         assert auth.get(ticket["uuid"]).idle_time == 0
 
 
-def test_idle_time_get(fake_time, tmpdir):
+def test_idle_time_get(cfg, fake_time, tmpdir):
     image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(config) as c:
+    with http.Client(cfg) as c:
         c.get("/images/" + ticket["uuid"])
         assert auth.get(ticket["uuid"]).idle_time == 0
 
@@ -365,7 +363,7 @@ def test_idle_time_get(fake_time, tmpdir):
     pytest.param({"op": "zero", "size": 1}, id="zero"),
     pytest.param({"op": "flush"}, id="flush"),
 ])
-def test_idle_time_patch(fake_time, tmpdir, msg):
+def test_idle_time_patch(cfg, fake_time, tmpdir, msg):
     image = testutil.create_tempfile(tmpdir, "image", b"a" * 8192)
     ticket = testutil.create_ticket(url="file://" + str(image))
     auth.add(ticket)
@@ -374,27 +372,27 @@ def test_idle_time_patch(fake_time, tmpdir, msg):
     fake_time.now += 200
     body = json.dumps(msg).encode('ascii')
 
-    with http.Client(config) as c:
+    with http.Client(cfg) as c:
         c.patch("/images/" + ticket["uuid"], body,
                 headers={"content-type": "application/json"})
         assert auth.get(ticket["uuid"]).idle_time == 0
 
 
-def test_idle_time_options(fake_time):
+def test_idle_time_options(cfg, fake_time):
     ticket = testutil.create_ticket(url="file:///no/such/file")
     auth.add(ticket)
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(config) as c:
+    with http.Client(cfg) as c:
         c.options("/images/" + ticket["uuid"])
         assert auth.get(ticket["uuid"]).idle_time == 0
 
 
-def test_delete_one():
+def test_delete_one(cfg):
     ticket = testutil.create_ticket()
     auth.add(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("DELETE", "/tickets/%(uuid)s" % ticket)
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
@@ -402,21 +400,21 @@ def test_delete_one():
         pytest.raises(KeyError, auth.get, ticket["uuid"])
 
 
-def test_delete_one_not_found():
-    with http.UnixClient(config.tickets.socket) as c:
+def test_delete_one_not_found(cfg):
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("DELETE", "/tickets/no-such-ticket")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
         assert res.getheader("content-length") == "0"
 
 
-def test_delete_all():
+def test_delete_all(cfg):
     # Example usage: move host to maintenance
     for i in range(5):
         ticket = testutil.create_ticket(
             url="file:///var/run/vdsm/storage/foo%s" % i)
         auth.add(ticket)
-    with http.UnixClient(config.tickets.socket) as c:
+    with http.UnixClient(cfg.tickets.socket) as c:
         res = c.request("DELETE", "/tickets/")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.

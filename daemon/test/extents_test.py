@@ -18,7 +18,6 @@ import pytest
 
 from ovirt_imageio import auth
 from ovirt_imageio import config
-from ovirt_imageio import configloader
 from ovirt_imageio import server
 
 from . import testutil
@@ -49,28 +48,32 @@ except AttributeError:
 
 
 @pytest.fixture(scope="module")
-def images_server():
-    configloader.load(config, ["test/conf/daemon.conf"])
-    server.start(config)
+def cfg():
+    return config.load(["test/conf/daemon.conf"])
+
+
+@pytest.fixture(scope="module")
+def images_server(cfg):
+    server.start(cfg)
     yield
     server.stop()
 
 
-def http_client():
-    return http.Client(config)
+def http_client(cfg):
+    return http.Client(cfg)
 
 
-def local_client():
-    return http.UnixClient(config.images.socket)
+def local_client(cfg):
+    return http.UnixClient(cfg.images.socket)
 
 
 @pytest.fixture(params=[
     pytest.param(http_client, id="http"),
     pytest.param(local_client, id="local"),
 ])
-def client(request, images_server):
+def client(cfg, request, images_server):
     auth.clear()
-    client = request.param()
+    client = request.param(cfg)
     yield client
     client.close()
 
