@@ -30,7 +30,7 @@ control_service = None
 running = True
 
 
-def main(args):
+def main():
     configure_logger()
     try:
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
