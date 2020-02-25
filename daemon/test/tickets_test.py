@@ -11,7 +11,6 @@ from __future__ import print_function
 
 import json
 import logging
-import os
 import ssl
 import uuid
 
@@ -47,8 +46,7 @@ logging.basicConfig(
 
 
 def setup_module(m):
-    conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
-    configloader.load(config, [conf])
+    configloader.load(config, ["test/conf/daemon.conf"])
     server.start(config)
 
 

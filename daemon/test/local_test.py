@@ -11,7 +11,6 @@ from __future__ import print_function
 
 import io
 import json
-import os
 
 import pytest
 from six.moves import http_client
@@ -31,8 +30,7 @@ pytestmark = requires_python3
 
 @pytest.fixture(scope="module")
 def service():
-    conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
-    configloader.load(config, [conf])
+    configloader.load(config, ["test/conf/daemon/conf"])
     s = services.LocalService(config)
     s.start()
     try:

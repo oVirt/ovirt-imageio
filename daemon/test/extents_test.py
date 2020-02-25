@@ -50,8 +50,7 @@ except AttributeError:
 
 @pytest.fixture(scope="module")
 def images_server():
-    conf = os.path.join(os.path.dirname(__file__), "daemon.conf")
-    configloader.load(config, [conf])
+    configloader.load(config, ["test/conf/daemon.conf"])
     server.start(config)
     yield
     server.stop()
