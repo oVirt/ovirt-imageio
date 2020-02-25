@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import logging.config
 import os
@@ -21,8 +22,6 @@ from . import configloader
 from . import services
 from . import version
 
-CONF_DIR = "/etc/ovirt-imageio-daemon"
-
 log = logging.getLogger("server")
 remote_service = None
 local_service = None
@@ -31,10 +30,11 @@ running = True
 
 
 def main():
-    configure_logger()
+    args = parse_args()
+    configure_logger(args)
     try:
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
-        configloader.load(config, [os.path.join(CONF_DIR, "daemon.conf")])
+        configloader.load(config, [os.path.join(args.conf_dir, "daemon.conf")])
         signal.signal(signal.SIGINT, terminate)
         signal.signal(signal.SIGTERM, terminate)
         start(config)
@@ -54,8 +54,18 @@ def main():
         sys.exit(1)
 
 
-def configure_logger():
-    conf = os.path.join(CONF_DIR, "logger.conf")
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c", "--conf-dir",
+        default="/etc/ovirt-imageio-daemon",
+        help="path to configuration directory, where daemon.conf and "
+             "logger.conf are located.")
+    return parser.parse_args()
+
+
+def configure_logger(args):
+    conf = os.path.join(args.conf_dir, "logger.conf")
     logging.config.fileConfig(conf, disable_existing_loggers=False)
 
 

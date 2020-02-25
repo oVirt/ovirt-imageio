@@ -13,7 +13,7 @@ htmlcov
 *.pyo
 *.so
 *.spec
-logger.conf
+*/data/logger.conf
 proxy/ovirt_imageio_proxy/constants.py
 proxy/setup/ovirt_engine_setup/ovirt_imageio_proxy/config.py
 MANIFEST
