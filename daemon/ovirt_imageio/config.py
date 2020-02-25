@@ -6,6 +6,8 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+from . import configloader
+
 
 class daemon:
 
@@ -54,3 +56,18 @@ class profile:
     # Filename for storing profile data. Profiling requires the "yappi"
     # package. Version 0.93 is recommended for best performance.
     filename = u"/tmp/ovirt-imageio-daemon.prof"
+
+
+class Config:
+
+    def __init__(self):
+        self.daemon = daemon()
+        self.images = images()
+        self.tickets = tickets()
+        self.profile = profile()
+
+
+def load(files):
+    cfg = Config()
+    configloader.load(cfg, files)
+    return cfg
