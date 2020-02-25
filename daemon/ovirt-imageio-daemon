@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 #
 # ovirt-imageio-daemon
 # Copyright (C) 2015-2016 Red Hat, Inc.
