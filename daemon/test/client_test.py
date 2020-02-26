@@ -12,7 +12,6 @@ import os
 
 import pytest
 
-from ovirt_imageio import auth
 from ovirt_imageio import config
 from ovirt_imageio import client
 from ovirt_imageio import pki
@@ -27,19 +26,13 @@ pytestmark = requires_python3
 IMAGE_SIZE = 128 * 1024
 
 
-class Env:
-    def __init__(self, cfg, auth):
-        self.cfg = cfg
-        self.auth = auth
-
-
 @pytest.fixture(scope="module")
-def env():
+def srv():
     cfg = config.load(["test/conf/daemon.conf"])
-    authorizer = auth.Authorizer()
-    server.start(cfg, authorizer)
-    yield Env(cfg, authorizer)
-    server.stop()
+    s = server.Server(cfg)
+    s.start()
+    yield s
+    s.stop()
 
 
 def check_content(src, dst):
@@ -47,7 +40,7 @@ def check_content(src, dst):
         assert s.read() == d.read()
 
 
-def prepare_upload(env, dst, sparse=True, size=IMAGE_SIZE):
+def prepare_upload(srv, dst, sparse=True, size=IMAGE_SIZE):
     with open(dst, "wb") as f:
         if not sparse:
             f.write(b"a" * size)
@@ -57,10 +50,10 @@ def prepare_upload(env, dst, sparse=True, size=IMAGE_SIZE):
         size=size,
         sparse=sparse)
 
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
 
     return "https://localhost:{}/images/{}".format(
-        server.remote_service.port, ticket["uuid"])
+        srv.remote_service.port, ticket["uuid"])
 
 
 class FakeProgress:
@@ -86,21 +79,21 @@ class FakeProgress:
 # - Test negative flows
 
 
-def test_upload_empty_sparse(tmpdir, env):
+def test_upload_empty_sparse(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
 
 
-def test_upload_hole_at_start_sparse(tmpdir, env):
+def test_upload_hole_at_start_sparse(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
@@ -108,15 +101,15 @@ def test_upload_hole_at_start_sparse(tmpdir, env):
         f.write(b"b" * (IMAGE_SIZE // 2))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
 
 
-def test_upload_hole_at_middle_sparse(tmpdir, env):
+def test_upload_hole_at_middle_sparse(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
@@ -125,72 +118,72 @@ def test_upload_hole_at_middle_sparse(tmpdir, env):
         f.write(b"b" * (IMAGE_SIZE // 4))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
 
 
-def test_upload_hole_at_end_sparse(tmpdir, env):
+def test_upload_hole_at_end_sparse(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
         f.write(b"b" * (IMAGE_SIZE // 2))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
 
 
-def test_upload_full_sparse(tmpdir, env):
+def test_upload_full_sparse(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.write(b"b" * IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
 
 
-def test_upload_preallocated(tmpdir, env):
+def test_upload_preallocated(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst, sparse=False)
+    url = prepare_upload(srv, dst, sparse=False)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
 
 
 @pytest.mark.parametrize("use_unix_socket", [True, False])
-def test_upload_unix_socket(tmpdir, env, use_unix_socket):
+def test_upload_unix_socket(tmpdir, srv, use_unix_socket):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.write(b"b" * IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst)
+    url = prepare_upload(srv, dst)
 
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False)
+    client.upload(src, url, pki.cert_file(srv.config), secure=False)
 
     check_content(src, dst)
 
 
-def test_progress(tmpdir, env):
+def test_progress(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.write(b"b" * 4096)
@@ -199,10 +192,10 @@ def test_progress(tmpdir, env):
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst, sparse=True)
+    url = prepare_upload(srv, dst, sparse=True)
 
     progress = FakeProgress(IMAGE_SIZE)
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False,
+    client.upload(src, url, pki.cert_file(srv.config), secure=False,
                   progress=progress)
 
     assert progress.updates == [
@@ -217,16 +210,16 @@ def test_progress(tmpdir, env):
     ]
 
 
-def test_progress_callback(tmpdir, env):
+def test_progress_callback(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(env, dst, size=IMAGE_SIZE, sparse=True)
+    url = prepare_upload(srv, dst, size=IMAGE_SIZE, sparse=True)
 
     progress = []
-    client.upload(src, url, pki.cert_file(env.cfg), secure=False,
+    client.upload(src, url, pki.cert_file(srv.config), secure=False,
                   progress=progress.append)
 
     assert progress == [IMAGE_SIZE]

@@ -19,7 +19,6 @@ from six.moves import http_client
 
 import pytest
 
-from ovirt_imageio import auth
 from ovirt_imageio import config
 from ovirt_imageio import server
 
@@ -43,101 +42,94 @@ logging.basicConfig(
             "%(message)s"))
 
 
-class Env:
-
-    def __init__(self, cfg, auth):
-        self.cfg = cfg
-        self.auth = auth
-
-
 @pytest.fixture(scope="module")
-def env():
+def srv():
     cfg = config.load(["test/conf/daemon.conf"])
-    authorizer = auth.Authorizer()
-    server.start(cfg, authorizer)
-    yield Env(cfg, authorizer)
-    server.stop()
+    s = server.Server(cfg)
+    s.start()
+    yield s
+    s.stop()
 
 
-def test_no_resource(env):
-    with http.Client(env.cfg) as c:
+def test_no_resource(srv):
+    with http.Client(srv.config) as c:
         res = c.request("PUT", "/no/such/resource")
         assert res.status == 404
 
 
-def test_no_method(env):
-    with http.Client(env.cfg) as c:
+def test_no_method(srv):
+    with http.Client(srv.config) as c:
         res = c.request("FOO", "/images/")
         assert res.status == 405
 
 
-def test_upload_no_ticket_id(tmpdir, env):
-    with http.Client(env.cfg) as c:
+def test_upload_no_ticket_id(tmpdir, srv):
+    with http.Client(srv.config) as c:
         res = c.put("/images/", "content")
         assert res.status == 400
 
 
-def test_upload_no_ticket(tmpdir, env):
-    with http.Client(env.cfg) as c:
+def test_upload_no_ticket(tmpdir, srv):
+    with http.Client(srv.config) as c:
         res = c.put("/images/no-such-ticket", "content")
         assert res.status == 403
 
 
-def test_upload_forbidden(tmpdir, env):
+def test_upload_forbidden(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content")
         assert res.status == 403
 
 
-def test_upload_content_length_missing(tmpdir, env):
+def test_upload_content_length_missing(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"])
         assert res.status == 400
 
 
-def test_upload_content_length_invalid(tmpdir, env):
+def test_upload_content_length_invalid(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"],
                             headers={"content-length": "invalid"})
         assert res.status == 400
 
 
-def test_upload_content_length_negative(tmpdir, env):
+def test_upload_content_length_negative(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"],
                             headers={"content-length": "-1"})
         assert res.status == 400
 
 
-def test_upload_no_content(tmpdir, env):
+def test_upload_no_content(tmpdir, srv):
     # This is a pointless request, but valid
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "")
         assert res.status == 200
 
 
-def test_upload_extends_ticket(tmpdir, env, fake_time):
+def test_upload_extends_ticket(tmpdir, srv, fake_time):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "")
         assert res.status == 200
 
@@ -147,22 +139,22 @@ def test_upload_extends_ticket(tmpdir, env, fake_time):
         # ticket.
         time.sleep(0.1)
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 500
 
 
 # TODO: test that flush actually flushes data. Current tests just verify that
 # the server does not reject the query string.
 @pytest.mark.parametrize("flush", [None, "y", "n"])
-def test_upload(tmpdir, env, flush):
+def test_upload(tmpdir, srv, flush):
     data = b"-------|after"
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
     if flush:
         uri += "?flush=" + flush
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.put(uri, "content")
         with io.open(str(image), "rb") as f:
             assert f.read(len(data)) == b"content|after"
@@ -170,10 +162,10 @@ def test_upload(tmpdir, env, flush):
         assert res.getheader("content-length") == "0"
 
 
-def test_upload_invalid_flush(tmpdir, env):
+def test_upload_invalid_flush(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"] + "?flush=invalid", "data")
         assert res.status == 400
 
@@ -183,11 +175,11 @@ def test_upload_invalid_flush(tmpdir, env):
     ("bytes 0-6/*", b"-------|after", b"content|after"),
     ("bytes 0-*/*", b"-------|after", b"content|after"),
 ])
-def test_upload_with_range(tmpdir, env, crange, before, after):
+def test_upload_with_range(tmpdir, srv, crange, before, after):
     image = testutil.create_tempfile(tmpdir, "image", before)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content",
                     headers={"Content-Range": crange})
         with io.open(str(image), "rb") as f:
@@ -195,39 +187,39 @@ def test_upload_with_range(tmpdir, env, crange, before, after):
         assert res.status == 200
 
 
-def test_upload_max_size(tmpdir, env):
+def test_upload_max_size(tmpdir, srv):
     image_size = 100
     content = b"b" * image_size
     image = testutil.create_tempfile(tmpdir, "image", b"")
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], content)
         assert res.status == 200
         with io.open(str(image), "rb") as f:
             assert f.read(len(content)) == content
 
 
-def test_upload_too_big(tmpdir, env):
+def test_upload_too_big(tmpdir, srv):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"")
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b" * (image_size + 1))
         assert res.status == 416
         assert image.read() == ""
 
 
-def test_upload_last_byte(tmpdir, env):
+def test_upload_last_byte(tmpdir, srv):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b",
                     headers={"Content-Range": "bytes 99-100/*"})
         assert res.status == 200
@@ -235,13 +227,13 @@ def test_upload_last_byte(tmpdir, env):
             assert f.read(image_size) == b"a" * 99 + b"b"
 
 
-def test_upload_after_last_byte(tmpdir, env):
+def test_upload_after_last_byte(tmpdir, srv):
     image_size = 100
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b",
                     headers={"Content-Range": "bytes 100-101/*"})
         assert res.status == 416
@@ -257,23 +249,23 @@ def test_upload_after_last_byte(tmpdir, env):
     "bytes 7-13",
     "bytes 13-7/20",
 ])
-def test_upload_invalid_range(tmpdir, env, content_range):
+def test_upload_invalid_range(tmpdir, srv, content_range):
     ticket = testutil.create_ticket()
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content",
                     headers={"Content-Range": content_range})
         assert res.status == 400
 
 
-def test_download_no_ticket_id(env):
-    with http.Client(env.cfg) as c:
+def test_download_no_ticket_id(srv):
+    with http.Client(srv.config) as c:
         res = c.get("/images/")
         assert res.status == http_client.BAD_REQUEST
 
 
-def test_download_no_ticket(env):
-    with http.Client(env.cfg) as c:
+def test_download_no_ticket(srv):
+    with http.Client(srv.config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status == http_client.FORBIDDEN
 
@@ -286,13 +278,13 @@ def test_download_no_ticket(env):
     ("bytes=0-511", 0, 512),
     ("bytes=0-512", 0, 513),
 ])
-def test_download(tmpdir, env, rng, start, end):
+def test_download(tmpdir, srv, rng, start, end):
     data = b"a" * 512 + b"b" * 512 + b"c" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=len(data))
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"], headers={"Range": rng})
         assert res.status == 206
         received = res.read()
@@ -301,70 +293,70 @@ def test_download(tmpdir, env, rng, start, end):
         assert res.getheader("Content-Range") == content_range
 
 
-def test_download_image_size_gt_ticket_size(tmpdir, env):
+def test_download_image_size_gt_ticket_size(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         assert len(res.read()) == 4096
 
 
-def test_download_ticket_size_gt_image_size(tmpdir, env):
+def test_download_ticket_size_gt_image_size(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         assert len(res.read()) == 4096
 
 
-def test_download_range_forbidden(tmpdir, env):
+def test_download_range_forbidden(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-8192"})
         assert res.status == 416
         assert res.getheader("Content-Range") == "bytes */8192"
 
 
-def test_download_range_unavailable(tmpdir, env):
+def test_download_range_unavailable(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-4096"})
         assert res.status == 416
         assert res.getheader("Content-Range") == "bytes */4096"
 
 
-def test_download_no_range(tmpdir, env):
+def test_download_no_range(tmpdir, srv):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         received = res.read()
         assert received == b"\0" * size
 
 
-def test_download_extends_ticket(tmpdir, env, fake_time):
+def test_download_extends_ticket(tmpdir, srv, fake_time):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
 
@@ -374,23 +366,23 @@ def test_download_extends_ticket(tmpdir, env, fake_time):
         # ticket.
         time.sleep(0.1)
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 500
 
 
-def test_download_empty(tmpdir, env):
+def test_download_empty(tmpdir, srv):
     # Stupid edge case, but it should work, returning empty file :-)
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutil.create_ticket(url="file://" + str(image), size=0)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         data = res.read()
         assert data == b""
 
 
-def test_download_partial_not_satistieble(tmpdir, env):
+def test_download_partial_not_satistieble(tmpdir, srv):
     # Image is smaller than ticket size - may happen if engine failed to detect
     # actual image size reported by vdsm - one byte difference is enough to
     # cause a failure.
@@ -398,15 +390,15 @@ def test_download_partial_not_satistieble(tmpdir, env):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     unsatisfiable_range = "bytes=0-%d" % size  # Max is size - 1
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": unsatisfiable_range})
         assert res.status == http_client.REQUESTED_RANGE_NOT_SATISFIABLE
 
 
-def test_download_partial_no_range(tmpdir, env):
+def test_download_partial_no_range(tmpdir, srv):
     # The image is smaller than the tiket size, but we don't request a range,
     # so we should get the existing length of the image, since the ticket size
     # is only an upper limit. Or maybe we should treat the ticket size as the
@@ -415,8 +407,8 @@ def test_download_partial_no_range(tmpdir, env):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         # Should return the available image data, not the ticket size. Reading
@@ -424,25 +416,25 @@ def test_download_partial_no_range(tmpdir, env):
         assert res.length == 1024
 
 
-def test_download_partial_no_range_empty(tmpdir, env):
+def test_download_partial_no_range_empty(tmpdir, srv):
     # Image is empty, no range, should return an empty file - we return invalid
     # http response that fail on the client side with BadStatusLine: ''.
     # See https://bugzilla.redhat.com/1512312
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutil.create_ticket(url="file://" + str(image), size=1024)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         assert res.length == 0
 
 
-def test_download_no_range_end(tmpdir, env):
+def test_download_no_range_end(tmpdir, srv):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-"})
         assert res.status == 206
@@ -450,12 +442,12 @@ def test_download_no_range_end(tmpdir, env):
         assert received == b"\0" * size
 
 
-def test_download_holes(tmpdir, env):
+def test_download_holes(tmpdir, srv):
     size = 1024
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-1023"})
         assert res.status == 206
@@ -463,14 +455,14 @@ def test_download_holes(tmpdir, env):
         assert received == b"\0" * size
 
 
-def test_download_filename_in_ticket(tmpdir, env):
+def test_download_filename_in_ticket(tmpdir, srv):
     size = 1024
     filename = u"\u05d0.raw"  # hebrew aleph
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size,
                                     filename=filename)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-1023"})
         expected = "attachment; filename=\xd7\x90.raw"
@@ -480,41 +472,41 @@ def test_download_filename_in_ticket(tmpdir, env):
 @pytest.mark.parametrize("rng,end", [
     ("bytes=0-1024", 512),
 ])
-def test_download_out_of_range(tmpdir, env, rng, end):
+def test_download_out_of_range(tmpdir, srv, rng, end):
     data = b"a" * 512 + b"b" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image), size=end)
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": rng})
         res.read()
         assert res.status == 416
 
 
-def test_download_progress(tmpdir, env, monkeypatch):
+def test_download_progress(tmpdir, srv, monkeypatch):
     # We need to read at least one buffer to update the transfered value.
-    monkeypatch.setattr(env.cfg.daemon, "buffer_size", 1024**2)
+    monkeypatch.setattr(srv.config.daemon, "buffer_size", 1024**2)
 
     # And we need to request enough data so the server does not complete before
     # the client read all the data.
-    size = env.cfg.daemon.buffer_size * 50
+    size = srv.config.daemon.buffer_size * 50
 
     filename = tmpdir.join("image")
     with open(str(filename), 'wb') as image:
         image.truncate(size)
     ticket = testutil.create_ticket(
         url="file://" + str(filename), ops=["read"], size=size)
-    env.auth.add(ticket)
-    ticket = env.auth.get(ticket["uuid"])
+    srv.auth.add(ticket)
+    ticket = srv.auth.get(ticket["uuid"])
 
     # No operations
     assert not ticket.active()
     assert ticket.transferred() == 0
 
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.get("/images/" + ticket.uuid)
-        res.read(env.cfg.daemon.buffer_size)
+        res.read(srv.config.daemon.buffer_size)
 
         # The server processed at least one buffer but we need to give it time
         # to touch the ticket.
@@ -535,9 +527,9 @@ def test_download_progress(tmpdir, env, monkeypatch):
 
 # PATCH
 
-def test_patch_unkown_op(env):
+def test_patch_unkown_op(srv):
     body = json.dumps({"op": "unknown"}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 400
 
@@ -548,15 +540,15 @@ def test_patch_unkown_op(env):
     {"op": "zero", "size": 20, "offset": 10, "flush": True},
     {"op": "zero", "size": 20, "offset": 10, "future": True},
 ])
-def test_zero(tmpdir, env, msg):
+def test_zero(tmpdir, srv, msg):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     size = msg["size"]
     offset = msg.get("offset", 0)
     body = json.dumps(msg).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
 
         assert res.status == 200
@@ -567,17 +559,17 @@ def test_zero(tmpdir, env, msg):
             assert f.read() == data[offset + size:]
 
 
-def test_zero_extends_ticket(tmpdir, env, fake_time):
+def test_zero_extends_ticket(tmpdir, srv, fake_time):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
     body = json.dumps({"op": "zero", "size": 512}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 200
 
@@ -587,7 +579,7 @@ def test_zero_extends_ticket(tmpdir, env, fake_time):
         # ticket.
         time.sleep(0.1)
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 500
 
 
@@ -599,33 +591,33 @@ def test_zero_extends_ticket(tmpdir, env, fake_time):
     {"op": "zero", "size": 1, "offset": -1},
     {"op": "zero", "size": 1, "offset": 1, "flush": "not a boolean"},
 ])
-def test_zero_validation(env, msg):
+def test_zero_validation(srv, msg):
     body = json.dumps(msg).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 400
 
 
-def test_zero_no_ticket_id(env):
+def test_zero_no_ticket_id(srv):
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
-def test_zero_ticket_unknown(env):
+def test_zero_ticket_unknown(srv):
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
 
-def test_zero_ticket_readonly(tmpdir, env):
+def test_zero_ticket_readonly(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 403
 
@@ -635,30 +627,30 @@ def test_zero_ticket_readonly(tmpdir, env):
     {"op": "flush"},
     {"op": "flush", "future": True},
 ])
-def test_flush(tmpdir, env, msg):
+def test_flush(tmpdir, srv, msg):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     body = json.dumps(msg).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
 
         assert res.status == 200
         assert res.getheader("content-length") == "0"
 
 
-def test_flush_extends_ticket(tmpdir, env, fake_time):
+def test_flush_extends_ticket(tmpdir, srv, fake_time):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 200
 
@@ -668,38 +660,38 @@ def test_flush_extends_ticket(tmpdir, env, fake_time):
         # ticket.
         time.sleep(0.1)
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 500
 
 
-def test_flush_no_ticket_id(env):
+def test_flush_no_ticket_id(srv):
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
-def test_flush_ticket_unknown(env):
+def test_flush_ticket_unknown(srv):
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
 
-def test_flush_ticket_readonly(tmpdir, env):
+def test_flush_ticket_readonly(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 403
 
 
 # Options
 
-def test_options_all(env):
-    with http.Client(env.cfg) as c:
+def test_options_all(srv):
+    with http.Client(srv.config) as c:
         res = c.options("/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"extents", "zero", "flush"}
@@ -707,13 +699,13 @@ def test_options_all(env):
         assert set(res.getheader("allow").split(',')) == allows
         options = json.loads(res.read())
         assert set(options["features"]) == features
-        assert options["unix_socket"] == env.cfg.images.socket
+        assert options["unix_socket"] == srv.config.images.socket
 
 
-def test_options_read_write(env):
+def test_options_read_write(srv):
     ticket = testutil.create_ticket(ops=["read", "write"])
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"extents", "zero", "flush"}
@@ -722,10 +714,10 @@ def test_options_read_write(env):
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_options_read(env):
+def test_options_read(srv):
     ticket = testutil.create_ticket(ops=["read"])
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         allows = {"OPTIONS", "GET"}
         features = {"extents"}
@@ -734,10 +726,10 @@ def test_options_read(env):
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_options_write(env):
+def test_options_write(srv):
     ticket = testutil.create_ticket(ops=["write"])
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         # Having "write" imply also "read".
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
@@ -747,14 +739,14 @@ def test_options_write(env):
         assert set(json.loads(res.read())["features"]) == features
 
 
-def test_options_extends_ticket(env, fake_time):
+def test_options_extends_ticket(srv, fake_time):
     ticket = testutil.create_ticket()
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         assert res.status == 200
 
@@ -764,52 +756,52 @@ def test_options_extends_ticket(env, fake_time):
         # ticket.
         time.sleep(0.1)
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 500
 
 
-def test_options_for_no_ticket(env):
-    with http.Client(env.cfg) as c:
+def test_options_for_no_ticket(srv):
+    with http.Client(srv.config) as c:
         res = c.options("/images/")
         assert res.status == 400
 
 
-def test_options_for_nonexistent_ticket(env):
-    with http.Client(env.cfg) as c:
+def test_options_for_nonexistent_ticket(srv):
+    with http.Client(srv.config) as c:
         res = c.options("/images/no-such-ticket")
         assert res.status == 403
 
 
-def test_options_ticket_expired(env, fake_time):
+def test_options_ticket_expired(srv, fake_time):
     ticket = testutil.create_ticket(timeout=300)
-    env.auth.add(ticket)
-    server_ticket = env.auth.get(ticket["uuid"]).info()
+    srv.auth.add(ticket)
+    server_ticket = srv.auth.get(ticket["uuid"]).info()
     assert server_ticket["expires"] == 300
 
     # Make the ticket expire
     fake_time.now += 300
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         assert res.status == 403
 
-        server_ticket = env.auth.get(ticket["uuid"]).info()
+        server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 300
 
 
 # HTTP correctness
 
-def test_response_version_success(tmpdir, env):
+def test_response_version_success(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", b"old")
     ticket = testutil.create_ticket(url="file://" + str(image))
-    env.auth.add(ticket)
-    with http.Client(env.cfg) as c:
+    srv.auth.add(ticket)
+    with http.Client(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "new")
         assert res.status == 200
         assert res.version == 11
 
 
-def test_response_version_error(tmpdir, env):
-    with http.Client(env.cfg) as c:
+def test_response_version_error(tmpdir, srv):
+    with http.Client(srv.config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status != 200
         assert res.version == 11
@@ -821,14 +813,14 @@ def test_response_version_error(tmpdir, env):
     ("OPTIONS", None),
     ("GET", None),
 ])
-def test_keep_alive_connection_on_success(tmpdir, env, method, body):
+def test_keep_alive_connection_on_success(tmpdir, srv, method, body):
     # After successful request the connection should remain open.
     image = testutil.create_tempfile(tmpdir, "image", size=1024)
     ticket = testutil.create_ticket(url="file://" + str(image),
                                     size=1024)
-    env.auth.add(ticket)
+    srv.auth.add(ticket)
     uri = "/images/%(uuid)s" % ticket
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()
@@ -847,11 +839,11 @@ def test_keep_alive_connection_on_success(tmpdir, env, method, body):
     # kept alive.
     ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
 ])
-def test_keep_alive_connection_on_error(tmpdir, env, method, body):
+def test_keep_alive_connection_on_error(tmpdir, srv, method, body):
     # When a request does not have a payload, the server can keep the
     # connection open after and error.
     uri = "/images/no-such-ticket"
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()
@@ -867,11 +859,11 @@ def test_keep_alive_connection_on_error(tmpdir, env, method, body):
 @pytest.mark.parametrize("method, body", [
     ("PUT", "data"),
 ])
-def test_close_connection_on_errors(tmpdir, env, method, body):
+def test_close_connection_on_errors(tmpdir, srv, method, body):
     # When a request have a payload, the server must close the
     # connection after an error, in case the entire body was not read.
     uri = "/images/no-such-ticket"
-    with http.Client(env.cfg) as c:
+    with http.Client(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()

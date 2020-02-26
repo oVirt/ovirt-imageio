@@ -24,12 +24,6 @@ from . import version
 
 log = logging.getLogger("server")
 
-authorizer = auth.Authorizer()
-remote_service = None
-local_service = None
-control_service = None
-running = True
-
 
 def main():
     args = parse_args()
@@ -37,22 +31,22 @@ def main():
     try:
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
         cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
-        signal.signal(signal.SIGINT, terminate)
-        signal.signal(signal.SIGTERM, terminate)
-        start(cfg, authorizer)
+
+        server = Server(cfg)
+        signal.signal(signal.SIGINT, server.terminate)
+        signal.signal(signal.SIGTERM, server.terminate)
+
+        server.start()
         try:
             systemd.daemon.notify("READY=1")
             log.info("Ready for requests")
-            while running:
+            while server.running:
                 signal.pause()
         finally:
-            stop()
+            server.stop()
         log.info("Stopped")
     except Exception:
-        log.exception(
-            "Service failed (remote_service=%s, local_service=%s, "
-            "control_service=%s, running=%s)"
-            % (remote_service, local_service, control_service, running))
+        log.exception("Server failed")
         sys.exit(1)
 
 
@@ -71,35 +65,44 @@ def configure_logger(args):
     logging.config.fileConfig(conf, disable_existing_loggers=False)
 
 
-def terminate(signo, frame):
-    global running
-    log.info("Received signal %d, shutting down", signo)
-    running = False
+class Server:
 
+    def __init__(self, config):
+        self.config = config
+        self.auth = auth.Authorizer()
+        self.remote_service = None
+        self.local_service = None
+        self.control_service = None
+        self.running = False
 
-def start(cfg, auth):
-    global remote_service, local_service, control_service
-    assert not (remote_service or local_service or control_service)
+    def start(self):
+        assert not self.running
+        self.running = True
 
-    log.debug("Starting remote service on port %d", cfg.images.port)
-    remote_service = services.RemoteService(cfg, auth)
-    remote_service.start()
+        log.debug("Starting remote service on port %d",
+                  self.config.images.port)
+        self.remote_service = services.RemoteService(self.config, self.auth)
+        self.remote_service.start()
 
-    log.debug("Starting local service on socket %r", cfg.images.socket)
-    local_service = services.LocalService(cfg, auth)
-    local_service.start()
+        log.debug("Starting local service on socket %r",
+                  self.config.images.socket)
+        self.local_service = services.LocalService(self.config, self.auth)
+        self.local_service.start()
 
-    log.debug("Starting control service on socket %r", cfg.tickets.socket)
-    control_service = services.ControlService(cfg, auth)
-    control_service.start()
+        log.debug("Starting control service on socket %r",
+                  self.config.tickets.socket)
+        self.control_service = services.ControlService(self.config, self.auth)
+        self.control_service.start()
 
+    def stop(self):
+        log.debug("Stopping services")
+        self.remote_service.stop()
+        self.local_service.stop()
+        self.control_service.stop()
+        self.remote_service = None
+        self.local_service = None
+        self.control_service = None
 
-def stop():
-    global remote_service, local_service, control_service
-    log.debug("Stopping services")
-    remote_service.stop()
-    local_service.stop()
-    control_service.stop()
-    remote_service = None
-    local_service = None
-    control_service = None
+    def terminate(self, signo, frame):
+        log.info("Received signal %d, shutting down", signo)
+        self.running = False
