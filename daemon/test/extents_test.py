@@ -47,15 +47,19 @@ except AttributeError:
     pass  # Older Python, not required
 
 
-@pytest.fixture(scope="module")
-def cfg():
-    return config.load(["test/conf/daemon.conf"])
+class Env:
+
+    def __init__(self, cfg, auth):
+        self.cfg = cfg
+        self.auth = auth
 
 
 @pytest.fixture(scope="module")
-def images_server(cfg):
-    server.start(cfg, auth)
-    yield
+def env():
+    cfg = config.load(["test/conf/daemon.conf"])
+    authorizer = auth.Authorizer()
+    server.start(cfg, authorizer)
+    yield Env(cfg, authorizer)
     server.stop()
 
 
@@ -71,31 +75,31 @@ def local_client(cfg):
     pytest.param(http_client, id="http"),
     pytest.param(local_client, id="local"),
 ])
-def client(cfg, request, images_server):
-    auth.clear()
-    client = request.param(cfg)
+def client(env, request):
+    env.auth.clear()
+    client = request.param(env.cfg)
     yield client
     client.close()
 
 
-def test_unupported_method(client):
+def test_unupported_method(env, client):
     res = client.request("PUT", "/images/no-such-ticket/extents")
     assert res.status == 405
 
 
-def test_no_ticket_id(client):
+def test_no_ticket_id(env, client):
     res = client.request("GET", "/images//extents")
     assert res.status == 400
 
 
-def test_no_ticket(client):
+def test_no_ticket(env, client):
     res = client.request("GET", "/images/no-such-ticket/extents")
     assert res.status == 403
 
 
-def test_ticket_expired(client, fake_time):
+def test_ticket_expired(env, client, fake_time):
     ticket = testutil.create_ticket(timeout=300)
-    auth.add(ticket)
+    env.auth.add(ticket)
 
     # Make the ticket expire
     fake_time.now += 300
@@ -109,7 +113,7 @@ def test_ticket_expired(client, fake_time):
     "/images/%(uuid)s/extents",
     "/images/%(uuid)s/extents?context=zero",
 ])
-def test_file_zero(client, user_file, fmt, path):
+def test_file_zero(env, client, user_file, fmt, path):
     subprocess.check_call(
         ["qemu-img", "create", "-f", fmt, user_file.path, "1g"])
 
@@ -117,7 +121,7 @@ def test_file_zero(client, user_file, fmt, path):
     size = os.path.getsize(user_file.path)
 
     ticket = testutil.create_ticket(url="file://" + user_file.path, size=size)
-    auth.add(ticket)
+    env.auth.add(ticket)
 
     res = client.request("GET", path % ticket)
     data = res.read()
@@ -127,13 +131,13 @@ def test_file_zero(client, user_file, fmt, path):
     assert extents == [{"start": 0, "length": size, "zero": False}]
 
 
-def test_file_ticket_not_dirty(client, tmpfile):
+def test_file_ticket_not_dirty(env, client, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
     ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile), size=65536, dirty=False)
-    auth.add(ticket)
+    env.auth.add(ticket)
 
     res = client.request(
         "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)
@@ -141,13 +145,13 @@ def test_file_ticket_not_dirty(client, tmpfile):
     assert res.status == 404
 
 
-def test_file_does_not_support_dirty(client, tmpfile):
+def test_file_does_not_support_dirty(env, client, tmpfile):
     with open(str(tmpfile), "wb") as f:
         f.truncate(65536)
 
     ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile), size=65536, dirty=True)
-    auth.add(ticket)
+    env.auth.add(ticket)
 
     res = client.request(
         "GET", "/images/%(uuid)s/extents?context=dirty" % ticket)

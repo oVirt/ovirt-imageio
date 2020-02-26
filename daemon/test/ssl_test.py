@@ -28,7 +28,8 @@ def on_centos(version=""):
 def remote_service(config_file):
     path = os.path.join("test/conf", config_file)
     cfg = config.load([path])
-    s = services.RemoteService(cfg, auth)
+    authorizer = auth.Authorizer()
+    s = services.RemoteService(cfg, authorizer)
     s.start()
     try:
         yield s

@@ -16,8 +16,7 @@ from . import errors
 from . import util
 from . import measure
 
-log = logging.getLogger("tickets")
-_tickets = {}
+log = logging.getLogger("auth")
 
 
 class Ticket(object):
@@ -242,47 +241,50 @@ def _validate(key, value, type):
     return value
 
 
-def add(ticket_dict):
-    """
-    Add a ticket to the store.
+class Authorizer:
 
-    Raises errors.InvalidTicket if ticket dict is invalid.
-    """
-    ticket = Ticket(ticket_dict)
-    _tickets[ticket.uuid] = ticket
+    def __init__(self):
+        self._tickets = {}
 
+    def add(self, ticket_dict):
+        """
+        Add a ticket to the store.
 
-def remove(ticket_id):
-    del _tickets[ticket_id]
+        Raises errors.InvalidTicket if ticket dict is invalid.
+        """
+        ticket = Ticket(ticket_dict)
+        self._tickets[ticket.uuid] = ticket
 
+    def remove(self, ticket_id):
+        del self._tickets[ticket_id]
 
-def clear():
-    _tickets.clear()
+    def clear(self):
+        self._tickets.clear()
 
+    def get(self, ticket_id):
+        """
+        Gets a ticket ID and returns the proper
+        Ticket object from the tickets' cache.
+        """
+        return self._tickets[ticket_id]
 
-def get(ticket_id):
-    """
-    Gets a ticket ID and returns the proper
-    Ticket object from the tickets' cache.
-    """
-    return _tickets[ticket_id]
+    def authorize(self, ticket_id, op):
+        """
+        Authorizing a ticket operation
+        """
+        log.debug("AUTH op=%s ticket=%s", op, ticket_id)
+        try:
+            ticket = self._tickets[ticket_id]
+        except KeyError:
+            raise errors.AuthorizationError(
+                "No such ticket {}".format(ticket_id))
 
+        if ticket.expires <= util.monotonic_time():
+            raise errors.AuthorizationError(
+                "Ticket {} expired".format(ticket_id))
 
-def authorize(ticket_id, op):
-    """
-    Authorizing a ticket operation
-    """
-    log.debug("AUTH op=%s ticket=%s", op, ticket_id)
-    try:
-        ticket = _tickets[ticket_id]
-    except KeyError:
-        raise errors.AuthorizationError("No such ticket {}".format(ticket_id))
+        if not ticket.may(op):
+            raise errors.AuthorizationError(
+                "Ticket {} forbids {}".format(ticket_id, op))
 
-    if ticket.expires <= util.monotonic_time():
-        raise errors.AuthorizationError("Ticket {} expired".format(ticket_id))
-
-    if not ticket.may(op):
-        raise errors.AuthorizationError(
-            "Ticket {} forbids {}".format(ticket_id, op))
-
-    return ticket
+        return ticket

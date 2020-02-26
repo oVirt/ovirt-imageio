@@ -27,37 +27,43 @@ from . marks import requires_python3
 pytestmark = requires_python3
 
 
+class Env:
+
+    def __init__(self, cfg, auth, service):
+        self.cfg = cfg
+        self.auth = auth
+        self.service = service
+
+
 @pytest.fixture(scope="module")
-def service():
+def env():
     cfg = config.load(["test/conf/daemon/conf"])
-    s = services.LocalService(cfg, auth)
-    s.start()
+    authorizer = auth.Authorizer()
+    service = services.LocalService(cfg, authorizer)
+
+    service.start()
     try:
-        yield s
+        yield Env(cfg, authorizer, service)
     finally:
-        s.stop()
+        service.stop()
 
 
-def setup_function(f):
-    auth.clear()
-
-
-def test_method_not_allowed(service):
-    with http.UnixClient(service.address) as c:
+def test_method_not_allowed(env):
+    with http.UnixClient(env.service.address) as c:
         res = c.request("FOO", "/images/")
         assert res.status == http_client.METHOD_NOT_ALLOWED
 
 
 @pytest.mark.parametrize("method", ["GET", "PUT", "PATCH"])
-def test_no_resource(service, method):
-    with http.UnixClient(service.address) as c:
+def test_no_resource(env, method):
+    with http.UnixClient(env.service.address) as c:
         res = c.request(method, "/no/resource")
         assert res.status == http_client.NOT_FOUND
 
 
 @pytest.mark.parametrize("method", ["GET", "PUT", "PATCH"])
-def test_no_ticket_id(service, method):
-    with http.UnixClient(service.address) as c:
+def test_no_ticket_id(env, method):
+    with http.UnixClient(env.service.address) as c:
         res = c.request(method, "/images/")
         assert res.status == http_client.BAD_REQUEST
 
@@ -67,28 +73,28 @@ def test_no_ticket_id(service, method):
     ("PUT", "body"),
     ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
 ])
-def test_no_ticket(service, method, body):
-    with http.UnixClient(service.address) as c:
+def test_no_ticket(env, method, body):
+    with http.UnixClient(env.service.address) as c:
         res = c.request(method, "/images/no-ticket", body=body)
         assert res.status == http_client.FORBIDDEN
 
 
-def test_put_forbidden(service):
+def test_put_forbidden(env):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
-    auth.add(ticket)
-    with http.UnixClient(service.address) as c:
+    env.auth.add(ticket)
+    with http.UnixClient(env.service.address) as c:
         res = c.request("PUT", "/images/" + ticket["uuid"], "content")
         assert res.status == http_client.FORBIDDEN
 
 
-def test_put(service, tmpdir):
+def test_put(env, tmpdir):
     data = b"-------|after"
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    auth.add(ticket)
+    env.auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
-    with http.UnixClient(service.address) as c:
+    with http.UnixClient(env.service.address) as c:
         res = c.request("PUT", uri, "content")
         assert res.status == http_client.OK
         assert res.getheader("content-length") == "0"
@@ -96,37 +102,37 @@ def test_put(service, tmpdir):
             assert f.read(len(data)) == "content|after"
 
 
-def test_get_forbidden(service):
+def test_get_forbidden(env):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=[])
-    auth.add(ticket)
-    with http.UnixClient(service.address) as c:
+    env.auth.add(ticket)
+    with http.UnixClient(env.service.address) as c:
         res = c.request("GET", "/images/" + ticket["uuid"], "content")
         assert res.status == http_client.FORBIDDEN
 
 
-def test_get(service, tmpdir):
+def test_get(env, tmpdir):
     data = b"a" * 512 + b"b" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=1024)
-    auth.add(ticket)
-    with http.UnixClient(service.address) as c:
+    env.auth.add(ticket)
+    with http.UnixClient(env.service.address) as c:
         res = c.request("GET", "/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         assert res.read() == data
 
 
-def test_images_zero(service, tmpdir):
+def test_images_zero(env, tmpdir):
     data = b"x" * 512
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image))
-    auth.add(ticket)
+    env.auth.add(ticket)
     msg = {"op": "zero", "size": 20, "offset": 10, "future": True}
     size = msg["size"]
     offset = msg.get("offset", 0)
     body = json.dumps(msg).encode("ascii")
-    with http.UnixClient(service.address) as c:
+    with http.UnixClient(env.service.address) as c:
         res = c.request("PATCH", "/images/" + ticket["uuid"], body)
         assert res.status == http_client.OK
         assert res.getheader("content-length") == "0"
@@ -136,8 +142,8 @@ def test_images_zero(service, tmpdir):
             assert f.read() == data[offset + size:]
 
 
-def test_options(service):
-    with http.UnixClient(service.address) as c:
+def test_options(env):
+    with http.UnixClient(env.service.address) as c:
         res = c.request("OPTIONS", "/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"zero", "flush", "extents"}
@@ -145,4 +151,4 @@ def test_options(service):
         assert set(res.getheader("allow").split(',')) == allows
         options = json.loads(res.read())
         assert set(options["features"]) == features
-        assert options["unix_socket"] == service.address
+        assert options["unix_socket"] == env.service.address

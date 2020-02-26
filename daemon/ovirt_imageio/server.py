@@ -23,6 +23,8 @@ from . import services
 from . import version
 
 log = logging.getLogger("server")
+
+authorizer = auth.Authorizer()
 remote_service = None
 local_service = None
 control_service = None
@@ -37,7 +39,7 @@ def main():
         cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
         signal.signal(signal.SIGINT, terminate)
         signal.signal(signal.SIGTERM, terminate)
-        start(cfg, auth)
+        start(cfg, authorizer)
         try:
             systemd.daemon.notify("READY=1")
             log.info("Ready for requests")
