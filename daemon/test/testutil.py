@@ -10,7 +10,7 @@ from __future__ import absolute_import
 
 import logging
 import socket
-import uuid
+from uuid import uuid4
 
 from contextlib import closing
 
@@ -37,11 +37,11 @@ def random_tcp_port():
         return port
 
 
-def create_ticket(uuid=str(uuid.uuid4()), ops=None, timeout=300, size=2**64,
+def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
                   url="file:///var/run/vdsm/storage/foo", transfer_id=None,
                   filename=None, sparse=None, dirty=None):
     d = {
-        "uuid": uuid,
+        "uuid": uuid or str(uuid4()),
         "timeout": timeout,
         "ops": ["read", "write"] if ops is None else ops,
         "size": size,
