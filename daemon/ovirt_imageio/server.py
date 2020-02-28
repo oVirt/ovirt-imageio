@@ -54,7 +54,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-c", "--conf-dir",
-        default="/etc/ovirt-imageio-daemon",
+        default="/etc/ovirt-imageio",
         help="path to configuration directory, where daemon.conf and "
              "logger.conf are located.")
     return parser.parse_args()

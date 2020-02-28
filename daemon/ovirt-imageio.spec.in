@@ -1,8 +1,6 @@
 %global python_version @PYTHON_VERSION@
 %global python python%{python_version}
 %global logdir @LOGDIR@
-# TODO: should be ovirt-imageio (%{name}) in the future.
-%global confdir ovirt-imageio-daemon
 
 # TODO: Use imageio own user and dedicated group.
 %global user vdsm
@@ -34,10 +32,9 @@ Image data transfer on oVirt virtualization hosts.
 install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
 touch %{buildroot}%{logdir}/daemon.log
-# TODO: should be /etc/ovirt-imageio in the future.
-install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{confdir}
-install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{confdir}
-install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{confdir}
+install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
 
 %clean
@@ -86,10 +83,9 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 %files daemon
 %{_bindir}/ovirt-imageio-daemon
 %{_unitdir}/ovirt-imageio-daemon.service
-# TODO: should be /etc/ovirt-imageio in the future.
-%dir %{_sysconfdir}/%{confdir}
-%config %{_sysconfdir}/%{confdir}/logger.conf
-%config %{_sysconfdir}/%{confdir}/daemon.conf
+%dir %{_sysconfdir}/%{name}
+%config %{_sysconfdir}/%{name}/logger.conf
+%config %{_sysconfdir}/%{name}/daemon.conf
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
 %dir %attr(755, %{user}, %{group}) %{logdir}
