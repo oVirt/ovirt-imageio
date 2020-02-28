@@ -2,9 +2,8 @@
 %global python python%{python_version}
 %global logdir @LOGDIR@
 
-# TODO: Use imageio own user and dedicated group.
-%global user vdsm
-%global group kvm
+%global user ovirtimg
+%global group ovirtimg
 
 %global srcname ovirt_imageio
 
@@ -95,6 +94,16 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
+
+%pre daemon
+# Create a user and group if needed
+if [[ ! `/usr/bin/getent passwd %{user} >/dev/null` ]]; then
+    /usr/sbin/useradd --system \
+        --user-group \
+        --shell /sbin/nologin \
+        --comment "oVirt imageio daemon" \
+        %{user}
+fi
 
 %post daemon
 # After installation, synchronize service state with preset files.

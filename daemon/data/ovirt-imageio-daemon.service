@@ -15,9 +15,8 @@ ExecStart=/usr/bin/ovirt-imageio-daemon
 KillSignal=SIGTERM
 KillMode=mixed
 Restart=always
-# The user and group should be the same as vdsm uses.
-User=vdsm
-Group=kvm
+User=ovirtimg
+Group=ovirtimg
 
 [Install]
 WantedBy=multi-user.target
