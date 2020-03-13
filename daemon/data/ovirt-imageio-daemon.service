@@ -17,6 +17,8 @@ KillMode=mixed
 Restart=always
 User=ovirtimg
 Group=ovirtimg
+RuntimeDirectory=ovirt-imageio
+RuntimeDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target
