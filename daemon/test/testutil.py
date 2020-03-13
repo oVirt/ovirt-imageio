@@ -38,8 +38,8 @@ def random_tcp_port():
 
 
 def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
-                  url="file:///var/run/vdsm/storage/foo", transfer_id=None,
-                  filename=None, sparse=None, dirty=None):
+                  url="file:///tmp/foo.img", transfer_id=None, filename=None,
+                  sparse=None, dirty=None):
     d = {
         "uuid": uuid or str(uuid4()),
         "timeout": timeout,

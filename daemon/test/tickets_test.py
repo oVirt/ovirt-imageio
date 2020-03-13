@@ -401,7 +401,7 @@ def test_delete_all(srv):
     # Example usage: move host to maintenance
     for i in range(5):
         ticket = testutil.create_ticket(
-            url="file:///var/run/vdsm/storage/foo%s" % i)
+            url="file:///tmp/foo%s" % i)
         srv.auth.add(ticket)
     with http.UnixClient(srv.config.tickets.socket) as c:
         res = c.request("DELETE", "/tickets/")

@@ -3,11 +3,6 @@ Description=oVirt ImageIO Daemon
 # The daemon should only be started if a certificate was rolled out
 # Otherwise the daemon startup will fail
 ConditionPathExists=/etc/pki/vdsm/certs/vdsmcert.pem
-# Ensure that the daemon starts after vdsm service.
-# We require to have /run/vdsm/ since we create our socket there
-# (vdsm starts only after /run/vdsm already exists).
-# See: http://bugzilla.redhat.com/1670312
-After=vdsmd.service
 
 [Service]
 Type=notify
