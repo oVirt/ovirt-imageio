@@ -34,7 +34,7 @@ touch %{buildroot}%{logdir}/daemon.log
 install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/ovirt-imageio-daemon.service %{buildroot}%{_unitdir}/ovirt-imageio-daemon.service
+install -D -m 0644 data/ovirt-imageio.service %{buildroot}%{_unitdir}/ovirt-imageio.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -80,8 +80,8 @@ Requires(pre): vdsm
 Daemon to manage image data transfer on oVirt virtualization hosts.
 
 %files daemon
-%{_bindir}/ovirt-imageio-daemon
-%{_unitdir}/ovirt-imageio-daemon.service
+%{_bindir}/ovirt-imageio
+%{_unitdir}/ovirt-imageio.service
 %dir %{_sysconfdir}/%{name}
 %config %{_sysconfdir}/%{name}/logger.conf
 %config %{_sysconfdir}/%{name}/daemon.conf
@@ -101,18 +101,18 @@ if [[ ! `/usr/bin/getent passwd %{user} >/dev/null` ]]; then
     /usr/sbin/useradd --system \
         --user-group \
         --shell /sbin/nologin \
-        --comment "oVirt imageio daemon" \
+        --comment "oVirt imageio" \
         %{user}
 fi
 
 %post daemon
 # After installation, synchronize service state with preset files.
-%systemd_post ovirt-imageio-daemon.service
+%systemd_post ovirt-imageio.service
 
 %preun daemon
 # Before uninstalling, stop and disable the service.
-%systemd_preun ovirt-imageio-daemon.service
+%systemd_preun ovirt-imageio.service
 
 %postun daemon
 # After upgrading, restart the service.
-%systemd_postun_with_restart ovirt-imageio-daemon.service
+%systemd_postun_with_restart ovirt-imageio.service

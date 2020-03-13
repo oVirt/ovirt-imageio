@@ -23,7 +23,7 @@ setup(
         "ovirt_imageio.backends"
     ],
     platforms=["Linux"],
-    scripts=["ovirt-imageio-daemon"],
+    scripts=["ovirt-imageio"],
     url="https://gerrit.ovirt.org/ovirt-imageio",
     version=version.string,
     ext_modules=[

@@ -6,7 +6,7 @@ ConditionPathExists=/etc/pki/vdsm/certs/vdsmcert.pem
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/ovirt-imageio-daemon
+ExecStart=/usr/bin/ovirt-imageio
 KillSignal=SIGTERM
 KillMode=mixed
 Restart=always

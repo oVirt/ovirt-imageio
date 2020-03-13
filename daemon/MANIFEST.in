@@ -3,7 +3,7 @@ include Makefile
 include bench
 include build-aux/release-suffix
 include ovirt-imageio.spec
-include ovirt-imageio-daemon
+include ovirt-imageio
 include *.in
 include *.ini
 
