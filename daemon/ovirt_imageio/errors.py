@@ -57,3 +57,14 @@ class UnsupportedOperation(Error):
 
     def __init__(self, reason):
         self.reason = reason
+
+
+class TlsConfigurationError(Error):
+    msg = ("TLS enabled (see [tls] section in daemon.conf), but not "
+           "configured: ca_file = {self.ca_file}, cert_file = "
+           "{self.cert_file}, key_file = {self.key_file}")
+
+    def __init__(self, ca_file, cert_file, key_file):
+        self.ca_file = ca_file
+        self.cert_file = cert_file
+        self.key_file = key_file

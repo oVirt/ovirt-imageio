@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import logging
 
+from . import errors
 from . import extents
 from . import http
 from . import images
@@ -76,6 +77,14 @@ class RemoteService(Service):
         log.debug("%s listening on port %d", self.name, self.port)
 
     def _secure_server(self):
+        required_config = (
+            self._config.tls.ca_file,
+            self._config.tls.cert_file,
+            self._config.tls.key_file,
+        )
+        if "" in required_config:
+            raise errors.TlsConfigurationError(*required_config)
+
         log.debug("Securing server (cafile=%s, certfile=%s, keyfile=%s)",
                   self._config.tls.ca_file,
                   self._config.tls.cert_file,

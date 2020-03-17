@@ -25,16 +25,18 @@ class tls:
 
     # Enable TLS. Note that without TLS transfer tickets and image data are
     # transferred in clear text.
+    # TODO: update the documentation with instructions, how to create
+    # certificate files and link it in config file.
     enable = True
 
     # Private key file.
-    key_file = "/etc/pki/vdsm/keys/vdsmkey.pem"
+    key_file = ""
 
     # Certificate file.
-    cert_file = "/etc/pki/vdsm/certs/vdsmcert.pem"
+    cert_file = ""
 
     # CA certificate file.
-    ca_file = "/etc/pki/vdsm/certs/cacert.pem"
+    ca_file = ""
 
     # Enable TLSv1.1, for legacy user applications that do not support
     # TLSv1.2.
