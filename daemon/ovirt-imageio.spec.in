@@ -70,11 +70,6 @@ BuildRequires: systemd
 Requires:  @PACKAGE_NAME@-common
 Requires:  %{python}-systemd
 
-# We run as vdsm so we can access vdsm images and pki files, so vdsm must be
-# installed before installing the imageio daemon.
-# TODO: Use our own user instead, and let vdsm setup the groups so we can
-# access what we need.
-Requires(pre): vdsm
 
 %description daemon
 Daemon to manage image data transfer on oVirt virtualization hosts.

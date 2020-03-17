@@ -1,8 +1,5 @@
 [Unit]
 Description=oVirt ImageIO Daemon
-# The daemon should only be started if a certificate was rolled out
-# Otherwise the daemon startup will fail
-ConditionPathExists=/etc/pki/vdsm/certs/vdsmcert.pem
 
 [Service]
 Type=notify
