@@ -17,15 +17,15 @@ from ovirt_imageio import configloader
 def config():
     class config:
         class foo:
-            string = u"old"
-            string_nonascii = u"\u05d0"
-            string_null = u"\u0000"
+            string = "old"
+            string_nonascii = "\u05d0"
+            string_null = "\u0000"
             integer = 1
             real = 4.0
             boolean = False
 
         class bar:
-            string = u"old"
+            string = "old"
     return config
 
 
@@ -35,8 +35,8 @@ def test_empty(tmpdir, config):
         pass
     configloader.load(config, [conf])
     assert config.foo.string == "old"
-    assert config.foo.string_nonascii == u"\u05d0"
-    assert config.foo.string_null == u"\u0000"
+    assert config.foo.string_nonascii == "\u05d0"
+    assert config.foo.string_null == "\u0000"
     assert config.foo.integer == 1
     assert config.foo.real == 4.0
     assert config.foo.boolean is False
@@ -169,7 +169,7 @@ def test_validate(tmpdir, config, option):
 
 
 def test_unicode(tmpdir, config):
-    data = u"""
+    data = """
 [foo]
 string_nonascii = \u05d0
 string_null = \u0000
@@ -178,8 +178,8 @@ string_null = \u0000
     with open(conf, "wb") as f:
         f.write(data.encode("utf-8"))
     configloader.load(config, [conf])
-    assert config.foo.string_nonascii == u"\u05d0"
-    assert config.foo.string_null == u"\u0000"
+    assert config.foo.string_nonascii == "\u05d0"
+    assert config.foo.string_null == "\u0000"
 
 
 def test_unsupported_default_value(tmpdir):

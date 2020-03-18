@@ -63,19 +63,19 @@ def nbd_sock(request, tmpdir):
 
 @pytest.mark.parametrize("addr,export,url", [
     # Note: We get Unicode when parsing ticket JSON.
-    (nbd.UnixAddress(u"/sock"), None, u"nbd:unix:/sock"),
-    (nbd.UnixAddress(u"/sock"), u"", u"nbd:unix:/sock"),
-    (nbd.UnixAddress(u"/sock"), u"sda", u"nbd:unix:/sock:exportname=sda"),
-    (nbd.TCPAddress(u"host", 10900), None, u"nbd:host:10900"),
-    (nbd.TCPAddress(u"host", 10900), u"", u"nbd:host:10900"),
-    (nbd.TCPAddress(u"host", 10900), u"sdb", u"nbd:host:10900:exportname=sdb"),
+    (nbd.UnixAddress("/sock"), None, "nbd:unix:/sock"),
+    (nbd.UnixAddress("/sock"), "", "nbd:unix:/sock"),
+    (nbd.UnixAddress("/sock"), "sda", "nbd:unix:/sock:exportname=sda"),
+    (nbd.TCPAddress("host", 10900), None, "nbd:host:10900"),
+    (nbd.TCPAddress("host", 10900), "", "nbd:host:10900"),
+    (nbd.TCPAddress("host", 10900), "sdb", "nbd:host:10900:exportname=sdb"),
 ])
 def test_url(addr, export, url):
     assert addr.url(export) == url
 
 
 @pytest.mark.parametrize("host,port", [
-    (u"localhost", u"42"),
+    ("localhost", "42"),
     (42, 42),
 ])
 def test_tcp_address_invalid(host, port):
@@ -90,7 +90,7 @@ def test_tcp_address_invalid(host, port):
 @pytest.mark.parametrize("export", [
     "",
     "ascii",
-    pytest.param(u"\u05d0", id="unicode", marks=requires_python3),
+    pytest.param("\u05d0", id="unicode", marks=requires_python3),
 ])
 def test_handshake(tmpdir, export, fmt):
     image = str(tmpdir.join("image"))
@@ -249,10 +249,10 @@ def test_zero_min_block_size(tmpdir, fmt):
 
 @pytest.mark.parametrize("url,export", [
     # Note: We get Unicode URL when parsing ticket JSON.
-    (u"nbd:unix:/path", u""),
-    (u"nbd:unix:/path:exportname=", u""),
-    (u"nbd:unix:/path:exportname=sda", u"sda"),
-    (u"nbd:unix:/path:exportname=/sda", u"/sda"),
+    ("nbd:unix:/path", ""),
+    ("nbd:unix:/path:exportname=", ""),
+    ("nbd:unix:/path:exportname=sda", "sda"),
+    ("nbd:unix:/path:exportname=/sda", "/sda"),
 ])
 def test_open_unix(tmpdir, url, export):
     image = str(tmpdir.join("image"))
@@ -270,21 +270,21 @@ def test_open_unix(tmpdir, url, export):
 
 @pytest.mark.parametrize("url_template,export", [
     # Note: We get Unicode URL when parsing ticket JSON.
-    (u"nbd:localhost:{port}", u""),
-    (u"nbd:localhost:{port}:exportname=", u""),
-    (u"nbd:localhost:{port}:exportname=sda", u"sda"),
-    (u"nbd:localhost:{port}:exportname=/sda", u"/sda"),
-    (u"nbd://localhost:{port}", u""),
-    (u"nbd://localhost:{port}/", u""),
-    (u"nbd://localhost:{port}/sda", u"sda"),
-    (u"nbd://localhost:{port}//sda", u"/sda"),
+    ("nbd:localhost:{port}", ""),
+    ("nbd:localhost:{port}:exportname=", ""),
+    ("nbd:localhost:{port}:exportname=sda", "sda"),
+    ("nbd:localhost:{port}:exportname=/sda", "/sda"),
+    ("nbd://localhost:{port}", ""),
+    ("nbd://localhost:{port}/", ""),
+    ("nbd://localhost:{port}/sda", "sda"),
+    ("nbd://localhost:{port}//sda", "/sda"),
 ])
 def test_open_tcp(tmpdir, url_template, export):
     image = str(tmpdir.join("image"))
     with open(image, "wb") as f:
         f.truncate(1024**3)
 
-    sock = nbd.TCPAddress(u"localhost", testutil.random_tcp_port())
+    sock = nbd.TCPAddress("localhost", testutil.random_tcp_port())
     url = url_template.format(port=sock.port)
 
     log.debug("Trying url=%r export=%r", url, export)

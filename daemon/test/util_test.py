@@ -258,13 +258,13 @@ def test_round_down(size, rounded):
 
 
 @pytest.mark.parametrize("value,expected", [
-    (u"value", u"value"),
-    ("value", u"value"),
-    (b"value", u"value"),
-    (u"\u05d0", u"\u05d0"),
-    (b"\xd7\x90", u"\u05d0"),
-    (u"\u0000", u"\u0000"),
-    (b"\0", u"\u0000"),
+    ("value", "value"),
+    ("value", "value"),
+    (b"value", "value"),
+    ("\u05d0", "\u05d0"),
+    (b"\xd7\x90", "\u05d0"),
+    ("\u0000", "\u0000"),
+    (b"\0", "\u0000"),
 ])
 def test_ensure_text(value, expected):
     result = util.ensure_text(value)

@@ -225,9 +225,9 @@ class Closeable(object):
         self.log = log
 
     def close(self):
-        self.log.write(u"{} was closed\n".format(self.name))
+        self.log.write("{} was closed\n".format(self.name))
         # For checking that all objects are closed when a connection is closed.
-        raise RuntimeError(u"Error closing {!r}".format(self.name))
+        raise RuntimeError("Error closing {!r}".format(self.name))
 
 
 class CloseContext(object):
@@ -445,7 +445,7 @@ def test_echo_100_continue(server):
 def test_json(server):
     con = http_client.HTTPConnection("localhost", server.server_port)
     with closing(con):
-        send = {"Hebrew Alef": u"\u05d0"}
+        send = {"Hebrew Alef": "\u05d0"}
         data = json.dumps(send).encode("utf-8") + b"\n"
         con.request("PUT", "/json/", body=data)
         r = con.getresponse()
@@ -624,8 +624,8 @@ def test_request_info_put_content_range_invalid(server):
 
 
 @pytest.mark.parametrize("uri,path,arg", [
-    ("/request-info/%d7%90", u"/request-info/\u05d0", u"\u05d0"),
-    ("/request-info%2farg", u"/request-info/arg", u"arg"),
+    ("/request-info/%d7%90", "/request-info/\u05d0", "\u05d0"),
+    ("/request-info%2farg", "/request-info/arg", "arg"),
 ])
 def test_request_info_uri(server, uri, path, arg):
     con = http_client.HTTPConnection("localhost", server.server_port)
@@ -653,7 +653,7 @@ def test_request_info_uri(server, uri, path, arg):
     ("%61=%31", {"a": "1"}),
     # Decoded keys and values {Hebrew Letter Alef: Hebrew Leter Bet}
     # http://unicode.org/charts/PDF/U0590.pdf
-    ("%d7%90=%d7%91", {u"\u05d0": u"\u05d1"}),
+    ("%d7%90=%d7%91", {"\u05d0": "\u05d1"}),
 ])
 def test_request_info_query_string(server, query_string, parsed_query):
     con = http_client.HTTPConnection("localhost", server.server_port)

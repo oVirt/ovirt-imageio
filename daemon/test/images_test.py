@@ -450,7 +450,7 @@ def test_download_holes(tmpdir, srv):
 
 def test_download_filename_in_ticket(tmpdir, srv):
     size = 1024
-    filename = u"\u05d0.raw"  # hebrew aleph
+    filename = "\u05d0.raw"  # hebrew aleph
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size,
                                     filename=filename)

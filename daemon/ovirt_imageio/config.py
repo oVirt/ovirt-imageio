@@ -45,7 +45,7 @@ class remote:
 
     # Remote service interface. Use empty string to listen on any
     # interface.
-    host = u""
+    host = ""
 
     # Remote service port. Changing this value require change in the
     # firewall rules on the host, and changing this value in engine
@@ -59,7 +59,7 @@ class local:
     enable = True
 
     # Local service unix socket for accessing images locally.
-    socket = u"\u0000/org/ovirt/imageio"
+    socket = "\u0000/org/ovirt/imageio"
 
 
 class control:
@@ -67,14 +67,14 @@ class control:
     # Control service socket path. This socket is used to control the
     # daemon and must be accessible only to the program controlling the
     # daemon.
-    socket = u"/run/ovirt-imageio/sock"
+    socket = "/run/ovirt-imageio/sock"
 
 
 class profile:
 
     # Filename for storing profile data. Profiling requires the "yappi"
     # package. Version 0.93 is recommended for best performance.
-    filename = u"/run/ovirt-imageio/profile"
+    filename = "/run/ovirt-imageio/profile"
 
 
 class Config:

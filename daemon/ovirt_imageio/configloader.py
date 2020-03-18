@@ -18,7 +18,7 @@ for example config.py:
 
     class foo:
 
-        string = u"value"
+        string = "value"
         integer = 42
         real = 3.14
         boolean = False
@@ -53,7 +53,7 @@ the config module will raise ValueError.
 
 Unknown sections and options in the configuration file are ignored.
 
-String values must use unicode literals (e.g. u"value"). bytes values (.e.g
+String values must use unicode literals (e.g. "value"). bytes values (.e.g
 b"value" or "value") are not supported.
 """
 

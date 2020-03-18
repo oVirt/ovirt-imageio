@@ -107,8 +107,7 @@ def test_blksszget_not_block_device(loop_device, tmpfile):
 # Empty zero buffer
 
 @pytest.mark.parametrize("buf", [
-    pytest.param(u"", id="unicode"),
-    pytest.param("", id="str"),
+    pytest.param("", id="unicode"),
     pytest.param(b"", id="bytes"),
     pytest.param(bytearray(), id="bytearray"),
 ])
@@ -127,8 +126,7 @@ def test_is_zero_empty_memoryview(buf):
 # Non-empty zero buffer
 
 @pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 512, id="unicode"),
-    pytest.param("\0" * 512, id="str"),
+    pytest.param("\u0000" * 512, id="unicode"),
     pytest.param(b"\0" * 512, id="bytes"),
     pytest.param(bytearray(512), id="bytearray"),
 ])
@@ -147,8 +145,7 @@ def test_is_zero_memoryview(buf):
 # Non-zero buffer with non-zero in first 16 bytes
 
 @pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 15 + u"x", id="unicode"),
-    pytest.param("\0" * 15 + "x", id="str"),
+    pytest.param("\u0000" * 15 + "x", id="unicode"),
     pytest.param(b"\0" * 15 + b"x", id="bytes"),
     pytest.param(bytearray(b"\0" * 15 + b"x"), id="bytearray"),
 ])
@@ -167,8 +164,7 @@ def test_is_not_zero_head_memoryview(buf):
 # Non-zero buffer
 
 @pytest.mark.parametrize("buf", [
-    pytest.param(u"\u0000" * 511 + u"x", id="unicode"),
-    pytest.param("\0" * 511 + "x", id="str"),
+    pytest.param("\u0000" * 511 + "x", id="unicode"),
     pytest.param(b"\0" * 511 + b"x", id="bytes"),
     pytest.param(bytearray(b"\0" * 511 + b"x"), id="bytearray"),
 ])
