@@ -90,9 +90,9 @@ class RemoteService(Service):
                   self._config.tls.cert_file,
                   self._config.tls.key_file)
         context = ssl.server_context(
-            self._config.tls.ca_file,
             self._config.tls.cert_file,
             self._config.tls.key_file,
+            cafile=self._config.tls.ca_file,
             enable_tls1_1=self._config.tls.enable_tls1_1)
         self._server.socket = context.wrap_socket(
             self._server.socket, server_side=True)

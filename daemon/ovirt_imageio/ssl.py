@@ -12,7 +12,7 @@ import ssl
 import subprocess
 
 
-def server_context(cafile, certfile, keyfile, enable_tls1_1=False):
+def server_context(certfile, keyfile, cafile=None, enable_tls1_1=False):
     # TODO: Verify client certs
     ctx = ssl.create_default_context(
         purpose=ssl.Purpose.CLIENT_AUTH, cafile=cafile)

@@ -36,7 +36,10 @@ def http_server(tmp_pki):
     server = http.Server(("localhost", 0), http.Connection)
     log.info("Server listening on port %d", server.server_port)
 
-    ctx = ssl.server_context(tmp_pki.cafile, tmp_pki.certfile, tmp_pki.keyfile)
+    ctx = ssl.server_context(
+        tmp_pki.certfile,
+        tmp_pki.keyfile,
+        cafile=tmp_pki.cafile)
     server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
     server.url = urlparse(
