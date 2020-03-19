@@ -1,11 +1,51 @@
 #!/bin/bash
 
+tmpdir="$(mktemp -d pki.XXXXXXXXXX)"
+
+# Create CA private key.
+openssl genrsa -out "$tmpdir/cakey.pem" 2048
+
+# Generate CA cert.
 openssl req \
     -x509 \
+    -new \
     -nodes \
+    -key "$tmpdir/cakey.pem" \
+    -sha256 \
     -days 3650 \
+    -subj "/CN=engine" \
+    -out "$tmpdir/ca.pem"
+
+# Create host private key.
+openssl genrsa -out "$tmpdir/key.pem" 2048
+
+# Create a sign request
+openssl req \
+    -new \
+    -key "$tmpdir/key.pem" \
     -subj "/CN=127.0.0.1" \
-    -addext "subjectAltName=IP:127.0.0.1" \
-    -newkey rsa:2048 \
-    -keyout pki/keys/vdsmkey.pem \
-    -out pki/certs/vdsmcert.pem
+    -out "$tmpdir/cert.csr"
+
+# Create confiugrtion file or adding extensions.
+cat > "$tmpdir/cert.conf" <<EOF
+[san]
+subjectAltName = IP:127.0.0.1
+EOF
+
+# Create host certificate signed by ca.pem
+openssl x509 \
+    -req \
+    -in "$tmpdir/cert.csr" \
+    -CA "$tmpdir/ca.pem" \
+    -CAkey "$tmpdir/cakey.pem" \
+    -CAcreateserial \
+    -extensions san \
+    -extfile "$tmpdir/cert.conf" \
+    -days 3650 \
+    -sha256 \
+    -out "$tmpdir/cert.pem"
+
+mv "$tmpdir"/{ca.pem,cert.pem} "pki/"
+mv "$tmpdir/key.pem" "pki/"
+
+rm -rf "$tmpdir"
