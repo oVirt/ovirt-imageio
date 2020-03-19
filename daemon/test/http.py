@@ -29,10 +29,7 @@ log = logging.getLogger("test")
 class Client:
 
     def __init__(self, cfg):
-        context = ssl.client_context(
-            cfg.tls.cert_file,
-            cfg.tls.cert_file,
-            cfg.tls.key_file)
+        context = ssl.client_context(cfg.tls.ca_file)
         self.con = http_client.HTTPSConnection(
             cfg.remote.host,
             cfg.remote.port,
