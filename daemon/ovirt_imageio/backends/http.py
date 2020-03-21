@@ -66,6 +66,10 @@ class Backend(object):
             self._con.close()
             raise
 
+    @property
+    def block_size(self):
+        return 1
+
     # Preferred interface.
 
     def read_from(self, reader, length, buf):
