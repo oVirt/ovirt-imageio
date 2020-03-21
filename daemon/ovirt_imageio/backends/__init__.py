@@ -49,7 +49,8 @@ def get(req, ticket, config):
             ticket.url,
             mode,
             sparse=ticket.sparse,
-            dirty=ticket.dirty)
+            dirty=ticket.dirty,
+            cafile=config.tls.ca_file)
 
         req.context[ticket.uuid] = backend
 

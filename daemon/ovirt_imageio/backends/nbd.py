@@ -22,7 +22,7 @@ log = logging.getLogger("backends.nbd")
 Error = nbd.Error
 
 
-def open(url, mode, sparse=True, dirty=False):
+def open(url, mode, sparse=True, dirty=False, **options):
     """
     Open a NBD backend.
 
@@ -37,6 +37,7 @@ def open(url, mode, sparse=True, dirty=False):
             qemu always deallocate space when zeroing.
         dirty (bool): if True, configure the client to report dirty extents.
             Can work only when connecting to qemu during incremental backup.
+        **options: ignored, nbd backend does not have any options.
     """
     client = nbd.open(url, dirty=dirty)
     try:
