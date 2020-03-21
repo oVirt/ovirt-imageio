@@ -56,7 +56,7 @@ class Handler(object):
             req.client_addr, size, offset, flush, ticket_id)
 
         op = ops.Receive(
-            backends.get(req, ticket),
+            backends.get(req, ticket, self.config),
             req,
             size,
             offset=offset,
@@ -93,7 +93,7 @@ class Handler(object):
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        backend = backends.get(req, ticket)
+        backend = backends.get(req, ticket, self.config)
 
         if size is not None:
             validate.allowed_range(offset, size, ticket)
@@ -119,7 +119,7 @@ class Handler(object):
                 offset, offset + size - 1, ticket.size)
 
         op = ops.Send(
-            backends.get(req, ticket),
+            backends.get(req, ticket, self.config),
             resp,
             size,
             offset=offset,
@@ -167,7 +167,7 @@ class Handler(object):
             req.client_addr, size, offset, flush, ticket_id)
 
         op = ops.Zero(
-            backends.get(req, ticket),
+            backends.get(req, ticket, self.config),
             size,
             offset=offset,
             flush=flush,
@@ -186,7 +186,9 @@ class Handler(object):
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
 
-        op = ops.Flush(backends.get(req, ticket), clock=req.clock)
+        op = ops.Flush(
+            backends.get(req, ticket, self.config),
+            clock=req.clock)
         ticket.run(op)
 
     def options(self, req, resp, ticket_id):

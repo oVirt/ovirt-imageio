@@ -27,7 +27,7 @@ def supports(name):
     return name in _modules
 
 
-def get(req, ticket):
+def get(req, ticket, config):
     """
     Return a connection backend for this ticket.
 

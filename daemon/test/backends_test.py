@@ -11,8 +11,9 @@ from __future__ import absolute_import
 from six.moves.urllib_parse import urlparse
 import pytest
 
-from ovirt_imageio import nbd
 from ovirt_imageio import backends
+from ovirt_imageio import config
+from ovirt_imageio import nbd
 
 from . import testutil
 from . marks import requires_python3
@@ -34,29 +35,34 @@ class Request(object):
         self.context = {}
 
 
-def test_get_unsupported_scheme():
+@pytest.fixture
+def cfg():
+    return config.load([])
+
+
+def test_get_unsupported_scheme(cfg):
     ticket = Ticket("test", urlparse("unsupported:/path"))
     req = Request()
     with pytest.raises(backends.Unsupported):
-        backends.get(req, ticket)
+        backends.get(req, ticket, cfg)
 
 
-def test_get_caching(tmpurl):
+def test_get_caching(tmpurl, cfg):
     ticket = Ticket("test", tmpurl)
     req = Request()
-    b1 = backends.get(req, ticket)
+    b1 = backends.get(req, ticket, cfg)
 
     # Backend is cache in req.context.
     assert b1.name == "file"
     assert req.context[ticket.uuid] is b1
 
     # Next call return the cached instance.
-    b2 = backends.get(req, ticket)
+    b2 = backends.get(req, ticket, cfg)
     assert b1 is b2
 
     # Deleting the cache creates a new instance.
     del req.context[ticket.uuid]
-    b3 = backends.get(req, ticket)
+    b3 = backends.get(req, ticket, cfg)
     assert b3.name == "file"
     assert b3 is not b1
 
@@ -66,10 +72,10 @@ def test_get_caching(tmpurl):
     (["read", "write"], True, True),
     (["write"], True, True),
 ])
-def test_get_ops(tmpurl, ops, readable, writable):
+def test_get_ops(tmpurl, cfg, ops, readable, writable):
     ticket = Ticket("test", tmpurl, ops=ops)
     req = Request()
-    b = backends.get(req, ticket)
+    b = backends.get(req, ticket, cfg)
 
     # Create a read-write file backend.
     assert b.name == "file"
@@ -78,10 +84,10 @@ def test_get_ops(tmpurl, ops, readable, writable):
 
 
 @pytest.mark.parametrize("sparse", [True, False])
-def test_get_sparse(tmpurl, sparse):
+def test_get_sparse(tmpurl, cfg, sparse):
     ticket = Ticket("test", tmpurl, sparse=sparse)
     req = Request()
-    b = backends.get(req, ticket)
+    b = backends.get(req, ticket, cfg)
 
     assert b.name == "file"
     assert b.sparse == sparse
@@ -89,7 +95,7 @@ def test_get_sparse(tmpurl, sparse):
 
 @requires_python3
 @pytest.mark.parametrize("transport", ["unix", "tcp"])
-def test_get_nbd_backend(tmpdir, nbd_server, transport):
+def test_get_nbd_backend(tmpdir, cfg, nbd_server, transport):
     if transport == "unix":
         nbd_server.sock = nbd.UnixAddress(tmpdir.join("sock"))
     else:
@@ -99,6 +105,6 @@ def test_get_nbd_backend(tmpdir, nbd_server, transport):
 
     ticket = Ticket("test", nbd_server.url)
     req = Request()
-    b = backends.get(req, ticket)
+    b = backends.get(req, ticket, cfg)
 
     assert b.name == "nbd"
