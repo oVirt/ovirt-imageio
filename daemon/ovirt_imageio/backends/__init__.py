@@ -10,8 +10,13 @@ from __future__ import absolute_import
 
 from . import file
 from . import nbd
+from . import http
 
-_modules = {"file": file, "nbd": nbd}
+_modules = {
+    "file": file,
+    "nbd": nbd,
+    "https": http,
+}
 
 
 class Unsupported(Exception):
