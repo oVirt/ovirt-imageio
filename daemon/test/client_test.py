@@ -51,7 +51,7 @@ def prepare_upload(srv, dst, sparse=True, size=IMAGE_SIZE):
 
     srv.auth.add(ticket)
 
-    return "https://localhost:{}/images/{}".format(
+    return "https://127.0.0.1:{}/images/{}".format(
         srv.remote_service.port, ticket["uuid"])
 
 
@@ -66,8 +66,6 @@ class FakeProgress:
 
 
 # TODO:
-# - All tests use secure=False to workaround our bad certificates. Once we fix
-#   the certificates we need to test with the default secure=True.
 # - verify that upload optimized the upload using unix socket. Need a way to
 #   enable only OPTIONS on the remote server.
 # - verify that upload fall back to HTTPS if server does not support unix
@@ -86,7 +84,7 @@ def test_upload_empty_sparse(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
@@ -102,7 +100,7 @@ def test_upload_hole_at_start_sparse(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
@@ -119,7 +117,7 @@ def test_upload_hole_at_middle_sparse(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
@@ -134,7 +132,7 @@ def test_upload_hole_at_end_sparse(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
@@ -148,7 +146,7 @@ def test_upload_full_sparse(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks == os.stat(src).st_blocks
@@ -162,7 +160,7 @@ def test_upload_preallocated(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst, sparse=False)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
@@ -177,7 +175,7 @@ def test_upload_unix_socket(tmpdir, srv, use_unix_socket):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst)
 
-    client.upload(src, url, srv.config.tls.ca_file, secure=False)
+    client.upload(src, url, srv.config.tls.ca_file)
 
     check_content(src, dst)
 
@@ -195,7 +193,7 @@ def test_progress(tmpdir, srv):
 
     progress = FakeProgress(IMAGE_SIZE)
     client.upload(
-        src, url, srv.config.tls.ca_file, secure=False, progress=progress)
+        src, url, srv.config.tls.ca_file, progress=progress)
 
     assert progress.updates == [
         # First write.
@@ -222,7 +220,6 @@ def test_progress_callback(tmpdir, srv):
         src,
         url,
         srv.config.tls.ca_file,
-        secure=False,
         progress=progress.append)
 
     assert progress == [IMAGE_SIZE]
