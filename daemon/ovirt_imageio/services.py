@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import logging
+import os
 
 from . import errors
 from . import extents
@@ -19,6 +20,8 @@ from . import ssl
 from . import tickets
 from . import uhttp
 from . import util
+
+DEFAULT_SOCKET_MODE = 0o660
 
 log = logging.getLogger("services")
 
@@ -139,6 +142,7 @@ class ControlService(Service):
         self._server.clock_class = util.Clock
         if config.control.socket == "":
             config.control.socket = self.address
+        os.chmod(config.control.socket, DEFAULT_SOCKET_MODE)
         self._server.app = http.Router([
             (r"/tickets/(.*)", tickets.Handler(config, auth)),
             (r"/profile/", profile.Handler(config, auth)),

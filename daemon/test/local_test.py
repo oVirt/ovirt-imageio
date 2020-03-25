@@ -11,6 +11,8 @@ from __future__ import print_function
 
 import io
 import json
+import os
+import stat
 
 import pytest
 from six.moves import http_client
@@ -141,3 +143,9 @@ def test_options(srv):
         options = json.loads(res.read())
         assert set(options["features"]) == features
         assert options["unix_socket"] == srv.local_service.address
+
+
+def test_control_socket_mode(srv):
+    socket = srv.config.control.socket
+    actual_mode = stat.S_IMODE(os.stat(socket).st_mode)
+    assert oct(actual_mode) == oct(0o660)
