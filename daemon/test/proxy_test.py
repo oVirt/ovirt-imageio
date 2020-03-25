@@ -31,14 +31,7 @@ def proxy():
     proxy.stop()
 
 
-@pytest.mark.parametrize("align", [
-    -4096,
-    0,
-    pytest.param(
-        4096,
-        marks=pytest.mark.xfail(
-            reason="http backend cannot do short reads")),
-])
+@pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_download_full(daemon, proxy, tmpfile, align):
     # Simple download of entire image as done by stupid clients.
     size = proxy.config.daemon.buffer_size + align

@@ -146,9 +146,16 @@ class Backend(object):
         """
         Send GET request, reading bytes at current position into buf.
         """
-        length = len(buf)
+        length = min(len(buf), self.size() - self._position)
+        if length <= 0:
+            # Zero length Range (first > last) is invalid.
+            # https://tools.ietf.org/html/rfc7233#section-2.1
+            return 0
+
         res = self._get(length)
-        self._read_all(res, buf)
+
+        with memoryview(buf)[:length] as view:
+            self._read_all(res, view)
 
         self._position += length
         return length

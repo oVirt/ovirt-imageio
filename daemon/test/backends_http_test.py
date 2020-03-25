@@ -487,8 +487,6 @@ def test_daemon_readinto(http_server, uhttp_server):
         check_readinto(handler, b)
 
 
-@pytest.mark.xfail(
-    reason="Reading after end send request with out of range content-range")
 @pytest.mark.parametrize("size", [4096, 42])
 def test_daemon_readinto_short(http_server, uhttp_server, size):
     handler = Daemon(http_server, uhttp_server)
@@ -505,8 +503,6 @@ def test_daemon_readinto_short(http_server, uhttp_server, size):
         assert buf[size:] == b"\0" * (8192 - size)
 
 
-@pytest.mark.xfail(
-    reason="Reading at or after end send request with invalid content-range")
 @pytest.mark.parametrize("end_offset", [0, 1])
 def test_daemon_readinto_end(http_server, uhttp_server, end_offset):
     _ = Daemon(http_server, uhttp_server)
