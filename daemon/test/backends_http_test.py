@@ -104,6 +104,12 @@ class Handler(object):
         if req.range:
             offset = req.range.first
             size = req.range.last + 1 - offset
+            if offset + size > len(self.image):
+                raise http.Error(
+                    http.REQUESTED_RANGE_NOT_SATISFIABLE,
+                    "Invalid content range: offset={} size={} length={}"
+                    .format(offset, size, len(self.image)))
+
             resp.status_code = http.PARTIAL_CONTENT
             resp.headers["content-range"] = "bytes {}-{}/{}".format(
                 offset, offset + size - 1, len(self.image))
@@ -479,6 +485,39 @@ def test_daemon_readinto(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
         check_readinto(handler, b)
+
+
+@pytest.mark.xfail(
+    reason="Reading after end send request with out of range content-range")
+@pytest.mark.parametrize("size", [4096, 42])
+def test_daemon_readinto_short(http_server, uhttp_server, size):
+    handler = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        offset = b.size() - size
+        buf = bytearray(8192)
+
+        b.seek(offset)
+        n = b.readinto(buf)
+
+        assert n == size
+        assert b.tell() == b.size()
+        assert buf[:size] == handler.image[offset:]
+        assert buf[size:] == b"\0" * (8192 - size)
+
+
+@pytest.mark.xfail(
+    reason="Reading at or after end send request with invalid content-range")
+@pytest.mark.parametrize("end_offset", [0, 1])
+def test_daemon_readinto_end(http_server, uhttp_server, end_offset):
+    _ = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        offset = b.size() + end_offset
+        b.seek(offset)
+        buf = bytearray(4096)
+        n = b.readinto(buf)
+
+        assert n == 0
+        assert b.tell() == offset
 
 
 def test_daemon_write(http_server, uhttp_server):
