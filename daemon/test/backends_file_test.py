@@ -32,12 +32,16 @@ pytestmark = requires_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
+# Up to kernel 5.5, block size detection for unallocated file was broken only
+# on XFS.  Since 5.5 it is broken on all file systems.
+KERNEL_VERSION = tuple(map(int, os.uname()[2].split(".")[:2]))
+
 
 @pytest.fixture(
     params=[
-        # backend, can_detect_sector_size
-        (BACKENDS["file-512-ext2"], True),
-        (BACKENDS["file-512-ext4"], True),
+        # backend, can_detect_sector_size.
+        (BACKENDS["file-512-ext2"], KERNEL_VERSION < (5, 5)),
+        (BACKENDS["file-512-ext4"], KERNEL_VERSION < (5, 5)),
         (BACKENDS["file-512-xfs"], False),
         (BACKENDS["file-4k-ext2"], True),
         (BACKENDS["file-4k-ext4"], True),
