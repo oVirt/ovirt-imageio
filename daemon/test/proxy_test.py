@@ -31,9 +31,18 @@ def proxy():
     proxy.stop()
 
 
-def test_images_download_full(daemon, proxy, tmpfile):
+@pytest.mark.parametrize("align", [
+    -4096,
+    0,
+    pytest.param(
+        4096,
+        marks=pytest.mark.xfail(
+            reason="http backend cannot do short reads")),
+])
+def test_images_download_full(daemon, proxy, tmpfile, align):
     # Simple download of entire image as done by stupid clients.
-    data = b"x" * 128 * 1024
+    size = proxy.config.daemon.buffer_size + align
+    data = b"x" * size
 
     with open(tmpfile, "wb") as f:
         f.write(data)
@@ -41,7 +50,7 @@ def test_images_download_full(daemon, proxy, tmpfile):
     # Add daemon ticket serving tmpfile.
     ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile),
-        size=len(data))
+        size=size)
     daemon.auth.add(ticket)
 
     # Add proxy ticket, proxying request to daemon.
@@ -56,18 +65,20 @@ def test_images_download_full(daemon, proxy, tmpfile):
     assert client_data == data
 
 
-def test_images_upload_full(daemon, proxy, tmpfile):
+@pytest.mark.parametrize("align", [-4096, 0, 4096])
+def test_images_upload_full(daemon, proxy, tmpfile, align):
     # Simple upload of entire image as done by stupid clients.
-    data = b"x" * 128 * 1024
+    size = proxy.config.daemon.buffer_size + align
+    data = b"x" * size
 
     # Create empty sparse image.
     with open(tmpfile, "wb") as f:
-        f.truncate(len(data))
+        f.truncate(size)
 
     # Add daemon ticket serving tmpfile.
     ticket = testutil.create_ticket(
         url="file://{}".format(tmpfile),
-        size=len(data))
+        size=size)
     daemon.auth.add(ticket)
 
     # Add proxy ticket, proxying request to daemon.
