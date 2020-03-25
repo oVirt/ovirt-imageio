@@ -71,18 +71,6 @@ def test_open_read_write(nbd_server):
         b.flush()
 
 
-def test_open_read_larger_buffer(nbd_server):
-    nbd_server.start()
-    with nbd.open(nbd_server.url, "r") as b:
-        # buffer larger than remaining data
-        buffer_length = 10
-        data_length = 5
-        with closing(util.aligned_buffer(buffer_length)) as buf:
-            b.seek(b._client.export_size - data_length)
-            assert b.readinto(buf) == data_length
-        b.flush()
-
-
 def test_open_readonly(nbd_server):
     nbd_server.read_only = True
     nbd_server.start()
@@ -127,6 +115,48 @@ def test_invalid_mode(nbd_server):
     nbd_server.start()
     with pytest.raises(ValueError):
         nbd.open(nbd_server.url, "invalid")
+
+
+@pytest.mark.parametrize("img_size,buf_size", [
+    pytest.param(4096, 4096, id="full"),
+    pytest.param(4096, 8192, id="short-aligned"),
+    pytest.param(4097, 8192, id="short-unaligned"),
+])
+def test_readinto(nbd_server, img_size, buf_size):
+    with open(nbd_server.image, "wb") as f:
+        f.write(b"x" * img_size)
+
+    nbd_server.start()
+
+    buf = bytearray(buf_size)
+    with nbd.open(nbd_server.url, "r+") as f:
+        # When image size is not aligned to 512 bytes, the last read is
+        # extended to the next multiple of 512.
+        effective_size = f.size()
+
+        n = f.readinto(buf)
+        assert n == effective_size
+        assert f.tell() == effective_size
+        assert buf[:img_size] == b"x" * img_size
+        assert buf[img_size:] == b"\0" * (buf_size - img_size)
+
+
+@pytest.mark.parametrize("end_offset", [
+    pytest.param(0, id="at-end"),
+    pytest.param(
+        1,
+        id="after-end",
+        marks=pytest.mark.xfail(reason="sending invalid request to server")),
+])
+def test_readinto_end(nbd_server, end_offset):
+    nbd_server.start()
+    buf = bytearray(512)
+    with nbd.open(nbd_server.url, "r+") as f:
+        offset = f.size() + end_offset
+        f.seek(offset)
+        n = f.readinto(buf)
+        assert n == 0
+        assert f.tell() == offset
 
 
 @pytest.mark.parametrize("sparse", [True, False])
