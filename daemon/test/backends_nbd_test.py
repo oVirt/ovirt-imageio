@@ -143,10 +143,7 @@ def test_readinto(nbd_server, img_size, buf_size):
 
 @pytest.mark.parametrize("end_offset", [
     pytest.param(0, id="at-end"),
-    pytest.param(
-        1,
-        id="after-end",
-        marks=pytest.mark.xfail(reason="sending invalid request to server")),
+    pytest.param(1, id="after-end"),
 ])
 def test_readinto_end(nbd_server, end_offset):
     nbd_server.start()

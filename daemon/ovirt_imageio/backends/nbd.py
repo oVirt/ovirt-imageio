@@ -67,6 +67,11 @@ class Backend(object):
             raise IOError("Unsupported operation: readinto")
 
         length = min(len(buf), self._client.export_size - self._position)
+        if length <= 0:
+            # Client should not send NBD_CMD_READ with zero length, and
+            # request after the end of file is invalid.
+            return 0
+
         with memoryview(buf)[:length] as view:
             self._client.readinto(self._position, view)
 
