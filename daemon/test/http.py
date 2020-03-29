@@ -44,8 +44,8 @@ class Client:
     def patch(self, uri, body, headers=None):
         return self.request("PATCH", uri, body=body, headers=headers)
 
-    def options(self, uri):
-        return self.request("OPTIONS", uri)
+    def options(self, uri, headers=None):
+        return self.request("OPTIONS", uri, headers=headers)
 
     def request(self, method, uri, body=None, headers=None):
         try:

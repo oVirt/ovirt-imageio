@@ -12,9 +12,10 @@ import json
 import logging
 
 from . import backends
-from . import ops
+from . import cors
 from . import errors
 from . import http
+from . import ops
 from . import validate
 
 log = logging.getLogger("images")
@@ -29,6 +30,7 @@ class Handler(object):
         self.config = config
         self.auth = auth
 
+    @cors.allow()
     def put(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
@@ -68,6 +70,7 @@ class Handler(object):
         except errors.PartialContent as e:
             raise http.Error(http.BAD_REQUEST, str(e))
 
+    @cors.allow()
     def get(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
@@ -191,6 +194,7 @@ class Handler(object):
             clock=req.clock)
         ticket.run(op)
 
+    @cors.allow(allow_methods="OPTIONS,GET,PUT")
     def options(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")

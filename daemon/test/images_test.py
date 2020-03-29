@@ -873,3 +873,109 @@ def test_close_connection_on_errors(tmpdir, srv, method, body):
         with pytest.raises(
                 (http_client.NotConnected, http_client.BadStatusLine)):
             c.request(method, uri, body=body)
+
+
+# CORS support
+
+
+def test_cors_options_none(srv):
+    with http.Client(srv.config) as c:
+        res = c.options("/images/*")
+        res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") is None
+    assert res.getheader("Access-Control-Allow-Headers") is None
+    assert res.getheader("Access-Control-Allow-Methods") is None
+    assert res.getheader("Access-Control-Max-Age") is None
+
+
+def test_cors_options_some(srv):
+    headers = {
+        "Origin": "https://foo.example",
+        "Access-Control-Request-Method": "PUT",
+    }
+    with http.Client(srv.config) as c:
+        res = c.options("/images/*", headers=headers)
+        res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Allow-Methods") == "OPTIONS,GET,PUT"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+
+
+def test_cors_options_all(srv):
+    headers = {
+        "Origin": "https://foo.example",
+        "Access-Control-Request-Method": "PUT",
+        "Access-Control-Request-Headers": "X-PINGOTHER, Content-Type",
+    }
+    with http.Client(srv.config) as c:
+        res = c.options("/images/*", headers=headers)
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Allow-Headers") == "*"
+    assert res.getheader("Access-Control-Allow-Methods") == "OPTIONS,GET,PUT"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+
+
+def test_cors_get_ok(tmpdir, srv):
+    size = 8192
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=size)
+    srv.auth.add(ticket)
+    uri = "/images/" + ticket["uuid"]
+    headers = {"Origin": "http://foo.example"}
+
+    with http.Client(srv.config) as c:
+        res = c.get(uri, headers=headers)
+        data = res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+    assert res.getheader("Access-Control-Allow-Headers") is None
+    assert res.getheader("Access-Control-Allow-Methods") is None
+    assert res.status == 200
+    assert data == b"\0" * size
+
+
+def test_cors_get_error(srv):
+    headers = {"Origin": "http://foo.example"}
+    with http.Client(srv.config) as c:
+        res = c.get("/images/no-such-ticket", headers=headers)
+        res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+    assert res.status == 403
+
+
+def test_cors_put_ok(tmpdir, srv):
+    size = 8192
+    image = testutil.create_tempfile(tmpdir, "image", size=size)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=size)
+    srv.auth.add(ticket)
+    uri = "/images/" + ticket["uuid"]
+    headers = {"Origin": "http://foo.example"}
+    data = b"x" * size
+
+    with http.Client(srv.config) as c:
+        res = c.put(uri, body=data, headers=headers)
+        res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+    assert res.status == 200
+
+    with open(image, "rb") as f:
+        assert f.read() == data
+
+
+def test_cors_put_error(srv):
+    headers = {"Origin": "http://foo.example"}
+    with http.Client(srv.config) as c:
+        res = c.put("/images/no-such-ticket", body=b"x", headers=headers)
+        res.read()
+
+    assert res.getheader("Access-Control-Allow-Origin") == "*"
+    assert res.getheader("Access-Control-Max-Age") == "86400"
+    assert res.status == 403
