@@ -21,6 +21,7 @@ from six.moves import socketserver
 from six.moves import urllib
 
 from . import util
+from . import version
 
 log = logging.getLogger("http")
 
@@ -184,6 +185,12 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
         has no error.
         """
         return self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+
+    def version_string(self):
+        """
+        Used in Server header.
+        """
+        return "imageio/" + version.string
 
 
 class Request(object):

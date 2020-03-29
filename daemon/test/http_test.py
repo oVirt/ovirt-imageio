@@ -25,6 +25,7 @@ import pytest
 
 from ovirt_imageio import http
 from ovirt_imageio import util
+from ovirt_imageio import version
 
 from . marks import requires_python3
 
@@ -332,6 +333,15 @@ def server():
     finally:
         server.shutdown()
         t.join()
+
+
+def test_demo_headers(server):
+    con = http_client.HTTPConnection("localhost", server.server_port)
+    with closing(con):
+        con.request("GET", "/demo/name")
+        r = con.getresponse()
+        r.read()
+        assert r.getheader("Server") == "imageio/" + version.string
 
 
 def test_demo_get(server):
