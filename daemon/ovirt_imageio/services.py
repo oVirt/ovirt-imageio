@@ -15,6 +15,7 @@ from . import errors
 from . import extents
 from . import http
 from . import images
+from . import info
 from . import profile
 from . import ssl
 from . import tickets
@@ -76,6 +77,7 @@ class RemoteService(Service):
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),
+            (r"/info/", info.Handler(config, auth)),
         ])
         log.debug("%s listening on port %d", self.name, self.port)
 
