@@ -58,6 +58,26 @@ def test_images_download_full(daemon, proxy, tmpfile, align):
     assert client_data == data
 
 
+@pytest.mark.xfail(reason="http backend error are not passed to client")
+def test_images_download_error(daemon, proxy, tmpfile):
+    # Passing error from daemon ot the proxy client.
+
+    # Create a proxy ticket, but no daemon ticket.
+    ticket = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=4096)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    # This request should fail in the proxy when opening the backend and
+    # sending OPTIONS request.
+    with http.Client(proxy.config) as c:
+        res = c.request("GET", "/images/{}".format(ticket["uuid"]))
+        res.read()
+
+    # The error should propagate to the caller.
+    assert res.status == 403
+
+
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_upload_full(daemon, proxy, tmpfile, align):
     # Simple upload of entire image as done by stupid clients.
