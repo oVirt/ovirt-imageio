@@ -33,7 +33,7 @@ install -D -m 0755 --directory %{buildroot}%{logdir}
 touch %{buildroot}%{logdir}/daemon.log
 install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/daemon.conf %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0644 data/daemon.conf.sample %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/ovirt-imageio.service %{buildroot}%{_unitdir}/ovirt-imageio.service
 
 %clean
@@ -79,7 +79,7 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 %{_unitdir}/ovirt-imageio.service
 %dir %{_sysconfdir}/%{name}
 %config %{_sysconfdir}/%{name}/logger.conf
-%config %{_sysconfdir}/%{name}/daemon.conf
+%{_sysconfdir}/%{name}/daemon.conf.sample
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
 %dir %attr(755, %{user}, %{group}) %{logdir}
