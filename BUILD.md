@@ -1,12 +1,46 @@
-# Build ovirt-imageio
+# Releasing ovirt-imageio
+
 
 ## Upstream
 
-- Update version.py in all packages
-- Add new annotated tag e.g "v1.6.3"
-- Push tag to gerrit
-- Merge the version patch; CI will build the packages and push them to
-  resources.ovirt.org.
+- Bump version for release and merge the patch:
+  https://gerrit.ovirt.org/108091/
+
+- Add new annotated tag e.g "v2.0.2"
+
+    $ git tag -a -m "Release 2.0.1 for oVirt 4.4.0" v2.0.2
+
+- Push the tag to gerrit
+
+    $ git push --tags v2.0.2
+
+- Send a patch to releng-tools project, adding the new version:
+  See https://gerrit.ovirt.org/108073/
+
+
+### Where to get the packages
+
+This release tarball will be available immediately in github at:
+https://github.com/oVirt/ovirt-imageio/releases
+
+The rpm will be available in few minutes in the jenkins build for the
+version patch. Look for the build comment like:
+https://gerrit.ovirt.org/c/108091/#message-b7b37559_79ba9e75
+
+Follow the link to the build, and follow the "Built artifacts link":
+https://jenkins.ovirt.org/job/ovirt-imageio_standard-on-merge/555/artifact/build-artifacts.py3.el8.x86_64/
+
+You can add a yum repo with this URL as base_url to upgrade
+ovirt-imageio.
+
+The packages will be available later (few hours or days) at ovirt
+repositories:
+https://resources.ovirt.org/pub/ovirt-master-snapshot/rpm/el8/
+
+When the releng-tools patch is be merged, the package will be
+published in the official repository for the release:
+https://resources.ovirt.org/pub/ovirt-4.4-pre/rpm/el8/x86_64/
+
 
 ## RHEL
 
@@ -16,76 +50,54 @@ Login using kinit:
 
    $ kinit
 
-Clone 3 projects with rhpkg if needed:
+Clone the project with rhpkg if needed:
 
-    $ for proj in ovirt-imageio-common ovirt-imageio-daemon ovirt-imageio-proxy; do
-        rhpkg clone $proj
-    done
+    $ rhpkg clone ovirt-imageio ovirt-imageio-rhel
 
-For every package, import new sources to the right branch.
+Import new sources to the right branch.
 
-### ovirt-imageio-common
+    $ cd ovirt-imageio-rhel
+    $ rhpkg switch-branch rhevm-4.4-rhel-8
+    $ wget https://jenkins.ovirt.org/job/ovirt-imageio_standard-on-merge/555/artifact/build-artifacts.py3.el8.x86_64/ovirt-imageio-2.0.2-0.el8.src.rpm
+    $ rhpkg import ovirt-imageio-2.0.2-0.el8.src.rpm
+    $ rhpkg commit -m 'Release 2.0.2 for RHV 4.4.0'
 
-Currently building for both rhevm-4.4-rhel-7 (python 2) and
-rhevm-4.4-rhel-8 (python 3), so we need to import the sources twice.
+Try a scratch build:
 
-For RHEL 7:
-
-    $ cd ovirt-imageio-common
-    $ rhpkg switch-branch rhevm-4.4-rhel-7
-    $ wget https://jenkins.ovirt.org/job/ovirt-imageio_standard-check-patch/1898/artifact/build-artifacts.py2.el7.x86_64/ovirt-imageio-common-1.6.2-0.el7.src.rpm
-    $ rhpkg import ovirt-imageio-common-1.6.2-0.el7.src.rpm
-    $ rhpkg commit -m 'Release 1.6.2 for RHV 4.4'
     $ rhpkg scratch-build --srpm
 
-If the scratch build was successful, push the changes and create a
+If the scratch build is successful, you will get mail from brew with a
+scratch repository for testing. Lookup mail with subject like:
+
+    "repo for scratch build of ovirt-imageio-2.0.2-2.el8ev is available"
+
+In the mail you will find a repository URL. The repository includes a
+repo file that can be used for testing:
+
+    http://brew-task-repos.usersys.redhat.com/repos/scratch/nsoffer/ovirt-imageio/2.0.2/2.el8ev/ovirt-imageio-2.0.2-2.el8ev-scratch.repo
+
+If the scratch build looks good, push the change and make an official
 build:
 
     $ rhpkg push
     $ rhpkg build
 
-Now do the same for RHEL 8:
+Brew will send you an official build repository that can be used for
+testing by other developers or testers. Consider telling people about it
+in rhev-devel mailing list.
 
-    $ rhpkg switch-branch rhevm-4.4-rhel-8
-    $ wget https://jenkins.ovirt.org/job/ovirt-imageio_standard-check-patch/1898/artifact/build-artifacts.py3.el8.x86_64/ovirt-imageio-common-1.6.2-0.el8.src.rpm
-    $ rhpkg import ovirt-imageio-common-1.6.2-0.el8.src.rpm
-    $ rhpkg commit -m 'Release 1.6.2 for RHV 4.4'
-    $ rhpkg scratch-build --srpm
-    $ rhpkg push
-    $ rhpkg build
-
-### ovirt-imageio-daemon
-
-We build the daemon only for RHEL 8:
-
-    $ cd ovirt-imageio-daemon
-    $ rhpkg switch-branch rhevm-4.4-rhel-8
-    $ wget https://jenkins.ovirt.org/job/ovirt-imageio_standard-check-patch/1898/artifact/build-artifacts.py3.el8.x86_64/ovirt-imageio-daemon-1.6.2-0.el8.src.rpm
-    $ rhpkg import ovirt-imageio-daemon-1.6.2-0.el8.src.rpm
-    $ rhpkg commit -m 'Release 1.6.2 for RHV 4.4'
-    $ rhpkg scratch-build --srpm
-    $ rhpkg push
-    $ rhpkg build
-
-### ovirt-imageio-proxy
-
-We build the daemon only for RHEL 7:
-
-    $ cd ovirt-imageio-proxy
-    $ rhpkg switch-branch rhevm-4.4-rhel-7
-    $ wget https://jenkins.ovirt.org/job/ovirt-imageio_standard-check-patch/1898/artifact/build-artifacts.py2.el7.x86_64/ovirt-imageio-proxy-1.6.2-0.el7.src.rpm
-    $ rhpkg import ovirt-imageio-proxy-1.6.2-0.el7.src.rpm
-    $ rhpkg commit -m 'Release 1.6.2 for RHV 4.4'
-    $ rhpkg scratch-build --srpm
-    $ rhpkg push
-    $ rhpkg build
 
 ## Errata
 
-When the builds are ready, you need to add the builds to the errata.
+When the build is ready, you need to add the build to the errata.
 
-Visit https://errata.devel.redhat.com/, find the errata, and add the
-builds.
+Visit https://errata.devel.redhat.com/ and find the errata. To find the
+errata, you can do packages search for ovirt-imageio, or vdsm.
 
-After adding the builds, you may get mail about rpmdiff issues. You have
+To add the build to the errata, usually the easiest way is to use the
+package NVR (name, version, release):
+
+    ovirt-imageio-2.0.2-2.el8ev
+
+After adding the build, you may get mail about rpmdiff issues. You have
 to check the reports and wave the report if needed.
