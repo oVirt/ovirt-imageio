@@ -58,7 +58,6 @@ def test_images_download_full(daemon, proxy, tmpfile, align):
     assert client_data == data
 
 
-@pytest.mark.xfail(reason="http backend error are not passed to client")
 def test_images_download_error(daemon, proxy, tmpfile):
     # Passing error from daemon ot the proxy client.
 

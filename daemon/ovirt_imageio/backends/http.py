@@ -19,6 +19,7 @@ import socket
 import ssl
 
 from .. import errors
+from .. import http
 from . import image
 
 log = logging.getLogger("backends.http")
@@ -372,7 +373,7 @@ class Backend(object):
             # content.
             return options
         elif res.status != http_client.OK:
-            raise RuntimeError("Error OPTIONS: {}".format(body))
+            raise self._reraise(res.status, body)
 
         # New daemon or proxy provides options dict.
         try:
@@ -466,6 +467,18 @@ class Backend(object):
                     raise RuntimeError(
                         "Expected {} byes, got {} bytes".format(length, pos))
                 pos += n
+
+    def _reraise(self, status, body):
+        """
+        Reconstruct http.Error from daemon response and raise it.
+
+        Assume that body is text using utf-8 encoding. Invaid characters will
+        be replaed with the unicode replacement character.
+
+        Trim large body since it cannot be a valid error message.
+        """
+        msg = body[:512].decode("utf-8", errors="replace")
+        raise http.Error(status, msg)
 
 
 class HTTPSConnection(http_client.HTTPSConnection):
