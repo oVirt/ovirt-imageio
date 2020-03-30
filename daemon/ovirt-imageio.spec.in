@@ -89,6 +89,8 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
+# For info on ordering of the scriplets, see:
+# https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/#ordering
 
 %pre daemon
 # Create a user and group if needed
@@ -111,3 +113,11 @@ fi
 %postun daemon
 # After upgrading, restart the service.
 %systemd_postun_with_restart ovirt-imageio.service
+
+%posttrans daemon
+# At the end of the transaction, stop stale ovirt-imageio-daemon service.
+# Needed only when upgrading from ovirt-imagei-daemon < 2.
+if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
+    echo "Stopping ovirt-imageio-daemon.service";
+    systemctl stop ovirt-imageio-daemon.service
+fi
