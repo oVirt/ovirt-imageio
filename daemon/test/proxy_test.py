@@ -31,6 +31,11 @@ def proxy():
     proxy.stop()
 
 
+@pytest.mark.xfail(reason="local service always runs")
+def test_local_service_disabled(proxy):
+    assert proxy.local_service is None
+
+
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_download_full(daemon, proxy, tmpfile, align):
     # Simple download of entire image as done by stupid clients.
