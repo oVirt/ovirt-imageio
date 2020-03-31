@@ -84,7 +84,7 @@ class Server:
         self.remote_service = services.RemoteService(self.config, self.auth)
         self.remote_service.start()
 
-        if config.local.enable:
+        if self.config.local.enable:
             log.debug("Starting local service on socket %r",
                       self.config.local.socket)
             self.local_service = services.LocalService(self.config, self.auth)

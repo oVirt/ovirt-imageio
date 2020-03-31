@@ -31,7 +31,6 @@ def proxy():
     proxy.stop()
 
 
-@pytest.mark.xfail(reason="local service always runs")
 def test_local_service_disabled(proxy):
     assert proxy.local_service is None
 
