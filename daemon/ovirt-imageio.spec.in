@@ -92,7 +92,7 @@ Daemon to manage image data transfer on oVirt virtualization hosts.
 
 %pre daemon
 # Create a user and group if needed
-if [[ ! `/usr/bin/getent passwd %{user} >/dev/null` ]]; then
+if ! /usr/bin/getent passwd %{user} >/dev/null; then
     /usr/sbin/useradd --system \
         --user-group \
         --shell /sbin/nologin \
