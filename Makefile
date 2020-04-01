@@ -1,4 +1,4 @@
-PYTHON_VERSION = 2
+PYTHON_VERSION = 3
 
 targets = all check dist srpm rpm
 
