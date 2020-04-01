@@ -112,6 +112,18 @@ class UnixClient:
         self.close()
 
 
+class LocalClient(UnixClient):
+
+    def __init__(self, cfg):
+        super().__init__(cfg.local.socket)
+
+
+class ControlClient(UnixClient):
+
+    def __init__(self, cfg):
+        super().__init__(cfg.control.socket)
+
+
 def response(con):
     res = con.getresponse()
     pprint((res.status, res.reason, res.version))
