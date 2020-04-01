@@ -303,7 +303,7 @@ def test_idle_time_active(srv, fake_time, tmpdir):
 
     # Start a download, but read only 1 byte to make sure the operation becomes
     # active but do not complete.
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         res.read(1)
 
@@ -331,7 +331,7 @@ def test_idle_time_put(srv, fake_time, tmpdir):
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         c.put("/images/" + ticket["uuid"], "b" * 8192)
         assert srv.auth.get(ticket["uuid"]).idle_time == 0
 
@@ -343,7 +343,7 @@ def test_idle_time_get(srv, fake_time, tmpdir):
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         c.get("/images/" + ticket["uuid"])
         assert srv.auth.get(ticket["uuid"]).idle_time == 0
 
@@ -361,7 +361,7 @@ def test_idle_time_patch(srv, fake_time, tmpdir, msg):
     fake_time.now += 200
     body = json.dumps(msg).encode('ascii')
 
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         c.patch("/images/" + ticket["uuid"], body,
                 headers={"content-type": "application/json"})
         assert srv.auth.get(ticket["uuid"]).idle_time == 0
@@ -373,7 +373,7 @@ def test_idle_time_options(srv, fake_time):
 
     # Request must reset idle time.
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         c.options("/images/" + ticket["uuid"])
         assert srv.auth.get(ticket["uuid"]).idle_time == 0
 

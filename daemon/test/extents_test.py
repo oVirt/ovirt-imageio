@@ -46,17 +46,9 @@ def srv():
     s.stop()
 
 
-def http_client(cfg):
-    return http.Client(cfg)
-
-
-def local_client(cfg):
-    return http.UnixClient(cfg.local.socket)
-
-
 @pytest.fixture(params=[
-    pytest.param(http_client, id="http"),
-    pytest.param(local_client, id="local"),
+    pytest.param(http.RemoteClient, id="http"),
+    pytest.param(http.LocalClient, id="local"),
 ])
 def client(srv, request):
     srv.auth.clear()

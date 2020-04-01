@@ -26,14 +26,10 @@ from ovirt_imageio import uhttp
 log = logging.getLogger("test")
 
 
-class Client:
+class HTTPClient:
 
-    def __init__(self, cfg):
-        context = ssl.client_context(cfg.tls.ca_file)
-        self.con = http_client.HTTPSConnection(
-            cfg.remote.host,
-            cfg.remote.port,
-            context=context)
+    def __init__(self, con):
+        self.con = con
 
     def get(self, uri, headers=None):
         return self.request("GET", uri, headers=headers)
@@ -110,6 +106,21 @@ class UnixClient:
 
     def __exit__(self, *args):
         self.close()
+
+
+class RemoteClient(HTTPClient):
+
+    def __init__(self, cfg):
+        if cfg.tls.enable:
+            context = ssl.client_context(cfg.tls.ca_file)
+            con = http_client.HTTPSConnection(
+                cfg.remote.host,
+                cfg.remote.port,
+                context=context)
+        else:
+            con = http_client.HTTPConnection(cfg.remote.host, cfg.remote.port)
+
+        super().__init__(con)
 
 
 class LocalClient(UnixClient):

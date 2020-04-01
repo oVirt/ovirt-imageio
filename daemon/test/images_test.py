@@ -45,25 +45,25 @@ def srv():
 
 
 def test_no_resource(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.request("PUT", "/no/such/resource")
         assert res.status == 404
 
 
 def test_no_method(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.request("FOO", "/images/")
         assert res.status == 405
 
 
 def test_upload_no_ticket_id(tmpdir, srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/", "content")
         assert res.status == 400
 
 
 def test_upload_no_ticket(tmpdir, srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/no-such-ticket", "content")
         assert res.status == 403
 
@@ -72,7 +72,7 @@ def test_upload_forbidden(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file:///no/such/image", ops=["read"])
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content")
         assert res.status == 403
 
@@ -80,7 +80,7 @@ def test_upload_forbidden(tmpdir, srv):
 def test_upload_content_length_missing(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"])
         assert res.status == 400
 
@@ -88,7 +88,7 @@ def test_upload_content_length_missing(tmpdir, srv):
 def test_upload_content_length_invalid(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"],
                             headers={"content-length": "invalid"})
         assert res.status == 400
@@ -98,7 +98,7 @@ def test_upload_content_length_negative(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.raw_request("PUT", "/images/" + ticket["uuid"],
                             headers={"content-length": "-1"})
         assert res.status == 400
@@ -109,7 +109,7 @@ def test_upload_no_content(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", b"before")
     ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "")
         assert res.status == 200
 
@@ -122,7 +122,7 @@ def test_upload_extends_ticket(tmpdir, srv, fake_time):
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "")
         assert res.status == 200
 
@@ -147,7 +147,7 @@ def test_upload(tmpdir, srv, flush):
     uri = "/images/" + ticket["uuid"]
     if flush:
         uri += "?flush=" + flush
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put(uri, "content")
         with io.open(str(image), "rb") as f:
             assert f.read(len(data)) == b"content|after"
@@ -158,7 +158,7 @@ def test_upload(tmpdir, srv, flush):
 def test_upload_invalid_flush(tmpdir, srv):
     ticket = testutil.create_ticket(url="file:///no/such/image")
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"] + "?flush=invalid", "data")
         assert res.status == 400
 
@@ -172,7 +172,7 @@ def test_upload_with_range(tmpdir, srv, crange, before, after):
     image = testutil.create_tempfile(tmpdir, "image", before)
     ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content",
                     headers={"Content-Range": crange})
         with io.open(str(image), "rb") as f:
@@ -187,7 +187,7 @@ def test_upload_max_size(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], content)
         assert res.status == 200
         with io.open(str(image), "rb") as f:
@@ -200,7 +200,7 @@ def test_upload_too_big(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b" * (image_size + 1))
         assert res.status == 416
         assert image.read() == ""
@@ -212,7 +212,7 @@ def test_upload_last_byte(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b",
                     headers={"Content-Range": "bytes 99-100/*"})
         assert res.status == 200
@@ -226,7 +226,7 @@ def test_upload_after_last_byte(tmpdir, srv):
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "b",
                     headers={"Content-Range": "bytes 100-101/*"})
         assert res.status == 416
@@ -245,20 +245,20 @@ def test_upload_after_last_byte(tmpdir, srv):
 def test_upload_invalid_range(tmpdir, srv, content_range):
     ticket = testutil.create_ticket()
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "content",
                     headers={"Content-Range": content_range})
         assert res.status == 400
 
 
 def test_download_no_ticket_id(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/")
         assert res.status == http_client.BAD_REQUEST
 
 
 def test_download_no_ticket(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status == http_client.FORBIDDEN
 
@@ -277,7 +277,7 @@ def test_download(tmpdir, srv, rng, start, end):
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=len(data))
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"], headers={"Range": rng})
         assert res.status == 206
         received = res.read()
@@ -290,7 +290,7 @@ def test_download_image_size_gt_ticket_size(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         assert len(res.read()) == 4096
@@ -300,7 +300,7 @@ def test_download_ticket_size_gt_image_size(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         assert len(res.read()) == 4096
@@ -310,7 +310,7 @@ def test_download_range_forbidden(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=4096)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-8192"})
         assert res.status == 416
@@ -321,7 +321,7 @@ def test_download_range_unavailable(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
     ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-4096"})
         assert res.status == 416
@@ -333,7 +333,7 @@ def test_download_no_range(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         received = res.read()
@@ -349,7 +349,7 @@ def test_download_extends_ticket(tmpdir, srv, fake_time):
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
 
@@ -368,7 +368,7 @@ def test_download_empty(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutil.create_ticket(url="file://" + str(image), size=0)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == 200
         data = res.read()
@@ -385,7 +385,7 @@ def test_download_partial_not_satistieble(tmpdir, srv):
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
     srv.auth.add(ticket)
     unsatisfiable_range = "bytes=0-%d" % size  # Max is size - 1
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": unsatisfiable_range})
         assert res.status == http_client.REQUESTED_RANGE_NOT_SATISFIABLE
@@ -401,7 +401,7 @@ def test_download_partial_no_range(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         # Should return the available image data, not the ticket size. Reading
@@ -416,7 +416,7 @@ def test_download_partial_no_range_empty(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
     ticket = testutil.create_ticket(url="file://" + str(image), size=1024)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         assert res.length == 0
@@ -427,7 +427,7 @@ def test_download_no_range_end(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-"})
         assert res.status == 206
@@ -440,7 +440,7 @@ def test_download_holes(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-1023"})
         assert res.status == 206
@@ -455,7 +455,7 @@ def test_download_filename_in_ticket(tmpdir, srv):
     ticket = testutil.create_ticket(url="file://" + str(image), size=size,
                                     filename=filename)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": "bytes=0-1023"})
         expected = "attachment; filename=\xd7\x90.raw"
@@ -470,7 +470,7 @@ def test_download_out_of_range(tmpdir, srv, rng, end):
     image = testutil.create_tempfile(tmpdir, "image", data)
     ticket = testutil.create_ticket(url="file://" + str(image), size=end)
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket["uuid"],
                     headers={"Range": rng})
         res.read()
@@ -497,7 +497,7 @@ def test_download_progress(tmpdir, srv, monkeypatch):
     assert not ticket.active()
     assert ticket.transferred() == 0
 
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/" + ticket.uuid)
         res.read(srv.config.daemon.buffer_size)
 
@@ -522,7 +522,7 @@ def test_download_progress(tmpdir, srv, monkeypatch):
 
 def test_patch_unkown_op(srv):
     body = json.dumps({"op": "unknown"}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 400
 
@@ -541,7 +541,7 @@ def test_zero(tmpdir, srv, msg):
     size = msg["size"]
     offset = msg.get("offset", 0)
     body = json.dumps(msg).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
 
         assert res.status == 200
@@ -562,7 +562,7 @@ def test_zero_extends_ticket(tmpdir, srv, fake_time):
 
     fake_time.now += 200
     body = json.dumps({"op": "zero", "size": 512}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 200
 
@@ -586,21 +586,21 @@ def test_zero_extends_ticket(tmpdir, srv, fake_time):
 ])
 def test_zero_validation(srv, msg):
     body = json.dumps(msg).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 400
 
 
 def test_zero_no_ticket_id(srv):
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
 def test_zero_ticket_unknown(srv):
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
@@ -610,7 +610,7 @@ def test_zero_ticket_readonly(tmpdir, srv):
         url="file:///no/such/image", ops=["read"])
     srv.auth.add(ticket)
     body = json.dumps({"op": "zero", "size": 1}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 403
 
@@ -626,7 +626,7 @@ def test_flush(tmpdir, srv, msg):
     ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
     body = json.dumps(msg).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
 
         assert res.status == 200
@@ -643,7 +643,7 @@ def test_flush_extends_ticket(tmpdir, srv, fake_time):
 
     fake_time.now += 200
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 200
 
@@ -659,14 +659,14 @@ def test_flush_extends_ticket(tmpdir, srv, fake_time):
 
 def test_flush_no_ticket_id(srv):
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/", body)
         assert res.status == 400
 
 
 def test_flush_ticket_unknown(srv):
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/no-such-uuid", body)
         assert res.status == 403
 
@@ -676,7 +676,7 @@ def test_flush_ticket_readonly(tmpdir, srv):
         url="file:///no/such/image", ops=["read"])
     srv.auth.add(ticket)
     body = json.dumps({"op": "flush"}).encode("ascii")
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == 403
 
@@ -684,7 +684,7 @@ def test_flush_ticket_readonly(tmpdir, srv):
 # Options
 
 def test_options_all(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"extents", "zero", "flush"}
@@ -698,7 +698,7 @@ def test_options_all(srv):
 def test_options_read_write(srv):
     ticket = testutil.create_ticket(ops=["read", "write"])
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"extents", "zero", "flush"}
@@ -710,7 +710,7 @@ def test_options_read_write(srv):
 def test_options_read(srv):
     ticket = testutil.create_ticket(ops=["read"])
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         allows = {"OPTIONS", "GET"}
         features = {"extents"}
@@ -722,7 +722,7 @@ def test_options_read(srv):
 def test_options_write(srv):
     ticket = testutil.create_ticket(ops=["write"])
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         # Having "write" imply also "read".
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
@@ -739,7 +739,7 @@ def test_options_extends_ticket(srv, fake_time):
     assert server_ticket["expires"] == 300
 
     fake_time.now += 200
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         assert res.status == 200
 
@@ -754,13 +754,13 @@ def test_options_extends_ticket(srv, fake_time):
 
 
 def test_options_for_no_ticket(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/")
         assert res.status == 400
 
 
 def test_options_for_nonexistent_ticket(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/no-such-ticket")
         assert res.status == 403
 
@@ -773,7 +773,7 @@ def test_options_ticket_expired(srv, fake_time):
 
     # Make the ticket expire
     fake_time.now += 300
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/" + ticket["uuid"])
         assert res.status == 403
 
@@ -787,14 +787,14 @@ def test_response_version_success(tmpdir, srv):
     image = testutil.create_tempfile(tmpdir, "image", b"old")
     ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/" + ticket["uuid"], "new")
         assert res.status == 200
         assert res.version == 11
 
 
 def test_response_version_error(tmpdir, srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/no-such-ticket")
         assert res.status != 200
         assert res.version == 11
@@ -813,7 +813,7 @@ def test_keep_alive_connection_on_success(tmpdir, srv, method, body):
                                     size=1024)
     srv.auth.add(ticket)
     uri = "/images/%(uuid)s" % ticket
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()
@@ -836,7 +836,7 @@ def test_keep_alive_connection_on_error(tmpdir, srv, method, body):
     # When a request does not have a payload, the server can keep the
     # connection open after and error.
     uri = "/images/no-such-ticket"
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()
@@ -856,7 +856,7 @@ def test_close_connection_on_errors(tmpdir, srv, method, body):
     # When a request have a payload, the server must close the
     # connection after an error, in case the entire body was not read.
     uri = "/images/no-such-ticket"
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         # Disabling auto_open so we can test if a connection was closed.
         c.con.auto_open = False
         c.con.connect()
@@ -879,7 +879,7 @@ def test_close_connection_on_errors(tmpdir, srv, method, body):
 
 
 def test_cors_options_none(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/*")
         res.read()
 
@@ -894,7 +894,7 @@ def test_cors_options_some(srv):
         "Origin": "https://foo.example",
         "Access-Control-Request-Method": "PUT",
     }
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/*", headers=headers)
         res.read()
 
@@ -909,7 +909,7 @@ def test_cors_options_all(srv):
         "Access-Control-Request-Method": "PUT",
         "Access-Control-Request-Headers": "X-PINGOTHER, Content-Type",
     }
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.options("/images/*", headers=headers)
 
     assert res.getheader("Access-Control-Allow-Origin") == "*"
@@ -926,7 +926,7 @@ def test_cors_get_ok(tmpdir, srv):
     uri = "/images/" + ticket["uuid"]
     headers = {"Origin": "http://foo.example"}
 
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get(uri, headers=headers)
         data = res.read()
 
@@ -940,7 +940,7 @@ def test_cors_get_ok(tmpdir, srv):
 
 def test_cors_get_error(srv):
     headers = {"Origin": "http://foo.example"}
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/images/no-such-ticket", headers=headers)
         res.read()
 
@@ -958,7 +958,7 @@ def test_cors_put_ok(tmpdir, srv):
     headers = {"Origin": "http://foo.example"}
     data = b"x" * size
 
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put(uri, body=data, headers=headers)
         res.read()
 
@@ -972,7 +972,7 @@ def test_cors_put_ok(tmpdir, srv):
 
 def test_cors_put_error(srv):
     headers = {"Origin": "http://foo.example"}
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.put("/images/no-such-ticket", body=b"x", headers=headers)
         res.read()
 

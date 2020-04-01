@@ -27,7 +27,7 @@ def srv():
 
 
 def test_get(srv):
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/info/")
         data = res.read()
 
@@ -38,7 +38,7 @@ def test_get(srv):
 
 def test_cors(srv):
     headers = {"Origin": "https://foo.example"}
-    with http.Client(srv.config) as c:
+    with http.RemoteClient(srv.config) as c:
         res = c.get("/info/", headers=headers)
         res.read()
 

@@ -54,7 +54,7 @@ def test_images_download_full(daemon, proxy, tmpfile, align):
     proxy.auth.add(proxy_ticket(daemon, ticket))
 
     # Download complete image.
-    with http.Client(proxy.config) as c:
+    with http.RemoteClient(proxy.config) as c:
         res = c.request("GET", "/images/{}".format(ticket["uuid"]))
         client_data = res.read()
 
@@ -73,7 +73,7 @@ def test_images_download_error(daemon, proxy, tmpfile):
 
     # This request should fail in the proxy when opening the backend and
     # sending OPTIONS request.
-    with http.Client(proxy.config) as c:
+    with http.RemoteClient(proxy.config) as c:
         res = c.request("GET", "/images/{}".format(ticket["uuid"]))
         res.read()
 
@@ -101,7 +101,7 @@ def test_images_upload_full(daemon, proxy, tmpfile, align):
     proxy.auth.add(proxy_ticket(daemon, ticket))
 
     # Upload data to image.
-    with http.Client(proxy.config) as c:
+    with http.RemoteClient(proxy.config) as c:
         res = c.request(
             "PUT",
             "/images/{}".format(ticket["uuid"]),
