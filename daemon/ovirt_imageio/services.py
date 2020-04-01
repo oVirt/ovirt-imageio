@@ -139,12 +139,28 @@ class ControlService(Service):
 
     def __init__(self, config, auth):
         self._config = config
-        self._server = uhttp.Server(config.control.socket, uhttp.Connection)
+        transport = self._config.control.transport.lower()
+        if transport == "tcp":
+            port = config.control.port
+            log.debug("Starting control service on port %r", port)
+            if not 0 <= port < 0xFFFF:
+                raise errors.InvalidConfig("control.port", port)
+            self._server = http.Server(("localhost", port), http.Connection)
+            if port == 0:
+                config.control.port = self.port
+        elif transport == "unix":
+            socket = config.control.socket
+            log.debug("Starting control service on socket %r", socket)
+            self._server = uhttp.Server(socket, uhttp.Connection)
+            if socket == "":
+                config.control.socket = self.address
+            os.chmod(config.control.socket, DEFAULT_SOCKET_MODE)
+        else:
+            raise errors.InvalidConfig("control.transport", transport)
+
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
-        if config.control.socket == "":
-            config.control.socket = self.address
-        os.chmod(config.control.socket, DEFAULT_SOCKET_MODE)
+
         self._server.app = http.Router([
             (r"/tickets/(.*)", tickets.Handler(config, auth)),
             (r"/profile/", profile.Handler(config, auth)),

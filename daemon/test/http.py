@@ -20,6 +20,7 @@ from pprint import pprint
 
 from six.moves import http_client
 
+from ovirt_imageio import errors
 from ovirt_imageio import ssl
 from ovirt_imageio import uhttp
 
@@ -83,12 +84,6 @@ class HTTPClient:
         self.close()
 
 
-class UnixClient(HTTPClient):
-
-    def __init__(self, socket):
-        super().__init__(uhttp.UnixHTTPConnection(socket))
-
-
 class RemoteClient(HTTPClient):
 
     def __init__(self, cfg):
@@ -104,16 +99,24 @@ class RemoteClient(HTTPClient):
         super().__init__(con)
 
 
-class LocalClient(UnixClient):
+class LocalClient(HTTPClient):
 
     def __init__(self, cfg):
-        super().__init__(cfg.local.socket)
+        super().__init__(uhttp.UnixHTTPConnection(cfg.local.socket))
 
 
-class ControlClient(UnixClient):
+class ControlClient(HTTPClient):
 
     def __init__(self, cfg):
-        super().__init__(cfg.control.socket)
+        transport = cfg.control.transport.lower()
+        if transport == "tcp":
+            con = http_client.HTTPConnection("localhost", cfg.control.port)
+        elif transport == "unix":
+            con = uhttp.UnixHTTPConnection(cfg.control.socket)
+        else:
+            raise errors.InvalidConfig("control.transport", transport)
+
+        super().__init__(con)
 
 
 def response(con):

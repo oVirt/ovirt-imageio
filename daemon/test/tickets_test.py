@@ -36,9 +36,13 @@ logging.basicConfig(
             "%(message)s"))
 
 
-@pytest.fixture(scope="module")
-def srv():
-    cfg = config.load(["test/conf/daemon.conf"])
+@pytest.fixture(
+    scope="module",
+    params=["daemon", "proxy"]
+)
+def srv(request):
+    path = "test/conf/{}.conf".format(request.param)
+    cfg = config.load(path)
     s = server.Server(cfg)
     s.start()
     yield s

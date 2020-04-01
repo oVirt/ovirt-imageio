@@ -68,3 +68,11 @@ class TlsConfigurationError(Error):
         self.ca_file = ca_file
         self.cert_file = cert_file
         self.key_file = key_file
+
+
+class InvalidConfig(Error):
+    msg = "Invalid configuration: {self.key} = {self.value}"
+
+    def __init__(self, key, value):
+        self.key = key
+        self.value = value

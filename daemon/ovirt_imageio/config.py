@@ -66,10 +66,24 @@ class local:
 
 class control:
 
+    # Transport be used to communicate with control service socket.
+    # Can be either "tcp" or "unix". If "unix" is used, communication will
+    # be done over UNIX socket which path is specified in "socket" option.
+    # In case of TCP transport, you must specify the port using "port" option.
+    # Preferred transport is unix as has better security - only users in
+    # ovirtimg group can read/write into the socket.
+    transport = "unix"
+
     # Control service socket path. This socket is used to control the
     # daemon and must be accessible only to the program controlling the
     # daemon.
     socket = "/run/ovirt-imageio/sock"
+
+    # Control service port when run over TCP. Changing this value require
+    # changing this value in engine configuration.
+    # The default value is not set. If you want to use TCP transport, you
+    # must specify port.
+    port = -1
 
 
 class profile:
