@@ -98,6 +98,7 @@ if ! /usr/bin/getent passwd %{user} >/dev/null; then
     /usr/sbin/useradd --system \
         --user-group \
         --shell /sbin/nologin \
+        --home-dir /run/ovirt-imageio \
         --comment "oVirt imageio" \
         %{user}
 fi
