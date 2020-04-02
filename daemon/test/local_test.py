@@ -75,7 +75,7 @@ def test_put_forbidden(srv):
         url="file:///no/such/image", ops=["read"])
     srv.auth.add(ticket)
     with http.LocalClient(srv.config) as c:
-        res = c.request("PUT", "/images/" + ticket["uuid"], "content")
+        res = c.put("/images/" + ticket["uuid"], "content")
         assert res.status == http_client.FORBIDDEN
 
 
@@ -86,7 +86,7 @@ def test_put(srv, tmpdir):
     srv.auth.add(ticket)
     uri = "/images/" + ticket["uuid"]
     with http.LocalClient(srv.config) as c:
-        res = c.request("PUT", uri, "content")
+        res = c.put(uri, "content")
         assert res.status == http_client.OK
         assert res.getheader("content-length") == "0"
         with io.open(str(image)) as f:
@@ -98,7 +98,7 @@ def test_get_forbidden(srv):
         url="file:///no/such/image", ops=[])
     srv.auth.add(ticket)
     with http.LocalClient(srv.config) as c:
-        res = c.request("GET", "/images/" + ticket["uuid"], "content")
+        res = c.get("/images/" + ticket["uuid"], {"header": "content"})
         assert res.status == http_client.FORBIDDEN
 
 
@@ -109,7 +109,7 @@ def test_get(srv, tmpdir):
         url="file://" + str(image), size=1024)
     srv.auth.add(ticket)
     with http.LocalClient(srv.config) as c:
-        res = c.request("GET", "/images/" + ticket["uuid"])
+        res = c.get("/images/" + ticket["uuid"])
         assert res.status == http_client.OK
         assert res.read() == data
 
@@ -124,7 +124,7 @@ def test_images_zero(srv, tmpdir):
     offset = msg.get("offset", 0)
     body = json.dumps(msg).encode("ascii")
     with http.LocalClient(srv.config) as c:
-        res = c.request("PATCH", "/images/" + ticket["uuid"], body)
+        res = c.patch("/images/" + ticket["uuid"], body)
         assert res.status == http_client.OK
         assert res.getheader("content-length") == "0"
         with io.open(str(image), "rb") as f:
@@ -135,7 +135,7 @@ def test_images_zero(srv, tmpdir):
 
 def test_options(srv):
     with http.LocalClient(srv.config) as c:
-        res = c.request("OPTIONS", "/images/*")
+        res = c.options("/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
         features = {"zero", "flush", "extents"}
         assert res.status == http_client.OK

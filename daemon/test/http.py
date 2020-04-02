@@ -83,29 +83,10 @@ class HTTPClient:
         self.close()
 
 
-class UnixClient:
+class UnixClient(HTTPClient):
 
     def __init__(self, socket):
-        self.con = uhttp.UnixHTTPConnection(socket)
-
-    def request(self, method, uri, body=None, headers=None):
-        try:
-            self.con.request(method, uri, body=body, headers=headers or {})
-        except EnvironmentError as e:
-            if not (e.errno == errno.EPIPE and body):
-                raise
-            log.warning("Error sending request: %s", e)
-
-        return response(self.con)
-
-    def close(self):
-        self.con.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
+        super().__init__(uhttp.UnixHTTPConnection(socket))
 
 
 class RemoteClient(HTTPClient):

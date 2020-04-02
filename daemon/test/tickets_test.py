@@ -53,7 +53,7 @@ def test_method_not_allowed(srv):
 
 def test_no_resource(srv):
     with http.ControlClient(srv.config) as c:
-        res = c.request("GET", "/no/such/resource")
+        res = c.get("/no/such/resource")
         assert res.status == 404
 
 
@@ -69,7 +69,7 @@ def test_get(srv, fake_time):
     srv.auth.add(ticket)
     fake_time.now += 200
     with http.ControlClient(srv.config) as c:
-        res = c.request("GET", "/tickets/%(uuid)s" % ticket)
+        res = c.get("/tickets/%(uuid)s" % ticket)
         assert res.status == 200
         server_ticket = json.loads(res.read())
         # The server adds an expires key
@@ -82,7 +82,7 @@ def test_get(srv, fake_time):
 
 def test_get_not_found(srv):
     with http.ControlClient(srv.config) as c:
-        res = c.request("GET", "/tickets/%s" % uuid.uuid4())
+        res = c.get("/tickets/%s" % uuid.uuid4())
         assert res.status == 404
 
 
@@ -90,7 +90,7 @@ def test_put(srv, fake_time):
     ticket = testutil.create_ticket(sparse=False, dirty=False)
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         # Server adds expires key
         ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
         ticket["active"] = False
@@ -105,7 +105,7 @@ def test_put_bad_url_value(srv, fake_time):
     ticket = testutil.create_ticket(url='http://[1.2.3.4:33')
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -115,7 +115,7 @@ def test_general_exception(srv, monkeypatch):
         raise Exception("SECRET")
     monkeypatch.setattr(tickets.Handler, "get", fail)
     with http.ControlClient(srv.config) as c:
-        res = c.request("GET", "/tickets/%s" % uuid.uuid4())
+        res = c.get("/tickets/%s" % uuid.uuid4())
         error = res.read()
         assert res.status == http_client.INTERNAL_SERVER_ERROR
         assert b"SECRET" not in error
@@ -125,7 +125,7 @@ def test_put_no_ticket_id(srv):
     ticket = testutil.create_ticket()
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/", body)
+        res = c.put("/tickets/", body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -133,10 +133,7 @@ def test_put_no_ticket_id(srv):
 def test_put_invalid_json(srv):
     ticket = testutil.create_ticket()
     with http.ControlClient(srv.config) as c:
-        res = c.request(
-            "PUT",
-            "/tickets/%(uuid)s" % ticket,
-            "invalid json")
+        res = c.put("/tickets/%(uuid)s" % ticket, "invalid json")
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -149,7 +146,7 @@ def test_put_mandatory_fields(srv, missing):
     del ticket[missing.strip("-")]
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -159,7 +156,7 @@ def test_put_invalid_timeout(srv):
     ticket["timeout"] = "invalid"
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -169,7 +166,7 @@ def test_put_url_type_error(srv):
     ticket["url"] = 1
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -179,7 +176,7 @@ def test_put_url_scheme_not_supported(srv):
     ticket["url"] = "notsupported:path"
     body = json.dumps(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PUT", "/tickets/%(uuid)s" % ticket, body)
+        res = c.put("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
 
@@ -191,7 +188,7 @@ def test_extend(srv, fake_time):
     body = json.dumps(patch)
     fake_time.now += 240
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+        res = c.patch("/tickets/%(uuid)s" % ticket, body)
         ticket["expires"] = int(fake_time.now + ticket["timeout"])
         ticket["active"] = False
         ticket["idle_time"] = 240
@@ -207,7 +204,7 @@ def test_extend_negative_timeout(srv):
     patch = {"timeout": -1}
     body = json.dumps(patch)
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+        res = c.patch("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 400
 
 
@@ -217,7 +214,7 @@ def test_get_expired_ticket(srv, fake_time):
     # Make the ticket expire.
     fake_time.now += 500
     with http.ControlClient(srv.config) as c:
-        res = c.request("GET", "/tickets/%(uuid)s" % ticket)
+        res = c.get("/tickets/%(uuid)s" % ticket)
         assert res.status == 200
 
 
@@ -230,7 +227,7 @@ def test_extend_expired_ticket(srv, fake_time):
     # Extend the expired ticket.
     body = json.dumps({"timeout": 300})
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+        res = c.patch("/tickets/%(uuid)s" % ticket, body)
         assert res.status == 200
         server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert server_ticket["expires"] == 800
@@ -242,7 +239,7 @@ def test_extend_no_ticket_id(srv, fake_time):
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": 300})
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/", body)
+        res = c.patch("/tickets/", body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
@@ -253,7 +250,7 @@ def test_extend_invalid_json(srv, fake_time):
     srv.auth.add(ticket)
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, "{invalid}")
+        res = c.patch("/tickets/%(uuid)s" % ticket, "{invalid}")
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
@@ -265,7 +262,7 @@ def test_extend_no_timeout(srv, fake_time):
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"not-a-timeout": 300})
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+        res = c.patch("/tickets/%(uuid)s" % ticket, body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
@@ -277,7 +274,7 @@ def test_extend_invalid_timeout(srv, fake_time):
     prev_ticket = srv.auth.get(ticket["uuid"]).info()
     body = json.dumps({"timeout": "invalid"})
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%(uuid)s" % ticket, body)
+        res = c.patch("/tickets/%(uuid)s" % ticket, body)
         cur_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 400
         assert cur_ticket == prev_ticket
@@ -287,7 +284,7 @@ def test_extend_not_found(srv):
     ticket_id = str(uuid.uuid4())
     body = json.dumps({"timeout": 300})
     with http.ControlClient(srv.config) as c:
-        res = c.request("PATCH", "/tickets/%s" % ticket_id, body)
+        res = c.patch("/tickets/%s" % ticket_id, body)
         assert res.status == 404
 
 
