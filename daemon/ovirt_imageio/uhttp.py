@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import errno
+import logging
 import os
 import socket
 
@@ -22,6 +23,8 @@ PUT = "PUT"
 DELETE = "DELETE"
 PATCH = "PATCH"
 GET = "GET"
+
+log = logging.getLogger("uhttp")
 
 
 class UnsupportedError(Exception):
@@ -71,11 +74,7 @@ class Server(http.Server):
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
         elif self.server_address[0] != "\0":
             # A pathname socket must be removed before binding.
-            try:
-                os.unlink(self.server_address)
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
+            self._remove_socket()
 
         self.socket.bind(self.server_address)
         self.server_address = util.ensure_text(self.socket.getsockname())
@@ -87,6 +86,19 @@ class Server(http.Server):
         """
         sock, _ = self.socket.accept()
         return sock, self.server_address
+
+    def shutdown(self):
+        if self.server_address[0] != "\0":
+            self._remove_socket()
+        super().shutdown()
+
+    def _remove_socket(self):
+        log.debug("Removing socket %r", self.server_address)
+        try:
+            os.unlink(self.server_address)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
 
 
 class Connection(http.Connection):
