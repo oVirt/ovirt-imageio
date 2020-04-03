@@ -383,7 +383,7 @@ def test_delete_one(srv):
     ticket = testutil.create_ticket()
     srv.auth.add(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("DELETE", "/tickets/%(uuid)s" % ticket)
+        res = c.delete("/tickets/%(uuid)s" % ticket)
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
         assert res.getheader("content-length") == "0"
@@ -392,7 +392,7 @@ def test_delete_one(srv):
 
 def test_delete_one_not_found(srv):
     with http.ControlClient(srv.config) as c:
-        res = c.request("DELETE", "/tickets/no-such-ticket")
+        res = c.delete("/tickets/no-such-ticket")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
         assert res.getheader("content-length") == "0"
@@ -405,7 +405,7 @@ def test_delete_all(srv):
             url="file:///tmp/foo%s" % i)
         srv.auth.add(ticket)
     with http.ControlClient(srv.config) as c:
-        res = c.request("DELETE", "/tickets/")
+        res = c.delete("/tickets/")
         assert res.status == 204
         # Note: incorrect according to RFC, but required for vdsm.
         assert res.getheader("content-length") == "0"

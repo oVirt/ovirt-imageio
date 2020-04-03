@@ -38,6 +38,9 @@ class HTTPClient:
     def put(self, uri, body, headers=None):
         return self.request("PUT", uri, body=body, headers=headers)
 
+    def delete(self, uri, headers=None):
+        return self.request("DELETE", uri, headers=headers)
+
     def patch(self, uri, body, headers=None):
         return self.request("PATCH", uri, body=body, headers=headers)
 
