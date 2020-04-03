@@ -65,12 +65,13 @@ class RemoteService(Service):
 
     def __init__(self, config, auth):
         self._config = config
-        self._server = http.Server(
-            (config.remote.host, config.remote.port),
-            http.Connection)
+        port = config.remote.port
+        if not 0 <= port < 0xFFFF:
+            raise errors.InvalidConfig("remote.port", port)
+        self._server = http.Server((config.remote.host, port), http.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
-        if config.remote.port == 0:
+        if port == 0:
             config.remote.port = self.port
         if config.tls.enable:
             self._secure_server()
