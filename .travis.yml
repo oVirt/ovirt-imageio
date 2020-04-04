@@ -1,6 +1,7 @@
 dist: xenial
 group: edge
 language: python
+os: linux
 services:
   - docker
 
