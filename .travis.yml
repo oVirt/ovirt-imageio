@@ -1,15 +1,14 @@
-sudo: required
 dist: xenial
 group: edge
 language: python
 services:
   - docker
 
-env:
-  matrix:
-    - DIST=centos-8  PYTHON_VERSION=3
-    - DIST=fedora-30 PYTHON_VERSION=3
-    - DIST=fedora-31 PYTHON_VERSION=3
+jobs:
+  include:
+    - env: DIST=centos-8  PYTHON_VERSION=3
+    - env: DIST=fedora-30 PYTHON_VERSION=3
+    - env: DIST=fedora-31 PYTHON_VERSION=3
 
 before_install:
   - docker pull ovirtorg/imageio-test-$DIST
