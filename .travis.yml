@@ -7,9 +7,9 @@ services:
 
 jobs:
   include:
-    - env: DIST=centos-8  PYTHON_VERSION=3
-    - env: DIST=fedora-30 PYTHON_VERSION=3
-    - env: DIST=fedora-31 PYTHON_VERSION=3
+    - env: DIST=centos-8
+    - env: DIST=fedora-30
+    - env: DIST=fedora-31
 
 before_install:
   - docker pull ovirtorg/imageio-test-$DIST
@@ -17,7 +17,6 @@ before_install:
 script:
   - |
     docker run \
-    --env PYTHON_VERSION=$PYTHON_VERSION \
     --privileged \
     --rm \
     -it \

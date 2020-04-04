@@ -1,7 +1,4 @@
-%global python_version @PYTHON_VERSION@
-%global python python%{python_version}
 %global logdir @LOGDIR@
-
 %global user ovirtimg
 %global group ovirtimg
 
@@ -44,11 +41,11 @@ rm -rf $RPM_BUILD_ROOT
 Summary:   oVirt imageio library
 
 # NOTE: keep in sync with automation/build-artifacts.packages
-BuildRequires: %{python}-devel
+BuildRequires: python3-devel
 
 # NOTE: keep in sync with automation/check.packages
-Requires:  %{python}
-Requires:  %{python}-six
+Requires:  python3
+Requires:  python3-six
 Requires:  qemu-img
 
 %description common
@@ -68,7 +65,7 @@ BuildRequires: systemd
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  @PACKAGE_NAME@-common
-Requires:  %{python}-systemd
+Requires:  python3-systemd
 
 
 %description daemon

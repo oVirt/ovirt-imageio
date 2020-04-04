@@ -8,7 +8,7 @@ export OVIRT_CI=1
 # may not be in PATH.
 export PATH="/usr/local/bin:$PATH"
 
-PYTHON=python$PYTHON_VERSION
+PYTHON=python3
 
 create_loop_devices() {
     # See https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/devices.txt
@@ -51,8 +51,6 @@ fi
 # Ensure we have enough loop devices under mock.
 create_loop_devices 16
 
-make PYTHON_VERSION=$PYTHON_VERSION
-
+make
 make storage
-
-make PYTHON_VERSION=$PYTHON_VERSION check
+make check

@@ -1,9 +1,6 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
-PYTHON_VERSION=3
-
-PYTHON=python$(PYTHON_VERSION)
 PACKAGE_NAME=ovirt-imageio
-PACKAGE_VERSION=$(shell $(PYTHON) ovirt_imageio/version.py)
+PACKAGE_VERSION=$(shell python3 ovirt_imageio/version.py)
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -20,14 +17,14 @@ METADATA = ovirt_imageio/version.py Makefile
 .PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
 build: $(GENERATED)
-	$(PYTHON) setup.py build_ext --inplace
+	python3 setup.py build_ext --inplace
 
 check:
 	tox -e flake8,test-py36,test-py37
 
 dist: $(SPEC_NAME)
 	rm -f dist/*
-	$(PYTHON) setup.py sdist
+	python3 setup.py sdist
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
@@ -41,7 +38,7 @@ rpm: srpm
 	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
 clean:
-	$(PYTHON) setup.py clean --all
+	python3 setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
 	rm -f ovirt_imageio/*.so
@@ -53,6 +50,5 @@ $(GENERATED) : % : %.in $(METADATA)
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
 		-e 's|@LOGDIR@|$(LOGDIR)|g' \
-		-e 's|@PYTHON_VERSION@|$(PYTHON_VERSION)|g' \
 		$< > $@
 	@echo "generated $@"

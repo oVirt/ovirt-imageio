@@ -1,12 +1,6 @@
-PYTHON_VERSION = 3
-
 targets = all check dist srpm rpm
 
-ifeq ($(PYTHON_VERSION), 2)
-	subdirs = proxy
-else
-	subdirs = daemon
-endif
+subdirs = daemon
 
 release_suffix := $(shell ./build-aux/release-suffix)
 
@@ -16,8 +10,7 @@ $(targets): $(subdirs)
 
 $(subdirs):
 	$(MAKE) -C $@ $(MAKECMDGOALS) \
-		RELEASE_SUFFIX=$(release_suffix) \
-		PYTHON_VERSION=$(PYTHON_VERSION)
+		RELEASE_SUFFIX=$(release_suffix)
 
 clean: $(subdirs)
 	rm -rf exported-artifacts/
