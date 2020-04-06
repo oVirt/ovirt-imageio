@@ -165,6 +165,40 @@ def test_images_upload_full(daemon, proxy, tmpfile, align):
         assert f.read() == data
 
 
+@pytest.mark.xfail(reason="PUT error fails as internal error")
+def test_images_upload_error(daemon, proxy, tmpfile):
+    # Pass PUT error from daemon to proxy client.
+
+    size = 128 * 1024
+    data = b"x" * size
+
+    # Create empty sparse image.
+    with open(tmpfile, "wb") as f:
+        f.truncate(size)
+
+    # Add a daemon ticket with smaller size to trigger 416 error.
+    dt = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size - 4096)
+    daemon.auth.add(dt)
+
+    # Add proxy ticket with correct size to ensure the request will fail in the
+    # daemon.
+    pt = proxy_ticket(daemon, dt)
+    pt["size"] = size
+    proxy.auth.add(pt)
+
+    # Upload data to image.
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request(
+            "PUT",
+            "/images/{}".format(dt["uuid"]),
+            body=data)
+        res.read()
+
+    assert res.status == 416
+
+
 def proxy_ticket(daemon, daemon_ticket):
     """
     Create a proxy ticket from daemon ticket.
