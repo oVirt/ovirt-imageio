@@ -6,6 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import json
 import pytest
 
 from ovirt_imageio import config
@@ -33,6 +34,31 @@ def proxy():
 
 def test_local_service_disabled(proxy):
     assert proxy.local_service is None
+
+
+def test_images_extents(daemon, proxy, tmpfile):
+    # Get image extents via proxy.
+    size = 128 * 1024
+
+    with open(tmpfile, "wb") as f:
+        f.truncate(size)
+
+    # Add tickets.
+    ticket = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size)
+    daemon.auth.add(ticket)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    # Get zero extents.
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request("GET", "/images/{}/extents".format(ticket["uuid"]))
+        data = res.read()
+
+    assert res.status == 200
+
+    extents = json.loads(data)
+    assert extents == [{"start": 0, "length": size, "zero": False}]
 
 
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
@@ -196,6 +222,92 @@ def test_images_upload_error(daemon, proxy, tmpfile):
         res.read()
 
     assert res.status == 416
+
+
+def test_images_zero(daemon, proxy, tmpfile):
+    # Zero entire image via proxy.
+    size = 128 * 1024
+
+    # Create image with data.
+    with open(tmpfile, "wb") as f:
+        f.write(b"x" * size)
+
+    # Add tickets.
+    ticket = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size)
+    daemon.auth.add(ticket)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    # Zero entire image.
+    patch = {"op": "zero", "offset": 0, "size": size}
+    body = json.dumps(patch).encode("utf-8")
+
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request(
+            "PATCH",
+            "/images/{}".format(ticket["uuid"]),
+            body=body)
+        res.read()
+
+    assert res.status == 200
+
+    with open(tmpfile, "rb") as f:
+        assert f.read() == b"\0" * size
+
+
+def test_images_zero_error(daemon, proxy):
+    # Pass PATCH error from daemon to proxy client.
+    size = 128 * 1024
+
+    # Add tickets for non existing image.
+    ticket = testutil.create_ticket(
+        url="file:///no/such/image",
+        size=size)
+    daemon.auth.add(ticket)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    # Zero entire image.
+    patch = {"op": "zero", "offset": 0, "size": size}
+    body = json.dumps(patch).encode("utf-8")
+
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request(
+            "PATCH",
+            "/images/{}".format(ticket["uuid"]),
+            body=body)
+        res.read()
+
+    assert res.status == 500
+
+
+def test_images_flush(daemon, proxy, tmpfile):
+    # Zero entire image via proxy.
+    size = 128 * 1024
+
+    # Create empty sparse image.
+    with open(tmpfile, "wb") as f:
+        f.truncate(size)
+
+    # Add tickets.
+    ticket = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size)
+    daemon.auth.add(ticket)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    # Flush image.
+    patch = {"op": "flush"}
+    body = json.dumps(patch).encode("utf-8")
+
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request(
+            "PATCH",
+            "/images/{}".format(ticket["uuid"]),
+            body=body)
+        res.read()
+
+    assert res.status == 200
 
 
 def proxy_ticket(daemon, daemon_ticket):
