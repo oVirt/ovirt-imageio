@@ -99,7 +99,12 @@ class Backend(object):
                     raise RuntimeError(
                         "Expected {} bytes, got {} bytes"
                         .format(length, length - todo))
-                self._con.send(view[:n])
+                try:
+                    self._con.send(view[:n])
+                except (BrokenPipeError, ConnectionResetError):
+                    # Server closed the connection, but it may have sent a
+                    # helpful error message.
+                    break
                 todo -= n
 
         res = self._con.getresponse()
@@ -167,7 +172,14 @@ class Backend(object):
         """
         length = len(buf)
         self._put_header(length)
-        self._con.send(buf)
+
+        try:
+            self._con.send(buf)
+        except (BrokenPipeError, ConnectionResetError):
+            # Server closed the connection, but it may have sent a helpful
+            # error message.
+            pass
+
         res = self._con.getresponse()
 
         if res.status != http_client.OK:
