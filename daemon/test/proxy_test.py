@@ -112,6 +112,26 @@ def test_images_download_get_error(daemon, proxy, tmpfile):
     assert res.status == 416
 
 
+def test_images_download_missing_image(daemon, proxy):
+    # Passing GET /extents error from daemon to proxy client.
+
+    # Add a daemon ticket with non-existing file, causing a failure when
+    # opening the backend in the daemon.
+    ticket = testutil.create_ticket(
+        url="file:///no/such/image",
+        size=128 * 1024)
+
+    daemon.auth.add(ticket)
+    proxy.auth.add(proxy_ticket(daemon, ticket))
+
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request("GET", "/images/{}".format(ticket["uuid"]))
+        res.read()
+
+    # Pass the daemon error to proxy client.
+    assert res.status == 500
+
+
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_upload_full(daemon, proxy, tmpfile, align):
     # Simple upload of entire image as done by stupid clients.

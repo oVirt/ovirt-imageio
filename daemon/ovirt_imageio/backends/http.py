@@ -399,7 +399,7 @@ class Backend(object):
                 .format(context, data[:512]))
 
         if res.status != http_client.OK:
-            raise RuntimeError("Error EXTENTS: {}".format(data[:512]))
+            self._reraise(res.status, data)
 
         extents = json.loads(data.decode("utf-8"))
 
