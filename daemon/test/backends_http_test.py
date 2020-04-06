@@ -555,6 +555,12 @@ def test_daemon_write_to(http_server, uhttp_server):
         check_write_to(handler, b)
 
 
+def test_daemon_write_to_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        check_write_to_error(handler, b)
+
+
 # Common flows - must works for all variants.
 
 def check_readinto(handler, backend):
@@ -658,3 +664,22 @@ def check_write_to(handler, backend):
     assert handler.requests == 1
     assert backend.tell() == offset + length
     assert writer.getvalue() == handler.image[offset:offset + length]
+
+
+def check_write_to_error(handler, backend):
+    """
+    Check that we re-raise remote errors in write_to().
+    """
+    length = 128 * 1024
+    writer = io.BytesIO(b"x" * length)
+    buf = bytearray(4096)
+
+    def fail(req, resp, tid):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.get = fail
+
+    with pytest.raises(http.Error) as e:
+        backend.write_to(writer, length, buf)
+
+    assert e.value.code == http.FORBIDDEN
