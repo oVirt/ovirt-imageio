@@ -165,7 +165,6 @@ def test_images_upload_full(daemon, proxy, tmpfile, align):
         assert f.read() == data
 
 
-@pytest.mark.xfail(reason="PUT error fails as internal error")
 def test_images_upload_error(daemon, proxy, tmpfile):
     # Pass PUT error from daemon to proxy client.
 
