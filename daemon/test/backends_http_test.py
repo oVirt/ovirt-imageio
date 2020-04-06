@@ -543,7 +543,6 @@ def test_daemon_read_from(http_server, uhttp_server):
         assert not handler.dirty
 
 
-@pytest.mark.xfail(reason="read_from error hadnled as internal error")
 def test_daemon_read_from_error(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
