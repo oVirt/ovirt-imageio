@@ -154,16 +154,18 @@ class Receive(Operation):
         with memoryview(buf)[:count] as view:
             read = 0
             while read < count:
-                with self._clock.run("read"):
-                    n = self._src.readinto(view[read:])
+                with view[read:] as v:
+                    with self._clock.run("read"):
+                        n = self._src.readinto(v)
                 if not n:
                     break
                 read += n
 
             pos = 0
             while pos < read:
-                with self._clock.run("write"):
-                    n = self._dst.write(view[pos:read])
+                with view[pos:read] as v:
+                    with self._clock.run("write"):
+                        n = self._dst.write(v)
                 pos += n
 
         self._done += read
