@@ -81,7 +81,6 @@ def test_images_download_options_error(daemon, proxy, tmpfile):
     assert res.status == 403
 
 
-@pytest.mark.xfail(reason="GET errors not reraised")
 def test_images_download_get_error(daemon, proxy, tmpfile):
     # Passing GET error from daemon to proxy client.
 

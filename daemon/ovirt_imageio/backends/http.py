@@ -318,10 +318,7 @@ class Backend(object):
         res = self._con.getresponse()
 
         if res.status != http_client.PARTIAL_CONTENT:
-            error = res.read(512)
-            raise RuntimeError(
-                "Error GET offset={} length={}: {}"
-                .format(self._position, length, error))
+            self._reraise(res.status, res.read())
 
         content_length = int(res.getheader("content-length"))
         if content_length != length:
