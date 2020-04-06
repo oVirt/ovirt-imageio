@@ -62,8 +62,8 @@ def test_images_download_full(daemon, proxy, tmpfile, align):
     assert client_data == data
 
 
-def test_images_download_error(daemon, proxy, tmpfile):
-    # Passing error from daemon ot the proxy client.
+def test_images_download_options_error(daemon, proxy, tmpfile):
+    # Passing OPTIONS error from daemon to proxy client.
 
     # Create a proxy ticket, but no daemon ticket.
     ticket = testutil.create_ticket(
@@ -79,6 +79,38 @@ def test_images_download_error(daemon, proxy, tmpfile):
 
     # The error should propagate to the caller.
     assert res.status == 403
+
+
+@pytest.mark.xfail(reason="GET errors not reraised")
+def test_images_download_get_error(daemon, proxy, tmpfile):
+    # Passing GET error from daemon to proxy client.
+
+    size = 128 * 1024
+    data = b"x" * size
+
+    with open(tmpfile, "wb") as f:
+        f.write(data)
+
+    # Add a daemon ticket with smaller size to trigger 416 error.
+    dt = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size - 4096)
+    daemon.auth.add(dt)
+
+    # Add proxy ticket with correct size to ensure the request will fail in the
+    # daemon.
+    pt = proxy_ticket(daemon, dt)
+    pt["size"] = size
+    proxy.auth.add(pt)
+
+    # This request should fail in the daemon when trying to read after the
+    # ticket size.
+    with http.RemoteClient(proxy.config) as c:
+        res = c.request("GET", "/images/{}".format(dt["uuid"]))
+        res.read()
+
+    # The error should propagate to the caller.
+    assert res.status == 416
 
 
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
