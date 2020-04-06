@@ -144,10 +144,10 @@ class Receive(Operation):
                     self._receive_chunk(buf, count)
             except EOF:
                 pass
-            finally:
-                if self._flush:
-                    with self._clock.run("sync"):
-                        self._dst.flush()
+
+            if self._flush:
+                with self._clock.run("sync"):
+                    self._dst.flush()
 
     def _receive_chunk(self, buf, count):
         buf.seek(0)
