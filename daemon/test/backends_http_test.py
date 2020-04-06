@@ -543,6 +543,13 @@ def test_daemon_read_from(http_server, uhttp_server):
         assert not handler.dirty
 
 
+@pytest.mark.xfail(reason="read_from error hadnled as internal error")
+def test_daemon_read_from_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        check_read_from_error(handler, b)
+
+
 def test_daemon_write_to(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
@@ -613,6 +620,25 @@ def check_read_from(handler, backend):
     assert handler.requests == 1
     assert backend.tell() == offset + length
     assert handler.image[offset:offset + length] == reader.getvalue()
+
+
+def check_read_from_error(handler, backend):
+    """
+    Check remote read error is re-raised in client.
+    """
+    length = 128 * 1024
+    reader = io.BytesIO(b"x" * length)
+    buf = bytearray(4096)
+
+    def fail(req, resp, tid):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.put = fail
+
+    with pytest.raises(http.Error) as e:
+        backend.read_from(reader, length, buf)
+
+    assert e.value.code == http.FORBIDDEN
 
 
 def check_write_to(handler, backend):
