@@ -424,8 +424,7 @@ class Backend(object):
         res = self._con.getresponse()
 
         if res.status != http_client.OK:
-            error = res.read(512)
-            raise RuntimeError("Error GET: {}".format(error))
+            self._reraise(res.status, res.read())
 
         size = int(res.getheader("content-length"))
 

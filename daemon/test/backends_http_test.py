@@ -296,7 +296,6 @@ def test_old_daemon_write_to(http_server):
         check_write_to(handler, b)
 
 
-@pytest.mark.xfail(reason="Emulated HEAD error handled as internal error")
 def test_old_daemon_size_error(http_server):
     handler = OldDaemon(http_server)
 
