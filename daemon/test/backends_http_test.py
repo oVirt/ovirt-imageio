@@ -475,6 +475,23 @@ def test_daemon_open_insecure(http_server, uhttp_server):
         assert b.server_address == uhttp_server.server_address
 
 
+def test_daemon_open_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+
+    # Backends is sending OPTIONS request during open.
+
+    def fail(req, resp, *args):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.options = fail
+
+    with pytest.raises(http.Error) as e:
+        with Backend(http_server.url, None, secure=False):
+            pass
+
+    assert e.value.code == http.FORBIDDEN
+
+
 def test_daemon_extents_zero(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
 
@@ -516,10 +533,31 @@ def test_daemon_extents_dirty(http_server, uhttp_server):
         ]
 
 
+def test_daemon_extents_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+
+    def fail(req, resp, *args):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.get = fail
+
+    with pytest.raises(http.Error) as e:
+        with Backend(http_server.url, None, secure=False) as b:
+            list(b.extents())
+
+    assert e.value.code == http.FORBIDDEN
+
+
 def test_daemon_readinto(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
         check_readinto(handler, b)
+
+
+def test_daemon_readinto_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        check_readinto_error(handler, b)
 
 
 @pytest.mark.parametrize("size", [4096, 42])
@@ -558,6 +596,12 @@ def test_daemon_write(http_server, uhttp_server):
         assert handler.dirty
         b.flush()
         assert not handler.dirty
+
+
+def test_daemon_write_error(http_server, uhttp_server):
+    handler = Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        check_write_error(handler, b)
 
 
 def test_daemon_zero(http_server, uhttp_server):
@@ -625,6 +669,23 @@ def check_readinto(handler, backend):
     assert buf == handler.image[offset:offset + length]
 
 
+def check_readinto_error(handler, backend):
+    """
+    Check that remote read error is re-raised in client.
+    """
+    buf = bytearray(4096)
+
+    def fail(req, resp, tid):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.get = fail
+
+    with pytest.raises(http.Error) as e:
+        backend.readinto(buf)
+
+    assert e.value.code == http.FORBIDDEN
+
+
 def check_write(handler, backend):
     """
     Check single write opertion.
@@ -638,6 +699,23 @@ def check_write(handler, backend):
 
     assert backend.tell() == offset + length
     assert buf == handler.image[offset:offset + length]
+
+
+def check_write_error(handler, backend):
+    """
+    Check that remote read error is re-raised in client.
+    """
+    buf = bytearray(4096)
+
+    def fail(req, resp, tid):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.put = fail
+
+    with pytest.raises(http.Error) as e:
+        backend.write(buf)
+
+    assert e.value.code == http.FORBIDDEN
 
 
 def check_zero(handler, backend):
