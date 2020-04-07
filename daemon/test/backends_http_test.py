@@ -283,6 +283,24 @@ def test_old_daemon_zero(http_server):
         assert not handler.dirty
 
 
+@pytest.mark.xfail(reason="Error in emulated PATCH hanlded as internal error")
+def test_old_daemon_zero_error(http_server):
+    handler = OldDaemon(http_server)
+
+    # With old daemon we emulate zero by putting zeros over the write.
+
+    def fail(req, resp, *args):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.put = fail
+
+    with pytest.raises(http.Error) as e:
+        with Backend(http_server.url, http_server.cafile) as b:
+            b.zero(4096)
+
+    assert e.value.code == http.FORBIDDEN
+
+
 def test_old_daemon_read_from(http_server):
     handler = OldDaemon(http_server)
     with Backend(http_server.url, http_server.cafile) as b:
