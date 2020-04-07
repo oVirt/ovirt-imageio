@@ -296,6 +296,25 @@ def test_old_daemon_write_to(http_server):
         check_write_to(handler, b)
 
 
+@pytest.mark.xfail(reason="Emulated HEAD error handled as internal error")
+def test_old_daemon_size_error(http_server):
+    handler = OldDaemon(http_server)
+
+    # With old daemon we emulate HEAD with GET. Make it fail to test error
+    # handling.
+
+    def fail(req, resp, *args):
+        raise http.Error(http.FORBIDDEN, "Fake error")
+
+    handler.get = fail
+
+    with pytest.raises(http.Error) as e:
+        with Backend(http_server.url, None, secure=False) as b:
+            b.size()
+
+    assert e.value.code == http.FORBIDDEN
+
+
 # Old proxy tests
 
 def test_old_proxy_open(http_server):
