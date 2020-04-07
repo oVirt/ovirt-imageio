@@ -356,8 +356,7 @@ class Backend(object):
         res = self._con.getresponse()
 
         if res.status != http_client.OK:
-            error = res.read(512)
-            raise RuntimeError("Error PATCH msg={}: {}" .format(msg, error))
+            self._reraise(res.status, res.read())
 
         res.read()
 

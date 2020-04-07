@@ -534,14 +534,12 @@ def test_daemon_zero(http_server, uhttp_server):
         assert not handler.dirty
 
 
-@pytest.mark.xfail(reason="PATCH error handled as insternal error")
 def test_daemon_zero_error(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
         check_zero_error(handler, b)
 
 
-@pytest.mark.xfail(reason="PATCH error handled as insternal error")
 def test_daemon_flush_error(http_server, uhttp_server):
     handler = Daemon(http_server, uhttp_server)
     with Backend(http_server.url, http_server.cafile) as b:
