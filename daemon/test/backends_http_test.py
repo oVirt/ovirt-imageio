@@ -283,7 +283,6 @@ def test_old_daemon_zero(http_server):
         assert not handler.dirty
 
 
-@pytest.mark.xfail(reason="Error in emulated PATCH hanlded as internal error")
 def test_old_daemon_zero_error(http_server):
     handler = OldDaemon(http_server)
 
