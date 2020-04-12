@@ -1,6 +1,7 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
 PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell python3 ovirt_imageio/version.py)
+OUTDIR=dist
 
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
@@ -23,17 +24,17 @@ check:
 	tox -e flake8,test-py36,test-py37
 
 dist: $(GENERATED)
-	rm -f dist/*
-	python3 setup.py sdist
+	python3 setup.py sdist --dist-dir "$(OUTDIR)"
 
 srpm: dist
-	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
-		-ts dist/$(TAR_NAME)
+	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
+		--define="_srcrpmdir $(OUTDIR)" \
+		-ts "$(OUTDIR)/$(TAR_NAME)"
 
 rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
-		--rebuild dist/*.src.rpm
-	mv $(RPM_TOPDIR)/RPMS/*/* dist/
+		-rb "$(OUTDIR)/$(PACKAGE_NAME)-$(PACKAGE_VERSION)"*.src.rpm
+	mv $(RPM_TOPDIR)/RPMS/*/* "$(OUTDIR)"
 
 clean:
 	python3 setup.py clean --all

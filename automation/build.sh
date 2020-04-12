@@ -1,5 +1,6 @@
 #!/bin/bash -xe
 
-mkdir -p exported-artifacts
-make rpm
-cp daemon/dist/* exported-artifacts/
+exported_artifacts="$PWD/exported-artifacts"
+
+mkdir -p "$exported_artifacts"
+make rpm OUTDIR="$exported_artifacts"
