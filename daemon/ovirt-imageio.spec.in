@@ -41,6 +41,7 @@ rm -rf $RPM_BUILD_ROOT
 Summary:   oVirt imageio library
 
 # NOTE: keep in sync with automation/build-artifacts.packages
+BuildRequires: gcc
 BuildRequires: python3-devel
 
 # NOTE: keep in sync with automation/check.packages
