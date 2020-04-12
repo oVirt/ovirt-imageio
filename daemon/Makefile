@@ -16,13 +16,13 @@ METADATA = ovirt_imageio/version.py Makefile
 
 .PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
-build: $(GENERATED)
+build:
 	python3 setup.py build_ext --inplace
 
 check:
 	tox -e flake8,test-py36,test-py37
 
-dist: $(SPEC_NAME)
+dist: $(GENERATED)
 	rm -f dist/*
 	python3 setup.py sdist
 
