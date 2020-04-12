@@ -28,12 +28,10 @@ dist: $(GENERATED)
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" --define="_srcrpmdir dist" \
-		--define "release_suffix $(RELEASE_SUFFIX)" \
 		-ts dist/$(TAR_NAME)
 
 rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
-		--define "release_suffix $(RELEASE_SUFFIX)" \
 		--rebuild dist/*.src.rpm
 	mv $(RPM_TOPDIR)/RPMS/*/* dist/
 
@@ -49,6 +47,7 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
+		-e 's|@RELEASE_SUFFIX@|$(RELEASE_SUFFIX)|g' \
 		-e 's|@LOGDIR@|$(LOGDIR)|g' \
 		$< > $@
 	@echo "generated $@"

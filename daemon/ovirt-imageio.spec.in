@@ -6,7 +6,7 @@
 
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
-Release:   0%{?release_suffix}%{?dist}
+Release:   0@RELEASE_SUFFIX@%{?dist}
 Summary:   oVirt imageio
 
 Group:     Development/Libraries
