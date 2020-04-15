@@ -20,6 +20,34 @@ class daemon:
     # slightly, but may also decrease it significantly.
     buffer_size = 8388608
 
+    # Daemon run directory. Runtime stuff like socket or profile information
+    # will be stored in this directory.
+    # This is configurable only for development purposes and is not expected to
+    # be changed by the user, therefore it's not documented in example
+    # configuration.
+    run_dir = "/run/ovirt-imageio"
+
+    # The daemon is started under root be able to access files owned by root
+    # and bind to privileged ports. Once started, privileges are dropped.
+    # In the tests we want to run all the tests under the root and need an
+    # option how to switch it off.
+    # This is configurable only for development purposes and is not expected to
+    # be changed by the user, therefore it's not documented in example
+    # configuration.
+    drop_privileges = True
+
+    # Username under which imageio daemon will be run.
+    # This is configurable only for development purposes and is not expected to
+    # be changed by the user, therefore it's not documented in example
+    # configuration.
+    user_name = "ovirtimg"
+
+    # Group under which imageio daemon will be run.
+    # This is configurable only for development purposes and is not expected to
+    # be changed by the user, therefore it's not documented in example
+    # configuration.
+    group_name = "ovirtimg"
+
 
 class tls:
 

@@ -9,9 +9,11 @@
 from __future__ import absolute_import
 
 import argparse
+import grp
 import logging
 import logging.config
 import os
+import pwd
 import signal
 import sys
 
@@ -77,6 +79,9 @@ class Server:
             self.local_service = services.LocalService(self.config, self.auth)
         self.control_service = services.ControlService(self.config, self.auth)
 
+        if os.geteuid() == 0 and self.config.daemon.drop_privileges:
+            self._drop_privileges()
+
     def start(self):
         assert not self.running
         self.running = True
@@ -96,3 +101,34 @@ class Server:
     def terminate(self, signo, frame):
         log.info("Received signal %d, shutting down", signo)
         self.running = False
+
+    def _drop_privileges(self):
+        uid = pwd.getpwnam(self.config.daemon.user_name).pw_uid
+        gid = grp.getgrnam(self.config.daemon.group_name).gr_gid
+
+        # Restore ownership of run directory.
+        run_dir = self.config.daemon.run_dir
+        if os.path.exists(run_dir):
+            log.debug(
+                "Changing ownership of %s to %i:%i" % (run_dir, uid, gid))
+            os.chown(run_dir, uid, gid)
+
+        # Restore ownership of log files.
+        for h in logging.root.handlers:
+            # Support only logging.FileHandler and sub-classes.
+            filename = getattr(h, "baseFilename", None)
+            if filename is not None:
+                log.debug(
+                    "Changing ownership of %s to %i:%i" % (filename, uid, gid))
+                os.chown(filename, uid, gid)
+
+        # Restore ownership of control socket is used.
+        transport = self.config.control.transport.lower()
+        if transport == "unix":
+            os.chown(self.config.control.socket, uid, gid)
+
+        # Set new uid and gid for the process.
+        log.debug("Dropping root privileges, running as %i:%i" % (uid, gid))
+        os.initgroups(self.config.daemon.user_name, gid)
+        os.setgid(gid)
+        os.setuid(uid)
