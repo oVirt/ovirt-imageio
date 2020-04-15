@@ -69,24 +69,21 @@ class Server:
 
     def __init__(self, config):
         self.config = config
-        self.auth = auth.Authorizer()
-        self.remote_service = None
-        self.local_service = None
-        self.control_service = None
         self.running = False
+        self.auth = auth.Authorizer()
+        self.remote_service = services.RemoteService(self.config, self.auth)
+        self.local_service = None
+        if config.local.enable:
+            self.local_service = services.LocalService(self.config, self.auth)
+        self.control_service = services.ControlService(self.config, self.auth)
 
     def start(self):
         assert not self.running
         self.running = True
 
-        self.remote_service = services.RemoteService(self.config, self.auth)
         self.remote_service.start()
-
-        if self.config.local.enable:
-            self.local_service = services.LocalService(self.config, self.auth)
+        if self.local_service is not None:
             self.local_service.start()
-
-        self.control_service = services.ControlService(self.config, self.auth)
         self.control_service.start()
 
     def stop(self):
@@ -95,9 +92,6 @@ class Server:
         if self.local_service is not None:
             self.local_service.stop()
         self.control_service.stop()
-        self.remote_service = None
-        self.local_service = None
-        self.control_service = None
 
     def terminate(self, signo, frame):
         log.info("Received signal %d, shutting down", signo)
