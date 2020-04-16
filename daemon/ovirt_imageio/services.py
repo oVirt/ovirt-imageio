@@ -32,6 +32,7 @@ class Service(object):
     name = None
 
     def start(self):
+        log.debug("Starting %s", self.name)
         util.start_thread(self._run, name=self.name)
 
     def stop(self):
@@ -47,7 +48,7 @@ class Service(object):
         return self._server.server_address
 
     def _run(self):
-        log.debug("Starting %s", self.name)
+        log.debug("%s started", self.name)
         self._server.serve_forever(
             poll_interval=self._config.daemon.poll_interval)
         log.debug("%s terminated normally", self.name)
