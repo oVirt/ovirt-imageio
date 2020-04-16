@@ -68,7 +68,7 @@ class RemoteService(Service):
         port = config.remote.port
         if not 0 <= port < 0xFFFF:
             raise errors.InvalidConfig("remote.port", port)
-        log.debug("Starting remote service on port %d", port)
+        log.debug("Creating remote service on port %d", port)
         self._server = http.Server((config.remote.host, port), http.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
@@ -117,7 +117,7 @@ class LocalService(Service):
 
     def __init__(self, config, auth):
         self._config = config
-        log.debug("Starting local service on socket %r", config.local.socket)
+        log.debug("Creating local service on socket %r", config.local.socket)
         self._server = uhttp.Server(config.local.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
         self._server.clock_class = util.Clock
@@ -145,7 +145,7 @@ class ControlService(Service):
         transport = self._config.control.transport.lower()
         if transport == "tcp":
             port = config.control.port
-            log.debug("Starting control service on port %r", port)
+            log.debug("Creating control service on port %r", port)
             if not 0 <= port < 0xFFFF:
                 raise errors.InvalidConfig("control.port", port)
             self._server = http.Server(("localhost", port), http.Connection)
@@ -153,7 +153,7 @@ class ControlService(Service):
                 config.control.port = self.port
         elif transport == "unix":
             socket = config.control.socket
-            log.debug("Starting control service on socket %r", socket)
+            log.debug("Creating control service on socket %r", socket)
             self._server = uhttp.Server(socket, uhttp.Connection)
             if socket == "":
                 config.control.socket = self.address
