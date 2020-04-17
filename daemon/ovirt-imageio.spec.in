@@ -120,3 +120,8 @@ if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
     echo "Stopping ovirt-imageio-daemon.service";
     systemctl stop ovirt-imageio-daemon.service
 fi
+
+%changelog
+
+* Fri Apr 17 2020 Nir Soffer <nsoffer@redhat.com> 2.0.4-0
+- Support starting as root
