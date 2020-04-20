@@ -102,6 +102,11 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
     # to support long URIs, so we use small value.
     max_request_line = 4096
 
+    # Number of second to wait for recv() or send(). When the timeout expires
+    # we close the connection. This is important when working with clients that
+    # keep the connection open after upload or download (e.g browsers).
+    timeout = 60
+
     def setup(self):
         log.info("OPEN client=%s", self.address_string())
         BaseHTTPServer.BaseHTTPRequestHandler.setup(self)
