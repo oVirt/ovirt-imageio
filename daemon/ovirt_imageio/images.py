@@ -35,6 +35,11 @@ class Handler(object):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
+        # Used by engine UI to close connection after upload.
+        close = req.query.get("close") == "y"
+        if close:
+            req.close_connection()
+
         size = req.content_length
         if size is None:
             raise http.Error(
@@ -54,8 +59,8 @@ class Handler(object):
         validate.allowed_range(offset, size, ticket)
 
         log.info(
-            "[%s] WRITE size=%d offset=%d flush=%s ticket=%s",
-            req.client_addr, size, offset, flush, ticket_id)
+            "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
+            req.client_addr, size, offset, flush, close, ticket_id)
 
         op = ops.Receive(
             backends.get(req, ticket, self.config),
@@ -74,6 +79,11 @@ class Handler(object):
     def get(self, req, resp, ticket_id):
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
+
+        # Used by engine UI to close connection after download.
+        close = req.query.get("close") == "y"
+        if close:
+            req.close_connection()
 
         offset = 0
         size = None
@@ -105,8 +115,8 @@ class Handler(object):
             size = min(ticket.size, backend.size()) - offset
 
         log.info(
-            "[%s] READ size=%d offset=%d ticket=%s",
-            req.client_addr, size, offset, ticket_id)
+            "[%s] READ size=%d offset=%d close=%s ticket=%s",
+            req.client_addr, size, offset, close, ticket_id)
 
         content_disposition = "attachment"
         if ticket.filename:
