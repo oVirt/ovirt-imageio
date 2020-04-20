@@ -1,5 +1,8 @@
 # ovirt-imageio
 
+[![Build Status](https://travis-ci.org/oVirt/ovirt-imageio.svg?branch=master)](https://travis-ci.org/oVirt/ovirt-imageio)
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/nsoffer/ovirt-imageio-preview/package/ovirt-imageio/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/nsoffer/ovirt-imageio-preview/package/ovirt-imageio/)
+
 ovirt-imageio enables uploading and downloading of disks and snapshots using HTTPS.
 
 The project is composed of two services:
