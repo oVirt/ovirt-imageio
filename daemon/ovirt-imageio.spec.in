@@ -123,5 +123,8 @@ fi
 
 %changelog
 
+* Mon Apr 20 2020 Nir Soffer <nsoffer@redhat.com> 2.0.5-0
+- Support closing connections for web clients
+
 * Fri Apr 17 2020 Nir Soffer <nsoffer@redhat.com> 2.0.4-0
 - Support starting as root

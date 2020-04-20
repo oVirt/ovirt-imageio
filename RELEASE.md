@@ -6,6 +6,9 @@
 - Bump version for release and merge the patch:
   https://gerrit.ovirt.org/108091/
 
+- Add changelog entry with short description of the changes in this
+  release.
+
 - Add new annotated tag e.g "v2.0.2"
 
     $ git tag -a -m "Release 2.0.1 for oVirt 4.4.0" v2.0.2
