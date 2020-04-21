@@ -11,7 +11,7 @@
 
 - Add new annotated tag e.g "v2.0.2"
 
-    $ git tag -a -m "Release 2.0.1 for oVirt 4.4.0" v2.0.2
+    $ git tag -a -m "Release 2.0.2 for oVirt 4.4.0" v2.0.2
 
 - Push the tag to gerrit
 
