@@ -20,7 +20,7 @@ from six.moves import BaseHTTPServer
 from six.moves import socketserver
 from six.moves import urllib
 
-from . import util
+from . import stats
 from . import version
 
 log = logging.getLogger("http")
@@ -76,9 +76,9 @@ class Server(socketserver.ThreadingMixIn,
     app = None
 
     # Clock used to profile connections. The default NullClock does not
-    # profile anything to minimize overhead. Set to util.Clock to enable
+    # profile anything to minimize overhead. Set to stats.Clock to enable
     # profiling.
-    clock_class = util.NullClock
+    clock_class = stats.NullClock
 
 
 class Connection(BaseHTTPServer.BaseHTTPRequestHandler):

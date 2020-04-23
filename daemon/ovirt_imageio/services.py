@@ -18,6 +18,7 @@ from . import images
 from . import info
 from . import profile
 from . import ssl
+from . import stats
 from . import tickets
 from . import uhttp
 from . import util
@@ -72,7 +73,7 @@ class RemoteService(Service):
         log.debug("Creating %s on port %d", self.name, port)
         self._server = http.Server((config.remote.host, port), http.Connection)
         # TODO: Make clock configurable, disabled by default.
-        self._server.clock_class = util.Clock
+        self._server.clock_class = stats.Clock
         if port == 0:
             config.remote.port = self.port
         if config.tls.enable:
@@ -121,7 +122,7 @@ class LocalService(Service):
         log.debug("Creating %s on socket %r", self.name, config.local.socket)
         self._server = uhttp.Server(config.local.socket, uhttp.Connection)
         # TODO: Make clock configurable, disabled by default.
-        self._server.clock_class = util.Clock
+        self._server.clock_class = stats.Clock
         if config.local.socket == "":
             config.local.socket = self.address
         self._server.app = http.Router([
@@ -163,7 +164,7 @@ class ControlService(Service):
             raise errors.InvalidConfig("control.transport", transport)
 
         # TODO: Make clock configurable, disabled by default.
-        self._server.clock_class = util.Clock
+        self._server.clock_class = stats.Clock
 
         self._server.app = http.Router([
             (r"/tickets/(.*)", tickets.Handler(config, auth)),

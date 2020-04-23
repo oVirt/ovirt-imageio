@@ -13,6 +13,7 @@ import logging
 from contextlib import closing
 
 from . import errors
+from . import stats
 from . import util
 
 # This value is used by vdsm when copying image data using dd. Smaller values
@@ -29,7 +30,7 @@ class EOF(Exception):
 class Operation(object):
 
     def __init__(self, size=None, offset=0, buffersize=BUFFERSIZE,
-                 clock=util.NullClock()):
+                 clock=stats.NullClock()):
         self._size = size
         self._offset = offset
         if self._size:
@@ -74,7 +75,7 @@ class Send(Operation):
     """
 
     def __init__(self, src, dst, size=None, offset=0, buffersize=BUFFERSIZE,
-                 clock=util.NullClock()):
+                 clock=stats.NullClock()):
         super(Send, self).__init__(size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
         self._src = src
@@ -118,7 +119,7 @@ class Receive(Operation):
     """
 
     def __init__(self, dst, src, size=None, offset=0, flush=True,
-                 buffersize=BUFFERSIZE, clock=util.NullClock()):
+                 buffersize=BUFFERSIZE, clock=stats.NullClock()):
         super(Receive, self).__init__(size=size, offset=offset,
                                       buffersize=buffersize, clock=clock)
         self._src = src
@@ -185,7 +186,7 @@ class Zero(Operation):
     MAX_STEP = 1024**3
 
     def __init__(self, dst, size, offset=0, flush=False,
-                 buffersize=BUFFERSIZE, clock=util.NullClock()):
+                 buffersize=BUFFERSIZE, clock=stats.NullClock()):
         super(Zero, self).__init__(size=size, offset=offset,
                                    buffersize=buffersize, clock=clock)
         self._dst = dst
@@ -212,7 +213,7 @@ class Flush(Operation):
     Flush received data to storage.
     """
 
-    def __init__(self, dst, clock=util.NullClock()):
+    def __init__(self, dst, clock=stats.NullClock()):
         super(Flush, self).__init__(clock=clock)
         self._dst = dst
 

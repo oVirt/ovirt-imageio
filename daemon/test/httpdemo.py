@@ -44,7 +44,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 from ovirt_imageio import http
-from ovirt_imageio import util
+from ovirt_imageio import stats
 
 log = logging.getLogger("httpdemo")
 
@@ -122,7 +122,7 @@ log.info("Starting server on port %s", args.port)
 
 server = http.Server(("", args.port), http.Connection)
 if args.debug:
-    server.clock_class = util.Clock
+    server.clock_class = stats.Clock
 
 server.app = http.Router([
     (r"/bench/(.*)", Bench()),
