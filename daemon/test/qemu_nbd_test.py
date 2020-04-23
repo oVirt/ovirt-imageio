@@ -19,6 +19,7 @@ from ovirt_imageio import nbd
 from ovirt_imageio import nbdutil
 from ovirt_imageio import qemu_img
 from ovirt_imageio import qemu_nbd
+from ovirt_imageio import sockutil
 
 from . import testutil
 from . marks import requires_python3
@@ -66,10 +67,10 @@ def test_run_unix(tmpdir):
 
     with qemu_nbd.run(image, "raw", addr):
         # The helper already waited for the NBD socket, not wait needed.
-        assert nbdutil.wait_for_socket(addr, 0.0)
+        assert sockutil.wait_for_socket(addr, 0.0)
 
     # The socket must be closed, no wait needed.
-    assert not nbdutil.wait_for_socket(addr, 0.0)
+    assert not sockutil.wait_for_socket(addr, 0.0)
 
 
 def test_run_tcp(tmpfile):
@@ -80,10 +81,10 @@ def test_run_tcp(tmpfile):
 
     with qemu_nbd.run(tmpfile, "raw", addr):
         # The helper already waited for the NBD socket, not wait needed.
-        assert nbdutil.wait_for_socket(addr, 0.0)
+        assert sockutil.wait_for_socket(addr, 0.0)
 
     # The socket must be closed, no wait needed.
-    assert not nbdutil.wait_for_socket(addr, 0.0)
+    assert not sockutil.wait_for_socket(addr, 0.0)
 
 
 @pytest.mark.parametrize("cache,aio,discard", [

@@ -19,8 +19,7 @@ import re
 import socket
 import struct
 
-import six
-
+from . import sockutil
 from . import util
 
 # Matcher for NBD Unix URL path.
@@ -266,22 +265,10 @@ class ReplyError(RequestError):
         self.reason = reason
 
 
-class UnixAddress(str):
+class UnixAddress(sockutil.UnixAddress):
     """
-    A unix socket path with additioal methods to make it easier to handle both
-    unix socket and TCP socket in the same code.
-
-    Because we inherit from str, you can pass an instance to socket.connect()
-    or socket.bind().
+    sockutil.UnixAddress enriched with url() providing nbd URL.
     """
-
-    @property
-    def transport(self):
-        return "unix"
-
-    @property
-    def path(self):
-        return str(self)
 
     def url(self, export=None):
         s = "nbd:unix:{}".format(self.path)
@@ -290,35 +277,10 @@ class UnixAddress(str):
         return s
 
 
-class TCPAddress(tuple):
+class TCPAddress(sockutil.TCPAddress):
     """
-    A TCP socket 2 tuple (host, port) with additioal methods to make it easier
-    to handle both unix socket and TCP socket in the same code.
-
-    Because we inherit from tuple, you can pass an instance to socket.connect()
-    or socket.bind().
+    sockutil.TCPAddress enriched with url() providing nbd URL.
     """
-
-    def __new__(cls, host, port):
-        if not isinstance(host, six.string_types):
-            raise ValueError("Invalid host {!r}, expecting string value"
-                             .format(host))
-        if not isinstance(port, six.integer_types):
-            raise ValueError("Invalid port {!r}, expecting integer value"
-                             .format(port))
-        return tuple.__new__(cls, (host, port))
-
-    @property
-    def transport(self):
-        return "tcp"
-
-    @property
-    def host(self):
-        return self[0]
-
-    @property
-    def port(self):
-        return self[1]
 
     def url(self, export=None):
         s = "nbd:{}:{}".format(self.host, self.port)
