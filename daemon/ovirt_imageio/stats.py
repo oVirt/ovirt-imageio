@@ -94,8 +94,8 @@ class Clock(object):
                 total = now - t.started
             else:
                 total = t.total
-            timers.append("%s=%.6f/%d" % (t.name, total, t.count))
-        return "[%s]" % ", ".join(timers)
+            timers.append("[%s %d ops, %.6f s]" % (t.name, t.count, total))
+        return " ".join(timers)
 
 
 class NullClock(object):
@@ -121,7 +121,7 @@ class NullClock(object):
         yield
 
     def __repr__(self):
-        return "[]"
+        return ""
 
 
 class Timer(object):

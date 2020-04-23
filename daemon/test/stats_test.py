@@ -31,7 +31,7 @@ def fake_time(monkeypatch):
 
 def test_clock_empty():
     c = stats.Clock()
-    assert str(c) == "[]"
+    assert str(c) == ""
 
 
 def test_clock_stop_returns_elapsed_time(fake_time):
@@ -60,8 +60,11 @@ def test_clock_measure(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "[total=3.000000/1, read=1.000000/1, write=1.000000/1, "
-        "sync=1.000000/1]")
+        "[total 1 ops, 3.000000 s] "
+        "[read 1 ops, 1.000000 s] "
+        "[write 1 ops, 1.000000 s] "
+        "[sync 1 ops, 1.000000 s]"
+    )
 
 
 def test_clock_measure_multiple(fake_time):
@@ -84,8 +87,11 @@ def test_clock_measure_multiple(fake_time):
     c.stop("sync")
     c.stop("total")
     assert str(c) == (
-        "[total=5.000000/1, read=2.000000/2, write=2.000000/2, "
-        "sync=1.000000/1]")
+        "[total 1 ops, 5.000000 s] "
+        "[read 2 ops, 2.000000 s] "
+        "[write 2 ops, 2.000000 s] "
+        "[sync 1 ops, 1.000000 s]"
+    )
 
 
 def test_clock_running(fake_time):
@@ -95,7 +101,7 @@ def test_clock_running(fake_time):
     c.start("read")
     fake_time.value += 4
     c.stop("read")
-    assert str(c) == "[total=7.000000/1, read=4.000000/1]"
+    assert str(c) == "[total 1 ops, 7.000000 s] [read 1 ops, 4.000000 s]"
 
 
 # Inccorrect usage
@@ -128,7 +134,11 @@ def test_clock_run(fake_time):
             fake_time.value += 4
         with c.run("b"):
             fake_time.value += 3
-    assert str(c) == "[total=7.000000/1, a=4.000000/1, b=3.000000/1]"
+    assert str(c) == (
+        "[total 1 ops, 7.000000 s] "
+        "[a 1 ops, 4.000000 s] "
+        "[b 1 ops, 3.000000 s]"
+    )
 
 
 def test_clock_run_recursive():
