@@ -12,6 +12,8 @@ from __future__ import division
 import sys
 import time
 
+from . import util
+
 
 class ProgressBar(object):
 
@@ -75,9 +77,9 @@ class ProgressBar(object):
 
         line = "[ %s ] %s, %.2f seconds, %s/s" % (
             progress,
-            humansize(self.done),
+            util.humansize(self.done),
             elapsed,
-            humansize(self.done / elapsed if elapsed else 0),
+            util.humansize(self.done / elapsed if elapsed else 0),
         )
 
         line = line.ljust(self.width, " ")
@@ -96,12 +98,3 @@ class ProgressBar(object):
 
     def __exit__(self, t, v, tb):
         self.close()
-
-
-def humansize(n):
-    for unit in ("bytes", "KiB", "MiB", "GiB", "TiB", "PiB"):
-        if n < 1024:
-            break
-        n /= 1024
-    return "{:.{precision}f} {}".format(
-        n, unit, precision=0 if unit == "bytes" else 2)

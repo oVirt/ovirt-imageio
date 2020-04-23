@@ -164,6 +164,15 @@ class Timer(object):
         self.started = None
 
 
+def humansize(n):
+    for unit in ("bytes", "KiB", "MiB", "GiB", "TiB", "PiB"):
+        if n < 1024:
+            break
+        n /= 1024
+    return "{:.{precision}f} {}".format(
+        n, unit, precision=0 if unit == "bytes" else 2)
+
+
 def round_up(n, size):
     n = n + size - 1
     return n - (n % size)

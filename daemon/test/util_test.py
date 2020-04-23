@@ -331,3 +331,21 @@ def test_unbuffered_stream_less():
     assert b == b''
     b = s.read(128)
     assert b == b''
+
+
+@pytest.mark.parametrize("n,s", [
+    (0, "0 bytes"),
+    (0.0, "0 bytes"),
+    (1023, "1023 bytes"),
+    (1024, "1.00 KiB"),
+    (1024 * 1023, "1023.00 KiB"),
+    (1024 * 1024, "1.00 MiB"),
+    (1024**2 * 1023, "1023.00 MiB"),
+    (1024**2 * 1024, "1.00 GiB"),
+    (1024**3 * 1023, "1023.00 GiB"),
+    (1024**3 * 1024, "1.00 TiB"),
+    (1024**4 * 1023, "1023.00 TiB"),
+    (1024**4 * 1024, "1.00 PiB"),
+])
+def test_humansize(n, s):
+    assert util.humansize(n) == s

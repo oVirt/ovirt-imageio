@@ -8,8 +8,6 @@
 
 from __future__ import absolute_import
 
-import pytest
-
 from ovirt_imageio import ui
 
 
@@ -102,21 +100,3 @@ def test_contextmanager():
         assert f.last.endswith("\r")
 
     assert f.last.endswith("\n")
-
-
-@pytest.mark.parametrize("n,s", [
-    (0, "0 bytes"),
-    (0.0, "0 bytes"),
-    (1023, "1023 bytes"),
-    (1024, "1.00 KiB"),
-    (1024 * 1023, "1023.00 KiB"),
-    (1024 * 1024, "1.00 MiB"),
-    (1024**2 * 1023, "1023.00 MiB"),
-    (1024**2 * 1024, "1.00 GiB"),
-    (1024**3 * 1023, "1023.00 GiB"),
-    (1024**3 * 1024, "1.00 TiB"),
-    (1024**4 * 1023, "1023.00 TiB"),
-    (1024**4 * 1024, "1.00 PiB"),
-])
-def test_humansize(n, s):
-    assert ui.humansize(n) == s
