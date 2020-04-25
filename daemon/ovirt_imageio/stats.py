@@ -11,6 +11,8 @@ import time
 
 from contextlib import contextmanager
 
+from . import util
+
 
 class Clock(object):
     """
@@ -64,6 +66,8 @@ class Clock(object):
         s.started = time.time()
         s.ops += 1
 
+        return s
+
     def stop(self, name):
         s = self._stats.get(name)
         if s is None:
@@ -80,9 +84,9 @@ class Clock(object):
 
     @contextmanager
     def run(self, name):
-        self.start(name)
+        s = self.start(name)
         try:
-            yield
+            yield s
         finally:
             self.stop(name)
 
@@ -94,7 +98,16 @@ class Clock(object):
                 seconds = now - s.started
             else:
                 seconds = s.seconds
-            stats.append("[%s %d ops, %.6f s]" % (s.name, s.ops, seconds))
+            values = [
+                "{} ops".format(s.ops),
+                "{:.6f} s".format(seconds),
+            ]
+            if s.bytes:
+                values.append(util.humansize(s.bytes))
+                values.append(util.humansize(s.bytes / seconds) + "/s")
+
+            stats.append("[{} {}]".format(s.name, ", ".join(values)))
+
         return " ".join(stats)
 
 
@@ -118,7 +131,7 @@ class NullClock(object):
 
     @contextmanager
     def run(self, name):
-        yield
+        yield _NULL_STATS
 
     def __repr__(self):
         return ""
@@ -130,4 +143,19 @@ class Stats(object):
         self.name = name
         self.seconds = 0.0
         self.ops = 0
+        self.bytes = 0
         self.started = None
+
+
+class NullStats:
+
+    @property
+    def bytes(self):
+        return 0
+
+    @bytes.setter
+    def bytes(self, value):
+        pass
+
+
+_NULL_STATS = NullStats()

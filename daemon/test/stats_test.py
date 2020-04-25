@@ -104,6 +104,62 @@ def test_running(fake_time):
     assert str(c) == "[total 1 ops, 7.000000 s] [read 1 ops, 4.000000 s]"
 
 
+def test_bytes(fake_time):
+    c = stats.Clock()
+
+    c.start("total")
+
+    # Using start()/stop().
+
+    s = c.start("read")
+    s.bytes += 512 * 1024**2
+    fake_time.value += 1
+    c.stop("read")
+
+    s = c.start("write")
+    s.bytes += 200 * 1024**2
+    fake_time.value += 1
+    c.stop("write")
+
+    # Using run().
+
+    with c.run("read") as s:
+        s.bytes += 512 * 1024**2
+        fake_time.value += 1
+
+    with c.run("write") as s:
+        s.bytes += 200 * 1024**2
+        fake_time.value += 1
+
+    with c.run("sync"):
+        fake_time.value += 1
+
+    c.stop("total")
+
+    assert str(c) == (
+        "[total 1 ops, 5.000000 s] "
+        "[read 2 ops, 2.000000 s, 1.00 GiB, 512.00 MiB/s] "
+        "[write 2 ops, 2.000000 s, 400.00 MiB, 200.00 MiB/s] "
+        "[sync 1 ops, 1.000000 s]"
+    )
+
+
+def test_null_clock():
+    c = stats.NullClock()
+
+    # This clock records nothing...
+    with c.run("total"):
+        with c.run("read") as s:
+            s.bytes += 4096
+            # bytes value is dropped...
+            assert s.bytes == 0
+        with c.run("sync"):
+            pass
+
+    # And always return empty string.
+    assert str(c) == ""
+
+
 # Inccorrect usage
 
 def test_start_twice():
@@ -156,10 +212,10 @@ def test_benchmark():
     # We have seen 66,000 requests per single upload with virt-v2v.
     for i in range(50000):
         c.start("request")
-        c.start("read")
-        c.stop("read")
-        c.start("write")
-        c.stop("write")
+        with c.run("read") as s:
+            s.bytes += 2 * 1024**2
+        with c.run("write") as s:
+            s.bytes += 2 * 1024**2
         c.stop("request")
     c.stop("connection")
     print(c)
