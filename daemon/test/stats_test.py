@@ -101,7 +101,8 @@ def test_running(fake_time):
     c.start("read")
     fake_time.value += 4
     c.stop("read")
-    assert str(c) == "[total 1 ops, 7.000000 s] [read 1 ops, 4.000000 s]"
+    # Since total was not stopped, the operation is not counted.
+    assert str(c) == "[total 0 ops, 7.000000 s] [read 1 ops, 4.000000 s]"
 
 
 def test_bytes(fake_time):
@@ -158,6 +159,48 @@ def test_null_clock():
 
     # And always return empty string.
     assert str(c) == ""
+
+
+def test_error_before_stop(fake_time):
+    c = stats.Clock()
+    c.start("read")
+    fake_time.value += 1
+
+    # User code fails here, before we increase bytes and call stop().
+
+    # Since read was not stopped the operation is not counted...
+    assert str(c) == "[read 0 ops, 1.000000 s]"
+
+    # And we cannot start this operation again.
+    with pytest.raises(RuntimeError):
+        c.start("read")
+
+    # We can abort the operation to continue to use this clock.
+    fake_time.value += 1
+    c.abort("read")
+    assert str(c) == "[read 0 ops, 2.000000 s]"
+
+
+def test_error_in_run(fake_time):
+    c = stats.Clock()
+
+    with pytest.raises(RuntimeError):
+        with c.run("read") as s:
+            fake_time.value += 1
+            raise RuntimeError("fake error")
+
+            s.bytes += 512 * 1024**2
+
+    # First read failed, so bytes is not set and the operation is not counted.
+    assert str(c) == "[read 0 ops, 1.000000 s]"
+
+    # However clock was stopped, so next read can succeed.
+    with c.run("read") as s:
+        fake_time.value += 1
+        s.bytes += 512 * 1024**2
+
+    # Bytes value is set now so we report total and rate values.
+    assert str(c) == "[read 1 ops, 2.000000 s, 512.00 MiB, 256.00 MiB/s]"
 
 
 # Inccorrect usage

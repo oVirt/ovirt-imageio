@@ -64,11 +64,29 @@ class Clock(object):
             raise RuntimeError("Stats %r was already started" % name)
 
         s.started = time.time()
-        s.ops += 1
 
         return s
 
     def stop(self, name):
+        s = self._lookup_started(name)
+        return self._stop(s, True)
+
+    def abort(self, name):
+        s = self._lookup_started(name)
+        return self._stop(s, False)
+
+    @contextmanager
+    def run(self, name):
+        s = self.start(name)
+        try:
+            yield s
+        except BaseException:
+            self._stop(s, False)
+            raise
+        else:
+            self._stop(s, True)
+
+    def _lookup_started(self, name):
         s = self._stats.get(name)
         if s is None:
             raise RuntimeError("No such stats %r" % name)
@@ -76,19 +94,16 @@ class Clock(object):
         if s.started is None:
             raise RuntimeError("Stats %r was not started" % name)
 
+        return s
+
+    def _stop(self, s, completed):
         elapsed = time.time() - s.started
         s.seconds += elapsed
         s.started = None
+        if completed:
+            s.ops += 1
 
         return elapsed
-
-    @contextmanager
-    def run(self, name):
-        s = self.start(name)
-        try:
-            yield s
-        finally:
-            self.stop(name)
 
     def __repr__(self):
         now = time.time()
