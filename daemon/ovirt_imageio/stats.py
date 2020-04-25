@@ -51,30 +51,30 @@ class Clock(object):
 
     def __init__(self):
         # Keep insertion order for nicer output in __repr__.
-        self._timers = collections.OrderedDict()
+        self._stats = collections.OrderedDict()
 
     def start(self, name):
-        t = self._timers.get(name)
-        if t is None:
-            t = self._timers[name] = Timer(name)
+        s = self._stats.get(name)
+        if s is None:
+            s = self._stats[name] = Stats(name)
 
-        if t.started is not None:
-            raise RuntimeError("Timer %r is running" % name)
+        if s.started is not None:
+            raise RuntimeError("Stats %r was already started" % name)
 
-        t.started = time.time()
-        t.count += 1
+        s.started = time.time()
+        s.ops += 1
 
     def stop(self, name):
-        t = self._timers.get(name)
-        if t is None:
-            raise RuntimeError("No such timer %r" % name)
+        s = self._stats.get(name)
+        if s is None:
+            raise RuntimeError("No such stats %r" % name)
 
-        if t.started is None:
-            raise RuntimeError("Timer %r is not running" % name)
+        if s.started is None:
+            raise RuntimeError("Stats %r was not started" % name)
 
-        elapsed = time.time() - t.started
-        t.total += elapsed
-        t.started = None
+        elapsed = time.time() - s.started
+        s.seconds += elapsed
+        s.started = None
 
         return elapsed
 
@@ -88,14 +88,14 @@ class Clock(object):
 
     def __repr__(self):
         now = time.time()
-        timers = []
-        for t in self._timers.values():
-            if t.started is not None:
-                total = now - t.started
+        stats = []
+        for s in self._stats.values():
+            if s.started is not None:
+                seconds = now - s.started
             else:
-                total = t.total
-            timers.append("[%s %d ops, %.6f s]" % (t.name, t.count, total))
-        return " ".join(timers)
+                seconds = s.seconds
+            stats.append("[%s %d ops, %.6f s]" % (s.name, s.ops, seconds))
+        return " ".join(stats)
 
 
 class NullClock(object):
@@ -124,10 +124,10 @@ class NullClock(object):
         return ""
 
 
-class Timer(object):
+class Stats(object):
 
     def __init__(self, name):
         self.name = name
-        self.total = 0.0
-        self.count = 0
+        self.seconds = 0.0
+        self.ops = 0
         self.started = None
