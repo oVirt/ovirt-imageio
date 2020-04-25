@@ -29,12 +29,12 @@ def fake_time(monkeypatch):
 
 # Ccorrect usage
 
-def test_clock_empty():
+def test_empty():
     c = stats.Clock()
     assert str(c) == ""
 
 
-def test_clock_stop_returns_elapsed_time(fake_time):
+def test_stop_returns_elapsed_time(fake_time):
     c = stats.Clock()
 
     c.start("read")
@@ -46,7 +46,7 @@ def test_clock_stop_returns_elapsed_time(fake_time):
     assert c.stop("read") == 2
 
 
-def test_clock_measure(fake_time):
+def test_measure(fake_time):
     c = stats.Clock()
     c.start("total")
     c.start("read")
@@ -67,7 +67,7 @@ def test_clock_measure(fake_time):
     )
 
 
-def test_clock_measure_multiple(fake_time):
+def test_measure_multiple(fake_time):
     c = stats.Clock()
     c.start("total")
     c.start("read")
@@ -94,7 +94,7 @@ def test_clock_measure_multiple(fake_time):
     )
 
 
-def test_clock_running(fake_time):
+def test_running(fake_time):
     c = stats.Clock()
     c.start("total")
     fake_time.value += 3
@@ -106,14 +106,14 @@ def test_clock_running(fake_time):
 
 # Inccorrect usage
 
-def test_clock_start_twice():
+def test_start_twice():
     c = stats.Clock()
     c.start("started")
     with pytest.raises(RuntimeError):
         c.start("started")
 
 
-def test_clock_stop_twice():
+def test_stop_twice():
     c = stats.Clock()
     c.start("stopped")
     c.stop("stopped")
@@ -121,13 +121,13 @@ def test_clock_stop_twice():
         c.stop("stopped")
 
 
-def test_clock_stop_missing():
+def test_stop_missing():
     c = stats.Clock()
     with pytest.raises(RuntimeError):
         c.stop("missing")
 
 
-def test_clock_run(fake_time):
+def test_run(fake_time):
     c = stats.Clock()
     with c.run("total"):
         with c.run("a"):
@@ -141,7 +141,7 @@ def test_clock_run(fake_time):
     )
 
 
-def test_clock_run_recursive():
+def test_run_recursive():
     c = stats.Clock()
     with c.run("started"):
         with pytest.raises(RuntimeError):
