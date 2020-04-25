@@ -206,16 +206,21 @@ def test_run_recursive():
 
 
 @pytest.mark.benchmark
-def test_benchmark():
-    c = stats.Clock()
-    c.start("connection")
-    # We have seen 66,000 requests per single upload with virt-v2v.
-    for i in range(50000):
-        c.start("request")
-        with c.run("read") as s:
-            s.bytes += 2 * 1024**2
-        with c.run("write") as s:
-            s.bytes += 2 * 1024**2
-        c.stop("request")
-    c.stop("connection")
-    print(c)
+@pytest.mark.parametrize("clock", [
+    pytest.param(stats.Clock(), id="clock"),
+    pytest.param(stats.NullClock(), id="null-clock"),
+])
+def test_benchmark(clock):
+    test = stats.Clock()
+    with test.run("total"):
+        clock.start("connection")
+        # We have seen 66,000 requests per single upload with virt-v2v.
+        for i in range(50000):
+            clock.start("request")
+            with clock.run("read") as s:
+                s.bytes += 2 * 1024**2
+            with clock.run("write") as s:
+                s.bytes += 2 * 1024**2
+            clock.stop("request")
+        clock.stop("connection")
+    print("{} {}".format(test, clock))
