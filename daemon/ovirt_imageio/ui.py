@@ -17,7 +17,8 @@ from . import util
 
 class ProgressBar(object):
 
-    def __init__(self, size=0, output=sys.stdout, step=0.1, width=79):
+    def __init__(self, size=0, output=sys.stdout, step=0.1, width=79,
+                 now=time.monotonic):
         """
         Argumnets:
             size (int): total number of bytes. If size is unknown when
@@ -27,13 +28,15 @@ class ProgressBar(object):
             step (float): mininum progress update interval in seconds (default
                 0.1 seconds).
             width (int): width of progress bar in characters (default 79)
+            now (callable): callable returning current time for testing.
         """
         self.size = size
         self.output = output
         self.step = step
         # TODO: use current terminal width instead.
         self.width = width
-        self.start = time.time()
+        self.now = now
+        self.start = self.now()
         self.next = 0
         self.done = 0
 
@@ -55,7 +58,7 @@ class ProgressBar(object):
         [1] https://github.com/tqdm/tqdm#manual
         """
         self.done += n
-        now = time.time()
+        now = self.now()
         if now < self.next:
             return
 
@@ -65,7 +68,7 @@ class ProgressBar(object):
     def close(self):
         # If we wrote progress, we need to draw the last progress line.
         if self.done > 0:
-            self._draw(time.time(), last=True)
+            self._draw(self.now(), last=True)
 
     def _draw(self, now, last=False):
         elapsed = now - self.start
