@@ -48,14 +48,15 @@ class Handler(object):
 
         backend = backends.get(req, ticket, self.config)
 
-        try:
-            extents = [
-                {"start": ext.start,
-                 "length": ext.length,
-                 context: getattr(ext, context)}
-                for ext in backend.extents(context=context)
-            ]
-        except errors.UnsupportedOperation as e:
-            raise http.Error(http.NOT_FOUND, str(e))
+        with req.clock.run("extents"):
+            try:
+                extents = [
+                    {"start": ext.start,
+                     "length": ext.length,
+                     context: getattr(ext, context)}
+                    for ext in backend.extents(context=context)
+                ]
+            except errors.UnsupportedOperation as e:
+                raise http.Error(http.NOT_FOUND, str(e))
 
         resp.send_json(extents)
