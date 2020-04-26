@@ -99,8 +99,9 @@ class Send(Operation):
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
-        with self._clock.run("read"):
+        with self._clock.run("read") as s:
             count = self._src.readinto(buf)
+            s.bytes += count
         if count == 0:
             if self._size is None:
                 raise EOF
@@ -108,8 +109,9 @@ class Send(Operation):
 
         size = min(count - skip, self._todo)
         with memoryview(buf)[skip:skip + size] as view:
-            with self._clock.run("write"):
+            with self._clock.run("write") as s:
                 self._dst.write(view)
+                s.bytes += size
         self._done += size
 
 
@@ -156,8 +158,9 @@ class Receive(Operation):
             read = 0
             while read < count:
                 with view[read:] as v:
-                    with self._clock.run("read"):
+                    with self._clock.run("read") as s:
                         n = self._src.readinto(v)
+                        s.bytes += n
                 if not n:
                     break
                 read += n
@@ -165,8 +168,9 @@ class Receive(Operation):
             pos = 0
             while pos < read:
                 with view[pos:read] as v:
-                    with self._clock.run("write"):
+                    with self._clock.run("write") as s:
                         n = self._dst.write(v)
+                        s.bytes += n
                 pos += n
 
         self._done += read
@@ -197,8 +201,10 @@ class Zero(Operation):
 
         while self._todo:
             step = min(self._todo, self.MAX_STEP)
-            with self._clock.run("zero"):
-                self._done += self._dst.zero(step)
+            with self._clock.run("zero") as s:
+                n = self._dst.zero(step)
+                s.bytes += n
+            self._done += n
 
         if self._flush:
             self.flush()
