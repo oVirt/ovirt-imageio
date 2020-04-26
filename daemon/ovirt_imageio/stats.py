@@ -51,9 +51,10 @@ class Clock(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, now=time.monotonic):
         # Keep insertion order for nicer output in __repr__.
         self._stats = collections.OrderedDict()
+        self._now = now
 
     def start(self, name):
         s = self._stats.get(name)
@@ -63,7 +64,7 @@ class Clock(object):
         if s.started is not None:
             raise RuntimeError("Stats %r was already started" % name)
 
-        s.started = time.time()
+        s.started = self._now()
 
         return s
 
@@ -97,7 +98,7 @@ class Clock(object):
         return s
 
     def _stop(self, s, completed):
-        elapsed = time.time() - s.started
+        elapsed = self._now() - s.started
         s.seconds += elapsed
         s.started = None
         if completed:
@@ -106,7 +107,7 @@ class Clock(object):
         return elapsed
 
     def __repr__(self):
-        now = time.time()
+        now = self._now()
         stats = []
         for s in self._stats.values():
             if s.started is not None:

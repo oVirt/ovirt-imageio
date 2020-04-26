@@ -6,7 +6,6 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-import time
 import pytest
 from ovirt_imageio import stats
 
@@ -20,13 +19,6 @@ class FakeTime(object):
         return self.value
 
 
-@pytest.fixture
-def fake_time(monkeypatch):
-    t = FakeTime()
-    monkeypatch.setattr(time, "time", t)
-    yield t
-
-
 # Ccorrect usage
 
 def test_empty():
@@ -34,8 +26,9 @@ def test_empty():
     assert str(c) == ""
 
 
-def test_stop_returns_elapsed_time(fake_time):
-    c = stats.Clock()
+def test_stop_returns_elapsed_time():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
 
     c.start("read")
     fake_time.value += 1
@@ -46,8 +39,9 @@ def test_stop_returns_elapsed_time(fake_time):
     assert c.stop("read") == 2
 
 
-def test_measure(fake_time):
-    c = stats.Clock()
+def test_measure():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
     c.start("total")
     c.start("read")
     fake_time.value += 1
@@ -67,8 +61,9 @@ def test_measure(fake_time):
     )
 
 
-def test_measure_multiple(fake_time):
-    c = stats.Clock()
+def test_measure_multiple():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
     c.start("total")
     c.start("read")
     fake_time.value += 1
@@ -94,8 +89,9 @@ def test_measure_multiple(fake_time):
     )
 
 
-def test_running(fake_time):
-    c = stats.Clock()
+def test_running():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
     c.start("total")
     fake_time.value += 3
     c.start("read")
@@ -105,8 +101,9 @@ def test_running(fake_time):
     assert str(c) == "[total 0 ops, 7.000000 s] [read 1 ops, 4.000000 s]"
 
 
-def test_bytes(fake_time):
-    c = stats.Clock()
+def test_bytes():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
 
     c.start("total")
 
@@ -161,8 +158,9 @@ def test_null_clock():
     assert str(c) == ""
 
 
-def test_error_before_stop(fake_time):
-    c = stats.Clock()
+def test_error_before_stop():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
     c.start("read")
     fake_time.value += 1
 
@@ -181,8 +179,9 @@ def test_error_before_stop(fake_time):
     assert str(c) == "[read 0 ops, 2.000000 s]"
 
 
-def test_error_in_run(fake_time):
-    c = stats.Clock()
+def test_error_in_run():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
 
     with pytest.raises(RuntimeError):
         with c.run("read") as s:
@@ -226,8 +225,9 @@ def test_stop_missing():
         c.stop("missing")
 
 
-def test_run(fake_time):
-    c = stats.Clock()
+def test_run():
+    fake_time = FakeTime()
+    c = stats.Clock(fake_time)
     with c.run("total"):
         with c.run("a"):
             fake_time.value += 4
