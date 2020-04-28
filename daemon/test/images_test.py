@@ -28,6 +28,12 @@ from . marks import requires_python3
 
 pytestmark = requires_python3
 
+# Exceptions raised when peer closed the connection and auto_open is disabled.
+# Raised in request() or in getresponse(), depends on timing.
+CONNECTION_CLOSED = (
+    http_client.NotConnected,
+    http_client.BadStatusLine,
+)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -237,6 +243,32 @@ def test_upload_invalid_range(tmpdir, srv, client, content_range):
     res = client.put("/images/" + ticket["uuid"], "content",
                      headers={"Content-Range": content_range})
     assert res.status == 400
+
+
+def test_upload_close_connection(tmpdir, srv, client):
+    image_size = 4096
+    image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=image_size)
+    srv.auth.add(ticket)
+    uri = "/images/" + ticket["uuid"] + "?close=y"
+    data = b"b" * image_size
+
+    # Disabling auto_open so we can test if a connection was closed.
+    client.con.auto_open = False
+    client.con.connect()
+
+    res = client.put(uri, data)
+    res.read()
+
+    # Image should be updated...
+    assert res.status == 200
+    with io.open(str(image), "rb") as f:
+        assert f.read() == data
+
+    # But connection should be closed.
+    with pytest.raises(CONNECTION_CLOSED):
+        client.put(uri, data)
 
 
 def test_download_no_ticket_id(srv, client):
@@ -485,6 +517,31 @@ def test_download_progress(tmpdir, srv, client, monkeypatch):
 
     assert not ticket.active()
     assert ticket.transferred() == size
+
+
+def test_download_close_connection(tmpdir, srv, client):
+    image_size = 4096
+    image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
+    ticket = testutil.create_ticket(
+        url="file://" + str(image), size=image_size)
+    srv.auth.add(ticket)
+    uri = "/images/" + ticket["uuid"] + "?close=y"
+
+    # Disabling auto_open so we can test if a connection was closed.
+    client.con.auto_open = False
+    client.con.connect()
+
+    res = client.get(uri)
+    data = res.read()
+
+    # We should get image data...
+    assert res.status == 200
+    with io.open(str(image), "rb") as f:
+        assert f.read() == data
+
+    # But connection should be closed.
+    with pytest.raises(CONNECTION_CLOSED):
+        client.get(uri)
 
 
 # PATCH
@@ -812,10 +869,8 @@ def test_close_connection_on_errors(tmpdir, srv, client, method, body):
     assert r.status == 403
 
     # Try to send another request. This will fail since the server closed
-    # the connection, and we disabled auto_open.  Fails in request() or in
-    # getresponse(), probably depends on timing.
-    with pytest.raises(
-            (http_client.NotConnected, http_client.BadStatusLine)):
+    # the connection, and we disabled auto_open.
+    with pytest.raises(CONNECTION_CLOSED):
         client.request(method, uri, body=body)
 
 
