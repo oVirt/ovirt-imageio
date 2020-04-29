@@ -375,7 +375,7 @@ class Client(object):
         self._counter = itertools.count()
         self._state = CONNECTING
 
-        log.info("Connecting to %s %r", address, self.export_name)
+        log.debug("Connecting to %s %r", address, self.export_name)
 
         self._sock = self._connect(address)
         try:
@@ -384,7 +384,7 @@ class Client(object):
             self.close()
             raise
 
-        log.info("Ready for transmission")
+        log.debug("Ready for transmission")
 
     @property
     def base_allocation(self):
@@ -874,7 +874,7 @@ class Client(object):
         [2] https://github.com/NetworkBlockDevice/nbd/blob/master/doc/proto.md
             #terminating-the-transmission-phase
         """
-        log.info("Initiating a soft disconnect")
+        log.debug("Initiating a soft disconnect")
         try:
             if self._state == HANDSHAKE:
                 self._send_option(OPT_ABORT)
@@ -895,7 +895,7 @@ class Client(object):
 
     def _hard_disconnect(self):
         if self._state < CLOSED:
-            log.info("Initiating a hard disconnect")
+            log.debug("Initiating a hard disconnect")
             self._state = CLOSED
             self._close_socket()
 
