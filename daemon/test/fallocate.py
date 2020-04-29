@@ -75,7 +75,7 @@ args = parser.parse_args()
 
 url = urllib_parse.urlparse("file://" + args.filename)
 
-start_time = time.time()
+start_time = time.monotonic()
 
 with file.open(url, "r+", sparse=args.sparse) as f:
     if args.length is None:
@@ -94,7 +94,7 @@ with file.open(url, "r+", sparse=args.sparse) as f:
 
     f.flush()
 
-elapsed_time = time.time() - start_time
+elapsed_time = time.monotonic() - start_time
 
 print("Zero %.2f GiB in %.3f seconds (%.2f GiB/s)" % (
     float(args.length) / 1024**3,

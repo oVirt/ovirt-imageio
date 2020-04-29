@@ -204,7 +204,7 @@ def test_run_operation_benchmark():
             ticket.run(Operation(offset, step))
             offset += step
 
-    start = time.time()
+    start = time.monotonic()
 
     threads = []
     try:
@@ -215,9 +215,9 @@ def test_run_operation_benchmark():
         for t in threads:
             t.join()
 
-    elapsed = time.time() - start
+    elapsed = time.monotonic() - start
 
-    print("%d operations, %d concurrent threads in %.2f seconds (%d nsec/op)"
+    print("%d operations, %d concurrent threads in %.3f seconds (%d nsec/op)"
           % (operations, workers, elapsed, elapsed * 10**9 // operations))
 
 
@@ -240,12 +240,12 @@ def test_transferred_benchmark(concurrent):
         ticket._add_operation(Operation(i * 1000 + 200, 100))
 
     # Time transferred call - merging ongoing and completed ranges.
-    start = time.time()
+    start = time.monotonic()
     for i in xrange(calls):
         ticket.transferred()
-    elapsed = time.time() - start
+    elapsed = time.monotonic() - start
 
-    print("%d concurrent operations, %d calls in %.2f seconds (%d nsec/op)"
+    print("%d concurrent operations, %d calls in %.3f seconds (%d nsec/op)"
           % (concurrent, calls, elapsed, elapsed * 10**9 // calls))
 
 
