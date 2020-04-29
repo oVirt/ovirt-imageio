@@ -350,6 +350,10 @@ class Client(object):
 
     def __init__(self, address, export_name=None, dirty=False):
         self.export_name = export_name or ""
+
+        log.debug("Connecting address=%r export_name=%r dirty=%r",
+                  address, self.export_name, dirty)
+
         self.export_size = None
         self.transmission_flags = None
 
@@ -374,8 +378,6 @@ class Client(object):
 
         self._counter = itertools.count()
         self._state = CONNECTING
-
-        log.debug("Connecting to %s %r", address, self.export_name)
 
         self._sock = self._connect(address)
         try:
