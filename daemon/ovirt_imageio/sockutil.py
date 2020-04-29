@@ -77,7 +77,7 @@ def wait_for_socket(addr, timeout, step=0.02):
     Return True if socket is available, False if socket is not available within
     the requested timeout.
     """
-    start = time.time()
+    start = time.monotonic()
     deadline = start + timeout
 
     log.debug("Waiting for socket %s up to %.6f seconds", addr, timeout)
@@ -99,7 +99,7 @@ def wait_for_socket(addr, timeout, step=0.02):
                     raise
 
                 # Timed out?
-                now = time.time()
+                now = time.monotonic()
                 if now >= deadline:
                     return False
 
@@ -109,5 +109,5 @@ def wait_for_socket(addr, timeout, step=0.02):
                 time.sleep(wait)
             else:
                 log.debug("Waited for %s %.6f seconds",
-                          addr, time.time() - start)
+                          addr, time.monotonic() - start)
                 return True
