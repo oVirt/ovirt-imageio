@@ -55,6 +55,8 @@ class Backend(object):
     def __init__(self, client, mode):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
+        log.info("Open backend address=%r export_name=%r",
+                 client.address, client.export_name)
         self._client = client
         self._mode = mode
         self._position = 0
@@ -112,6 +114,7 @@ class Backend(object):
         return self._position
 
     def close(self):
+        log.info("Close backend address=%r", self._client.address)
         self._client.close()
 
     def __enter__(self):

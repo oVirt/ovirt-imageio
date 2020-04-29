@@ -51,8 +51,8 @@ def open(url, mode, sparse=True, dirty=False, **options):
 class Backend(object):
 
     def __init__(self, url, cafile, secure=True):
-        log.debug("Open backend netloc=%s path=%s cafile=%s secure=%s",
-                  url.netloc, url.path, cafile, secure)
+        log.info("Open backend netloc=%r path=%r cafile=%r secure=%r",
+                 url.netloc, url.path, cafile, secure)
         self.url = url
         self._position = 0
         self._size = None
@@ -259,8 +259,8 @@ class Backend(object):
         return self._size
 
     def close(self):
-        log.debug("Close backend netloc=%s path=%s",
-                  self.url.netloc, self.url.path)
+        log.info("Close backend netloc=%r path=%r",
+                 self.url.netloc, self.url.path)
         self._con.close()
 
     def __enter__(self):

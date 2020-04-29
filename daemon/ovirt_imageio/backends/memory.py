@@ -40,6 +40,7 @@ class Backend(object):
     def __init__(self, mode, data=None):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
+        log.info("Open backend mode=%r", mode)
         self._mode = mode
         self._buf = io.BytesIO(data)
         self._dirty = False
@@ -68,6 +69,7 @@ class Backend(object):
         self._dirty = False
 
     def close(self):
+        log.info("Close backend")
         self._buf.close()
 
     def __enter__(self):
