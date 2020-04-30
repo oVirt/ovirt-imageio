@@ -267,6 +267,7 @@ def test_upload_close_connection(tmpdir, srv, client):
         assert f.read() == data
 
     # But connection should be closed.
+    assert res.getheader("connection") == "close"
     with pytest.raises(CONNECTION_CLOSED):
         client.put(uri, data)
 
@@ -540,6 +541,7 @@ def test_download_close_connection(tmpdir, srv, client):
         assert f.read() == data
 
     # But connection should be closed.
+    assert res.getheader("connection") == "close"
     with pytest.raises(CONNECTION_CLOSED):
         client.get(uri)
 
@@ -870,6 +872,7 @@ def test_close_connection_on_errors(tmpdir, srv, client, method, body):
 
     # Try to send another request. This will fail since the server closed
     # the connection, and we disabled auto_open.
+    assert r.getheader("connection") == "close"
     with pytest.raises(CONNECTION_CLOSED):
         client.request(method, uri, body=body)
 

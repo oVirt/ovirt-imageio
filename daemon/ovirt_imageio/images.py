@@ -38,7 +38,7 @@ class Handler(object):
         # Used by engine UI to close connection after upload.
         close = req.query.get("close") == "y"
         if close:
-            req.close_connection()
+            resp.close_connection()
 
         size = req.content_length
         if size is None:
@@ -83,7 +83,7 @@ class Handler(object):
         # Used by engine UI to close connection after download.
         close = req.query.get("close") == "y"
         if close:
-            req.close_connection()
+            resp.close_connection()
 
         offset = 0
         size = None

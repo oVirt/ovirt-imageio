@@ -375,12 +375,6 @@ class Request(object):
         """
         return self._con.connection_error() in _DISCONNECTED
 
-    def close_connection(self):
-        """
-        Close the connection when this request is finished.
-        """
-        self._con.close_connection = 1
-
 
 class Response(object):
 
