@@ -57,13 +57,14 @@ class tls:
     # certificate files and link it in config file.
     enable = True
 
-    # Private key file.
+    # Private key file, must not be empty.
     key_file = ""
 
-    # Certificate file.
+    # Certificate file, must not be empty.
     cert_file = ""
 
-    # CA certificate file.
+    # CA certificate file. Empty value is valid, meaning use the host trusted
+    # CAs.
     ca_file = ""
 
     # Enable TLSv1.1, for legacy user applications that do not support

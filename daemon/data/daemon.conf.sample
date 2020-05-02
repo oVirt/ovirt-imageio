@@ -29,8 +29,10 @@
 #   cert_file =
 
 # CA certificate file.
-# There's no default ca file and needs to be configured is tls is
-# enabled:
+# This should be configured if tls is enabled and cert_file is not
+# signed by a certificate authority trusted by the host. An example is
+# the default self-signed certificate used in oVirt. Leave empty if
+# cert_file is signed by a trusted certificate authority.
 #   ca_file =
 
 # Enable TLSv1.1, for legacy user applications that do not support TLSv1.2.

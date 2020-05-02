@@ -86,13 +86,8 @@ class RemoteService(Service):
         log.debug("%s listening on port %d", self.name, self.port)
 
     def _secure_server(self):
-        required_config = (
-            self._config.tls.ca_file,
-            self._config.tls.cert_file,
-            self._config.tls.key_file,
-        )
-        if "" in required_config:
-            raise errors.TlsConfigurationError(*required_config)
+        if "" in (self._config.tls.cert_file, self._config.tls.key_file):
+            raise errors.TlsConfigurationError(self._config.tls)
 
         log.debug("Securing server (cafile=%s, certfile=%s, keyfile=%s)",
                   self._config.tls.ca_file,

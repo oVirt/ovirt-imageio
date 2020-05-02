@@ -61,13 +61,11 @@ class UnsupportedOperation(Error):
 
 class TlsConfigurationError(Error):
     msg = ("TLS enabled (see [tls] section in daemon.conf), but not "
-           "configured: ca_file = {self.ca_file}, cert_file = "
-           "{self.cert_file}, key_file = {self.key_file}")
+           "configured: ca_file = {self.cfg.ca_file}, cert_file = "
+           "{self.cfg.cert_file}, key_file = {self.cfg.key_file}")
 
-    def __init__(self, ca_file, cert_file, key_file):
-        self.ca_file = ca_file
-        self.cert_file = cert_file
-        self.key_file = key_file
+    def __init__(self, cfg):
+        self.cfg = cfg
 
 
 class InvalidConfig(Error):
