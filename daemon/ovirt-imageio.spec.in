@@ -53,10 +53,7 @@ Common resources used by oVirt imageio server and client
 %license COPYING
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
-%exclude %{python3_sitearch}/%{srcname}/client.py
-%exclude %{python3_sitearch}/%{srcname}/ui.py
-%exclude %{python3_sitearch}/%{srcname}/__pycache__/client.*
-%exclude %{python3_sitearch}/%{srcname}/__pycache__/ui.*
+%exclude %{python3_sitearch}/%{srcname}/client
 
 
 %package client
@@ -70,10 +67,7 @@ Requires:  qemu-img
 Python client library for accessing imageio server on oVirt hosts.
 
 %files client
-%{python3_sitearch}/%{srcname}/client.py
-%{python3_sitearch}/%{srcname}/ui.py
-%{python3_sitearch}/%{srcname}/__pycache__/client.*
-%{python3_sitearch}/%{srcname}/__pycache__/ui.*
+%{python3_sitearch}/%{srcname}/client
 
 
 %package daemon

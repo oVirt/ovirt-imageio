@@ -19,7 +19,8 @@ setup(
     name="ovirt-imageio",
     packages=[
         "ovirt_imageio",
-        "ovirt_imageio.backends"
+        "ovirt_imageio.backends",
+        "ovirt_imageio.client",
     ],
     platforms=["Linux"],
     scripts=["ovirt-imageio"],

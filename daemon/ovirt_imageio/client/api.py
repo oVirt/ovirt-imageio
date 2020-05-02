@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 """
-client - helpers for uploading and downloading disks
+api - imageio public client API.
 """
 
 from __future__ import absolute_import
@@ -18,17 +18,14 @@ import tempfile
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
-from . import io
-from . import qemu_img
-from . import qemu_nbd
-from . backends import http, nbd
-from . nbd import UnixAddress
-
-# Used by examles to set default value.
-BUFFER_SIZE = io.BUFFER_SIZE
+from .. import io
+from .. import qemu_img
+from .. import qemu_nbd
+from .. backends import http, nbd
+from .. nbd import UnixAddress
 
 
-def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
+def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
            progress=None):
     """
     Upload filename to url
@@ -61,7 +58,7 @@ def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
 
 
 def download(url, filename, cafile, fmt="qcow2", incremental=False,
-             buffer_size=BUFFER_SIZE, secure=True, progress=None):
+             buffer_size=io.BUFFER_SIZE, secure=True, progress=None):
     """
     Download url to filename.
 

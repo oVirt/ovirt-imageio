@@ -81,11 +81,10 @@ import argparse
 import logging
 
 from ovirt_imageio import client
-from ovirt_imageio import ui
 
 
 def upload(args):
-    with ui.ProgressBar() as pb:
+    with client.ProgressBar() as pb:
         client.upload(
             args.filename,
             args.url,
@@ -96,7 +95,7 @@ def upload(args):
 
 
 def download(args):
-    with ui.ProgressBar() as pb:
+    with client.ProgressBar() as pb:
         client.download(
             args.url,
             args.filename,

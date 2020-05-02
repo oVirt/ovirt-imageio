@@ -50,7 +50,7 @@ from six.moves.urllib.parse import urlparse
 
 from ovirt_imageio import nbd
 from ovirt_imageio import nbdutil
-from ovirt_imageio import ui
+from ovirt_imageio import client
 
 
 def upload(args):
@@ -62,7 +62,7 @@ def upload(args):
                             "size {}".format(dst.export_size, size))
         pb = None
         if not args.silent:
-            pb = ui.ProgressBar(size)
+            pb = client.ProgressBar(size)
 
         for zero, start, length in _map(args.filename):
             if zero:
@@ -82,7 +82,7 @@ def download(args):
 
         pb = None
         if not args.silent:
-            pb = ui.ProgressBar(src.export_size)
+            pb = client.ProgressBar(src.export_size)
 
         # NBD has a limit of 32 MiB for request length. We let the user
         # choose a lower step size for tuning the copy.
@@ -146,7 +146,7 @@ def copy(args):
             nbd.open(urlparse(args.dst_url)) as dst:
         progress = None
         if not args.silent:
-            progress = ui.ProgressBar(src.export_size)
+            progress = client.ProgressBar(src.export_size)
 
         nbdutil.copy(
             src,

@@ -8,7 +8,7 @@
 
 from __future__ import absolute_import
 
-from ovirt_imageio import ui
+from ovirt_imageio.client import ui
 
 
 class FakeTime(object):
