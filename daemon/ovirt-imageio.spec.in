@@ -10,7 +10,7 @@ Release:   0@RELEASE_SUFFIX@%{?dist}
 Summary:   oVirt imageio
 
 License:   GPLv2+
-Url:       https://gerrit.ovirt.org/ovirt-imageio
+Url:       https://gerrit.ovirt.org/%{name}
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 
 %description
@@ -30,7 +30,7 @@ touch %{buildroot}%{logdir}/daemon.log
 install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/daemon.conf.sample %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/ovirt-imageio.service %{buildroot}%{_unitdir}/ovirt-imageio.service
+install -D -m 0644 data/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -72,8 +72,8 @@ Requires:  python3-systemd
 Daemon to manage image data transfer on oVirt virtualization hosts.
 
 %files daemon
-%{_bindir}/ovirt-imageio
-%{_unitdir}/ovirt-imageio.service
+%{_bindir}/%{name}
+%{_unitdir}/%{name}.service
 %dir %{_sysconfdir}/%{name}
 %config %{_sysconfdir}/%{name}/logger.conf
 %{_sysconfdir}/%{name}/daemon.conf.sample
@@ -95,26 +95,26 @@ if ! /usr/bin/getent passwd %{user} >/dev/null; then
     /usr/sbin/useradd --system \
         --user-group \
         --shell /sbin/nologin \
-        --home-dir /run/ovirt-imageio \
+        --home-dir /run/%{name} \
         --comment "oVirt imageio" \
         %{user}
 fi
 
 %post daemon
 # After installation, synchronize service state with preset files.
-%systemd_post ovirt-imageio.service
+%systemd_post %{name}.service
 
 %preun daemon
 # Before uninstalling, stop and disable the service.
-%systemd_preun ovirt-imageio.service
+%systemd_preun %{name}.service
 
 %postun daemon
 # After upgrading, restart the service.
-%systemd_postun_with_restart ovirt-imageio.service
+%systemd_postun_with_restart %{name}.service
 
 %posttrans daemon
 # At the end of the transaction, stop stale ovirt-imageio-daemon service.
-# Needed only when upgrading from ovirt-imagei-daemon < 2.
+# Needed only when upgrading from ovirt-imageio-daemon < 2.
 if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
     echo "Stopping ovirt-imageio-daemon.service";
     systemctl stop ovirt-imageio-daemon.service
