@@ -1,9 +1,3 @@
-%global logdir @LOGDIR@
-%global user ovirtimg
-%global group ovirtimg
-
-%global srcname ovirt_imageio
-
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
 Release:   0@RELEASE_SUFFIX@%{?dist}
@@ -12,6 +6,11 @@ Summary:   oVirt imageio
 License:   GPLv2+
 Url:       https://gerrit.ovirt.org/%{name}
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
+
+%global user ovirtimg
+%global group ovirtimg
+%global srcname ovirt_imageio
+%global logdir %{_localstatedir}/log/%{name}
 
 %description
 Image data transfer on oVirt virtualization hosts.

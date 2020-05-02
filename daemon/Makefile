@@ -6,8 +6,7 @@ OUTDIR=dist
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
-
-LOGDIR=/var/log/$(PACKAGE_NAME)
+LOGDIR=$(shell rpm --eval '%{_localstatedir}')/log/$(PACKAGE_NAME)
 
 GENERATED = \
     $(SPEC_NAME) \
