@@ -36,7 +36,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %package common
-Summary:   oVirt imageio library
+Summary:   oVirt imageio common resources
 
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires: gcc
@@ -45,15 +45,35 @@ BuildRequires: python3-devel
 # NOTE: keep in sync with automation/check.packages
 Requires:  python3
 Requires:  python3-six
-Requires:  qemu-img
 
 %description common
-Common library for image data transfer on oVirt virtualization hosts.
+Common resources used by oVirt imageio server and client
 
 %files common
 %license COPYING
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
+%exclude %{python3_sitearch}/%{srcname}/client.py
+%exclude %{python3_sitearch}/%{srcname}/ui.py
+%exclude %{python3_sitearch}/%{srcname}/__pycache__/client.*
+%exclude %{python3_sitearch}/%{srcname}/__pycache__/ui.*
+
+
+%package client
+Summary:   oVirt imageio client library
+
+# NOTE: keep in sync with automation/check.packages
+Requires:  %{name}-common = %{version}-%{release}
+Requires:  qemu-img
+
+%description client
+Python client library for accessing imageio server on oVirt hosts.
+
+%files client
+%{python3_sitearch}/%{srcname}/client.py
+%{python3_sitearch}/%{srcname}/ui.py
+%{python3_sitearch}/%{srcname}/__pycache__/client.*
+%{python3_sitearch}/%{srcname}/__pycache__/ui.*
 
 
 %package daemon
@@ -66,9 +86,8 @@ BuildRequires: systemd
 Requires:  %{name}-common = %{version}-%{release}
 Requires:  python3-systemd
 
-
 %description daemon
-Daemon to manage image data transfer on oVirt virtualization hosts.
+Daemon providing image transfer service on oVirt hosts.
 
 %files daemon
 %{_bindir}/%{name}
