@@ -14,7 +14,8 @@ propagate=0
 
 [handler_logfile]
 class=logging.handlers.RotatingFileHandler
-args=('@LOGDIR@/daemon.log', 'a', 20971520, 10)
+args=('@LOGDIR@/daemon.log',)
+kwargs={'maxBytes': 20971520, 'backupCount': 10}
 level=DEBUG
 formatter=long
 
