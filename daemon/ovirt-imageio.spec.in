@@ -64,7 +64,7 @@ Summary:   oVirt imageio daemon
 BuildRequires: systemd
 
 # NOTE: keep in sync with automation/check.packages
-Requires:  @PACKAGE_NAME@-common = %{version}-%{release}
+Requires:  %{name}-common = %{version}-%{release}
 Requires:  python3-systemd
 
 
