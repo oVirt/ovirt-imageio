@@ -8,39 +8,72 @@
 # (at your option) any later version.
 
 """
-http-client - upload and download images to ovirt-imageio
+imageio-client - upload and download images to ovirt-imageio server.
 
-How to use:
+Example usage
+=============
 
-1. Create a ticket json:
+In this example we will upload Fedora 31 image to ovirt-imageio server, and
+dowload the uploaded image.
+
+We can create a test image using virt-builder:
+
+    $ virt-builder fedora-31 -o upload.img
+
+Before we upload, we need to know the the image virtual size:
+
+    $ qemu-img info upload.img
+    image: upload.img
+    file format: raw
+    virtual size: 6 GiB (6442450944 bytes)
+    disk size: 1.18 GiB
+
+We need to create the target image. ovirt-imageio does not manage storage, it
+only handle the data transfer.
+
+    $ qemu-img create -f raw /var/tmp/test.img 6g
+
+Make the image accessible to ovirt-imageio daemon:
+
+    $ sudo chown ovirtimg:ovirtimg /var/tmp/test.img
+
+Start the ovirt-imageio.service:
+
+    $ systemctl start ovirt-imageio.service
+
+Create a ticket:
 
     $ cat ticket.json
     {
         "uuid": "test",
-        "size": 1073741824,
-        "url": "file:///dev/vgname/lvname",
+        "size": 6442450944,
+        "url": "file:///var/tmp/test.img",
         "timeout": 3000,
         "ops": ["read", "write"]
     }
 
-2. Allow ovirt-imageio-daemon access to the ticket url:
+Install the ticket:
 
-    $ chown vdsm:kvm /dev/vgname/lvname
-
-3. Install the ticket
-
-    $ curl --unix-socket /run/vdsm/ovirt-imageio-daemon.sock \
+    $ curl --unix-socket /run/ovirt-imageio/sock \
           -X PUT \
           --upload-file ticket.json \
           http://localhost/tickets/test
 
-4. Upload an image:
+Upload the image:
 
-    ./http-client upload --insecure /path/to/image https://host:54322/images/test
+    $ ./imageio-client --insecure upload \
+        upload.img https://host:54322/images/test
 
-5. Download an image:
+Download the image:
 
-    ./http-client download --insecure https://host:54322/images/test /path/to/image
+    $ ./imageio-client --insecure download \
+        --format raw \
+        https://host:54322/images/test download.img
+
+You can compare the original image to the downloaded image to check that the
+upload and download were correct:
+
+    $ qemu-img compare upload.img download.img
 
 """
 
@@ -74,11 +107,11 @@ def download(args):
             progress=pb)
 
 
-parser = argparse.ArgumentParser(description="HTTP client")
+parser = argparse.ArgumentParser(description="imageio client")
 
 parser.add_argument(
     "-c", "--cafile",
-    help="path to oVirt engine certificate for verifying server.")
+    help="path to CA certificate for verifying server certificate.")
 
 parser.add_argument(
     "--insecure",

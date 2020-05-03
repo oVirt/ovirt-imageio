@@ -1,0 +1,8 @@
+{
+    "uuid": "test",
+    "size": 6442450944,
+    "url": "file:///var/tmp/test.img",
+    "timeout": 3000,
+    "sparse": true,
+    "ops": ["read", "write"]
+}
