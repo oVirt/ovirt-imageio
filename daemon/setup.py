@@ -12,9 +12,8 @@ from distutils.core import Extension
 from ovirt_imageio import version
 
 setup(
-    author="Nir Soffer, Greg Padgett, Amit Aviram, Daniel Erez",
-    author_email="nsoffer@redhat.com, gpadgett@redhat.com, "
-                 "aaviram@redhat.com, derez@redhat.com",
+    author="oVirt Authors",
+    author_email="devel@ovirt.org",
     description="oVirt imageio",
     license="GNU GPLv2+",
     name="ovirt-imageio",
