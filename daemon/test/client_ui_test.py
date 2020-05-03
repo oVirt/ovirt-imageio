@@ -8,7 +8,7 @@
 
 from __future__ import absolute_import
 
-from ovirt_imageio.client import ui
+from ovirt_imageio import client
 
 
 class FakeTime(object):
@@ -37,7 +37,7 @@ def test_draw():
     f = FakeFile()
 
     # Size is unknown at this point.
-    pb = ui.ProgressBar(output=f, step=0.1, now=fake_time)
+    pb = client.ProgressBar(output=f, step=0.1, now=fake_time)
     assert f.last == (
         "[ ------- ] 0 bytes, 0.00 seconds, 0 bytes/s".ljust(79) + "\r"
     )
@@ -95,7 +95,7 @@ def test_draw():
 
 def test_contextmanager():
     f = FakeFile()
-    with ui.ProgressBar(1024**3, output=f) as pb:
+    with client.ProgressBar(1024**3, output=f) as pb:
         pb.update(1024**3)
         assert f.last.endswith("\r")
 

@@ -7,6 +7,9 @@
 # (at your option) any later version.
 """
 client - smart client for accessing imageio server.
+
+This module exposes the public names. Anything else in this package is private
+and should not be used.
 """
 
 # flake8: noqa
@@ -15,7 +18,7 @@ client - smart client for accessing imageio server.
 from .. io import BUFFER_SIZE
 
 # The public APIs
-from . api import upload, download
+from . _api import upload, download
 
 # For better user experience.
-from . ui import ProgressBar
+from . _ui import ProgressBar
