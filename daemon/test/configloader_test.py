@@ -217,3 +217,36 @@ class = test.class
     configloader.load(config, [conf])
     assert config.bar.string == "new"
     assert config.bar.keyword__class == "test.class"
+
+
+def test_config_to_dict(tmpdir, config):
+    data = """
+[foo]
+string = new
+integer = 2
+real = 4.1
+boolean = true
+
+[bar]
+string = new
+class = test.class
+"""
+    conf = str(tmpdir.join("conf"))
+    with open(conf, "w") as f:
+        f.write(data)
+    configloader.load(config, [conf])
+    expected = {
+        "foo": {
+            "string": "new",
+            "integer": 2,
+            "real": 4.1,
+            "boolean": True,
+            "string_nonascii": "\u05d0",
+            "string_null": "\u0000",
+        },
+        "bar": {
+            "string": "new",
+            "class": "test.class"
+        },
+    }
+    assert expected == configloader.to_dict(config)

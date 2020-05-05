@@ -182,3 +182,7 @@ def load(files):
     cfg = Config()
     configloader.load(cfg, files)
     return cfg
+
+
+def to_dict(config):
+    return configloader.to_dict(config)

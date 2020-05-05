@@ -115,8 +115,26 @@ def load(config, files):
             setattr(section, option, value)
 
 
+def to_dict(config):
+    cfg_dict = {}
+    for section_name in _public_names(config):
+        section = getattr(config, section_name)
+        cfg_dict[section_name] = _obj_to_dict(section)
+    return cfg_dict
+
+
 def _public_names(obj):
     return [name for name in dir(obj) if not name.startswith("_")]
+
+
+def _obj_to_dict(obj):
+    obj_dict = {}
+    for attr in _public_names(obj):
+        value = getattr(obj, attr)
+        if attr.startswith(KEYWORD_PREFIX):
+            attr = attr[len(KEYWORD_PREFIX):]
+        obj_dict[attr] = value
+    return obj_dict
 
 
 def _validate_bool(s):
