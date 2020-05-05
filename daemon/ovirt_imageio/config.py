@@ -122,15 +122,60 @@ class profile:
     filename = "/run/ovirt-imageio/profile"
 
 
+# Logger configuration.
+# See Python logging documentation for details how to configure loggers.
+
+class loggers:
+    keys = "root"
+
+
+class handlers:
+    keys = "logfile"
+
+
+class formatters:
+    keys = "long"
+
+
+class logger_root:
+    level = "INFO"
+    handlers = "logfile"
+    propagate = 0
+
+
+class handler_logfile:
+    keyword__class = "logging.handlers.RotatingFileHandler"
+    args = '("/var/log/ovirt-imageio/daemon.conf",)'
+    kwargs = '{"maxBytes": 20971520, "backupCount": 10}'
+    level = "DEBUG"
+    formatter = "long"
+
+
+class formatter_long:
+    format = ("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+              "%(message)s")
+
+
 class Config:
 
     def __init__(self):
+        # Daemon config.
+
         self.daemon = daemon()
         self.tls = tls()
         self.remote = remote()
         self.local = local()
         self.control = control()
         self.profile = profile()
+
+        # Logger config.
+
+        self.loggers = loggers()
+        self.handlers = handlers()
+        self.formatters = formatters()
+        self.logger_root = logger_root()
+        self.handler_logfile = handler_logfile()
+        self.formatter_long = formatter_long()
 
 
 def load(files):
