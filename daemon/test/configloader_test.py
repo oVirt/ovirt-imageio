@@ -26,6 +26,7 @@ def config():
 
         class bar:
             string = "old"
+            keyword__class = "bar.class"
     return config
 
 
@@ -202,3 +203,17 @@ value = bar
     error = str(e.value)
     assert "section.value" in error
     assert str(type(config.section.value)) in error
+
+
+def test_keyword_option(tmpdir, config):
+    data = """
+[bar]
+string = new
+class = test.class
+"""
+    conf = str(tmpdir.join("conf"))
+    with open(conf, "w") as f:
+        f.write(data)
+    configloader.load(config, [conf])
+    assert config.bar.string == "new"
+    assert config.bar.keyword__class == "test.class"

@@ -55,17 +55,44 @@ Unknown sections and options in the configuration file are ignored.
 
 String values must use unicode literals (e.g. "value"). bytes values (.e.g
 b"value" or "value") are not supported.
+
+In case that using python keyword as an option is required, corresponding class
+attribute has to have prefix "keyword__", e.g. to load config
+
+    # /etc/app/app.conf
+
+    [foo]
+    class = my.app.class
+
+appropriate config class should be
+
+    # config.py
+
+    class foo:
+
+        keyword__class = "default.class"
 """
 
 from __future__ import absolute_import
 
 import configparser
+import keyword
 
 from . import util
+
+KEYWORD_PREFIX = "keyword__"
+
+
+def keyword_mapping(option):
+    option = option.lower()
+    if keyword.iskeyword(option):
+        option = "{}{}".format(KEYWORD_PREFIX, option)
+    return option
 
 
 def load(config, files):
     parser = configparser.RawConfigParser()
+    parser.optionxform = keyword_mapping
     parser.read(files)
     for section_name in _public_names(config):
         section = getattr(config, section_name)
