@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import argparse
+import configparser
 import grp
 import logging
 import logging.config
@@ -29,10 +30,9 @@ log = logging.getLogger("server")
 
 def main():
     args = parse_args()
-    configure_logger(args)
     try:
+        cfg = load_config(args)
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
-        cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
 
         server = Server(cfg)
         signal.signal(signal.SIGINT, server.terminate)
@@ -62,9 +62,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def configure_logger(args):
-    conf = os.path.join(args.conf_dir, "logger.conf")
-    logging.config.fileConfig(conf, disable_existing_loggers=False)
+def load_config(args):
+    cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
+    parser = configparser.RawConfigParser()
+    parser.read_dict(config.to_dict(cfg))
+    logging.config.fileConfig(parser, disable_existing_loggers=False)
+    return cfg
 
 
 class Server:

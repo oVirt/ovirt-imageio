@@ -19,31 +19,6 @@ from ovirt_imageio import sockutil
 
 from . import http
 
-LOGGER_CONFIG = """\
-[loggers]
-keys=root
-
-[handlers]
-keys=logfile
-
-[formatters]
-keys=long
-
-[logger_root]
-level=DEBUG
-handlers=logfile
-propagate=0
-
-[handler_logfile]
-class=logging.handlers.RotatingFileHandler
-args=('{log_dir}/daemon.log', 'a', 20971520, 10)
-level=DEBUG
-formatter=long
-
-[formatter_long]
-format=%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] %(message)s
-"""
-
 DAEMON_CONFIG = """\
 [daemon]
 poll_interval = 0.1
@@ -68,6 +43,12 @@ socket =
 [control]
 transport = unix
 socket = {run_dir}/sock
+
+[logger_root]
+level=DEBUG
+
+[handler_logfile]
+args=('{log_dir}/daemon.log',)
 """
 
 requires_root = pytest.mark.skipif(os.geteuid() != 0, reason="Requires root")
@@ -78,12 +59,8 @@ requires_unprivileged = pytest.mark.skipif(
 @pytest.fixture
 def tmp_dirs(tmpdir):
     tmpdir.mkdir("run")
-    log_dir = tmpdir.mkdir("log")
-    conf_dir = tmpdir.mkdir("conf")
-
-    # Write logger config.
-    logger_conf = LOGGER_CONFIG.format(log_dir=log_dir)
-    conf_dir.join("logger.conf").write(logger_conf)
+    tmpdir.mkdir("log")
+    tmpdir.mkdir("conf")
 
 
 @requires_unprivileged
@@ -137,6 +114,7 @@ def test_drop_privileges(tmpdir, tmp_dirs):
 def prepare_config(tmpdir, drop_privileges="true"):
     daemon_conf = DAEMON_CONFIG.format(
         run_dir=os.path.join(tmpdir, "run"),
+        log_dir=os.path.join(tmpdir, "log"),
         drop_priv=drop_privileges,
         user_name="nobody",
         group_name="nobody",
