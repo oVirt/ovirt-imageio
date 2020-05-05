@@ -85,3 +85,32 @@
 # package. Version 0.93 is recommended for best performance.
 # The default filename:
 #   filename = /run/ovirt-imageio/profile
+
+
+# Logger configuration.
+# See Python logging documentation for details how to configure loggers.
+# (https://docs.python.org/3/howto/logging.html)
+
+[loggers]
+keys = root
+
+[handlers]
+keys = logfile
+
+[formatters]
+keys = long
+
+[logger_root]
+level = INFO
+handlers = logfile
+propagate = 0
+
+[handler_logfile]
+class = logging.handlers.RotatingFileHandler
+args = ('/var/log/ovirt-imageio/daemon.log',)
+kwargs = {'maxBytes': 20971520, 'backupCount': 10}
+level = DEBUG
+formatter = long
+
+[formatter_long]
+format = %(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] %(message)s
