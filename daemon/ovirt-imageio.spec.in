@@ -27,7 +27,6 @@ install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
 touch %{buildroot}%{logdir}/daemon.log
 install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/logger.conf %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/daemon.conf.sample %{buildroot}%{_sysconfdir}/%{name}
 install -D -m 0644 data/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 
@@ -87,7 +86,6 @@ Daemon providing image transfer service on oVirt hosts.
 %{_bindir}/%{name}
 %{_unitdir}/%{name}.service
 %dir %{_sysconfdir}/%{name}
-%config %{_sysconfdir}/%{name}/logger.conf
 %{_sysconfdir}/%{name}/daemon.conf.sample
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE

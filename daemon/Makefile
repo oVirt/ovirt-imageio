@@ -6,11 +6,9 @@ OUTDIR=dist
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
-LOGDIR=$(shell rpm --eval '%{_localstatedir}')/log/$(PACKAGE_NAME)
 
 GENERATED = \
-    $(SPEC_NAME) \
-    data/logger.conf
+    $(SPEC_NAME)
 
 METADATA = ovirt_imageio/version.py Makefile
 
@@ -48,6 +46,5 @@ $(GENERATED) : % : %.in $(METADATA)
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
 		-e 's|@RELEASE_SUFFIX@|$(RELEASE_SUFFIX)|g' \
-		-e 's|@LOGDIR@|$(LOGDIR)|g' \
 		$< > $@
 	@echo "generated $@"
