@@ -1,6 +1,5 @@
 include README COPYING MANIFEST
 include Makefile
-include bench
 include build-aux/release-suffix
 include ovirt-imageio.spec
 include ovirt-imageio
