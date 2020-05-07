@@ -152,20 +152,19 @@ def started_imageio(tmpdir, drop_privileges="true"):
 
     cmd = ["./ovirt-imageio", "--conf-dir", str(conf_dir)]
     proc = subprocess.Popen(cmd)
-
-    socket = sockutil.UnixAddress(str(tmpdir.join("run", "sock")))
-    sockutil.wait_for_socket(socket, 10)
-
-    # Wait until server is listening - at this point it already dropped
-    # privileges.
-    if drop_privileges:
-        cfg = config.load(str(conf_dir.join("daemon.conf")))
-        with http.ControlClient(cfg) as c:
-            r = c.get("/tickets/no-such-ticket")
-            r.read()
-            assert r.status == 404
-
     try:
+        socket = sockutil.UnixAddress(str(tmpdir.join("run", "sock")))
+        sockutil.wait_for_socket(socket, 10)
+
+        # Wait until server is listening - at this point it already dropped
+        # privileges.
+        if drop_privileges:
+            cfg = config.load(str(conf_dir.join("daemon.conf")))
+            with http.ControlClient(cfg) as c:
+                r = c.get("/tickets/no-such-ticket")
+                r.read()
+                assert r.status == 404
+
         yield proc
     finally:
         proc.terminate()
