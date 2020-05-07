@@ -14,7 +14,10 @@ import pytest
 
 from contextlib import contextmanager
 
+from ovirt_imageio import config
 from ovirt_imageio import sockutil
+
+from . import http
 
 LOGGER_CONFIG = """\
 [loggers]
@@ -145,11 +148,22 @@ def prepare_config(tmpdir, drop_privileges="true"):
 def started_imageio(tmpdir, drop_privileges="true"):
     prepare_config(tmpdir, drop_privileges=drop_privileges)
 
-    cmd = ["./ovirt-imageio", "--conf-dir", str(tmpdir.join("conf"))]
+    conf_dir = tmpdir.join("conf")
+
+    cmd = ["./ovirt-imageio", "--conf-dir", str(conf_dir)]
     proc = subprocess.Popen(cmd)
 
     socket = sockutil.UnixAddress(str(tmpdir.join("run", "sock")))
     sockutil.wait_for_socket(socket, 10)
+
+    # Wait until server is listening - at this point it already dropped
+    # privileges.
+    if drop_privileges:
+        cfg = config.load(str(conf_dir.join("daemon.conf")))
+        with http.ControlClient(cfg) as c:
+            r = c.get("/tickets/no-such-ticket")
+            r.read()
+            assert r.status == 404
 
     try:
         yield proc
