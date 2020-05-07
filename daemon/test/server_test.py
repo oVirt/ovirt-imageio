@@ -154,7 +154,8 @@ def started_imageio(tmpdir, drop_privileges="true"):
     proc = subprocess.Popen(cmd)
     try:
         socket = sockutil.UnixAddress(str(tmpdir.join("run", "sock")))
-        sockutil.wait_for_socket(socket, 10)
+        if not sockutil.wait_for_socket(socket, 10):
+            raise RuntimeError("Timeout waiting for {}".format(socket))
 
         # Wait until server is listening - at this point it already dropped
         # privileges.
