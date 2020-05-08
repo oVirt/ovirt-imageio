@@ -145,7 +145,7 @@ class logger_root:
 
 class handler_logfile:
     keyword__class = "logging.handlers.RotatingFileHandler"
-    args = '("/var/log/ovirt-imageio/daemon.conf",)'
+    args = '("/var/log/ovirt-imageio/daemon.log",)'
     kwargs = '{"maxBytes": 20971520, "backupCount": 10}'
     level = "DEBUG"
     formatter = "long"
