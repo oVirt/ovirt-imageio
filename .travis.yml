@@ -10,6 +10,7 @@ jobs:
     - env: DIST=centos-8
     - env: DIST=fedora-30
     - env: DIST=fedora-31
+    - env: DIST=fedora-32
 
 before_install:
   - docker pull ovirtorg/imageio-test-$DIST
