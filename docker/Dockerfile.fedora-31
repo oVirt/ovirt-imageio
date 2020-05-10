@@ -8,15 +8,12 @@ RUN dnf update -y \
         e2fsprogs \
         gcc \
         libguestfs-tools-c \
-        m2crypto \
         make \
         openssl \
         python3-devel \
         python3-pip \
-        python3-requests \
         python3-six \
         python3-systemd \
-        python3-webob \
         qemu-img \
         qemu-kvm \
         sudo \
