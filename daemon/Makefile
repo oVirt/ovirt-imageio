@@ -18,7 +18,7 @@ build:
 	python3 setup.py build_ext --inplace
 
 check:
-	tox -e flake8,test-py36,test-py37
+	tox -e "flake8,test-{py36,py37,py38}"
 
 dist: $(GENERATED)
 	python3 setup.py sdist --dist-dir "$(OUTDIR)"
