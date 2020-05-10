@@ -10,7 +10,7 @@ from __future__ import absolute_import
 
 import pytest
 
-from ovirt_imageio import configloader
+from ovirt_imageio._internal import configloader
 
 
 @pytest.fixture

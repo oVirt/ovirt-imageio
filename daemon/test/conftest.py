@@ -20,9 +20,9 @@ from collections import namedtuple
 import pytest
 from six.moves import urllib_parse
 
-from ovirt_imageio import nbd
-from ovirt_imageio import qemu_nbd
-from ovirt_imageio import util
+from ovirt_imageio._internal import nbd
+from ovirt_imageio._internal import qemu_nbd
+from ovirt_imageio._internal import util
 
 
 log = logging.getLogger("test")

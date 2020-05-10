@@ -7,7 +7,7 @@
 # (at your option) any later version.
 
 import pytest
-from ovirt_imageio import stats
+from ovirt_imageio._internal import stats
 
 
 class FakeTime(object):

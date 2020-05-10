@@ -11,9 +11,9 @@ from __future__ import absolute_import
 from six.moves.urllib_parse import urlparse
 import pytest
 
-from ovirt_imageio import errors
-from ovirt_imageio.backends import image
-from ovirt_imageio.backends import memory
+from ovirt_imageio._internal import errors
+from ovirt_imageio._internal.backends import image
+from ovirt_imageio._internal.backends import memory
 
 from . marks import requires_python3
 

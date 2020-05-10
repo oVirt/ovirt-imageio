@@ -17,10 +17,10 @@ from six.moves import http_client
 
 import pytest
 
-from ovirt_imageio import config
-from ovirt_imageio import server
-from ovirt_imageio import tickets
-from ovirt_imageio import util
+from ovirt_imageio._internal import config
+from ovirt_imageio._internal import server
+from ovirt_imageio._internal import tickets
+from ovirt_imageio._internal import util
 
 from . import testutil
 from . import http

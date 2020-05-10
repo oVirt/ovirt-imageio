@@ -15,11 +15,11 @@ from six.moves import urllib_parse
 
 import pytest
 
-from ovirt_imageio import nbd
-from ovirt_imageio import nbdutil
-from ovirt_imageio import qemu_img
-from ovirt_imageio import qemu_nbd
-from ovirt_imageio import sockutil
+from ovirt_imageio._internal import nbd
+from ovirt_imageio._internal import nbdutil
+from ovirt_imageio._internal import qemu_img
+from ovirt_imageio._internal import qemu_nbd
+from ovirt_imageio._internal import sockutil
 
 from . import testutil
 from . marks import requires_python3

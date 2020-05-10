@@ -18,8 +18,8 @@ from contextlib import contextmanager
 
 import pytest
 
-from ovirt_imageio import util
-from ovirt_imageio import uhttp
+from ovirt_imageio._internal import util
+from ovirt_imageio._internal import uhttp
 
 
 @pytest.fixture(scope="session")

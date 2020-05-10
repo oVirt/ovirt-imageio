@@ -23,9 +23,9 @@ from six.moves import http_client
 
 import pytest
 
-from ovirt_imageio import http
-from ovirt_imageio import util
-from ovirt_imageio import version
+from ovirt_imageio._internal import http
+from ovirt_imageio._internal import util
+from ovirt_imageio._internal import version
 
 from . marks import requires_python3
 

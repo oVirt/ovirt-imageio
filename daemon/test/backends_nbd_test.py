@@ -13,11 +13,11 @@ from contextlib import closing
 import pytest
 import userstorage
 
-from ovirt_imageio import errors
-from ovirt_imageio import qemu_img
-from ovirt_imageio import util
-from ovirt_imageio.backends import image
-from ovirt_imageio.backends import nbd
+from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import qemu_img
+from ovirt_imageio._internal import util
+from ovirt_imageio._internal.backends import image
+from ovirt_imageio._internal.backends import nbd
 
 from . import storage
 from . marks import requires_python3

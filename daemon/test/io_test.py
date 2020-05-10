@@ -12,11 +12,11 @@ import pytest
 
 from six.moves.urllib_parse import urlparse
 
-from ovirt_imageio import qemu_img
-from ovirt_imageio import qemu_nbd
-from ovirt_imageio import io
-from ovirt_imageio.backends import nbd, memory, image
-from ovirt_imageio.nbd import UnixAddress
+from ovirt_imageio._internal import qemu_img
+from ovirt_imageio._internal import qemu_nbd
+from ovirt_imageio._internal import io
+from ovirt_imageio._internal.backends import nbd, memory, image
+from ovirt_imageio._internal.nbd import UnixAddress
 
 from . marks import requires_python3
 

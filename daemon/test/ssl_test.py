@@ -12,10 +12,10 @@ from contextlib import contextmanager
 
 import pytest
 
-from ovirt_imageio import auth
-from ovirt_imageio import config
-from ovirt_imageio import services
-from ovirt_imageio.ssl import check_protocol
+from ovirt_imageio._internal import auth
+from ovirt_imageio._internal import config
+from ovirt_imageio._internal import services
+from ovirt_imageio._internal.ssl import check_protocol
 
 
 def on_centos(version=""):

@@ -8,8 +8,8 @@
 
 import pytest
 
-from ovirt_imageio import measure
-from ovirt_imageio.measure import Range
+from ovirt_imageio._internal import measure
+from ovirt_imageio._internal.measure import Range
 
 
 class TestRange(object):

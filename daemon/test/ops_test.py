@@ -14,11 +14,11 @@ import os
 import pytest
 import userstorage
 
-from ovirt_imageio import errors
-from ovirt_imageio import ops
-from ovirt_imageio import util
-from ovirt_imageio.backends import file
-from ovirt_imageio.backends import memory
+from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import ops
+from ovirt_imageio._internal import util
+from ovirt_imageio._internal.backends import file
+from ovirt_imageio._internal.backends import memory
 
 from . import storage
 from . marks import requires_python3

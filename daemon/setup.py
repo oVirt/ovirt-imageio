@@ -9,7 +9,7 @@
 from distutils.core import setup
 from distutils.core import Extension
 
-from ovirt_imageio import version
+from ovirt_imageio._internal import version
 
 setup(
     author="oVirt Authors",
@@ -19,7 +19,8 @@ setup(
     name="ovirt-imageio",
     packages=[
         "ovirt_imageio",
-        "ovirt_imageio.backends",
+        "ovirt_imageio._internal",
+        "ovirt_imageio._internal.backends",
         "ovirt_imageio.client",
     ],
     platforms=["Linux"],
@@ -28,7 +29,7 @@ setup(
     version=version.string,
     ext_modules=[
         Extension(
-            "ovirt_imageio/ioutil",
-            sources=["ovirt_imageio/ioutil.c"]),
+            "ovirt_imageio/_internal/ioutil",
+            sources=["ovirt_imageio/_internal/ioutil.c"]),
     ]
 )

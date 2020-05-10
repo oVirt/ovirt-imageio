@@ -14,8 +14,8 @@ import pytest
 
 from contextlib import contextmanager
 
-from ovirt_imageio import config
-from ovirt_imageio import sockutil
+from ovirt_imageio._internal import config
+from ovirt_imageio._internal import sockutil
 
 from . import http
 

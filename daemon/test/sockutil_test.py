@@ -11,7 +11,7 @@ import socket
 
 from contextlib import closing
 
-from ovirt_imageio import sockutil
+from ovirt_imageio._internal import sockutil
 
 
 def test_wait_for_unix_socket(tmpdir):

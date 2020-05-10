@@ -15,7 +15,7 @@ and should not be used.
 # flake8: noqa
 
 # Use for default buffer size.
-from .. io import BUFFER_SIZE
+from .. _internal.io import BUFFER_SIZE
 
 # The public APIs
 from . _api import upload, download

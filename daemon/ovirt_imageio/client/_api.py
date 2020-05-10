@@ -18,11 +18,11 @@ import tempfile
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
-from .. import io
-from .. import qemu_img
-from .. import qemu_nbd
-from .. backends import http, nbd
-from .. nbd import UnixAddress
+from .. _internal import io
+from .. _internal import qemu_img
+from .. _internal import qemu_nbd
+from .. _internal.backends import http, nbd
+from .. _internal.nbd import UnixAddress
 
 
 def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,

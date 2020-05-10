@@ -9,8 +9,8 @@
 import json
 import pytest
 
-from ovirt_imageio import config
-from ovirt_imageio import server
+from ovirt_imageio._internal import config
+from ovirt_imageio._internal import server
 
 from . import http
 from . import testutil

@@ -12,7 +12,7 @@ from __future__ import division
 import sys
 import time
 
-from .. import util
+from .. _internal import util
 
 
 class ProgressBar(object):

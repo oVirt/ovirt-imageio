@@ -7,7 +7,7 @@
 # (at your option) any later version.
 
 from __future__ import absolute_import
-from ovirt_imageio import errors
+from ovirt_imageio._internal import errors
 
 
 def test_str():

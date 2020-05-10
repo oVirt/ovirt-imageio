@@ -15,7 +15,7 @@ import subprocess
 
 from contextlib import contextmanager
 
-from ovirt_imageio import sockutil
+from ovirt_imageio._internal import sockutil
 
 QEMU = os.environ.get("QEMU", "qemu-kvm")
 

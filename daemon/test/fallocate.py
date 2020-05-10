@@ -19,7 +19,7 @@ import time
 
 from six.moves import urllib_parse
 
-from ovirt_imageio.backends import file
+from ovirt_imageio._internal.backends import file
 
 
 def humansize(s):

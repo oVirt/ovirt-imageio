@@ -1,6 +1,6 @@
 RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
 PACKAGE_NAME=ovirt-imageio
-PACKAGE_VERSION=$(shell python3 ovirt_imageio/version.py)
+PACKAGE_VERSION=$(shell python3 ovirt_imageio/_internal/version.py)
 OUTDIR=dist
 
 RPM_TOPDIR?=$(PWD)/build/rpm
@@ -10,7 +10,7 @@ SPEC_NAME=$(PACKAGE_NAME).spec
 GENERATED = \
     $(SPEC_NAME)
 
-METADATA = ovirt_imageio/version.py Makefile
+METADATA = ovirt_imageio/_internal/version.py Makefile
 
 .PHONY: build check dist srpm rpm clean $(SPEC_NAME)
 
@@ -37,7 +37,7 @@ clean:
 	python3 setup.py clean --all
 	rm -f MANIFEST
 	rm -f $(GENERATED)
-	rm -f ovirt_imageio/*.so
+	rm -f ovirt_imageio/_internal/*.so
 	rm -rf build
 	rm -rf dist
 

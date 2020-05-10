@@ -20,9 +20,9 @@ from pprint import pprint
 
 from six.moves import http_client
 
-from ovirt_imageio import errors
-from ovirt_imageio import ssl
-from ovirt_imageio import uhttp
+from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import ssl
+from ovirt_imageio._internal import uhttp
 
 log = logging.getLogger("test")
 
