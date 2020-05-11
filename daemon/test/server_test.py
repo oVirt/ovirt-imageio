@@ -15,6 +15,7 @@ import pytest
 from contextlib import contextmanager
 
 from ovirt_imageio._internal import config
+from ovirt_imageio._internal import server
 from ovirt_imageio._internal import sockutil
 
 from . import http
@@ -60,7 +61,102 @@ requires_unprivileged = pytest.mark.skipif(
 def tmp_dirs(tmpdir):
     tmpdir.mkdir("run")
     tmpdir.mkdir("log")
-    tmpdir.mkdir("conf")
+    tmpdir.mkdir("conf").mkdir("conf.d")
+
+
+def test_find_configs_same_dir(tmpdir):
+    # Config files are sorted by filename in alphabetical increasing order.
+    # In this scenario we use install config installed by application and admin
+    # config, which will overwrite some settings.
+    # Admin configuration typically use higher prefix to override installation
+    # config.
+
+    conf_d = tmpdir.mkdir("conf.d")
+    install_cfg = conf_d.join("50-install.conf")
+    admin_cfg = conf_d.join("90-admin.conf")
+    install_cfg.write("install config")
+    admin_cfg.write("admin config")
+
+    files = server.find_configs((str(tmpdir),))
+    assert files == [str(install_cfg), str(admin_cfg)]
+
+
+def test_find_configs_multiple_dirs(tmpdir):
+    # Same scenario as in test_find_configs_same_dir, but configs are stored
+    # in multiple directories. The list of configs provided by find_configs()
+    # has to be sorted according to file name. Name of the directories or the
+    # order in which the dirs are passed to find_configs() function doesn't
+    # matter.
+
+    etc_dir = tmpdir.mkdir("etc")
+    etc_conf_d = etc_dir.mkdir("conf.d")
+    install_cfg = etc_conf_d.join("50-install.conf")
+    install_cfg.write("install config")
+    admin_cfg = etc_conf_d.join("90-admin.conf")
+    admin_cfg.write("admin config")
+
+    vendor_dir = tmpdir.mkdir("vendor")
+    vendor_cfg = vendor_dir.mkdir("conf.d").join("60-vendor.conf")
+    vendor_cfg.write("vendor config")
+
+    expected = [str(install_cfg), str(vendor_cfg), str(admin_cfg)]
+
+    assert server.find_configs((str(etc_dir), str(vendor_dir))) == expected
+    assert server.find_configs((str(vendor_dir), str(etc_dir))) == expected
+
+
+def test_config_overwrite(monkeypatch, tmpdir):
+    # Here we test full scenario, when config is loaded from multiple sources
+    # and test, that specified options were overwritten as expected.
+    # Install config overwrites the default settings, then vendor config should
+    # be loaded and overwrite log handler level and finally admin config should
+    # be loaded and overwrite setup of control service previously defined by
+    # install config.
+
+    install_config = """
+[control]
+transport = unix
+socket = test/daemon.sock
+
+[handler_logfile]
+class = logging.StreamHandler
+args = ()
+kwargs = {}
+"""
+
+    vendor_config = """
+[handler_logfile]
+level = ERROR
+"""
+
+    admin_config = """
+[control]
+transport = tcp
+port = 10000
+"""
+
+    class FakeArgs():
+        def __init__(self, conf_dir):
+            self.conf_dir = conf_dir
+
+    etc_dir = tmpdir.mkdir("etc")
+    etc_conf_d = etc_dir.mkdir("conf.d")
+    install_cfg = etc_conf_d.join("50-install.conf")
+    install_cfg.write(install_config)
+    admin_cfg = etc_conf_d.join("90-admin.conf")
+    admin_cfg.write(admin_config)
+
+    vendor_dir = tmpdir.mkdir("vendor")
+    vendor_cfg = vendor_dir.mkdir("conf.d").join("60-vendor.conf")
+    vendor_cfg.write(vendor_config)
+
+    monkeypatch.setattr(server, "VENDOR_CONF_DIR", str(vendor_dir))
+    cfg = server.load_config(FakeArgs(str(etc_dir)))
+
+    assert cfg.control.transport == "tcp"
+    assert cfg.control.port == 10000
+    assert cfg.handler_logfile.level == "ERROR"
+    assert cfg.handler_logfile.keyword__class == "logging.StreamHandler"
 
 
 @requires_unprivileged
@@ -119,7 +215,7 @@ def prepare_config(tmpdir, drop_privileges="true"):
         user_name="nobody",
         group_name="nobody",
     )
-    tmpdir.join("conf", "daemon.conf").write(daemon_conf)
+    tmpdir.join("conf", "conf.d", "daemon.conf").write(daemon_conf)
 
 
 @contextmanager
@@ -138,7 +234,7 @@ def started_imageio(tmpdir, drop_privileges="true"):
         # Wait until server is listening - at this point it already dropped
         # privileges.
         if drop_privileges:
-            cfg = config.load(str(conf_dir.join("daemon.conf")))
+            cfg = config.load(str(conf_dir.join("conf.d", "daemon.conf")))
             with http.ControlClient(cfg) as c:
                 r = c.get("/tickets/no-such-ticket")
                 r.read()

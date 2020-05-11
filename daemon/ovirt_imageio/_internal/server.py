@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import argparse
 import configparser
+import glob
 import grp
 import logging
 import logging.config
@@ -24,6 +25,8 @@ from . import auth
 from . import config
 from . import services
 from . import version
+
+VENDOR_CONF_DIR = "/usr/lib/ovirt-imageio"
 
 log = logging.getLogger("server")
 
@@ -62,8 +65,18 @@ def parse_args():
     return parser.parse_args()
 
 
+def find_configs(cfg_dirs):
+    files = []
+    for path in cfg_dirs:
+        pattern = os.path.join(path, "conf.d", "*.conf")
+        files.extend(glob.glob(pattern))
+    files.sort(key=os.path.basename)
+    return files
+
+
 def load_config(args):
-    cfg = config.load([os.path.join(args.conf_dir, "daemon.conf")])
+    files = find_configs([VENDOR_CONF_DIR, args.conf_dir])
+    cfg = config.load(files)
     parser = configparser.RawConfigParser()
     parser.read_dict(config.to_dict(cfg))
     logging.config.fileConfig(parser, disable_existing_loggers=False)
