@@ -112,5 +112,10 @@ kwargs = {'maxBytes': 20971520, 'backupCount': 10}
 level = DEBUG
 formatter = long
 
+[handler_stderr]
+class = logging.StreamHandler
+level = DEBUG
+formatter = long
+
 [formatter_long]
 format = %(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] %(message)s

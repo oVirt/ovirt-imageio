@@ -151,6 +151,12 @@ class handler_logfile:
     formatter = "long"
 
 
+class handler_stderr:
+    keyword__class = "logging.StreamHandler"
+    level = "DEBUG"
+    formatter = "long"
+
+
 class formatter_long:
     format = ("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
               "%(message)s")
@@ -175,6 +181,7 @@ class Config:
         self.formatters = formatters()
         self.logger_root = logger_root()
         self.handler_logfile = handler_logfile()
+        self.handler_stderr = handler_stderr()
         self.formatter_long = formatter_long()
 
 
