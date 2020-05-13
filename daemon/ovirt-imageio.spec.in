@@ -132,6 +132,13 @@ fi
 
 %changelog
 
+* Wed May 13 2020 Nir Soffer <nsoffer@redhat.com> 2.0.6-0
+- Introduce ovirt-imageio-client package
+- Support drop-in confiugration #BZ1826679, #BZ1738729, #BZ1761960
+- Make private modules private #BZ1818170
+- Log detailed transfer stats #BZ1740489
+- Support platform trusted CA
+
 * Mon Apr 20 2020 Nir Soffer <nsoffer@redhat.com> 2.0.5-0
 - Support closing connections for web clients
 
