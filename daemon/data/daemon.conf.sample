@@ -1,3 +1,32 @@
+# An example for an ovirt-imageio configuration file.
+#
+# Below is a list of available options which can be configured.
+# imageio supports drop-in configuration, which means there can
+# be multiple config files, which are all read in succession to get
+# final configuration.
+#
+# imageio searches the following directories for config files:
+# - /etc/ovirt-imageio/conf.d/ where admins should place their configs.
+#   Also oVirt engine-setup writes there a config file.
+# - /usr/lib/ovirt-imageio/conf.d/ where vendor configs should be placed.
+#
+# Config files have to be in the directories listed above and must have *.conf
+# suffix. Files are read in alphabetical order, taking into account only
+# base name of the config file, not directory name. E.g. if there are two
+# config files, 50-vdsm.conf and 99-admin.conf (see conf.d listing below),
+# config options specified in 99-admin.conf will overwrite corresponding
+# config options in 50-vdsm.conf.
+#
+#     $ tree /etc/ovirt-imageio/conf.d/
+#       /etc/ovirt-imageio/conf.d/
+#       ├── 50-vdsm.conf
+#       └── 99-admin.conf
+#
+# You can check the final configuration by executing
+#
+#     ovirt-imageio --show-config
+
+
 [daemon]
 # Interval in seconds for checking termination conditions.
 # The default internal:
@@ -28,7 +57,7 @@
 [tls]
 # Enable TLS. Note that without TLS transfer tickets and image data are
 # transferred in clear text. If TLS is enabled, paths to related files
-# with keys/certificates (see lines bellow) have to be configured as well,
+# with keys/certificates (see lines below) have to be configured as well,
 # otherwise server will fails to start.
 # The default value:
 #   enable = true
