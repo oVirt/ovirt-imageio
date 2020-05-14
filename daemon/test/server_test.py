@@ -6,6 +6,7 @@
 # (at your option) any later version.
 
 import grp
+import json
 import os
 import pwd
 import subprocess
@@ -157,6 +158,13 @@ port = 10000
     assert cfg.control.port == 10000
     assert cfg.handler_logfile.level == "ERROR"
     assert cfg.handler_logfile.keyword__class == "logging.StreamHandler"
+
+
+def test_show_config():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    out = subprocess.check_output(
+        ["./ovirt-imageio", "--conf-dir", "./test", "--show-config"])
+    assert json.loads(out) == config.to_dict(cfg)
 
 
 @requires_unprivileged

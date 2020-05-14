@@ -12,6 +12,7 @@ import argparse
 import configparser
 import glob
 import grp
+import json
 import logging
 import logging.config
 import os
@@ -35,6 +36,10 @@ def main():
     args = parse_args()
     try:
         cfg = load_config(args)
+        if args.show_config:
+            show_config(cfg)
+            return
+
         configure_logger(cfg)
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
 
@@ -63,7 +68,17 @@ def parse_args():
         default="/etc/ovirt-imageio",
         help="path to configuration directory, where daemon.conf and "
              "logger.conf are located.")
+    parser.add_argument(
+        "--show-config",
+        action="store_true",
+        help="print actual configration in json format and exit. This is "
+             "useful for debugging configuration issues, or reading imageio "
+             "configuraion by other programs.")
     return parser.parse_args()
+
+
+def show_config(cfg):
+    print(json.dumps(config.to_dict(cfg), indent=4))
 
 
 def find_configs(cfg_dirs):
