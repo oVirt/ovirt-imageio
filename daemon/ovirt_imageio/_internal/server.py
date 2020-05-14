@@ -35,6 +35,7 @@ def main():
     args = parse_args()
     try:
         cfg = load_config(args)
+        configure_logger(cfg)
         log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
 
         server = Server(cfg)
@@ -76,11 +77,13 @@ def find_configs(cfg_dirs):
 
 def load_config(args):
     files = find_configs([VENDOR_CONF_DIR, args.conf_dir])
-    cfg = config.load(files)
+    return config.load(files)
+
+
+def configure_logger(cfg):
     parser = configparser.RawConfigParser()
     parser.read_dict(config.to_dict(cfg))
     logging.config.fileConfig(parser, disable_existing_loggers=False)
-    return cfg
 
 
 class Server:
