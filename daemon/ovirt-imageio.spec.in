@@ -10,6 +10,8 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 %global ovirtimg_user ovirtimg
 %global srcname ovirt_imageio
 %global logdir %{_localstatedir}/log/%{name}
+%global admin_confdir %{_sysconfdir}/%{name}
+%global vendor_confdir %{_prefix}/lib/%{name}
 
 %description
 Image data transfer on oVirt virtualization hosts.
@@ -25,8 +27,9 @@ Image data transfer on oVirt virtualization hosts.
 install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
 touch %{buildroot}%{logdir}/daemon.log
-install -D -m 0755 --directory %{buildroot}%{_sysconfdir}/%{name}
-install -D -m 0644 data/daemon.conf.sample %{buildroot}%{_sysconfdir}/%{name}
+install -D -m 0755 --directory %{buildroot}%{vendor_confdir}/conf.d
+install -D -m 0755 --directory %{buildroot}%{admin_confdir}/conf.d
+install -D -m 0644 data/README %{buildroot}%{admin_confdir}
 install -D -m 0644 data/%{name}.service %{buildroot}%{_unitdir}/%{name}.service
 
 %clean
@@ -84,8 +87,11 @@ Daemon providing image transfer service on oVirt hosts.
 %files daemon
 %{_bindir}/%{name}
 %{_unitdir}/%{name}.service
-%dir %{_sysconfdir}/%{name}
-%{_sysconfdir}/%{name}/daemon.conf.sample
+%dir %{admin_confdir}
+%dir %{admin_confdir}/conf.d
+%dir %{vendor_confdir}
+%dir %{vendor_confdir}/conf.d
+%{admin_confdir}/README
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
 %dir %attr(755, %{ovirtimg_user}, %{ovirtimg_user}) %{logdir}
