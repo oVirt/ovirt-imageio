@@ -16,6 +16,7 @@ from . import cors
 from . import errors
 from . import http
 from . import ops
+from . import util
 from . import validate
 
 log = logging.getLogger("images")
@@ -62,18 +63,19 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
             req.client_addr, size, offset, flush, close, ticket_id)
 
-        op = ops.Receive(
-            backends.get(req, ticket, self.config),
-            req,
-            size,
-            offset=offset,
-            flush=flush,
-            buffersize=self.config.daemon.buffer_size,
-            clock=req.clock)
-        try:
-            ticket.run(op)
-        except errors.PartialContent as e:
-            raise http.Error(http.BAD_REQUEST, str(e))
+        with util.aligned_buffer(self.config.daemon.buffer_size) as buf:
+            op = ops.Receive(
+                backends.get(req, ticket, self.config),
+                req,
+                buf,
+                size,
+                offset=offset,
+                flush=flush,
+                clock=req.clock)
+            try:
+                ticket.run(op)
+            except errors.PartialContent as e:
+                raise http.Error(http.BAD_REQUEST, str(e))
 
     @cors.allow()
     def get(self, req, resp, ticket_id):
@@ -131,17 +133,18 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        op = ops.Send(
-            backends.get(req, ticket, self.config),
-            resp,
-            size,
-            offset=offset,
-            buffersize=self.config.daemon.buffer_size,
-            clock=req.clock)
-        try:
-            ticket.run(op)
-        except errors.PartialContent as e:
-            raise http.Error(http.BAD_REQUEST, str(e))
+        with util.aligned_buffer(self.config.daemon.buffer_size) as buf:
+            op = ops.Send(
+                backends.get(req, ticket, self.config),
+                resp,
+                buf,
+                size,
+                offset=offset,
+                clock=req.clock)
+            try:
+                ticket.run(op)
+            except errors.PartialContent as e:
+                raise http.Error(http.BAD_REQUEST, str(e))
 
     def patch(self, req, resp, ticket_id):
         if not ticket_id:

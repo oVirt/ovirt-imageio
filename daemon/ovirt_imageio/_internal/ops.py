@@ -10,15 +10,8 @@ from __future__ import absolute_import
 
 import logging
 
-from contextlib import closing
-
 from . import errors
 from . import stats
-from . import util
-
-# This value is used by vdsm when copying image data using dd. Smaller values
-# save memory, and larger values minimize syscall and python calls overhead.
-BUFFERSIZE = 1024 * 1024
 
 log = logging.getLogger("ops")
 
@@ -29,14 +22,10 @@ class EOF(Exception):
 
 class Operation(object):
 
-    def __init__(self, size=None, offset=0, buffersize=BUFFERSIZE,
-                 clock=stats.NullClock()):
+    def __init__(self, size=None, offset=0, buf=None, clock=stats.NullClock()):
         self._size = size
         self._offset = offset
-        if self._size:
-            self._buffersize = min(util.round_up(size, 4096), buffersize)
-        else:
-            self._buffersize = buffersize
+        self._buf = buf
         self._done = 0
         self._clock = clock
 
@@ -55,7 +44,7 @@ class Operation(object):
     @property
     def _todo(self):
         if self._size is None:
-            return self._buffersize
+            return len(self._buf) if self._buf else 1024**2
         return self._size - self._done
 
     def run(self):
@@ -75,24 +64,23 @@ class Send(Operation):
     Send data source backend to file object.
     """
 
-    def __init__(self, src, dst, size=None, offset=0, buffersize=BUFFERSIZE,
+    def __init__(self, src, dst, buf, size=None, offset=0,
                  clock=stats.NullClock()):
-        super(Send, self).__init__(size=size, offset=offset,
-                                   buffersize=buffersize, clock=clock)
+        super(Send, self).__init__(size=size, offset=offset, buf=buf,
+                                   clock=clock)
         self._src = src
         self._dst = dst
 
     def _run(self):
-        with closing(util.aligned_buffer(self._buffersize)) as buf:
-            try:
-                skip = self._offset % self._src.block_size
-                self._src.seek(self._offset - skip)
-                if skip:
-                    self._send_chunk(buf, skip)
-                while self._todo:
-                    self._send_chunk(buf)
-            except EOF:
-                pass
+        try:
+            skip = self._offset % self._src.block_size
+            self._src.seek(self._offset - skip)
+            if skip:
+                self._send_chunk(self._buf, skip)
+            while self._todo:
+                self._send_chunk(self._buf)
+        except EOF:
+            pass
 
     def _send_chunk(self, buf, skip=0):
         if self._src.tell() % self._src.block_size:
@@ -121,37 +109,36 @@ class Receive(Operation):
     Receive data from file object to destination backend.
     """
 
-    def __init__(self, dst, src, size=None, offset=0, flush=True,
-                 buffersize=BUFFERSIZE, clock=stats.NullClock()):
-        super(Receive, self).__init__(size=size, offset=offset,
-                                      buffersize=buffersize, clock=clock)
+    def __init__(self, dst, src, buf, size=None, offset=0, flush=True,
+                 clock=stats.NullClock()):
+        super(Receive, self).__init__(size=size, offset=offset, buf=buf,
+                                      clock=clock)
         self._src = src
         self._dst = dst
         self._flush = flush
 
     def _run(self):
-        with closing(util.aligned_buffer(self._buffersize)) as buf:
-            try:
-                self._dst.seek(self._offset)
+        try:
+            self._dst.seek(self._offset)
 
-                # If offset is not aligned to block size, receive partial chunk
-                # until the start of the next block.
-                unaligned = self._offset % self._dst.block_size
-                if unaligned:
-                    count = min(self._todo, self._dst.block_size - unaligned)
-                    self._receive_chunk(buf, count)
+            # If offset is not aligned to block size, receive partial chunk
+            # until the start of the next block.
+            unaligned = self._offset % self._dst.block_size
+            if unaligned:
+                count = min(self._todo, self._dst.block_size - unaligned)
+                self._receive_chunk(self._buf, count)
 
-                # Now current file position is aligned to block size and we can
-                # receive full chunks.
-                while self._todo:
-                    count = min(self._todo, self._buffersize)
-                    self._receive_chunk(buf, count)
-            except EOF:
-                pass
+            # Now current file position is aligned to block size and we can
+            # receive full chunks.
+            while self._todo:
+                count = min(self._todo, len(self._buf))
+                self._receive_chunk(self._buf, count)
+        except EOF:
+            pass
 
-            if self._flush:
-                with self._clock.run("sync"):
-                    self._dst.flush()
+        if self._flush:
+            with self._clock.run("sync"):
+                self._dst.flush()
 
     def _receive_chunk(self, buf, count):
         buf.seek(0)
