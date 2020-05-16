@@ -64,8 +64,9 @@ class Operation(object):
 
     def __repr__(self):
         return ("<{self.__class__.__name__} "
-                "size={self.size} offset={self._offset} "
-                "buffersize={self._buffersize} done={self.done} "
+                "size={self.size} "
+                "offset={self._offset} "
+                "done={self.done} "
                 "at 0x{id}>").format(self=self, id=id(self))
 
 

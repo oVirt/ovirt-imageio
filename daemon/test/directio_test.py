@@ -120,7 +120,7 @@ def test_recv_repr(tmpfile):
     op = directio.Receive(tmpfile, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "size=100 offset=42 buffersize=4096 done=0" in rep
+    assert "size=100 offset=42 done=0" in rep
 
 
 @pytest.mark.parametrize("bufsize", [512, 1024, 2048])

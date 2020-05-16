@@ -118,7 +118,7 @@ def test_send_repr():
     op = ops.Send(None, None, 200, offset=24)
     rep = repr(op)
     assert "Send" in rep
-    assert "size=200 offset=24 buffersize=4096 done=0" in rep
+    assert "size=200 offset=24 done=0" in rep
 
 
 @pytest.mark.parametrize("preallocated", [
@@ -219,7 +219,7 @@ def test_recv_repr():
     op = ops.Receive(None, None, 100, offset=42)
     rep = repr(op)
     assert "Receive" in rep
-    assert "size=100 offset=42 buffersize=4096 done=0" in rep
+    assert "size=100 offset=42 done=0" in rep
 
 
 def test_receive_unbuffered_stream(user_file):
