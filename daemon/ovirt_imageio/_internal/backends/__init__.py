@@ -8,9 +8,12 @@
 
 from __future__ import absolute_import
 
+from collections import namedtuple
+
+from .. import util
 from . import file
-from . import nbd
 from . import http
+from . import nbd
 
 _modules = {
     "file": file,
@@ -21,6 +24,19 @@ _modules = {
 
 class Unsupported(Exception):
     """ Requested backend is not supported """
+
+
+class Context(namedtuple("Context", "backend,buffer")):
+    """
+    Backend context stored per ticket connection.
+    """
+    __slots__ = ()
+
+    def close(self):
+        try:
+            self.backend.close()
+        finally:
+            self.buffer.close()
 
 
 def supports(name):
@@ -52,6 +68,8 @@ def get(req, ticket, config):
             dirty=ticket.dirty,
             cafile=config.tls.ca_file)
 
-        req.context[ticket.uuid] = backend
+        buf = util.aligned_buffer(config.daemon.buffer_size)
+
+        req.context[ticket.uuid] = Context(backend, buf)
 
     return req.context[ticket.uuid]

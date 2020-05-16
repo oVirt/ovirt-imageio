@@ -46,7 +46,7 @@ class Handler(object):
         log.info("[%s] EXTENTS ticket=%s context=%s",
                  req.client_addr, ticket_id, context)
 
-        backend = backends.get(req, ticket, self.config)
+        ctx = backends.get(req, ticket, self.config)
 
         with req.clock.run("extents"):
             try:
@@ -54,7 +54,7 @@ class Handler(object):
                     {"start": ext.start,
                      "length": ext.length,
                      context: getattr(ext, context)}
-                    for ext in backend.extents(context=context)
+                    for ext in ctx.backend.extents(context=context)
                 ]
             except errors.UnsupportedOperation as e:
                 raise http.Error(http.NOT_FOUND, str(e))

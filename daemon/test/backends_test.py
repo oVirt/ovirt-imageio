@@ -50,21 +50,22 @@ def test_get_unsupported_scheme(cfg):
 def test_get_caching(tmpurl, cfg):
     ticket = Ticket("test", tmpurl)
     req = Request()
-    b1 = backends.get(req, ticket, cfg)
+    c1 = backends.get(req, ticket, cfg)
 
-    # Backend is cache in req.context.
-    assert b1.name == "file"
-    assert req.context[ticket.uuid] is b1
+    # Backend and buffer are cached in req.context.
+    assert req.context[ticket.uuid] is c1
+    assert c1.backend.name == "file"
+    assert len(c1.buffer) == cfg.daemon.buffer_size
 
     # Next call return the cached instance.
-    b2 = backends.get(req, ticket, cfg)
-    assert b1 is b2
+    c2 = backends.get(req, ticket, cfg)
+    assert c1 is c2
 
     # Deleting the cache creates a new instance.
     del req.context[ticket.uuid]
-    b3 = backends.get(req, ticket, cfg)
-    assert b3.name == "file"
-    assert b3 is not b1
+    c3 = backends.get(req, ticket, cfg)
+    assert c2.backend.name == "file"
+    assert c3 is not c1
 
 
 @pytest.mark.parametrize("ops,readable,writable", [
@@ -75,7 +76,7 @@ def test_get_caching(tmpurl, cfg):
 def test_get_ops(tmpurl, cfg, ops, readable, writable):
     ticket = Ticket("test", tmpurl, ops=ops)
     req = Request()
-    b = backends.get(req, ticket, cfg)
+    b = backends.get(req, ticket, cfg).backend
 
     # Create a read-write file backend.
     assert b.name == "file"
@@ -87,7 +88,7 @@ def test_get_ops(tmpurl, cfg, ops, readable, writable):
 def test_get_sparse(tmpurl, cfg, sparse):
     ticket = Ticket("test", tmpurl, sparse=sparse)
     req = Request()
-    b = backends.get(req, ticket, cfg)
+    b = backends.get(req, ticket, cfg).backend
 
     assert b.name == "file"
     assert b.sparse == sparse
@@ -105,6 +106,6 @@ def test_get_nbd_backend(tmpdir, cfg, nbd_server, transport):
 
     ticket = Ticket("test", nbd_server.url)
     req = Request()
-    b = backends.get(req, ticket, cfg)
+    b = backends.get(req, ticket, cfg).backend
 
     assert b.name == "nbd"

@@ -16,7 +16,6 @@ from . import cors
 from . import errors
 from . import http
 from . import ops
-from . import util
 from . import validate
 
 log = logging.getLogger("images")
@@ -63,19 +62,20 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
             req.client_addr, size, offset, flush, close, ticket_id)
 
-        with util.aligned_buffer(self.config.daemon.buffer_size) as buf:
-            op = ops.Receive(
-                backends.get(req, ticket, self.config),
-                req,
-                buf,
-                size,
-                offset=offset,
-                flush=flush,
-                clock=req.clock)
-            try:
-                ticket.run(op)
-            except errors.PartialContent as e:
-                raise http.Error(http.BAD_REQUEST, str(e))
+        ctx = backends.get(req, ticket, self.config)
+
+        op = ops.Receive(
+            ctx.backend,
+            req,
+            ctx.buffer,
+            size,
+            offset=offset,
+            flush=flush,
+            clock=req.clock)
+        try:
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
 
     @cors.allow()
     def get(self, req, resp, ticket_id):
@@ -108,13 +108,13 @@ class Handler(object):
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        backend = backends.get(req, ticket, self.config)
+        ctx = backends.get(req, ticket, self.config)
 
         if size is not None:
             validate.allowed_range(offset, size, ticket)
-            validate.available_range(offset, size, ticket, backend)
+            validate.available_range(offset, size, ticket, ctx.backend)
         else:
-            size = min(ticket.size, backend.size()) - offset
+            size = min(ticket.size, ctx.backend.size()) - offset
 
         log.debug(
             "[%s] READ size=%d offset=%d close=%s ticket=%s",
@@ -133,18 +133,17 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        with util.aligned_buffer(self.config.daemon.buffer_size) as buf:
-            op = ops.Send(
-                backends.get(req, ticket, self.config),
-                resp,
-                buf,
-                size,
-                offset=offset,
-                clock=req.clock)
-            try:
-                ticket.run(op)
-            except errors.PartialContent as e:
-                raise http.Error(http.BAD_REQUEST, str(e))
+        op = ops.Send(
+            ctx.backend,
+            resp,
+            ctx.buffer,
+            size,
+            offset=offset,
+            clock=req.clock)
+        try:
+            ticket.run(op)
+        except errors.PartialContent as e:
+            raise http.Error(http.BAD_REQUEST, str(e))
 
     def patch(self, req, resp, ticket_id):
         if not ticket_id:
@@ -182,8 +181,10 @@ class Handler(object):
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
+        ctx = backends.get(req, ticket, self.config)
+
         op = ops.Zero(
-            backends.get(req, ticket, self.config),
+            ctx.backend,
             size,
             offset=offset,
             flush=flush,
@@ -201,9 +202,9 @@ class Handler(object):
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
 
-        op = ops.Flush(
-            backends.get(req, ticket, self.config),
-            clock=req.clock)
+        ctx = backends.get(req, ticket, self.config)
+
+        op = ops.Flush(ctx.backend, clock=req.clock)
         ticket.run(op)
 
     @cors.allow(allow_methods="OPTIONS,GET,PUT")
