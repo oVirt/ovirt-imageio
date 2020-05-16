@@ -184,7 +184,6 @@ class Handler(object):
             size,
             offset=offset,
             flush=flush,
-            buffersize=self.config.daemon.buffer_size,
             clock=req.clock)
         try:
             ticket.run(op)

@@ -190,9 +190,8 @@ class Zero(Operation):
     MAX_STEP = 1024**3
 
     def __init__(self, dst, size, offset=0, flush=False,
-                 buffersize=BUFFERSIZE, clock=stats.NullClock()):
-        super(Zero, self).__init__(size=size, offset=offset,
-                                   buffersize=buffersize, clock=clock)
+                 clock=stats.NullClock()):
+        super(Zero, self).__init__(size=size, offset=offset, clock=clock)
         self._dst = dst
         self._flush = flush
 
