@@ -31,7 +31,7 @@ class Receive(ops.Receive):
     """
 
     def __init__(self, path, src, size=None, offset=0, flush=True,
-                 buffersize=ops.BUFFERSIZE, clock=stats.NullClock()):
+                 buffersize=1024**2, clock=stats.NullClock()):
         url = urllib_parse.urlparse("file:" + path)
         self._dst = file.open(url, "r+")
         super(Receive, self).__init__(self._dst, src, size=size, offset=offset,

@@ -15,7 +15,6 @@ import pytest
 
 from ovirt_imageio._internal import directio
 from ovirt_imageio._internal import errors
-from ovirt_imageio._internal import ops
 from ovirt_imageio._internal import util
 
 from . import testutil
@@ -104,7 +103,7 @@ def test_receive_flush(tmpfile, monkeypatch, extra, calls):
         fsync(fd)
 
     monkeypatch.setattr("os.fsync", counted_fsync)
-    data = b"x" * ops.BUFFERSIZE * 2
+    data = b"x" * 1024**2 * 2
     with open(tmpfile, "wb") as f:
         f.write(data)
     size = len(data)
