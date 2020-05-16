@@ -76,20 +76,20 @@ class Send(Operation):
             skip = self._offset % self._src.block_size
             self._src.seek(self._offset - skip)
             if skip:
-                self._send_chunk(self._buf, skip)
+                self._send_chunk(skip)
             while self._todo:
-                self._send_chunk(self._buf)
+                self._send_chunk()
         except EOF:
             pass
 
-    def _send_chunk(self, buf, skip=0):
+    def _send_chunk(self, skip=0):
         if self._src.tell() % self._src.block_size:
             if self._size is None:
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
         with self._clock.run("read") as s:
-            count = self._src.readinto(buf)
+            count = self._src.readinto(self._buf)
             s.bytes += count
         if count == 0:
             if self._size is None:
@@ -97,7 +97,7 @@ class Send(Operation):
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
-        with memoryview(buf)[skip:skip + size] as view:
+        with memoryview(self._buf)[skip:skip + size] as view:
             with self._clock.run("write") as s:
                 self._dst.write(view)
                 s.bytes += size
@@ -126,13 +126,13 @@ class Receive(Operation):
             unaligned = self._offset % self._dst.block_size
             if unaligned:
                 count = min(self._todo, self._dst.block_size - unaligned)
-                self._receive_chunk(self._buf, count)
+                self._receive_chunk(count)
 
             # Now current file position is aligned to block size and we can
             # receive full chunks.
             while self._todo:
                 count = min(self._todo, len(self._buf))
-                self._receive_chunk(self._buf, count)
+                self._receive_chunk(count)
         except EOF:
             pass
 
@@ -140,9 +140,9 @@ class Receive(Operation):
             with self._clock.run("sync"):
                 self._dst.flush()
 
-    def _receive_chunk(self, buf, count):
-        buf.seek(0)
-        with memoryview(buf)[:count] as view:
+    def _receive_chunk(self, count):
+        self._buf.seek(0)
+        with memoryview(self._buf)[:count] as view:
             read = 0
             while read < count:
                 with view[read:] as v:
