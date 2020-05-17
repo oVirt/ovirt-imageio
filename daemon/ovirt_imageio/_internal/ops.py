@@ -64,36 +64,28 @@ class Send(Operation):
     Send data source backend to file object.
     """
 
-    def __init__(self, src, dst, buf, size=None, offset=0,
-                 clock=stats.NullClock()):
+    def __init__(self, src, dst, buf, size, offset=0, clock=stats.NullClock()):
         super(Send, self).__init__(size=size, offset=offset, buf=buf,
                                    clock=clock)
         self._src = src
         self._dst = dst
 
     def _run(self):
-        try:
-            skip = self._offset % self._src.block_size
-            self._src.seek(self._offset - skip)
-            if skip:
-                self._send_chunk(skip)
-            while self._todo:
-                self._send_chunk()
-        except EOF:
-            pass
+        skip = self._offset % self._src.block_size
+        self._src.seek(self._offset - skip)
+        if skip:
+            self._send_chunk(skip)
+        while self._todo:
+            self._send_chunk()
 
     def _send_chunk(self, skip=0):
         if self._src.tell() % self._src.block_size:
-            if self._size is None:
-                raise EOF
             raise errors.PartialContent(self.size, self.done)
 
         with self._clock.run("read") as s:
             count = self._src.readinto(self._buf)
             s.bytes += count
         if count == 0:
-            if self._size is None:
-                raise EOF
             raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)

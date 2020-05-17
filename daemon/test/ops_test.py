@@ -101,23 +101,6 @@ def test_send_seek():
     assert dst.getvalue() == b"01234"
 
 
-@pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_send_no_size(user_file, offset, size):
-    data = b"b" * size
-
-    with io.open(user_file.path, "wb") as f:
-        f.write(b"a" * offset)
-        f.write(data)
-
-    dst = io.BytesIO()
-    with file.open(user_file.url, "r") as src, \
-            util.aligned_buffer(1024**2) as buf:
-        op = ops.Send(src, dst, buf, offset=offset)
-        op.run()
-
-    assert dst.getvalue() == data
-
-
 def test_send_repr():
     op = ops.Send(None, None, None, 200, offset=24)
     rep = repr(op)
