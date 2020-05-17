@@ -43,8 +43,6 @@ class Operation(object):
 
     @property
     def _todo(self):
-        if self._size is None:
-            return len(self._buf) if self._buf else 1024**2
         return self._size - self._done
 
     def run(self):
@@ -108,6 +106,12 @@ class Receive(Operation):
         self._src = src
         self._dst = dst
         self._flush = flush
+
+    @property
+    def _todo(self):
+        if self._size is None:
+            return len(self._buf)
+        return self._size - self._done
 
     def _run(self):
         try:
