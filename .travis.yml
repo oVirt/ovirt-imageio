@@ -13,7 +13,7 @@ jobs:
     - env: DIST=fedora-32
 
 before_install:
-  - docker pull ovirtorg/imageio-test-$DIST
+  - docker pull quay.io/ovirt/imageio-test-$DIST
 
 script:
   - |
@@ -22,5 +22,5 @@ script:
     --rm \
     -it \
     --volume `pwd`:/src:Z \
-    ovirtorg/imageio-test-$DIST \
+    quay.io/ovirt/imageio-test-$DIST \
     bash -c "cd /src && travis/test.sh"
