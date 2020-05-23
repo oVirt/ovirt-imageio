@@ -39,10 +39,12 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
             sending data over HTTP connection.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
-        progress (ui.ProgressBar): an object implementing update(int).
-            progress.update() will be called after every write or zero
-            operation with the number bytes transferred. For backward
-            compatibility, we still support passing an update callable.
+        progress (client.ProgressBar): an object implementing
+            client.ProgressBar() interface.  progress.size attribute will be
+            set when upload size is known, and then progress.update() will be
+            called after every write or zero operation with the number bytes
+            transferred.  For backward compatibility, we still support passing
+            an update callable.
     """
     http_url = urlparse(url)
     if callable(progress):
@@ -76,9 +78,10 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
             sending data over HTTP connection.
         secure (bool): True for verifying server certificate and hostname.
             Default is True.
-        progress (ui.ProgressBar): an object implementing update(int).
-            progress.update() will be called after every write or zero
-            operation with the number bytes transferred.
+        progress (client.ProgressBar): an object implementing
+            client.ProgressBar() interface.  progress.size attribute will be
+            set when download size is known, and then progress.update() will be
+            called after every read with the number bytes transferred.
     """
     if incremental and fmt != "qcow2":
         raise ValueError(
