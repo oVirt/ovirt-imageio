@@ -34,7 +34,7 @@ def test_compare_identical_content(tmpdir, src_fmt, dst_fmt):
         c.write(size // 2, b"\0")
         c.flush()
 
-    qemu_img.compare(src, dst)
+    qemu_img.compare(src, dst, format1=src_fmt, format2=dst_fmt)
 
 
 @requires_python3
@@ -57,7 +57,22 @@ def test_compare_different_content(tmpdir, src_fmt, dst_fmt):
         c.flush()
 
     with pytest.raises(qemu_img.ContentMismatch):
-        qemu_img.compare(src, dst)
+        qemu_img.compare(src, dst, format1=src_fmt, format2=dst_fmt)
+
+
+def test_compare_wrong_format(tmpdir):
+    size = 1024**2
+    src = str(tmpdir.join("src.raw"))
+    dst = str(tmpdir.join("dst.raw"))
+
+    qemu_img.create(src, "raw", size=size)
+    qemu_img.create(dst, "raw", size=size)
+
+    with pytest.raises(qemu_img.OpenImageError):
+        qemu_img.compare(src, dst, format1="qcow2")
+
+    with pytest.raises(qemu_img.OpenImageError):
+        qemu_img.compare(src, dst, format2="qcow2")
 
 
 @requires_python3
@@ -80,16 +95,17 @@ def test_compare_different_allocation(tmpdir, src_fmt, dst_fmt):
         c.flush()
 
     with pytest.raises(qemu_img.ContentMismatch):
-        qemu_img.compare(src, dst, strict=True)
+        qemu_img.compare(
+            src, dst, format1=src_fmt, format2=dst_fmt, strict=True)
 
 
-def test_compare_error(tmpdir):
+def test_compare_missing_file(tmpdir):
     src = str(tmpdir.join("src.raw"))
     dst = str(tmpdir.join("dst.raw"))
 
     qemu_img.create(src, "raw", size=1024**2)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(qemu_img.OpenImageError):
         qemu_img.compare(src, dst)
 
 

@@ -21,6 +21,13 @@ class ContentMismatch(Exception):
     """
 
 
+class OpenImageError(Exception):
+    """
+    Raised when image cannot be opened, for example when specified format does
+    not match the actual image format.
+    """
+
+
 def create(path, fmt, size=None, backing=None):
     cmd = ["qemu-img", "create", "-f", fmt]
     if backing:
@@ -50,10 +57,20 @@ def info(path):
     return json.loads(out.decode("utf-8"))
 
 
-def compare(a, b, strict=False):
+def compare(a, b, format1=None, format2=None, strict=False):
     cmd = ["qemu-img", "compare"]
+
     if strict:
         cmd.append("-s")
+
+    if format1:
+        cmd.append("-f")
+        cmd.append(format1)
+
+    if format2:
+        cmd.append("-F")
+        cmd.append(format2)
+
     cmd.append(a)
     cmd.append(b)
 
@@ -63,5 +80,7 @@ def compare(a, b, strict=False):
         return
     elif p.returncode == 1:
         raise ContentMismatch(out.decode("utf-8"))
+    elif p.returncode == 2:
+        raise OpenImageError(out.decode("utf-8"))
     else:
         raise RuntimeError(err.decode("utf-8"))
