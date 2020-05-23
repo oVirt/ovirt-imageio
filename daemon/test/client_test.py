@@ -172,6 +172,25 @@ def test_upload_preallocated(tmpdir, srv):
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
 
 
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_download_raw(tmpdir, srv, fmt):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+        f.seek(IMAGE_SIZE // 2)
+        f.write(b"data")
+
+    url = prepare_transfer(srv, src)
+    dst = str(tmpdir.join("dst"))
+
+    # When we download raw data, we can convert it on-the-fly to other format.
+    client.download(url, dst, srv.config.tls.ca_file, fmt=fmt)
+
+    # file backend does not support extents, so downloaded data is always
+    # fully allocated.
+    qemu_img.compare(src, dst, format1="raw", format2=fmt)
+
+
 def test_progress(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
