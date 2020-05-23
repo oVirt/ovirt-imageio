@@ -15,6 +15,7 @@ import pytest
 from ovirt_imageio import client
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import qemu_img
+from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
 
 from . import testutil
@@ -189,6 +190,39 @@ def test_download_raw(tmpdir, srv, fmt):
     # file backend does not support extents, so downloaded data is always
     # fully allocated.
     qemu_img.compare(src, dst, format1="raw", format2=fmt)
+
+
+def test_download_qcow2_as_raw(tmpdir, srv):
+    src = str(tmpdir.join("src.qcow2"))
+    qemu_img.create(src, "qcow2", size=IMAGE_SIZE)
+
+    # Allocate one cluster in the middle of the image.
+    cluster_size = 64 * 1024
+    with qemu_nbd.open(src, "qcow2") as c:
+        c.write(IMAGE_SIZE // 2, b"a" * cluster_size)
+        c.flush()
+
+    actual_size = os.path.getsize(src)
+    url = prepare_transfer(srv, src, size=actual_size)
+    dst = str(tmpdir.join("dst.qcow2"))
+
+    # When downloading qcow2 image using the nbd backend, we get raw data and
+    # we can convert it to any format we want. Howver when downloading using
+    # the file backend, we get qcow2 bytestream and we cannot convert it.
+    #
+    # To store the qcow2 bytestream, we must use fmt="raw". This instructs
+    # qemu-nbd on the client side to treat the data as raw bytes, storing them
+    # without any change on the local file.
+    #
+    # This is baisically like:
+    #
+    #   qemu-img convert -f raw -O raw src.qcow2 dst.qcow2
+    #
+    client.download(url, dst, srv.config.tls.ca_file, fmt="raw")
+
+    # The result should be identical qcow2 image content. Allocation may
+    # differ but for this test we get identical allocation.
+    qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
 def test_progress(tmpdir, srv):
