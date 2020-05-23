@@ -166,20 +166,6 @@ def test_upload_preallocated(tmpdir, srv):
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
 
 
-@pytest.mark.parametrize("use_unix_socket", [True, False])
-def test_upload_unix_socket(tmpdir, srv, use_unix_socket):
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.write(b"b" * IMAGE_SIZE)
-
-    dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
-
-    client.upload(src, url, srv.config.tls.ca_file)
-
-    check_content(src, dst)
-
-
 def test_progress(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
