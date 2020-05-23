@@ -14,6 +14,7 @@ import pytest
 
 from ovirt_imageio import client
 from ovirt_imageio._internal import config
+from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import server
 
 from . import testutil
@@ -32,11 +33,6 @@ def srv():
     s.start()
     yield s
     s.stop()
-
-
-def check_content(src, dst):
-    with open(src, "rb") as s, open(dst, "rb") as d:
-        assert s.read() == d.read()
 
 
 def prepare_upload(srv, dst, sparse=True, size=IMAGE_SIZE):
@@ -86,8 +82,7 @@ def test_upload_empty_sparse(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
-    assert os.stat(dst).st_blocks == os.stat(src).st_blocks
+    qemu_img.compare(src, dst, strict=True)
 
 
 def test_upload_hole_at_start_sparse(tmpdir, srv):
@@ -102,8 +97,7 @@ def test_upload_hole_at_start_sparse(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
-    assert os.stat(dst).st_blocks == os.stat(src).st_blocks
+    qemu_img.compare(src, dst, strict=True)
 
 
 def test_upload_hole_at_middle_sparse(tmpdir, srv):
@@ -119,8 +113,7 @@ def test_upload_hole_at_middle_sparse(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
-    assert os.stat(dst).st_blocks == os.stat(src).st_blocks
+    qemu_img.compare(src, dst, strict=True)
 
 
 def test_upload_hole_at_end_sparse(tmpdir, srv):
@@ -134,8 +127,7 @@ def test_upload_hole_at_end_sparse(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
-    assert os.stat(dst).st_blocks == os.stat(src).st_blocks
+    qemu_img.compare(src, dst, strict=True)
 
 
 def test_upload_full_sparse(tmpdir, srv):
@@ -148,8 +140,7 @@ def test_upload_full_sparse(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
-    assert os.stat(dst).st_blocks == os.stat(src).st_blocks
+    qemu_img.compare(src, dst, strict=True)
 
 
 def test_upload_preallocated(tmpdir, srv):
@@ -162,7 +153,7 @@ def test_upload_preallocated(tmpdir, srv):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    check_content(src, dst)
+    qemu_img.compare(src, dst)
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
 
 
