@@ -57,8 +57,8 @@ def prepare_upload(srv, dst, sparse=True, size=IMAGE_SIZE):
 
 class FakeProgress:
 
-    def __init__(self, size=0):
-        self.size = size
+    def __init__(self):
+        self.size = None
         self.updates = []
 
     def update(self, n):
@@ -191,10 +191,11 @@ def test_progress(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
     url = prepare_upload(srv, dst, sparse=True)
 
-    progress = FakeProgress(IMAGE_SIZE)
+    progress = FakeProgress()
     client.upload(
         src, url, srv.config.tls.ca_file, progress=progress)
 
+    assert progress.size == IMAGE_SIZE
     assert progress.updates == [
         # First write.
         4096,
