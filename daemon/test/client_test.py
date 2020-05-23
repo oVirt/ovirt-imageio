@@ -35,15 +35,12 @@ def srv():
     s.stop()
 
 
-def prepare_upload(srv, dst, sparse=True, size=IMAGE_SIZE):
-    with open(dst, "wb") as f:
-        if not sparse:
-            f.write(b"a" * size)
-
+def prepare_transfer(srv, dst, sparse=True, size=IMAGE_SIZE):
     ticket = testutil.create_ticket(
         url="file://" + dst,
         size=size,
-        sparse=sparse)
+        sparse=sparse,
+        ops=["read", "write"])
 
     srv.auth.add(ticket)
 
@@ -78,7 +75,10 @@ def test_upload_empty_sparse(tmpdir, srv):
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -93,7 +93,10 @@ def test_upload_hole_at_start_sparse(tmpdir, srv):
         f.write(b"b" * (IMAGE_SIZE // 2))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -109,7 +112,10 @@ def test_upload_hole_at_middle_sparse(tmpdir, srv):
         f.write(b"b" * (IMAGE_SIZE // 4))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -123,7 +129,10 @@ def test_upload_hole_at_end_sparse(tmpdir, srv):
         f.write(b"b" * (IMAGE_SIZE // 2))
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -136,7 +145,10 @@ def test_upload_full_sparse(tmpdir, srv):
         f.write(b"b" * IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -149,7 +161,10 @@ def test_upload_preallocated(tmpdir, srv):
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst, sparse=False)
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst, sparse=False)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -166,7 +181,10 @@ def test_progress(tmpdir, srv):
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst, sparse=True)
+    with open(dst, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst, sparse=True)
 
     progress = FakeProgress()
     client.upload(
@@ -191,7 +209,10 @@ def test_progress_callback(tmpdir, srv):
         f.truncate(IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
-    url = prepare_upload(srv, dst, size=IMAGE_SIZE, sparse=True)
+    with open(dst, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst, size=IMAGE_SIZE, sparse=True)
 
     progress = []
     client.upload(
