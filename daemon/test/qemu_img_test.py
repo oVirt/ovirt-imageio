@@ -21,13 +21,18 @@ from . marks import requires_python3
     ("qcow2", "qcow2"),
     ("raw", "qcow2"),
 ])
-def test_compare_identical(tmpdir, src_fmt, dst_fmt):
+def test_compare_identical_content(tmpdir, src_fmt, dst_fmt):
     size = 1024**2
     src = str(tmpdir.join("src." + src_fmt))
     dst = str(tmpdir.join("dst." + dst_fmt))
 
     qemu_img.create(src, src_fmt, size=size)
     qemu_img.create(dst, dst_fmt, size=size)
+
+    # Destination image has different allocation.
+    with qemu_nbd.open(dst, dst_fmt) as c:
+        c.write(size // 2, b"\0")
+        c.flush()
 
     qemu_img.compare(src, dst)
 
@@ -38,7 +43,31 @@ def test_compare_identical(tmpdir, src_fmt, dst_fmt):
     ("qcow2", "qcow2"),
     ("raw", "qcow2"),
 ])
-def test_compare_different(tmpdir, src_fmt, dst_fmt):
+def test_compare_different_content(tmpdir, src_fmt, dst_fmt):
+    size = 1024**2
+    src = str(tmpdir.join("src." + src_fmt))
+    dst = str(tmpdir.join("dst." + dst_fmt))
+
+    qemu_img.create(src, src_fmt, size=size)
+    qemu_img.create(dst, dst_fmt, size=size)
+
+    # Destination image has different content.
+    with qemu_nbd.open(dst, dst_fmt) as c:
+        c.write(size // 2, b"x")
+        c.flush()
+
+    with pytest.raises(qemu_img.ContentMismatch):
+        qemu_img.compare(src, dst)
+
+
+@requires_python3
+@pytest.mark.parametrize("src_fmt,dst_fmt", [
+    ("raw", "raw"),
+    ("qcow2", "qcow2"),
+    ("raw", "qcow2"),
+])
+def test_compare_different_allocation(tmpdir, src_fmt, dst_fmt):
+    # Images has same content, but different allocation.
     size = 1024**2
     src = str(tmpdir.join("src." + src_fmt))
     dst = str(tmpdir.join("dst." + dst_fmt))
@@ -47,11 +76,11 @@ def test_compare_different(tmpdir, src_fmt, dst_fmt):
     qemu_img.create(dst, dst_fmt, size=size)
 
     with qemu_nbd.open(dst, dst_fmt) as c:
-        c.write(size // 2, b"x")
+        c.write(size // 2, b"\0")
         c.flush()
 
     with pytest.raises(qemu_img.ContentMismatch):
-        qemu_img.compare(src, dst)
+        qemu_img.compare(src, dst, strict=True)
 
 
 def test_compare_error(tmpdir):

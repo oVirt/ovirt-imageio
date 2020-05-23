@@ -50,8 +50,13 @@ def info(path):
     return json.loads(out.decode("utf-8"))
 
 
-def compare(a, b):
-    cmd = ["qemu-img", "compare", a, b]
+def compare(a, b, strict=False):
+    cmd = ["qemu-img", "compare"]
+    if strict:
+        cmd.append("-s")
+    cmd.append(a)
+    cmd.append(b)
+
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     if p.returncode == 0:
