@@ -239,6 +239,78 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
+def test_upload_proxy_url(tmpdir, srv):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    # If transfer_url is not accessible, proxy_url is used.
+    transfer_url = "https://no.server:54322/images/no-ticket"
+    proxy_url = prepare_transfer(srv, dst)
+
+    client.upload(src, transfer_url, srv.config.tls.ca_file,
+                  proxy_url=proxy_url)
+
+    qemu_img.compare(src, dst, format1="raw", format2="raw", strict=True)
+
+
+def test_upload_proxy_url_unused(tmpdir, srv):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    # If transfer_url is accessible, proxy_url is not used.
+    transfer_url = prepare_transfer(srv, dst)
+    proxy_url = "https://no.proxy:54322/images/no-ticket"
+
+    client.upload(src, transfer_url, srv.config.tls.ca_file,
+                  proxy_url=proxy_url)
+
+    qemu_img.compare(src, dst, format1="raw", format2="raw", strict=True)
+
+
+def test_download_proxy_url(tmpdir, srv):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+
+    # If transfer_url is not accessible, proxy_url is used.
+    transfer_url = "https://no.server:54322/images/no-ticket"
+    proxy_url = prepare_transfer(srv, src)
+
+    client.download(transfer_url, dst, srv.config.tls.ca_file, fmt="raw",
+                    proxy_url=proxy_url)
+
+    qemu_img.compare(src, dst, format1="raw", format2="raw")
+
+
+def test_download_proxy_url_unused(tmpdir, srv):
+    src = str(tmpdir.join("src"))
+    with open(src, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+
+    # If transfer_url is accessible, proxy_url is not used.
+    transfer_url = prepare_transfer(srv, src)
+    proxy_url = "https://no.proxy:54322/images/no-ticket"
+
+    client.download(transfer_url, dst, srv.config.tls.ca_file, fmt="raw",
+                    proxy_url=proxy_url)
+
+    qemu_img.compare(src, dst, format1="raw", format2="raw")
+
+
 def test_progress(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:
