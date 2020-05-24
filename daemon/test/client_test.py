@@ -24,7 +24,8 @@ from . marks import requires_python3
 
 pytestmark = requires_python3
 
-IMAGE_SIZE = 128 * 1024
+CLUSTER_SIZE = 64 * 1024
+IMAGE_SIZE = 3 * CLUSTER_SIZE
 
 
 @pytest.fixture(scope="module")
@@ -70,10 +71,94 @@ class FakeProgress:
 # - Test negative flows
 
 
-def test_upload_empty_sparse(tmpdir, srv):
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_empty_sparse(tmpdir, srv, fmt):
     src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(IMAGE_SIZE)
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
+
+    client.upload(src, url, srv.config.tls.ca_file)
+
+    # TODO: Check why allocation differ when src is qcow2. Target image
+    # allocation is 0 bytes as expected, but comparing with strict=True fail at
+    # offset 0.
+    qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
+    src = str(tmpdir.join("src"))
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+
+    with qemu_nbd.open(src, fmt) as c:
+        c.write(IMAGE_SIZE - 6, b"middle")
+        c.flush()
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
+
+    client.upload(src, url, srv.config.tls.ca_file)
+
+    qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_hole_at_middle_sparse(tmpdir, srv, fmt):
+    src = str(tmpdir.join("src"))
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+
+    with qemu_nbd.open(src, fmt) as c:
+        c.write(0, b"start")
+        c.write(IMAGE_SIZE - 3, b"end")
+        c.flush()
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
+
+    client.upload(src, url, srv.config.tls.ca_file)
+
+    qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_hole_at_end_sparse(tmpdir, srv, fmt):
+    src = str(tmpdir.join("src"))
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+
+    with qemu_nbd.open(src, fmt) as c:
+        c.write(0, b"start")
+        c.flush()
+
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.write(b"a" * IMAGE_SIZE)
+
+    url = prepare_transfer(srv, dst)
+
+    client.upload(src, url, srv.config.tls.ca_file)
+
+    qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_full_sparse(tmpdir, srv, fmt):
+    src = str(tmpdir.join("src"))
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+
+    with qemu_nbd.open(src, fmt) as c:
+        c.write(0, b"b" * IMAGE_SIZE)
+        c.flush()
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
@@ -86,80 +171,10 @@ def test_upload_empty_sparse(tmpdir, srv):
     qemu_img.compare(src, dst, strict=True)
 
 
-def test_upload_hole_at_start_sparse(tmpdir, srv):
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_upload_preallocated(tmpdir, srv, fmt):
     src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(IMAGE_SIZE)
-        f.seek(IMAGE_SIZE // 2)
-        f.write(b"b" * (IMAGE_SIZE // 2))
-
-    dst = str(tmpdir.join("dst"))
-    with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
-
-    url = prepare_transfer(srv, dst)
-
-    client.upload(src, url, srv.config.tls.ca_file)
-
-    qemu_img.compare(src, dst, strict=True)
-
-
-def test_upload_hole_at_middle_sparse(tmpdir, srv):
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(IMAGE_SIZE)
-        f.write(b"b" * (IMAGE_SIZE // 4))
-        f.seek(IMAGE_SIZE // 2, os.SEEK_CUR)
-        f.write(b"b" * (IMAGE_SIZE // 4))
-
-    dst = str(tmpdir.join("dst"))
-    with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
-
-    url = prepare_transfer(srv, dst)
-
-    client.upload(src, url, srv.config.tls.ca_file)
-
-    qemu_img.compare(src, dst, strict=True)
-
-
-def test_upload_hole_at_end_sparse(tmpdir, srv):
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(IMAGE_SIZE)
-        f.write(b"b" * (IMAGE_SIZE // 2))
-
-    dst = str(tmpdir.join("dst"))
-    with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
-
-    url = prepare_transfer(srv, dst)
-
-    client.upload(src, url, srv.config.tls.ca_file)
-
-    qemu_img.compare(src, dst, strict=True)
-
-
-def test_upload_full_sparse(tmpdir, srv):
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.write(b"b" * IMAGE_SIZE)
-
-    dst = str(tmpdir.join("dst"))
-    with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
-
-    url = prepare_transfer(srv, dst)
-
-    client.upload(src, url, srv.config.tls.ca_file)
-
-    qemu_img.compare(src, dst, strict=True)
-
-
-def test_upload_preallocated(tmpdir, srv):
-    src = str(tmpdir.join("src"))
-    with open(src, "wb") as f:
-        f.truncate(IMAGE_SIZE)
+    qemu_img.create(src, fmt, size=IMAGE_SIZE)
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
@@ -197,9 +212,8 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.create(src, "qcow2", size=IMAGE_SIZE)
 
     # Allocate one cluster in the middle of the image.
-    cluster_size = 64 * 1024
     with qemu_nbd.open(src, "qcow2") as c:
-        c.write(IMAGE_SIZE // 2, b"a" * cluster_size)
+        c.write(CLUSTER_SIZE, b"a" * CLUSTER_SIZE)
         c.flush()
 
     actual_size = os.path.getsize(src)
