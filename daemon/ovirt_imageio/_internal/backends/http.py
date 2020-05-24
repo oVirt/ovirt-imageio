@@ -40,20 +40,22 @@ def open(url, mode, sparse=True, dirty=False, **options):
                 verification. If not set, trust system's default CA
                 certificates instead.
             secure (bool): If False, disable server certificate verification.
+            connect_timeout: Time to wait for connection to server.
+            read_timeout: Time to wait when reading from server.
     """
     assert url.scheme == "https"
-    return Backend(
-        url,
-        cafile=options.get("cafile"),
-        secure=options.get("secure", True))
+    return Backend(url, **options)
 
 
 class Backend(object):
 
-    def __init__(self, url, cafile, secure=True):
+    def __init__(self, url, cafile=None, secure=True, connect_timeout=10,
+                 read_timeout=60):
         log.info("Open backend netloc=%r path=%r cafile=%r secure=%r",
                  url.netloc, url.path, cafile, secure)
         self.url = url
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
         self._position = 0
         self._size = None
         self._extents = {}
@@ -291,7 +293,19 @@ class Backend(object):
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
 
-        return HTTPSConnection(self.url.netloc, context=context)
+        con = HTTPSConnection(
+            self.url.netloc, timeout=self._connect_timeout, context=context)
+        try:
+            # To have different connect and read timeout, we must connect
+            # explicitly and set the socket timeout when the socket is
+            # connected.
+            con.connect()
+            con.sock.settimeout(self._read_timeout)
+        except Exception:
+            con.close()
+            raise
+
+        return con
 
     def _optimize_connection(self, unix_socket):
         """
@@ -302,9 +316,14 @@ class Backend(object):
             return
 
         try:
-            con = UnixHTTPConnection(unix_socket)
+            con = UnixHTTPConnection(
+                unix_socket, timeout=self._connect_timeout)
             try:
+                # To have different connect and read timeout, we must connect
+                # explicitly and set the socket timeout when the socket is
+                # connected.
                 con.connect()
+                con.sock.settimeout(self._read_timeout)
             except Exception:
                 con.close()
                 raise
