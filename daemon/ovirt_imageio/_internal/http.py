@@ -453,6 +453,13 @@ class Response(object):
         # TODO: return json errors.
         self.status_code = e.code
         body = str(e).encode("utf-8")
+
+        # Content-type header of the response is set to text/plain to mark
+        # content as non-interpretable by the client and thus avoid false
+        # positive from security analysis tools when we send requested URL
+        # back as part of, say, 404 response
+        self.headers["content-type"] = "text/plain; charset=UTF-8"
+
         self.headers["content-length"] = len(body)
         if e.content_range is not None:
             self.headers["content-range"] = e.content_range

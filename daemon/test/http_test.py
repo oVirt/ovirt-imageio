@@ -34,6 +34,8 @@ pytestmark = requires_python3
 
 log = logging.getLogger("test")
 
+ERROR_CONTENT_TYPE = "text/plain; charset=UTF-8"
+
 
 class Demo(object):
 
@@ -528,6 +530,7 @@ def test_range_demo(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.REQUESTED_RANGE_NOT_SATISFIABLE
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         assert r.getheader("content-range") == "bytes */16"
 
 
@@ -587,6 +590,7 @@ def test_request_info_get_unsatisfiable_range(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.REQUESTED_RANGE_NOT_SATISFIABLE
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_request_info_put(server):
@@ -621,6 +625,7 @@ def test_request_invalid_content_length(server, content_length):
             headers={"content-length": content_length})
         r = con.getresponse()
         assert r.status == http.BAD_REQUEST
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_request_info_put_content_range(server):
@@ -648,6 +653,7 @@ def test_request_info_put_content_range_invalid(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.BAD_REQUEST
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 @pytest.mark.parametrize("uri,path,arg", [
@@ -701,6 +707,7 @@ def test_context(server):
         con.request("GET", "/context/this")
         r = con.getresponse()
         assert r.status == http.NOT_FOUND
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         r.read()
 
         # Set value for "this".
@@ -725,6 +732,7 @@ def test_context(server):
         con.request("GET", "/context/this")
         r = con.getresponse()
         assert r.status == http.NOT_FOUND
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         r.read()
 
 
@@ -742,6 +750,7 @@ def test_context_per_connection(server):
         con2.request("GET", "/context/this")
         r = con2.getresponse()
         assert r.status == http.NOT_FOUND
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         r.read()
 
         # Set value for "this" in connection 2.
@@ -772,6 +781,7 @@ def test_context_deleted_on_close(server):
         con.request("GET", "/context/this")
         r = con.getresponse()
         assert r.status == http.NOT_FOUND
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         r.read()
 
 
@@ -832,6 +842,7 @@ def test_not_found(server):
         con.request("GET", "/no/such/path")
         r = con.getresponse()
         assert r.status == http.NOT_FOUND
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_method_not_allowed(server):
@@ -840,6 +851,7 @@ def test_method_not_allowed(server):
         con.request("POST", "/demo/name")
         r = con.getresponse()
         assert r.status == http.METHOD_NOT_ALLOWED
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_invalid_method(server):
@@ -848,6 +860,7 @@ def test_invalid_method(server):
         con.request("FOO", "/demo/name")
         r = con.getresponse()
         assert r.status == http.METHOD_NOT_ALLOWED
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_client_error_get(server):
@@ -856,6 +869,7 @@ def test_client_error_get(server):
         con.request("GET", "/client-error/")
         r = con.getresponse()
         assert r.status == http.FORBIDDEN
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_client_error_put(server):
@@ -868,6 +882,7 @@ def test_client_error_put(server):
                 raise
         r = con.getresponse()
         assert r.status == http.FORBIDDEN
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_internal_error_get(server):
@@ -877,6 +892,7 @@ def test_internal_error_get(server):
         con.request("GET", "/server-error/")
         r = con.getresponse()
         assert r.status == http.INTERNAL_SERVER_ERROR
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         assert "secret" not in r.read().decode("utf-8")
 
 
@@ -891,6 +907,7 @@ def test_internal_error_put(server):
                 raise
         r = con.getresponse()
         assert r.status == http.INTERNAL_SERVER_ERROR
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
         assert "secret" not in r.read().decode("utf-8")
 
 
@@ -901,6 +918,7 @@ def test_server_socket_error_get(server):
         con.request("GET", "/server-socket-error/")
         r = con.getresponse()
         assert r.status == http.INTERNAL_SERVER_ERROR
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_server_socket_error_put(server):
@@ -914,6 +932,7 @@ def test_server_socket_error_put(server):
                 raise
         r = con.getresponse()
         assert r.status == http.INTERNAL_SERVER_ERROR
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 @pytest.mark.parametrize("data", [None, b"", b"read me"])
@@ -933,6 +952,7 @@ def test_keep_connection_on_error(server, data):
             r = con.getresponse()
             r.read()
             assert r.status == http.FORBIDDEN
+            assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
 
 def test_close_connection_on_error(server):
@@ -950,6 +970,7 @@ def test_close_connection_on_error(server):
         r = con.getresponse()
         r.read()
         assert r.status == http.FORBIDDEN
+        assert r.getheader("content-type") == ERROR_CONTENT_TYPE
 
         # Try to send another request. This will fail since we disabled
         # auto_open.  Fails in request() or in getresponse(), probably
