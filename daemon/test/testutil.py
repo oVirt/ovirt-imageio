@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import errno
 import logging
 import socket
 from uuid import uuid4
@@ -66,3 +67,15 @@ def create_tempfile(tmpdir, name, data=b'', size=None):
         if data:
             f.write(data)
     return file
+
+
+def ipv6_enabled(dev='default'):
+    # Based on
+    # https://github.com/oVirt/vdsm/blob/v4.40.19/lib/vdsm/network/sysctl.py#L59
+    try:
+        with open('/proc/sys/net/ipv6/conf/%s/disable_ipv6' % dev) as f:
+            return bool(int(f.read()))
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        return False
