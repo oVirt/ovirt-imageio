@@ -158,12 +158,9 @@ class Backend(object):
 
     @property
     def block_size(self):
-        # We may use minimum_block_size, but it is always 1 with qemu-nbd and
-        # qemu, and I think it will break the ops code, expecting either 512 or
-        # 4096. This will cause ops.Send/Receive to do first small unaligned
-        # read/write to get the offset aligned. Both qemu and qemu-nbd seems to
-        # handle unaligned reads and writes.
-        return self._client.preferred_block_size
+        # qemu always reports minium_block_size=1, so caller never needs to
+        # align requests and read more data than needed.
+        return self._client.minimum_block_size
 
     # Debugging interface
 
