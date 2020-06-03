@@ -12,6 +12,7 @@ import logging
 
 from . import errors
 from . import stats
+from . import util
 
 log = logging.getLogger("ops")
 
@@ -80,11 +81,16 @@ class Send(Operation):
         if self._src.tell() % self._src.block_size:
             raise errors.PartialContent(self.size, self.done)
 
-        with self._clock.run("read") as s:
-            count = self._src.readinto(self._buf)
-            s.bytes += count
-        if count == 0:
-            raise errors.PartialContent(self.size, self.done)
+        # If self._todo is not aligned to backend block_size we read complete
+        # block and drop up to block_size - 1 bytes.
+        aligned_todo = util.round_up(self._todo, self._src.block_size)
+
+        with memoryview(self._buf)[:aligned_todo] as view:
+            with self._clock.run("read") as s:
+                count = self._src.readinto(view)
+                s.bytes += count
+            if count == 0:
+                raise errors.PartialContent(self.size, self.done)
 
         size = min(count - skip, self._todo)
         with memoryview(self._buf)[skip:skip + size] as view:
