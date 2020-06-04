@@ -1,4 +1,4 @@
-RELEASE_SUFFIX := $(shell ../build-aux/release-suffix)
+RELEASE := $(shell ../build-aux/release)
 PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell python3 ovirt_imageio/_internal/version.py)
 OUTDIR=dist
@@ -45,6 +45,6 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
-		-e 's|@RELEASE_SUFFIX@|$(RELEASE_SUFFIX)|g' \
+		-e 's|@RELEASE@|$(RELEASE)|g' \
 		$< > $@
 	@echo "generated $@"

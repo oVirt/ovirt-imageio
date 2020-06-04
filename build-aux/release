@@ -6,11 +6,13 @@ if git describe --tags --match "v[0-9]*" | grep -q '-'; then
     # newer than all the previous builds using a timestamp,
     # and make it easy to locate the commit from the build
     # with the git commit hash.
-    release_suffix=.$(date -u +%Y%m%d%H%M)
+    release="0.$(date -u +%Y%m%d%H%M)"
     commithash=$(git rev-parse --short HEAD)
-    release_suffix+=.git$commithash
+    release+=.git$commithash
 else
-    release_suffix=""
+    # We want to make tagged build newer than any other build from same
+    # version-release.
+    release="1"
 fi
 
-echo $release_suffix
+echo $release

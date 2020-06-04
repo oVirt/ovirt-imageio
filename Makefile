@@ -2,15 +2,14 @@ targets = all check dist srpm rpm
 
 subdirs = daemon
 
-release_suffix := $(shell ./build-aux/release-suffix)
+release := $(shell ./build-aux/release)
 
 .PHONY: $(targets) $(subdirs) storage clean-storage
 
 $(targets): $(subdirs)
 
 $(subdirs):
-	$(MAKE) -C $@ $(MAKECMDGOALS) \
-		RELEASE_SUFFIX=$(release_suffix)
+	$(MAKE) -C $@ $(MAKECMDGOALS) RELEASE=$(release)
 
 clean: $(subdirs)
 	rm -rf exported-artifacts/

@@ -9,7 +9,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-string = "2.0.7"
+string = "2.0.8"
 
 if __name__ == "__main__":
     print(string)

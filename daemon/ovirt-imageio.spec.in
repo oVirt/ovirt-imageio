@@ -1,6 +1,6 @@
 Name:      @PACKAGE_NAME@
 Version:   @PACKAGE_VERSION@
-Release:   0@RELEASE_SUFFIX@%{?dist}
+Release:   @RELEASE@%{?dist}
 Summary:   oVirt imageio
 
 License:   GPLv2+
