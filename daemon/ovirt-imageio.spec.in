@@ -132,6 +132,11 @@ fi
 
 %changelog
 
+* Thu Jun 4 2020 Nir Soffer <nsoffer@redhat.com> 2.0.7-0
+- Support showing parsed configuration #BZ1835719
+- Improve performance when using small requests #BZ1836858
+- Use proxy_url if transfer_url is not accessible #BZ1839400
+
 * Wed May 13 2020 Nir Soffer <nsoffer@redhat.com> 2.0.6-0
 - Introduce ovirt-imageio-client package
 - Support drop-in confiugration #BZ1826679, #BZ1738729, #BZ1761960
