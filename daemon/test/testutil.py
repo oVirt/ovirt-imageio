@@ -8,12 +8,13 @@
 
 from __future__ import absolute_import
 
-import errno
+import json
 import logging
 import socket
-from uuid import uuid4
+import subprocess
 
 from contextlib import closing
+from uuid import uuid4
 
 log = logging.getLogger("test")
 
@@ -69,13 +70,7 @@ def create_tempfile(tmpdir, name, data=b'', size=None):
     return file
 
 
-def ipv6_enabled(dev='default'):
-    # Based on
-    # https://github.com/oVirt/vdsm/blob/v4.40.19/lib/vdsm/network/sysctl.py#L59
-    try:
-        with open('/proc/sys/net/ipv6/conf/%s/disable_ipv6' % dev) as f:
-            return bool(int(f.read()))
-    except IOError as e:
-        if e.errno != errno.ENOENT:
-            raise
-        return False
+def ipv6_enabled():
+    out = subprocess.check_output(["ip", "-6", "-j", "addr"])
+    addresses = json.loads(out)
+    return len(addresses) > 0
