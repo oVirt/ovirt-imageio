@@ -17,6 +17,7 @@ import socket
 import time
 
 from contextlib import closing
+from contextlib import contextmanager
 
 import six
 from six.moves import http_client
@@ -302,6 +303,22 @@ class PartialResponse(object):
         resp.headers["content-length"] = 1000
         resp.write(b"Starting response...")
         raise http.Error(http.INTERNAL_SERVER_ERROR, "No more data for you!")
+
+
+@contextmanager
+def demo_server(address):
+    server = http.Server((address, 0), http.Connection)
+    log.info("Server listening on %s", server.server_address)
+    server.app = http.Router([(r"/demo/(.*)", Demo())])
+
+    t = util.start_thread(
+        server.serve_forever,
+        kwargs={"poll_interval": 0.1})
+    try:
+        yield server
+    finally:
+        server.shutdown()
+        t.join()
 
 
 @pytest.fixture(scope="module")
@@ -1064,3 +1081,64 @@ def test_content_range_parse_invalid(header):
     with pytest.raises(http.Error) as e:
         http.ContentRange.parse(header)
     assert e.value.code == http.BAD_REQUEST
+
+
+@pytest.mark.parametrize("listen_address", [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+])
+def test_server_bind_loopback(listen_address):
+    with demo_server(listen_address) as server:
+        # TCPServer returns tuple of different length for IPv4 and IPv6. We
+        # change server_address in Server.server_bind() to be always tuple
+        # of hostname and port. Check it here, that it has always two elements.
+        assert len(server.server_address) == 2
+
+        con = http_client.HTTPConnection("localhost", server.server_port)
+        with closing(con):
+            con.request("GET", "/demo/name")
+            con.getresponse()
+
+
+def test_server_bind_ipv4():
+    with demo_server("") as server:
+        # Connecting via IPv4 address should work.
+        con = http_client.HTTPConnection("127.0.0.1", server.server_port)
+        with closing(con):
+            con.request("GET", "/demo/name")
+            con.getresponse()
+
+        # Connecting via IPv6 address should fail.
+        con = http_client.HTTPConnection("::1", server.server_port)
+        with closing(con):
+            with pytest.raises(ConnectionRefusedError):
+                con.request("GET", "/demo/name")
+
+
+@pytest.mark.parametrize("connect_address", [
+    "127.0.0.1",
+    "::1",
+    "localhost",
+    socket.gethostname(),
+])
+def test_server_bind_dual_stack(connect_address):
+    with demo_server("::") as server:
+        con = http_client.HTTPConnection(connect_address, server.server_port)
+        with closing(con):
+            con.request("GET", "/demo/name")
+            con.getresponse()
+
+
+def test_server_bind_addr_from_hostname():
+    infos = socket.getaddrinfo(
+        socket.gethostname(),
+        0,
+        type=socket.SOCK_STREAM)
+    for info in infos:
+        address = info[4][0]
+        with demo_server(address) as server:
+            con = http_client.HTTPConnection(address, server.server_port)
+            with closing(con):
+                con.request("GET", "/demo/name")
+                con.getresponse()

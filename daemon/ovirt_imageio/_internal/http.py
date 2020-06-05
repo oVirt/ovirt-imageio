@@ -81,6 +81,32 @@ class Server(socketserver.ThreadingMixIn,
     clock_class = stats.NullClock
 
     def server_bind(self):
+        """Override server_bind to create socket with correct family."""
+        host, port = self.server_address
+
+        # In the past we use "" as a special address to bind to all interfaces.
+        # Using "" with socket.getaddrinfo() would result into socket.gaierror.
+        # To keep backward compatibility with old configurations, replace ""
+        # with "0" which acts in the same way and will be bound to IPv4
+        # interface.
+        if host == "":
+            host = "0"
+
+        addresses = socket.getaddrinfo(host, port, type=self.socket_type)
+        log.debug("Available network interfaces: %s", addresses)
+        self.address_family = addresses[0][0]
+
+        # Close old socket created in constructor first.
+        if self.socket:
+            self.socket.close()
+
+        # Create new socket with correct address family.
+        log.info(
+            "Creating server socket with family=%s and type=%s",
+            self.address_family,
+            self.socket_type)
+        self.socket = socket.socket(self.address_family, self.socket_type)
+
         super().server_bind()
 
         # TCPServer.server_bind() overwrites server_address with
