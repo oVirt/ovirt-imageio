@@ -80,9 +80,9 @@ class tls:
 
 class remote:
 
-    # Remote service interface. Use empty string to listen on any
-    # interface.
-    host = ""
+    # Remote service interface. Use "::" to listen on any interface on both
+    # IPv4 and IPv6. To listen only on IPv4, use "0.0.0.0".
+    host = "::"
 
     # Remote service port. Changing this value require change in the
     # firewall rules on the host, and changing this value in engine
