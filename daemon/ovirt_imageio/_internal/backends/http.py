@@ -53,17 +53,33 @@ def open(url, mode="r+", sparse=True, dirty=False, max_connections=8,
 class Backend(object):
 
     def __init__(self, url, cafile=None, secure=True, connect_timeout=10,
-                 read_timeout=60):
+                 read_timeout=60, connect=True):
         log.info("Open backend netloc=%r path=%r cafile=%r secure=%r",
                  url.netloc, url.path, cafile, secure)
         self.url = url
+        self._cafile = cafile
+        self._secure = secure
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
         self._position = 0
         self._size = None
         self._extents = {}
 
-        self._con = self._create_connection(cafile, secure)
+        # Initlized during connection.
+        self._context = None
+        self._con = None
+        self._can_extents = False
+        self._can_zero = False
+        self._can_flush = False
+        self._max_readers = 1
+        self._max_writers = 1
+
+        if connect:
+            self._connect()
+
+    def _connect(self):
+        self._context = self._create_ssl_context()
+        self._con = self._create_connection()
         try:
             options = self._options()
             log.debug("Server options: %s", options)
@@ -304,16 +320,21 @@ class Backend(object):
 
     # Private
 
-    def _create_connection(self, cafile, secure):
+    def _create_ssl_context(self):
         context = ssl.create_default_context(
-            purpose=ssl.Purpose.SERVER_AUTH, cafile=cafile)
+            purpose=ssl.Purpose.SERVER_AUTH, cafile=self._cafile)
 
-        if not secure:
+        if not self._secure:
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
 
+        return context
+
+    def _create_connection(self):
         con = HTTPSConnection(
-            self.url.netloc, timeout=self._connect_timeout, context=context)
+            self.url.netloc,
+            timeout=self._connect_timeout,
+            context=self._context)
         try:
             # To have different connect and read timeout, we must connect
             # explicitly and set the socket timeout when the socket is
