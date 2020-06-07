@@ -630,3 +630,30 @@ def test_extents_dirty(user_file):
     with file.open(user_file.url, "r+", dirty=True) as f:
         with pytest.raises(errors.UnsupportedOperation):
             list(f.extents(context="dirty"))
+
+
+def test_clone(user_file):
+    size = user_file.sector_size * 2
+
+    with io.open(user_file.path, "wb") as f:
+        f.write(b"x" * size)
+
+    with file.open(user_file.url, "r+", sparse=True) as a, \
+            a.clone() as b, \
+            util.aligned_buffer(user_file.sector_size) as buf:
+
+        # Backends are identical when created.
+        assert a.size() == b.size()
+        assert a.tell() == b.tell()
+        assert a.block_size == b.block_size
+
+        # Operations on one backend do not affect the other.
+        buf[:] = b"y" * len(buf)
+        a.write(buf)
+        assert a.tell() == len(buf)
+        assert b.tell() == 0
+
+        # But both expose the same file contents.
+        buf[:] = b"\0" * len(buf)
+        b.readinto(buf)
+        assert buf[:] == b"y" * len(buf)

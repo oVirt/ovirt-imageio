@@ -238,13 +238,26 @@ class Backend(object):
 
         return count
 
+    def _clone(self):
+        mode = self._fio.mode.replace("b", "")
+        fio = util.open(self._fio.name, mode=mode, direct=True)
+        try:
+            return self.__class__(
+                fio,
+                sparse=self._sparse,
+                max_connections=self._max_connections,
+                block_size=self._block_size)
+        except:  # noqa: E722
+            fio.close()
+            raise
+
 
 class BlockBackend(Backend):
     """
     Block device backend.
     """
 
-    def __init__(self, fio, sparse=False, max_connections=8):
+    def __init__(self, fio, sparse=False, max_connections=8, block_size=512):
         """
         Initialize a BlockBackend.
 
@@ -254,6 +267,8 @@ class BlockBackend(Backend):
             max_connections (int): maximum number of connections per backend
                 allowed on this server. Limit backends's max_readers and
                 max_writers.
+            block_size (int): If set, use the specified block size. Otherwise
+                the value is detected automatically.
         """
         super(BlockBackend, self).__init__(
             fio, sparse=sparse, max_connections=max_connections)
@@ -261,7 +276,15 @@ class BlockBackend(Backend):
         # is not supported.
         self._can_fallocate = True
         # TODO: get block size using ioctl(BLKSSZGET).
-        self._block_size = 512
+        self._block_size = block_size
+
+    def clone(self):
+        """
+        Return a new backend sharing the same block device.
+        """
+        backend = self._clone()
+        backend._can_fallocate = self._can_fallocate
+        return backend
 
     @property
     def max_writers(self):
@@ -310,7 +333,7 @@ class FileBackend(Backend):
     Regular file backend.
     """
 
-    def __init__(self, fio, sparse=False, max_connections=8):
+    def __init__(self, fio, sparse=False, max_connections=8, block_size=None):
         """
         Initialize a FileBackend.
 
@@ -319,6 +342,8 @@ class FileBackend(Backend):
             sparse (bool): deallocate space when zeroing if possible.
             max_connections (int): maximum number of connections per backend
                 allowed on this server. Limit backends's max_readers.
+            block_size (int): If set, use the specified block size. Otherwise
+                the value is detected automatically.
         """
         super(FileBackend, self).__init__(
             fio, sparse=sparse, max_connections=max_connections)
@@ -327,7 +352,17 @@ class FileBackend(Backend):
         self._can_zero_range = True
         self._can_punch_hole = True
         self._can_fallocate = True
-        self._block_size = self._detect_block_size()
+        self._block_size = block_size or self._detect_block_size()
+
+    def clone(self):
+        """
+        Return a new backend sharing the same file.
+        """
+        backend = self._clone()
+        backend._can_zero_range = self._can_zero_range
+        backend._can_punch_hole = self._can_punch_hole
+        backend._can_fallocate = self._can_fallocate
+        return backend
 
     @property
     def max_writers(self):
