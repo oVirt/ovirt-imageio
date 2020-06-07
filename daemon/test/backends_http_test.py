@@ -652,6 +652,55 @@ def test_daemon_write_to_error(http_server, uhttp_server):
         check_write_to_error(handler, b)
 
 
+def test_clone_https(http_server):
+    # This server does not provide Unix socket.
+    Daemon(http_server)
+    with Backend(http_server.url, http_server.cafile) as a:
+        # Simulate download flow when we get size from server before cloning
+        # the backend.
+        a.size()
+
+        with a.clone() as b:
+            # Backends are created identical.
+            assert a.size() == b.size()
+            assert list(a.extents()) == list(b.extents())
+            assert a.tell() == b.tell()
+
+            # Modifying one backend does not affect the other.
+            assert a.write(b"x" * 4096)
+            assert a.tell() == 4096
+            assert b.tell() == 0
+
+            # But both show the same content.
+            buf = bytearray(4096)
+            assert b.readinto(buf)
+            assert buf == b"x" * 4096
+
+
+def test_clone_unix(http_server, uhttp_server):
+    Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as a:
+        # Simulate download flow when we get size from server before cloning
+        # the backend.
+        a.size()
+
+        with a.clone() as b:
+            # Backends are created identical.
+            assert a.size() == b.size()
+            assert list(a.extents()) == list(b.extents())
+            assert a.tell() == b.tell()
+
+            # Modifying one backend does not affect the other.
+            assert a.write(b"x" * 4096)
+            assert a.tell() == 4096
+            assert b.tell() == 0
+
+            # But both show the same content.
+            buf = bytearray(4096)
+            assert b.readinto(buf)
+            assert buf == b"x" * 4096
+
+
 # Common flows - must works for all variants.
 
 def check_readinto(handler, backend):

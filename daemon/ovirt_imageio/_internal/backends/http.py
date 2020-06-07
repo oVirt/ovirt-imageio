@@ -77,6 +77,43 @@ class Backend(object):
         if connect:
             self._connect()
 
+    def clone(self):
+        """
+        Return new backend connected to same server.
+        """
+        con = self._clone_connection()
+        try:
+            # Create a disconnected backend.
+            backend = self.__class__(
+                self.url,
+                cafile=self._cafile,
+                secure=self._secure,
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+                connect=False)
+
+            # Use cloned connection.
+            backend._con = con
+
+            # Copy state from current backend since we are not going to check
+            # server capabilities.
+            backend._context = self._context
+            backend._can_extents = self._can_extents
+            backend._can_zero = self._can_zero
+            backend._can_flush = self._can_flush
+            backend._max_readers = self._max_readers
+            backend._max_writers = self._max_writers
+
+            # Copy size and extents to save expensive EXTENTS calls.
+            backend._size = self._size
+            for ctx in list(self._extents):
+                backend._extents[ctx] = self._extents[ctx].copy()
+
+            return backend
+        except Exception:
+            con.close()
+            raise
+
     def _connect(self):
         self._context = self._create_ssl_context()
         self._con = self._create_tcp_connection()
@@ -373,6 +410,12 @@ class Backend(object):
         else:
             self._con.close()
             self._con = con
+
+    def _clone_connection(self):
+        if isinstance(self._con, HTTPSConnection):
+            return self._create_tcp_connection()
+        else:
+            return self._create_unix_connection(self.server_address)
 
     def _get(self, length):
         headers = {}
