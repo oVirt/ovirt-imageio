@@ -67,6 +67,23 @@ class Backend(object):
         self._dirty = False
         self._max_connections = max_connections
 
+    def clone(self):
+        """
+        Return new backend connected to the same NBD export.
+        """
+        client = nbd.Client(
+            self._client.address,
+            export_name=self._client.export_name,
+            dirty=self._client.dirty)
+        try:
+            return self.__class__(
+                client,
+                mode=self._mode,
+                max_connections=self._max_connections)
+        except:  # noqa: E722
+            client.close()
+            raise
+
     @property
     def max_readers(self):
         return self._max_connections

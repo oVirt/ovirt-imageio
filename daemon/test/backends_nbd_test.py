@@ -274,3 +274,27 @@ def test_extents_dirty_not_availabe(nbd_server, fmt):
     with nbd.open(nbd_server.url, "r+", dirty=True) as b:
         with pytest.raises(errors.UnsupportedOperation):
             list(b.extents(context="dirty"))
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_clone(nbd_server, fmt):
+    qemu_img.create(nbd_server.image, fmt, 65536)
+    nbd_server.fmt = fmt
+    nbd_server.shared = 2
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+") as a, \
+            a.clone() as b:
+        # Backends are indentical when created.
+        assert a.size() == b.size()
+        assert a.tell() == b.tell()
+        assert a.block_size == b.block_size
+
+        # Modifying one backend does not change the other.
+        a.write(b"x" * 4096)
+        assert b.tell() == 0
+
+        # Both backends expoose the same content.
+        buf = bytearray(4096)
+        b.readinto(buf)
+        assert buf == b"x" * 4096

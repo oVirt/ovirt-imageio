@@ -351,6 +351,7 @@ class Client(object):
     def __init__(self, address, export_name=None, dirty=False):
         self.address = address
         self.export_name = export_name or ""
+        self.dirty = dirty
 
         log.debug("Connecting address=%r export_name=%r dirty=%r",
                   address, self.export_name, dirty)
