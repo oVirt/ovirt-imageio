@@ -91,14 +91,16 @@ def test_copy_generic(zero):
     size = 1024
     chunk_size = size // 2
 
-    def fake_extents(context="zero"):
-        return [
-            image.ZeroExtent(0 * chunk_size, chunk_size, False),
-            image.ZeroExtent(1 * chunk_size, chunk_size, True),
-        ]
-
-    src = memory.Backend("r", b"x" * chunk_size + b"\0" * chunk_size)
-    src.extents = fake_extents
+    src = memory.Backend(
+        mode="r",
+        data=b"x" * chunk_size + b"\0" * chunk_size,
+        extents={
+            "zero": [
+                image.ZeroExtent(0 * chunk_size, chunk_size, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+            ]
+        }
+    )
 
     dst = memory.Backend("r+", (b"y" if zero else b"\0") * size)
 
@@ -113,14 +115,16 @@ def test_copy_read_from(zero):
     size = 1024
     chunk_size = size // 2
 
-    def fake_extents(context="zero"):
-        return [
-            image.ZeroExtent(0 * chunk_size, chunk_size, False),
-            image.ZeroExtent(1 * chunk_size, chunk_size, True),
-        ]
-
-    src = memory.Backend("r", b"x" * chunk_size + b"\0" * chunk_size)
-    src.extents = fake_extents
+    src = memory.Backend(
+        mode="r",
+        data=b"x" * chunk_size + b"\0" * chunk_size,
+        extents={
+            "zero": [
+                image.ZeroExtent(0 * chunk_size, chunk_size, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+            ]
+        }
+    )
 
     dst = memory.ReaderFrom("r+", (b"y" if zero else b"\0") * size)
 
@@ -135,14 +139,16 @@ def test_copy_write_to(zero):
     size = 1024
     chunk_size = size // 2
 
-    def fake_extents(context="zero"):
-        return [
-            image.ZeroExtent(0 * chunk_size, chunk_size, False),
-            image.ZeroExtent(1 * chunk_size, chunk_size, True),
-        ]
-
-    src = memory.WriterTo("r", b"x" * chunk_size + b"\0" * chunk_size)
-    src.extents = fake_extents
+    src = memory.WriterTo(
+        mode="r",
+        data=b"x" * chunk_size + b"\0" * chunk_size,
+        extents={
+            "zero": [
+                image.ZeroExtent(0 * chunk_size, chunk_size, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+            ]
+        }
+    )
 
     dst = memory.Backend("r+", (b"y" if zero else b"\0") * size)
 
@@ -156,21 +162,23 @@ def test_copy_dirty():
     size = 1024
     chunk_size = size // 4
 
-    def fake_extents(context="zero"):
-        return [
-            image.DirtyExtent(0 * chunk_size, chunk_size, True),
-            image.DirtyExtent(1 * chunk_size, chunk_size, False),
-            image.DirtyExtent(2 * chunk_size, chunk_size, True),
-            image.DirtyExtent(3 * chunk_size, chunk_size, False),
-        ]
-
-    src = memory.Backend("r", (
-        b"a" * chunk_size +
-        b"b" * chunk_size +
-        b"c" * chunk_size +
-        b"d" * chunk_size
-    ))
-    src.extents = fake_extents
+    src = memory.Backend(
+        mode="r",
+        data=(
+            b"a" * chunk_size +
+            b"b" * chunk_size +
+            b"c" * chunk_size +
+            b"d" * chunk_size
+        ),
+        extents={
+            "dirty": [
+                image.DirtyExtent(0 * chunk_size, chunk_size, True),
+                image.DirtyExtent(1 * chunk_size, chunk_size, False),
+                image.DirtyExtent(2 * chunk_size, chunk_size, True),
+                image.DirtyExtent(3 * chunk_size, chunk_size, False),
+            ]
+        }
+    )
 
     dst = memory.Backend("r+", b"\0" * size)
 
@@ -198,21 +206,23 @@ def test_copy_data_progress(zero):
     size = 1024
     chunk_size = size // 4
 
-    def fake_extents(context="zero"):
-        return [
-            image.ZeroExtent(0 * chunk_size, chunk_size, False),
-            image.ZeroExtent(1 * chunk_size, chunk_size, True),
-            image.ZeroExtent(2 * chunk_size, chunk_size, False),
-            image.ZeroExtent(3 * chunk_size, chunk_size, True),
-        ]
-
-    src = memory.Backend("r", (
-        b"x" * chunk_size +
-        b"\0" * chunk_size +
-        b"x" * chunk_size +
-        b"\0" * chunk_size
-    ))
-    src.extents = fake_extents
+    src = memory.Backend(
+        mode="r",
+        data=(
+            b"x" * chunk_size +
+            b"\0" * chunk_size +
+            b"x" * chunk_size +
+            b"\0" * chunk_size
+        ),
+        extents={
+            "zero": [
+                image.ZeroExtent(0 * chunk_size, chunk_size, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+                image.ZeroExtent(2 * chunk_size, chunk_size, False),
+                image.ZeroExtent(3 * chunk_size, chunk_size, True),
+            ]
+        }
+    )
 
     dst = memory.Backend("r+", b"\0" * size)
 
@@ -230,21 +240,23 @@ def test_copy_dirty_progress():
     size = 1024
     chunk_size = size // 4
 
-    def fake_extents(context="zero"):
-        return [
-            image.DirtyExtent(0 * chunk_size, chunk_size, True),
-            image.DirtyExtent(1 * chunk_size, chunk_size, False),
-            image.DirtyExtent(2 * chunk_size, chunk_size, True),
-            image.DirtyExtent(3 * chunk_size, chunk_size, False),
-        ]
-
-    src = memory.Backend("r", (
-        b"x" * chunk_size +
-        b"\0" * chunk_size +
-        b"x" * chunk_size +
-        b"\0" * chunk_size
-    ))
-    src.extents = fake_extents
+    src = memory.Backend(
+        mode="r",
+        data=(
+            b"x" * chunk_size +
+            b"\0" * chunk_size +
+            b"x" * chunk_size +
+            b"\0" * chunk_size
+        ),
+        extents={
+            "dirty": [
+                image.DirtyExtent(0 * chunk_size, chunk_size, True),
+                image.DirtyExtent(1 * chunk_size, chunk_size, False),
+                image.DirtyExtent(2 * chunk_size, chunk_size, True),
+                image.DirtyExtent(3 * chunk_size, chunk_size, False),
+            ]
+        }
+    )
 
     dst = memory.Backend("r+", b"\0" * size)
 
