@@ -316,10 +316,10 @@ def test_write_to_some():
     assert dst.data() == b"y" * 32 + b"x" * 64 + b"y" * 32
 
 
-def test_shared_backing():
+def test_clone():
     backing = bytearray(b"x" * 128)
     a = memory.Backend(mode="r+", data=backing)
-    b = memory.Backend(mode="r+", data=backing)
+    b = a.clone()
 
     # Backends are indentical on creation.
     assert a.size() == b.size()

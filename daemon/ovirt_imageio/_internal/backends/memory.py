@@ -54,6 +54,16 @@ class Backend(object):
         self._closed = False
         self._max_connections = max_connections
 
+    def clone(self):
+        """
+        Return a new backend sharing the same backing buffer.
+        """
+        return self.__class__(
+            mode=self._mode,
+            data=self._buf,
+            max_connections=self._max_connections,
+            extents=self._extents)
+
     @property
     def max_readers(self):
         return self._max_connections
