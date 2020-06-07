@@ -79,7 +79,7 @@ class Backend(object):
 
     def _connect(self):
         self._context = self._create_ssl_context()
-        self._con = self._create_connection()
+        self._con = self._create_tcp_connection()
         try:
             options = self._options()
             log.debug("Server options: %s", options)
@@ -330,15 +330,26 @@ class Backend(object):
 
         return context
 
-    def _create_connection(self):
+    def _create_tcp_connection(self):
+        log.debug("Connecting to tcp socket %r", self.url.netloc)
         con = HTTPSConnection(
             self.url.netloc,
             timeout=self._connect_timeout,
             context=self._context)
         try:
-            # To have different connect and read timeout, we must connect
-            # explicitly and set the socket timeout when the socket is
-            # connected.
+            con.connect()
+            con.sock.settimeout(self._read_timeout)
+        except Exception:
+            con.close()
+            raise
+
+        return con
+
+    def _create_unix_connection(self, unix_socket):
+        log.debug("Connecting to unix socket %r", unix_socket)
+        con = UnixHTTPConnection(
+            unix_socket, timeout=self._connect_timeout)
+        try:
             con.connect()
             con.sock.settimeout(self._read_timeout)
         except Exception:
@@ -356,21 +367,10 @@ class Backend(object):
             return
 
         try:
-            con = UnixHTTPConnection(
-                unix_socket, timeout=self._connect_timeout)
-            try:
-                # To have different connect and read timeout, we must connect
-                # explicitly and set the socket timeout when the socket is
-                # connected.
-                con.connect()
-                con.sock.settimeout(self._read_timeout)
-            except Exception:
-                con.close()
-                raise
+            con = self._create_unix_connection(unix_socket)
         except Exception as e:
             log.warning("Cannot use unix socket: %s", e)
         else:
-            log.debug("Using unix socket: %r", unix_socket)
             self._con.close()
             self._con = con
 
