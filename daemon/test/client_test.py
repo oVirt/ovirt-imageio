@@ -330,7 +330,10 @@ def test_progress(tmpdir, srv):
         src, url, srv.config.tls.ca_file, progress=progress)
 
     assert progress.size == IMAGE_SIZE
-    assert progress.updates == [
+
+    # Note: when using multiple connections order of updates is not
+    # predictable.
+    assert set(progress.updates) == {
         # First write.
         4096,
         # First zero.
@@ -339,7 +342,7 @@ def test_progress(tmpdir, srv):
         4096,
         # Second zero
         IMAGE_SIZE // 2 - 4096,
-    ]
+    }
 
 
 def test_progress_callback(tmpdir, srv):
