@@ -37,7 +37,6 @@ ca_file = test/pki/ca.pem
 
 [remote]
 port = 0
-host = 127.0.0.1
 
 [local]
 socket =
