@@ -11,7 +11,6 @@ from __future__ import print_function
 
 import io
 import json
-import logging
 import time
 
 from six.moves import http_client
@@ -34,11 +33,6 @@ CONNECTION_CLOSED = (
     http_client.NotConnected,
     http_client.BadStatusLine,
 )
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
-            "%(message)s"))
 
 
 @pytest.fixture(scope="module")

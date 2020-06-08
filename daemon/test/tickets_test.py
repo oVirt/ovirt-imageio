@@ -10,7 +10,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import json
-import logging
 import uuid
 
 from six.moves import http_client
@@ -28,12 +27,6 @@ from . import http
 from . marks import requires_python3
 
 pytestmark = requires_python3
-
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
-            "%(message)s"))
 
 
 @pytest.fixture(
