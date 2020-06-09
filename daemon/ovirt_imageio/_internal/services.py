@@ -83,7 +83,7 @@ class RemoteService(Service):
             (r"/images/(.*)", images.Handler(config, auth)),
             (r"/info/", info.Handler(config, auth)),
         ])
-        log.debug("%s listening on port %d", self.name, self.port)
+        log.debug("%s listening on %r", self.name, self.address)
 
     def _secure_server(self):
         if "" in (self._config.tls.cert_file, self._config.tls.key_file):

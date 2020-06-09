@@ -34,7 +34,7 @@ log = logging.getLogger("test")
 @pytest.fixture(scope="module")
 def http_server(tmp_pki):
     server = http.Server(("localhost", 0), http.Connection)
-    log.info("Server listening on port %d", server.server_port)
+    log.info("Server listening on %r", server.server_address)
 
     ctx = ssl.server_context(
         tmp_pki.certfile,

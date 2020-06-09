@@ -308,7 +308,7 @@ class PartialResponse(object):
 @contextmanager
 def demo_server(address):
     server = http.Server((address, 0), http.Connection)
-    log.info("Server listening on %s", server.server_address)
+    log.info("Server listening on %r", server.server_address)
     server.app = http.Router([(r"/demo/(.*)", Demo())])
 
     t = util.start_thread(
@@ -324,7 +324,7 @@ def demo_server(address):
 @pytest.fixture(scope="module")
 def server():
     server = http.Server(("127.0.0.1", 0), http.Connection)
-    log.info("Server listening on port %d", server.server_port)
+    log.info("Server listening on %r", server.server_address)
 
     server.app = http.Router([
         (r"/demo/(.*)", Demo()),
