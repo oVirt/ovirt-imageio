@@ -512,7 +512,7 @@ class Backend(object):
 
         cls = image.ZeroExtent if context == "zero" else image.DirtyExtent
         for ext in extents:
-            yield cls(ext["start"], ext["length"], ext[context])
+            yield cls.from_dict(ext)
 
     def _emulate_head(self):
         """

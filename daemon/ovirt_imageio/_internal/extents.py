@@ -50,12 +50,8 @@ class Handler(object):
 
         with req.clock.run("extents"):
             try:
-                extents = [
-                    {"start": ext.start,
-                     "length": ext.length,
-                     context: getattr(ext, context)}
-                    for ext in ctx.backend.extents(context=context)
-                ]
+                extents = [ext.to_dict()
+                           for ext in ctx.backend.extents(context=context)]
             except errors.UnsupportedOperation as e:
                 raise http.Error(http.NOT_FOUND, str(e))
 
