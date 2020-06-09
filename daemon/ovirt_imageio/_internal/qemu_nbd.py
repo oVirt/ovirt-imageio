@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import json
 import logging
 import subprocess
 
@@ -25,7 +26,8 @@ class Server(object):
 
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=1,
-            cache="none", aio="native", discard="unmap", timeout=10.0):
+            cache="none", aio="native", discard="unmap", backing_chain=True,
+            timeout=10.0):
         """
         Initialize qemu-nbd Server.
 
@@ -39,6 +41,11 @@ class Server(object):
             cache (str): cache mode (none, writeback, ...)
             aio (str): AIO mode (native or threads)
             discard (str): discard mode (ignore, unmap)
+            backing_chain (bool): when using qcow2 format, open the backing
+                chain. When set to False, override the backing chain to null.
+                Unallocated extents will be read as zeroes, instead of reading
+                data from the backing chain. It is possible to tell if an
+                extent is allocated using the extent NBD_STATE_HOLE bit.
 
         See qemu-nbd(8) for more info on these options.
         """
@@ -51,6 +58,7 @@ class Server(object):
         self.cache = cache
         self.aio = aio
         self.discard = discard
+        self.backing_chain = backing_chain
         self.timeout = timeout
         self.proc = None
 
@@ -62,7 +70,6 @@ class Server(object):
     def start(self):
         cmd = [
             "qemu-nbd",
-            "--format={}".format(self.fmt),
             "--export-name={}".format(self.export_name),
             "--persistent",
             "--shared={}".format(self.shared),
@@ -88,7 +95,21 @@ class Server(object):
         if self.discard:
             cmd.append("--discard={}".format(self.discard)),
 
-        cmd.append(self.image)
+        # Build json: image description allowing control all aspects of the
+        # image.
+
+        image = {
+            "driver": self.fmt,
+            "file": {
+                "driver": "file",
+                "filename": self.image
+            }
+        }
+
+        if self.fmt == "qcow2" and not self.backing_chain:
+            image["backing"] = None
+
+        cmd.append("json:" + json.dumps(image))
 
         log.debug("Starting qemu-nbd %s", cmd)
         self.proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
@@ -122,7 +143,8 @@ class Server(object):
 
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=1,
-        cache="none", aio="native", discard="unmap", timeout=10.0):
+        cache="none", aio="native", discard="unmap", backing_chain=True,
+        timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
@@ -131,6 +153,7 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
         cache=cache,
         aio=aio,
         discard=discard,
+        backing_chain=backing_chain,
         timeout=timeout)
     server.start()
     try:

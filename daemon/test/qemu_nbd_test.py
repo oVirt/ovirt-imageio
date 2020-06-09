@@ -129,6 +129,35 @@ def test_options(tmpdir, fmt, cache, aio, discard):
     qemu_img.compare(src, dst)
 
 
+def test_backing_chain(tmpdir):
+    size = 128 * 1024
+    base = str(tmpdir.join("base.raw"))
+    top = str(tmpdir.join("top.qcow2"))
+
+    base_data = b"data from base".ljust(32, b"\0")
+
+    # Add base image with some data.
+    qemu_img.create(base, "raw", size=size)
+    with qemu_nbd.open(base, "raw") as c:
+        c.write(0, base_data)
+        c.flush()
+
+    # Add empty overlay.
+    qemu_img.create(top, "qcow2", backing=base)
+
+    top_addr = nbd.UnixAddress(str(tmpdir.join("sock")))
+
+    # By default, we see data from base.
+    with qemu_nbd.run(top, "qcow2", top_addr), \
+            nbd.Client(top_addr) as c:
+        assert c.read(0, 32) == base_data
+
+    # With backing chain disabled, we see data only from top.
+    with qemu_nbd.run(top, "qcow2", top_addr, backing_chain=False), \
+            nbd.Client(top_addr) as c:
+        assert c.read(0, 32) == b"\0" * 32
+
+
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_shared(tmpdir, fmt):
     size = 1024**2
