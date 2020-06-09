@@ -624,16 +624,19 @@ def test_extent_base_allocation():
     # Allocated aread with data.
     ext = nbd.Extent(4096, 0)
     assert not ext.zero
+    assert not ext.hole
     assert ext.flags == 0
 
     # Allocated aread that reads as zero.
     ext = nbd.Extent(4096, nbd.STATE_ZERO)
     assert ext.zero
+    assert not ext.hole
     assert ext.flags == nbd.STATE_ZERO
 
     # Unallocated aread that reads as zero.
     ext = nbd.Extent(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
     assert ext.zero
+    assert ext.hole
     assert ext.flags == nbd.STATE_ZERO | nbd.STATE_HOLE
 
 
