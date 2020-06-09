@@ -23,13 +23,20 @@ openssl genrsa -out "$tmpdir/key.pem" 2048
 openssl req \
     -new \
     -key "$tmpdir/key.pem" \
-    -subj "/CN=127.0.0.1" \
+    -subj "/CN=localhost" \
     -out "$tmpdir/cert.csr"
 
 # Create confiugrtion file or adding extensions.
 cat > "$tmpdir/cert.conf" <<EOF
 [san]
-subjectAltName = IP:127.0.0.1
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = ::
+IP.2 = ::1
+IP.3 = 127.0.0.1
+DNS.1 = localhost
+DNS.2 = localhost.localdomain
 EOF
 
 # Create host certificate signed by ca.pem
