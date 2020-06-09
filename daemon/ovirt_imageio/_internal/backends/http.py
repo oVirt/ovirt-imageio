@@ -600,7 +600,11 @@ class HTTPSConnection(http_client.HTTPSConnection):
 
     @property
     def server_address(self):
-        return self.sock.getpeername()
+        # Returned value depends on the address family: for IPv4 is a tuple of
+        # two value while for IPv6 is a tuple of four values. To make server
+        # address uniform, ensure it's always a tuple of two values -
+        # hostname/IP address and port number.
+        return self.sock.getpeername()[:2]
 
 
 class UnixHTTPConnection(http_client.HTTPConnection):

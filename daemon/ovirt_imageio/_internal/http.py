@@ -80,6 +80,17 @@ class Server(socketserver.ThreadingMixIn,
     # profiling.
     clock_class = stats.NullClock
 
+    def server_bind(self):
+        super().server_bind()
+
+        # TCPServer.server_bind() overwrites server_address with
+        # socket.getsockname(), which is a tuple of two values when bound to
+        # IPv4 interface (e.g. ('0.0.0.0', 54322)) and tuple of four values
+        # when bound to IPv6 interface (e.g. ('::', 54322, 0, 0)). To make
+        # server address uniform, ensure it's always a tuple of two values -
+        # hostname/IP address and port number.
+        self.server_address = self.server_address[:2]
+
 
 class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
     """
