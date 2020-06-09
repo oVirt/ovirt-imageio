@@ -256,12 +256,15 @@ def test_extents_zero(nbd_server, user_file, fmt):
         b.seek(5 * 1024**3)
         b.write(data)
 
+        # Holes are reported only for qcow2 images.
+        hole = fmt == "qcow2"
+
         assert list(b.extents()) == [
-            image.ZeroExtent(0, len(data), False),
-            image.ZeroExtent(len(data), 5 * 1024**3 - len(data), True),
-            image.ZeroExtent(5 * 1024**3, len(data), False),
+            image.ZeroExtent(0, len(data), False, False),
+            image.ZeroExtent(len(data), 5 * 1024**3 - len(data), True, hole),
+            image.ZeroExtent(5 * 1024**3, len(data), False, False),
             image.ZeroExtent(
-                5 * 1024**3 + len(data), 1024**3 - len(data), True),
+                5 * 1024**3 + len(data), 1024**3 - len(data), True, hole),
         ]
 
 

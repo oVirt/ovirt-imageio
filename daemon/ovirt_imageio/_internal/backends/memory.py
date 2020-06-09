@@ -154,7 +154,7 @@ class Backend(object):
         self._check_closed()
         # If not configured, report single data extent.
         if not self._extents and context == "zero":
-            yield image.ZeroExtent(0, self.size(), False)
+            yield image.ZeroExtent(0, self.size(), False, False)
             return
 
         if context not in self._extents:

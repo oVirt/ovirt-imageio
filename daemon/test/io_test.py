@@ -117,8 +117,8 @@ def test_copy_generic(buffer_size, zero, progress):
         data=src_backing,
         extents={
             "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
             ]
         }
     )
@@ -150,8 +150,8 @@ def test_copy_read_from(buffer_size, zero, progress):
         data=src_backing,
         extents={
             "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
             ]
         }
     )
@@ -183,8 +183,8 @@ def test_copy_write_to(buffer_size, zero, progress):
         data=src_backing,
         extents={
             "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True),
+                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
             ]
         }
     )
@@ -252,10 +252,10 @@ def test_copy_data_progress(zero):
         ),
         extents={
             "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True),
-                image.ZeroExtent(2 * chunk_size, chunk_size, False),
-                image.ZeroExtent(3 * chunk_size, chunk_size, True),
+                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
+                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
+                image.ZeroExtent(2 * chunk_size, chunk_size, False, False),
+                image.ZeroExtent(3 * chunk_size, chunk_size, True, False),
             ]
         }
     )

@@ -103,7 +103,9 @@ def test_file_zero(srv, client, user_file, fmt, path):
     assert res.status == 200
 
     extents = json.loads(data.decode("utf-8"))
-    assert extents == [{"start": 0, "length": size, "zero": False}]
+    assert extents == [
+        {"start": 0, "length": size, "zero": False, "hole": False}
+    ]
 
 
 def test_file_ticket_not_dirty(srv, client, tmpfile):

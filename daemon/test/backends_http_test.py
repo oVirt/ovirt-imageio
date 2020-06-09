@@ -177,7 +177,14 @@ class Daemon(Handler):
         # "zero" extents are always available via emulation. "dirty" extents
         # are available only during incremental backup.
         self.extents = {
-            "zero": [{"start": 0, "length": len(self.image), "zero": True}]
+            "zero": [
+                {
+                    "start": 0,
+                    "length": len(self.image),
+                    "zero": True,
+                    "hole": False,
+                }
+            ]
         }
 
     def options(self, req, resp, path=None):
@@ -260,7 +267,9 @@ def test_old_daemon_open(http_server):
         assert b.size() == len(handler.image)
 
         # Client emulates extents (all non-zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), False)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), False, False)
+        ]
 
 
 def test_old_daemon_readinto(http_server):
@@ -341,7 +350,9 @@ def test_old_proxy_open(http_server):
         assert b.size() == len(handler.image)
 
         # Client emulates extents (all non-zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), False)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), False, False)
+        ]
 
 
 def test_old_proxy_readinto(http_server):
@@ -387,7 +398,9 @@ def test_daemon_no_unix_socket_open(http_server):
         assert b.size() == len(handler.image)
 
         # Client emulates extents (all non-zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), False)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), False, False)
+        ]
 
 
 def test_daemon_no_unix_socket_readinto(http_server):
@@ -440,7 +453,9 @@ def test_daemon_bad_unix_socket_open(http_server):
         assert b.size() == len(handler.image)
 
         # Client emulates extents (all non-zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), False)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), False, False)
+        ]
 
 
 # Daemon with no extents support tests
@@ -453,7 +468,9 @@ def test_daemon_no_extents_open(http_server, uhttp_server):
         assert b.size() == len(handler.image)
 
         # Client emulates extents (all non-zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), False)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), False, False)
+        ]
 
 
 # Daemon tests
@@ -466,7 +483,9 @@ def test_daemon_open(http_server, uhttp_server):
         assert b.size() == len(handler.image)
 
         # Client reports server extents (all zero).
-        assert list(b.extents()) == [image.ZeroExtent(0, b.size(), True)]
+        assert list(b.extents()) == [
+            image.ZeroExtent(0, b.size(), True, False)
+        ]
 
 
 def test_daemon_open_insecure(http_server, uhttp_server):
@@ -497,15 +516,25 @@ def test_daemon_extents_zero(http_server, uhttp_server):
 
     chunk_size = len(handler.image) // 2
     handler.extents["zero"] = [
-        {"start": 0, "length": chunk_size, "zero": False},
-        {"start": chunk_size, "length": chunk_size, "zero": True},
+        {
+            "start": 0,
+            "length": chunk_size,
+            "zero": False,
+            "hole": False,
+        },
+        {
+            "start": chunk_size,
+            "length": chunk_size,
+            "zero": True,
+            "hole": False,
+        },
     ]
 
     with Backend(http_server.url, http_server.cafile) as b:
         # Zero extents are available.
         assert list(b.extents()) == [
-            image.ZeroExtent(0, chunk_size, False),
-            image.ZeroExtent(chunk_size, chunk_size, True),
+            image.ZeroExtent(0, chunk_size, False, False),
+            image.ZeroExtent(chunk_size, chunk_size, True, False),
         ]
 
         # Dirty extents are not available.
@@ -518,14 +547,24 @@ def test_daemon_extents_dirty(http_server, uhttp_server):
 
     chunk_size = len(handler.image) // 2
     handler.extents["dirty"] = [
-        {"start": 0, "length": chunk_size, "dirty": True},
-        {"start": chunk_size, "length": chunk_size, "dirty": False},
+        {
+            "start": 0,
+            "length": chunk_size,
+            "dirty": True,
+            "hole": False,
+        },
+        {
+            "start": chunk_size,
+            "length": chunk_size,
+            "dirty": False,
+            "hole": False,
+        },
     ]
 
     with Backend(http_server.url, http_server.cafile) as b:
         # Both "zero" and "dirty" extents are available.
         assert list(b.extents("zero")) == [
-            image.ZeroExtent(0, b.size(), True),
+            image.ZeroExtent(0, b.size(), True, False),
         ]
         assert list(b.extents("dirty")) == [
             image.DirtyExtent(0, chunk_size, True),

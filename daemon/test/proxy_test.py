@@ -58,7 +58,9 @@ def test_images_extents(daemon, proxy, tmpfile):
     assert res.status == 200
 
     extents = json.loads(data)
-    assert extents == [{"start": 0, "length": size, "zero": False}]
+    assert extents == [
+        {"start": 0, "length": size, "zero": False, "hole": False}
+    ]
 
 
 @pytest.mark.parametrize("align", [-4096, 0, 4096])

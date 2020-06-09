@@ -158,7 +158,7 @@ class Backend(object):
                 .format(self.name, context))
 
         # TODO: Use qemu-img map to get extents.
-        yield image.ZeroExtent(0, self.size(), False)
+        yield image.ZeroExtent(0, self.size(), False, False)
 
     # Debugging interface
 

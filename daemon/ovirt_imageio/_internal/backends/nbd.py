@@ -167,7 +167,7 @@ class Backend(object):
         # If server does not support base:allocation, we can safely report one
         # data extent like other backends.
         if context == "zero" and not self._client.base_allocation:
-            yield image.ZeroExtent(0, self._client.export_size, False)
+            yield image.ZeroExtent(0, self._client.export_size, False, False)
             return
 
         # If dirty extents are not available, client may be able to use zero
@@ -183,7 +183,7 @@ class Backend(object):
             if dirty:
                 yield image.DirtyExtent(start, ext.length, ext.dirty)
             else:
-                yield image.ZeroExtent(start, ext.length, ext.zero)
+                yield image.ZeroExtent(start, ext.length, ext.zero, ext.hole)
             start += ext.length
 
     @property

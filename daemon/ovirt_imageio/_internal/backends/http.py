@@ -294,7 +294,7 @@ class Backend(object):
 
         if not self._can_extents:
             if context == "zero":
-                yield image.ZeroExtent(0, self.size(), False)
+                yield image.ZeroExtent(0, self.size(), False, False)
                 return
             else:
                 raise errors.UnsupportedOperation(
