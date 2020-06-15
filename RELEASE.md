@@ -28,7 +28,10 @@
 This release tarball will be available immediately in github at:
 https://github.com/oVirt/ovirt-imageio/releases
 
-The rpm will be available in few minutes in the jenkins build for the
+Packages are available via copr nsoffer/ovirt-imageio-preview repo. This
+repo is enabled by ovirt-release-master.rpm.
+
+Packages are also available in the jenkins build for the
 version patch. Look for the build comment like:
 https://gerrit.ovirt.org/c/108091/#message-b7b37559_79ba9e75
 
