@@ -132,6 +132,11 @@ fi
 
 %changelog
 
+* Mon Jun 15 2020 Nir Soffer <nsoffer@redhat.com> 2.0.8-1
+- Improve performance using multiple connections #BZ1591439
+- Support ipv6 #BZ1805267
+- Fix Cross-Site scripting vulnerabilities #BZ1757066
+
 * Thu Jun 4 2020 Nir Soffer <nsoffer@redhat.com> 2.0.7-0
 - Support showing parsed configuration #BZ1835719
 - Improve performance when using small requests #BZ1836858
