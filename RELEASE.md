@@ -3,11 +3,9 @@
 
 ## Upstream
 
-- Bump version for release and merge the patch:
-  https://gerrit.ovirt.org/108091/
-
 - Add changelog entry with short description of the changes in this
   release.
+  See https://gerrit.ovirt.org/c/109665/
 
 - Add new annotated tag e.g "v2.0.2"
 
@@ -20,6 +18,10 @@
 - Send a patch to releng-tools project, adding the new version:
   See https://gerrit.ovirt.org/108073/
 
+## Post release
+
+- Bump version for next development cycle:
+  https://gerrit.ovirt.org/108091/
 
 ### Where to get the packages
 
