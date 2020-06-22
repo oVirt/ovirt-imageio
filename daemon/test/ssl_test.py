@@ -44,7 +44,7 @@ def test_default_reject(protocol):
     assert rc != 0
 
 
-@pytest.mark.parametrize("protocol", ["-tls1_2"])
+@pytest.mark.parametrize("protocol", ["-tls1_2", "-tls1_3"])
 def test_default_accept(protocol):
     with remote_service("daemon.conf") as service:
         rc = check_protocol("127.0.0.1", service.port, protocol)
@@ -66,7 +66,8 @@ def test_legacy_reject(protocol):
             reason="Default crypto policy disable TLS v1.1"
         )
     ),
-    "-tls1_2"
+    "-tls1_2",
+    "-tls1_3",
 ])
 def test_legacy_accept(protocol):
     with remote_service("daemon-tls1_1.conf") as service:
