@@ -38,10 +38,12 @@ def create(path, fmt, size=None, backing=None):
     subprocess.check_call(cmd)
 
 
-def convert(src, dst, src_fmt, dst_fmt, progress=False):
+def convert(src, dst, src_fmt, dst_fmt, progress=False, compressed=False):
     cmd = ["qemu-img", "convert", "-f", src_fmt, "-O", dst_fmt]
     if progress:
         cmd.append("-p")
+    if compressed:
+        cmd.append("-c")
     cmd.extend((src, dst))
     subprocess.check_call(cmd)
 
