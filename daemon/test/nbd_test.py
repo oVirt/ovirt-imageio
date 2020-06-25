@@ -247,6 +247,23 @@ def test_zero_min_block_size(tmpdir, fmt):
             assert c.read(offset, size) == b"\0" * size
 
 
+def test_zero_allocation(user_file):
+    # Create sparse image.
+    with open(user_file.path, "w") as f:
+        f.truncate(2 * 1024**2)
+
+    with qemu_nbd.open(user_file.path, "raw") as c:
+        # Zero with punch_hole=False allocates space.
+        c.zero(0, c.export_size, punch_hole=False)
+        c.flush()
+        assert os.stat(user_file.path).st_blocks * 512 == c.export_size
+
+        # Default zero deallocates space (depends on qemu-nbd default).
+        c.zero(0, c.export_size)
+        c.flush()
+        assert os.stat(user_file.path).st_blocks == 0
+
+
 @pytest.mark.parametrize("url,export", [
     # Note: We get Unicode URL when parsing ticket JSON.
     ("nbd:unix:/path", ""),

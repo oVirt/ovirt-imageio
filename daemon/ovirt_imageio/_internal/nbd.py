@@ -82,6 +82,9 @@ STATE_ZERO = (1 << 1)
 # Flags for qemu:dirty-bitmap meta context.
 STATE_DIRTY = (1 << 0)
 
+# Command flags
+CMD_FLAG_NO_HOLE = (1 << 1)
+
 # Structured reply types
 REPLY_TYPE_NONE = 0
 REPLY_TYPE_OFFSET_DATA = 1
@@ -416,11 +419,12 @@ class Client(object):
         self._send(data)
         self._recv_reply(cmd)
 
-    def zero(self, offset, length):
+    def zero(self, offset, length, punch_hole=True):
         if self.transmission_flags & FLAG_SEND_WRITE_ZEROES == 0:
             raise UnsupportedRequest(
                 "Server does not support CMD_WRITE_ZEROES")
-        cmd = WriteZeroes(self._next_handle(), offset, length)
+        flags = 0 if punch_hole else CMD_FLAG_NO_HOLE
+        cmd = WriteZeroes(self._next_handle(), offset, length, flags=flags)
         self._send_command(cmd)
         self._recv_reply(cmd)
 
