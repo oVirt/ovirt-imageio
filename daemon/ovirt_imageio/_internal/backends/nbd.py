@@ -22,7 +22,7 @@ log = logging.getLogger("backends.nbd")
 Error = nbd.Error
 
 
-def open(url, mode="r", sparse=True, dirty=False, max_connections=8,
+def open(url, mode="r", sparse=False, dirty=False, max_connections=8,
          **options):
     """
     Open a NBD backend.
@@ -33,9 +33,7 @@ def open(url, mode="r", sparse=True, dirty=False, max_connections=8,
             Note that writeable backend does not guarantee that the underling
             nbd server is writable. The server must be configured to allow
             writing.
-        sparse (bool): ignored, NBD backend does not support sparseness. This
-            must be controlled by the nbd server. It seems that qemu-nbd and
-            qemu always deallocate space when zeroing.
+        sparse (bool): deallocate space when zeroing if possible.
         dirty (bool): if True, configure the client to report dirty extents.
             Can work only when connecting to qemu during incremental backup.
         max_connections (int): maximum number of connections per backend
@@ -45,7 +43,11 @@ def open(url, mode="r", sparse=True, dirty=False, max_connections=8,
     """
     client = nbd.open(url, dirty=dirty)
     try:
-        return Backend(client, mode=mode, max_connections=max_connections)
+        return Backend(
+            client,
+            mode=mode,
+            sparse=sparse,
+            max_connections=max_connections)
     except:  # noqa: E722
         client.close()
         raise
@@ -56,13 +58,15 @@ class Backend(object):
     NBD backend.
     """
 
-    def __init__(self, client, mode="r", max_connections=8):
+    def __init__(self, client, mode="r", sparse=False, max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
-        log.info("Open backend address=%r export_name=%r max_connections=%r",
-                 client.address, client.export_name, max_connections)
+        log.info("Open backend address=%r export_name=%r sparse=%r "
+                 "max_connections=%r",
+                 client.address, client.export_name, sparse, max_connections)
         self._client = client
         self._mode = mode
+        self._sparse = sparse
         self._position = 0
         self._dirty = False
         self._max_connections = max_connections
@@ -122,7 +126,7 @@ class Backend(object):
     def zero(self, length):
         if not self.writable():
             raise IOError("Unsupported operation: zero")
-        self._client.zero(self._position, length)
+        self._client.zero(self._position, length, punch_hole=self._sparse)
         self._position += length
         self._dirty = True
         return length
@@ -209,9 +213,7 @@ class Backend(object):
 
     @property
     def sparse(self):
-        # TODO:
-        # - can we get this info from the backend?
-        return True
+        return self._sparse
 
     @property
     def name(self):

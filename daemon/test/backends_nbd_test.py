@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import os
 from contextlib import closing
 
 import pytest
@@ -46,7 +47,7 @@ def test_debugging_interface(nbd_server):
     with nbd.open(nbd_server.url, "r+") as b:
         assert b.readable()
         assert b.writable()
-        assert b.sparse
+        assert not b.sparse
         assert b.name == "nbd"
 
 
@@ -160,9 +161,6 @@ def test_readinto_end(nbd_server, end_offset):
 def test_zero_middle(nbd_server, sparse):
     nbd_server.start()
     with nbd.open(nbd_server.url, "r+", sparse=sparse) as b:
-        # nbd backend is always sparse.
-        assert b.sparse
-
         b.write(b"xxxxxxxxxxxx")
         b.seek(4)
         assert b.zero(4) == 4
@@ -171,6 +169,20 @@ def test_zero_middle(nbd_server, sparse):
             b.seek(0)
             assert b.readinto(buf) == 12
             assert buf[:] == b"xxxx\x00\x00\x00\x00xxxx"
+
+
+@pytest.mark.parametrize("sparse", [True, False])
+def test_zero_sparse(nbd_server, user_file, sparse):
+    size = 10 * 1024**2
+    qemu_img.create(user_file.path, "raw", size=size)
+    nbd_server.image = user_file.path
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+", sparse=sparse) as b:
+        b.zero(b.size())
+        b.flush()
+        actual_size = os.stat(user_file.path).st_blocks * 512
+        assert actual_size == 0 if sparse else b.size()
 
 
 def test_close(nbd_server):
