@@ -11,9 +11,11 @@ api - imageio public client API.
 
 from __future__ import absolute_import
 
+import json
 import logging
 import os
 import shutil
+import tarfile
 import tempfile
 
 from contextlib import contextmanager
@@ -149,6 +151,43 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
                 name="download")
 
 
+def info(filename, member=None):
+    """
+    Return image information.
+
+    If member is specified, filename must be a tar file, and the call returns
+    information about file named member inside the tar file, and the offset and
+    size of the member in the tar file.
+    """
+    if member:
+        offset, size = _find_member(filename, member)
+        uri = _json_uri(filename, offset, size)
+        info = qemu_img.info(uri)
+        info["member-offset"] = offset
+        info["member-size"] = size
+        return info
+    else:
+        return qemu_img.info(filename)
+
+
+def measure(filename, dst_fmt, member=None):
+    """
+    Measure required size for converting filename to dst_fmt.
+
+    If member is specified, filename must be a tar file, and the call returns
+    measurement about file named member inside the tar file.
+    """
+    if member:
+        offset, size = _find_member(filename, member)
+        uri = _json_uri(filename, offset, size)
+        measure = qemu_img.measure(uri, dst_fmt)
+        measure["member-offset"] = offset
+        measure["member-size"] = size
+        return measure
+    else:
+        return qemu_img.measure(filename, dst_fmt)
+
+
 class ProgressWrapper:
     """
     In older versions we supported passing an update() callable instead of an
@@ -157,6 +196,29 @@ class ProgressWrapper:
     """
     def __init__(self, update):
         self.update = update
+
+
+def _find_member(tarname, name):
+    with tarfile.open(tarname) as tar:
+        member = tar.getmember(name)
+        return member.offset_data, member.size
+
+
+def _json_uri(filename, offset, size):
+    # Leave the top driver to enable format probing.
+    # https://lists.nongnu.org/archive/html/qemu-discuss/2020-06/msg00094.html
+    nodes = {
+        "file": {
+            "driver": "raw",
+            "offset": offset,
+            "size": size,
+            "file": {
+                "driver": "file",
+                "filename": filename,
+            }
+        }
+    }
+    return "json:" + json.dumps(nodes)
 
 
 @contextmanager

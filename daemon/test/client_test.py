@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import os
+import tarfile
 
 import pytest
 
@@ -366,3 +367,132 @@ def test_progress_callback(tmpdir, srv):
         progress=progress.append)
 
     assert progress == [IMAGE_SIZE]
+
+
+@pytest.mark.parametrize("fmt, compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_info(tmpdir, fmt, compressed):
+    # Created temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Created test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
+    img_info = client.info(img)
+
+    # Check image info.
+    assert img_info["format"] == fmt
+    assert img_info["virtual-size"] == size
+
+    # We don't add member info if member was not specified.
+    assert "member-offset" not in img_info
+    assert "member-size" not in img_info
+
+    # Create ova with test image.
+    member = os.path.basename(img)
+    ova = str(tmpdir.join("ova"))
+    with tarfile.open(ova, "w") as tar:
+        tar.add(img, arcname=member)
+
+    # Get info for the member from the ova.
+    ova_info = client.info(ova, member=member)
+
+    # Image info from ova should be the same.
+    assert ova_info["format"] == fmt
+    assert ova_info["virtual-size"] == size
+
+    # If member was specified, we report also the offset and size.
+    with tarfile.open(ova) as tar:
+        member_info = tar.getmember(member)
+    assert ova_info["member-offset"] == member_info.offset_data
+    assert ova_info["member-size"] == member_info.size
+
+
+@pytest.mark.parametrize("fmt, compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_measure_to_raw(tmpdir, fmt, compressed):
+    # Create temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Created test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
+
+    measure = client.measure(img, "raw")
+    assert measure["required"] == size
+
+
+@pytest.mark.parametrize("fmt, compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_measure_to_qcow2(tmpdir, fmt, compressed):
+    # Create temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Created test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
+
+    measure = client.measure(img, "qcow2")
+    assert measure["required"] == 393216
+
+
+@pytest.mark.parametrize("compressed", [False, True])
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_measure_from_ova(tmpdir, compressed, fmt):
+    # Create temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Created test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", "qcow2", compressed=compressed)
+
+    # Measure the image.
+    img_measure = client.measure(img, fmt)
+
+    # We don't add member info if member was not specified.
+    assert "member-offset" not in img_measure
+    assert "member-size" not in img_measure
+
+    # Add test image to ova.
+    member = os.path.basename(img)
+    ova = str(tmpdir.join("ova"))
+    with tarfile.open(ova, "w") as tar:
+        tar.add(img, arcname=member)
+
+    # Measure the image from the ova.
+    ova_measure = client.measure(ova, fmt, member=member)
+
+    # Measurement from ova should be same.
+    assert ova_measure["required"] == img_measure["required"]
+    assert ova_measure["fully-allocated"] == img_measure["fully-allocated"]
+
+    # If member was specified, we report also the offset and size.
+    with tarfile.open(ova) as tar:
+        member_info = tar.getmember(member)
+    assert ova_measure["member-offset"] == member_info.offset_data
+    assert ova_measure["member-size"] == member_info.size

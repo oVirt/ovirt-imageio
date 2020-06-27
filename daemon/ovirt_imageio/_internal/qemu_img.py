@@ -59,6 +59,12 @@ def info(path):
     return json.loads(out.decode("utf-8"))
 
 
+def measure(path, out_fmt):
+    cmd = ["qemu-img", "measure", "--output", "json", "-O", out_fmt, path]
+    out = subprocess.check_output(cmd)
+    return json.loads(out.decode("utf-8"))
+
+
 def compare(a, b, format1=None, format2=None, strict=False):
     cmd = ["qemu-img", "compare"]
 

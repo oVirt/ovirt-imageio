@@ -20,7 +20,7 @@ from .. _internal.io import BUFFER_SIZE
 from .. _internal import version
 
 # The public APIs
-from . _api import upload, download
+from . _api import upload, download, info, measure
 
 # For better user experience.
 from . _ui import ProgressBar
