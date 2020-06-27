@@ -191,6 +191,53 @@ def test_upload_preallocated(tmpdir, srv, fmt):
     assert os.stat(dst).st_blocks * 512 == IMAGE_SIZE
 
 
+@pytest.mark.parametrize("fmt,compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_upload_from_ova(tmpdir, srv, fmt, compressed):
+    offset = CLUSTER_SIZE
+    data = b"I can eat glass and it doesn't hurt me."
+
+    # Create raw disk with some data.
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+        f.seek(offset)
+        f.write(data)
+
+    # Create source disk.
+    src = str(tmpdir.join("src"))
+    qemu_img.convert(tmp, src, "raw", fmt, compressed=compressed)
+
+    # Create placeholder ovf file.
+    ovf = str(tmpdir.join("vm.ovf"))
+    with open(ovf, "w") as f:
+        f.write("<xml/>")
+
+    # Create OVA package.
+    ova = str(tmpdir.join("src.ova"))
+    with tarfile.open(ova, "w") as tar:
+        tar.add(ovf, arcname=os.path.basename(ovf))
+        tar.add(src, arcname=os.path.basename(src))
+
+    # Prepare destination file.
+    dst = str(tmpdir.join("dst"))
+    with open(dst, "wb") as f:
+        f.truncate(IMAGE_SIZE)
+
+    # Test uploading src from ova.
+    url = prepare_transfer(srv, dst)
+    client.upload(
+        ova,
+        url,
+        srv.config.tls.ca_file,
+        member=os.path.basename(src))
+
+    qemu_img.compare(src, dst)
+
+
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_download_raw(tmpdir, srv, fmt):
     src = str(tmpdir.join("src"))

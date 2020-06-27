@@ -31,7 +31,8 @@ log = logging.getLogger("client")
 
 
 def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
-           progress=None, proxy_url=None, max_workers=io.MAX_WORKERS):
+           progress=None, proxy_url=None, max_workers=io.MAX_WORKERS,
+           member=None):
     """
     Upload filename to url
 
@@ -54,11 +55,11 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
             if url is not accessible.
             e.g. https://{proxy.server}:{port}/images/{ticket-id}.
         max_workers (int): Maximum number of worker threads to use.
+        member (str): Upload a disk with specified name from OVA file. This is
+            the name reported by "tar tf vm.ova".
     """
     if callable(progress):
         progress = ProgressWrapper(progress)
-
-    info = qemu_img.info(filename)
 
     # Open the destination backend to get number of workers.
     with _open_http(
@@ -70,13 +71,18 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
 
         max_workers = min(dst.max_writers, max_workers)
 
+        # Get image format and if member specified, its offset and size.
+        image_info = info(filename, member=member)
+
         # Open the source backend using avialable workers + extra worker used
         # for getting image extents.
         with _open_nbd(
                 filename,
-                info["format"],
+                image_info["format"],
                 read_only=True,
-                shared=max_workers + 1) as src:
+                shared=max_workers + 1,
+                offset=image_info.get("member-offset"),
+                size=image_info.get("member-size")) as src:
 
             # Upload the image to the server.
             io.copy(
@@ -222,7 +228,8 @@ def _json_uri(filename, offset, size):
 
 
 @contextmanager
-def _open_nbd(filename, fmt, read_only=False, shared=1):
+def _open_nbd(filename, fmt, read_only=False, shared=1, offset=None,
+              size=None):
     with _tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
         with qemu_nbd.run(
@@ -233,7 +240,9 @@ def _open_nbd(filename, fmt, read_only=False, shared=1):
                 cache=None,
                 aio=None,
                 discard=None,
-                shared=shared):
+                shared=shared,
+                offset=offset,
+                size=size):
             url = urlparse(sock.url())
             mode = "r" if read_only else "r+"
             yield nbd.open(url, mode=mode)
