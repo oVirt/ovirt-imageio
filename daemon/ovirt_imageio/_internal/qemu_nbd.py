@@ -27,7 +27,7 @@ class Server(object):
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=1,
             cache="none", aio="native", discard="unmap", backing_chain=True,
-            timeout=10.0):
+            offset=None, size=None, timeout=10.0):
         """
         Initialize qemu-nbd Server.
 
@@ -46,6 +46,10 @@ class Server(object):
                 Unallocated extents will be read as zeroes, instead of reading
                 data from the backing chain. It is possible to tell if an
                 extent is allocated using the extent NBD_STATE_HOLE bit.
+            offset (int): Expose a range starting at offset in raw image.
+                See BlockdevOptionsRaw type in qemu source.
+            size (int): Expose a range of size bytes in a raw image.
+                See BlockdevOptionsRaw type in qemu source.
 
         See qemu-nbd(8) for more info on these options.
         """
@@ -59,6 +63,8 @@ class Server(object):
         self.aio = aio
         self.discard = discard
         self.backing_chain = backing_chain
+        self.offset = offset
+        self.size = size
         self.timeout = timeout
         self.proc = None
 
@@ -95,19 +101,29 @@ class Server(object):
         if self.discard:
             cmd.append("--discard={}".format(self.discard)),
 
-        # Build json: image description allowing control all aspects of the
+        # Build a 'json:{...}' filename allowing control all aspects of the
         # image.
 
-        image = {
-            "driver": self.fmt,
-            "file": {
-                "driver": "file",
-                "filename": self.image
-            }
-        }
+        file = {"driver": "file", "filename": self.image}
 
-        if self.fmt == "qcow2" and not self.backing_chain:
-            image["backing"] = None
+        if self.offset is not None or self.size is not None:
+            # Exposing a range in a raw file.
+            image = {"driver": "raw", "file": file}
+            if self.offset is not None:
+                image["offset"] = self.offset
+            if self.size is not None:
+                image["size"] = self.size
+
+            if self.fmt == "qcow2":
+                # Add a qcow2 driver on top of the raw driver. In this case we
+                # cannot have any backing file so backing_chain is ignored.
+                image = {"driver": "qcow2", "file": image}
+        else:
+            # Exposing the entire image using raw or qcow2 format.
+            image = {"driver": self.fmt, "file": file}
+
+            if self.fmt == "qcow2" and not self.backing_chain:
+                image["backing"] = None
 
         cmd.append("json:" + json.dumps(image))
 
@@ -144,7 +160,7 @@ class Server(object):
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=1,
         cache="none", aio="native", discard="unmap", backing_chain=True,
-        timeout=10.0):
+        offset=None, size=None, timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
@@ -154,6 +170,8 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
         aio=aio,
         discard=discard,
         backing_chain=backing_chain,
+        offset=offset,
+        size=size,
         timeout=timeout)
     server.start()
     try:
@@ -163,11 +181,11 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
 
 
 @contextmanager
-def open(image, fmt, read_only=False):
+def open(image, fmt, read_only=False, offset=None, size=None):
     """
     Open nbd client for accessing image using qemu-nbd.
     """
     sock = nbd.UnixAddress(image + ".sock")
-    with run(image, fmt, sock, read_only=read_only):
+    with run(image, fmt, sock, read_only=read_only, offset=offset, size=size):
         with nbd.Client(sock) as c:
             yield c

@@ -9,7 +9,9 @@
 from __future__ import absolute_import
 
 import io
+import os
 import struct
+import tarfile
 
 from six.moves import urllib_parse
 
@@ -54,6 +56,86 @@ def test_open(tmpdir, fmt):
 
     with qemu_nbd.open(disk, fmt, read_only=True) as d:
         assert d.read(offset, len(data)) == data
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_ova(tmpdir, fmt):
+    size = 1024**2
+    offset = 64 * 1024
+    disks = []
+
+    # Created disks with unique content.
+    for i in range(2):
+        disk = str(tmpdir.join("disk{}.{}".format(i, fmt)))
+        qemu_img.create(disk, fmt, size=size)
+        with qemu_nbd.open(disk, fmt) as d:
+            d.write(offset, disk.encode("utf-8"))
+            d.flush()
+        disks.append(disk)
+
+    ovf = str(tmpdir.join("vm.ovf"))
+    with open(ovf, "w") as f:
+        f.write('<xml/>')
+
+    ova = str(tmpdir.join("vm.ova"))
+
+    # Create a ova file.
+    with tarfile.open(ova, "w") as tar:
+        tar.add(ovf, arcname=os.path.basename(ovf))
+        for disk in disks:
+            tar.add(disk, arcname=os.path.basename(disk))
+
+    # Read disks contents from the ova file.
+    with tarfile.open(ova) as tar:
+        for disk in disks:
+            member = tar.getmember(os.path.basename(disk))
+            with qemu_nbd.open(
+                    ova,
+                    fmt=fmt,
+                    read_only=True,
+                    offset=member.offset_data,
+                    size=member.size) as d:
+                assert d.export_size == size
+                data = disk.encode("utf-8")
+                assert d.read(offset, len(data)) == data
+
+
+def test_ova_compressed_qcow2(tmpdir):
+    size = 1024**2
+    offset = 64 * 1024
+    data = b"I can eat glass and it doesn't hurt me."
+
+    tmp = str(tmpdir.join("disk.raw"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.seek(offset)
+        f.write(data)
+
+    disk = str(tmpdir.join("disk.qcow2"))
+    qemu_img.convert(tmp, disk, "raw", "qcow2", compressed=True)
+
+    ovf = str(tmpdir.join("vm.ovf"))
+    with open(ovf, "w") as f:
+        f.write('<xml/>')
+
+    ova = str(tmpdir.join("vm.ova"))
+
+    # Create tar file with compressed qcow2 disk.
+    with tarfile.open(ova, "w") as tar:
+        tar.add(ovf, arcname=os.path.basename(ovf))
+        tar.add(disk, arcname=os.path.basename(disk))
+
+    # Read disk contents from the tar file.
+    with tarfile.open(ova) as tar:
+        member = tar.getmember(os.path.basename(disk))
+        with qemu_nbd.open(
+                ova,
+                fmt="qcow2",
+                read_only=True,
+                offset=member.offset_data,
+                size=member.size) as d:
+            assert d.export_size == size
+            assert d.read(offset, len(data)) == data
 
 
 def test_run_unix(tmpdir):
