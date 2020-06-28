@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+# ovirt-imageio
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+"""
+Demonstrate ova support in imageio client.
+
+Requirements:
+- Must run in the ovirt-engine-sdk/sdk/examples directory.
+- fedora-32.ova tar file must exist in the current directory
+- A fedora-32.qcow2 compressed image must exist in the ova file.
+- Engine url and credentials should be adapted to your environment
+- Assumes active NFS storage domain named "nfs1"
+- ovirt-imageio-client supporting ova must be installed, or path to
+  ovirt-imageio/daemon must be added to PYTHONPATH.
+- demo.py from https://github.com/nirs/demo installed in PYTHONPATH.
+
+"""
+
+from demo import *
+
+run("clear")
+msg()
+msg("### HOW TO UPLOAD A DISK FROM OVA FILE TO OVIRT ###")
+msg()
+msg("We have this ova file with compressed qcow2 image:")
+msg()
+run("tar", "tf", "fedora-32.ova")
+msg()
+run("du", "-hL", "fedora-32.ova")
+msg()
+msg("Let's upload the qcow2 image to oVirt...")
+msg("Oh, wait! I want to convert it to raw format")
+msg("actually raw preallocated disk on storage domain nfs1")
+msg()
+msg("will it blend?")
+msg()
+
+run("./upload_from_ova.py",
+    "--engine-url", "https://engine3",
+    "--username", "admin@internal",
+    "--password-file", "engine3-password",
+    "--cafile", "engine3.pem",
+    "--ova-disk-name", "fedora-32.qcow2",
+    "--disk-format", "raw",
+    "--sd-name", "nfs1",
+    "fedora-32.ova")
+
+msg()
+msg("How cool is that?", color=YELLOW)
+msg()
+msg("[Created with https://github.com/nirs/demo]", color=GREY)
