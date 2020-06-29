@@ -80,7 +80,7 @@ class Server(socketserver.ThreadingMixIn,
     # profiling.
     clock_class = stats.NullClock
 
-    def __init__(self, server_address, RequestHandlerClass):
+    def __init__(self, server_address, RequestHandlerClass, prefer_ipv4=False):
         super().__init__(
             server_address, RequestHandlerClass, bind_and_activate=False)
 
@@ -89,16 +89,18 @@ class Server(socketserver.ThreadingMixIn,
             self.socket.close()
 
         try:
-            self.create_socket()
+            self.create_socket(prefer_ipv4)
             self.server_bind()
             self.server_activate()
         except BaseException:
             self.server_close()
             raise
 
-    def create_socket(self):
+    def create_socket(self, prefer_ipv4=False):
         """
-        Create socket with correct family.
+        Create socket with correct socket family.
+        If prefer_ipv4 is set, and both ipv4 and ipv6 addresses are
+        available, pick the first ipv4 address.
         """
         host, port = self.server_address
 
@@ -111,6 +113,14 @@ class Server(socketserver.ThreadingMixIn,
             host = "0"
 
         addresses = socket.getaddrinfo(host, port, type=self.socket_type)
+
+        # If IPv4 is preferred, sort addresses according to address family, so
+        # that IPv4 addresses are before IPv6 addresses. Addresses is a list of
+        # tuples, address family being the first item in the tuple.
+        log.debug("Prefer IPv4: %s", prefer_ipv4)
+        if prefer_ipv4:
+            addresses.sort(key=lambda x: x[0] != socket.AF_INET)
+
         log.debug("Available network interfaces: %s", addresses)
         self.address_family = addresses[0][0]
 

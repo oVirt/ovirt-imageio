@@ -64,7 +64,7 @@ class Server(http.Server):
     server_name = "localhost"
     server_port = None
 
-    def create_socket(self):
+    def create_socket(self, prefer_ipv4=False):
         self.socket = socket.socket(socket.AF_UNIX, self.socket_type)
 
         if self.server_address == "":

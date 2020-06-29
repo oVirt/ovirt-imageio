@@ -145,7 +145,10 @@ class ControlService(Service):
             log.debug("Creating %s on port %r", self.name, port)
             if not 0 <= port < 0xFFFF:
                 raise errors.InvalidConfig("control.port", port)
-            self._server = http.Server(("localhost", port), http.Connection)
+            self._server = http.Server(
+                ("localhost", port),
+                http.Connection,
+                prefer_ipv4=config.control.prefer_ipv4)
             if port == 0:
                 config.control.port = self.port
         elif transport == "unix":

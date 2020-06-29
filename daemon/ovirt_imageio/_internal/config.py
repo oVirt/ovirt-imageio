@@ -120,6 +120,12 @@ class control:
     # must specify port.
     port = -1
 
+    # Determines if IPv4 address should be preferred when the address of
+    # control service is resolved. This option allows compatibility with java
+    # clients which may prefer IPv4 address and don't try other addresses on
+    # dual stack system.
+    prefer_ipv4 = True
+
 
 class profile:
 

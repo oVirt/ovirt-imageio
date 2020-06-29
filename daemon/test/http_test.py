@@ -308,8 +308,9 @@ class PartialResponse(object):
 
 
 @contextmanager
-def demo_server(address):
-    server = http.Server((address, 0), http.Connection)
+def demo_server(address, prefer_ipv4=False):
+    server = http.Server(
+        (address, 0), http.Connection, prefer_ipv4=prefer_ipv4)
     log.info("Server listening on %r", server.server_address)
     server.app = http.Router([(r"/demo/(.*)", Demo())])
 
@@ -1104,13 +1105,14 @@ def test_content_range_parse_invalid(header):
     assert e.value.code == http.BAD_REQUEST
 
 
-@pytest.mark.parametrize("listen_address", [
-    "localhost",
-    "127.0.0.1",
-    "::1",
+@pytest.mark.parametrize("listen_address, expected_server_address", [
+    ("localhost", "::1"),
+    ("127.0.0.1", "127.0.0.1"),
+    ("::1", "::1"),
 ])
-def test_server_bind_loopback(listen_address):
+def test_server_bind_loopback(listen_address, expected_server_address):
     with demo_server(listen_address) as server:
+        assert server.server_address[0] == expected_server_address
         # TCPServer returns tuple of different length for IPv4 and IPv6. We
         # change server_address in Server.server_bind() to be always tuple
         # of hostname and port. Check it here, that it has always two elements.
@@ -1163,3 +1165,17 @@ def test_server_bind_addr_from_hostname():
             with closing(con):
                 con.request("GET", "/demo/name")
                 con.getresponse()
+
+
+@pytest.mark.parametrize("listen_address", [
+    "localhost",
+    "127.0.0.1",
+])
+def test_prefer_ipv4(listen_address):
+    with demo_server(listen_address, prefer_ipv4=True) as server:
+        assert server.server_address[0] == "127.0.0.1"
+
+        con = http_client.HTTPConnection(listen_address, server.server_port)
+        with closing(con):
+            con.request("GET", "/demo/name")
+            con.getresponse()
