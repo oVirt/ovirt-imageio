@@ -64,15 +64,19 @@ class Server(http.Server):
     server_name = "localhost"
     server_port = None
 
+    def create_socket(self):
+        self.socket = socket.socket(socket.AF_UNIX, self.socket_type)
+
+        if self.server_address == "":
+            # User wants to bind to a random abstract socket.
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
+
     def server_bind(self):
         """
         Override to remove existing socket for pathname sockets, and support
         random abstract sockets.  See unix(7) for details.
         """
-        if self.server_address == "":
-            # User wants to bind to a random abstract socket.
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
-        elif self.server_address[0] != "\0":
+        if self.server_address and self.server_address[0] != "\0":
             # A pathname socket must be removed before binding.
             self._remove_socket()
 

@@ -80,8 +80,26 @@ class Server(socketserver.ThreadingMixIn,
     # profiling.
     clock_class = stats.NullClock
 
-    def server_bind(self):
-        """Override server_bind to create socket with correct family."""
+    def __init__(self, server_address, RequestHandlerClass):
+        super().__init__(
+            server_address, RequestHandlerClass, bind_and_activate=False)
+
+        # Close old socket created in parent constructor.
+        if self.socket:
+            self.socket.close()
+
+        try:
+            self.create_socket()
+            self.server_bind()
+            self.server_activate()
+        except BaseException:
+            self.server_close()
+            raise
+
+    def create_socket(self):
+        """
+        Create socket with correct family.
+        """
         host, port = self.server_address
 
         # In the past we use "" as a special address to bind to all interfaces.
@@ -96,10 +114,6 @@ class Server(socketserver.ThreadingMixIn,
         log.debug("Available network interfaces: %s", addresses)
         self.address_family = addresses[0][0]
 
-        # Close old socket created in constructor first.
-        if self.socket:
-            self.socket.close()
-
         # Create new socket with correct address family.
         log.info(
             "Creating server socket with family=%s and type=%s",
@@ -107,6 +121,10 @@ class Server(socketserver.ThreadingMixIn,
             self.socket_type)
         self.socket = socket.socket(self.address_family, self.socket_type)
 
+    def server_bind(self):
+        """
+        Override server_bind to make server_address uniform.
+        """
         super().server_bind()
 
         # TCPServer.server_bind() overwrites server_address with
