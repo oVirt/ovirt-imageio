@@ -132,6 +132,12 @@ fi
 
 %changelog
 
+* Wed Jul 1 2020 Nir Soffer <nsoffer@redhat.com> 2.0.9-1
+- Fix ipv6 regression in 2.0.8-1 #BZ1851707
+- Fix preallocation on NFS 4.2 and GlusterFS #BZ1851256
+- Support upload disk from ova #BZ1849981
+- Report holes in zero extents
+
 * Mon Jun 15 2020 Nir Soffer <nsoffer@redhat.com> 2.0.8-1
 - Improve performance using multiple connections #BZ1591439
 - Support ipv6 #BZ1805267
