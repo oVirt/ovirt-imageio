@@ -83,7 +83,7 @@ class RemoteService(Service):
             (r"/images/(.*)", images.Handler(config, auth)),
             (r"/info/", info.Handler(config, auth)),
         ])
-        log.debug("%s listening on %r", self.name, self.address)
+        log.info("%s listening on %r", self.name, self.address)
 
     def _secure_server(self):
         if "" in (self._config.tls.cert_file, self._config.tls.key_file):
@@ -124,7 +124,7 @@ class LocalService(Service):
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),
         ])
-        log.debug("%s listening on %r", self.name, self.address)
+        log.info("%s listening on %r", self.name, self.address)
 
 
 class ControlService(Service):
@@ -168,4 +168,4 @@ class ControlService(Service):
             (r"/tickets/(.*)", tickets.Handler(config, auth)),
             (r"/profile/", profile.Handler(config, auth)),
         ])
-        log.debug("%s listening on %r", self.name, self.address)
+        log.info("%s listening on %r", self.name, self.address)

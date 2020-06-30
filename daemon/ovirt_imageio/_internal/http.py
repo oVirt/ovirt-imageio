@@ -125,7 +125,7 @@ class Server(socketserver.ThreadingMixIn,
         self.address_family = addresses[0][0]
 
         # Create new socket with correct address family.
-        log.info(
+        log.debug(
             "Creating server socket with family=%s and type=%s",
             self.address_family,
             self.socket_type)
