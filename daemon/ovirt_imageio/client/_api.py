@@ -194,6 +194,124 @@ def measure(filename, dst_fmt, member=None):
         return qemu_img.measure(filename, dst_fmt)
 
 
+class ImageioClient:
+    """
+    Client for imageio server.
+    """
+
+    def __init__(self, transfer_url, cafile=None, secure=True, proxy_url=None,
+                 buffer_size=io.BUFFER_SIZE):
+        """
+        Arguments:
+            transfer_url (str): Transfer url on the host running imageio server
+                e.g. https://{imageio.server}:{port}/images/{ticket-id}.
+            cafile (str): Certificate file name, for example "ca.pem"
+            secure (bool): True for verifying server certificate and hostname.
+                Default is True.
+            proxy_url (str): Proxy url on the host running imageio as proxy,
+                used if transfer_url is not accessible.  e.g.
+                https://{proxy.server}:{port}/images/{ticket-id}.
+            buffer_size (int): Buffer size in bytes for I/O operations.
+        """
+        self._backend = _open_http(
+            transfer_url,
+            "r+",
+            cafile=cafile,
+            secure=secure,
+            proxy_url=proxy_url)
+        self._buf = bytearray(buffer_size)
+
+    @property
+    def max_writers(self):
+        """
+        Maxumim number of concurrent clients writing data to same resource on
+        imageio server.
+        """
+        return self._backend.max_writers
+
+    @property
+    def max_readers(self):
+        """
+        Maxumim number of concurrent clients reading data from same resource on
+        imageio server.
+        """
+        return self._backend.max_readers
+
+    def extents(self, context="zero"):
+        """
+        Send extents request and iterate over returned extents.
+
+        Arguments:
+            context (str): "zero" to get zero extents, "dirty" to get dirty
+                extents. Dirty extents are available only during incremental
+                backup.
+
+        Yields:
+            ZeroExtent if context="zero" or DirtyExtent if context="dirty".
+        """
+        for extent in self._backend.extents(context):
+            yield extent
+
+    def read_from(self, reader, offset, length):
+        """
+        Send a PUT request and stream length bytes from reader to offset.
+
+        Raises if offset + length is after the end of the image.
+
+        Arguments:
+            reader (object): object implementing readinto(buf).
+            offset (int): offset in the image to write to.
+            length (int): number of bytes you want to send.
+        """
+        self._backend.seek(offset)
+        self._backend.read_from(reader, length, self._buf)
+
+    def write_to(self, writer, offset, length):
+        """
+        Send a GET request and stream data from server to writer.
+
+        Raises if offset + length is after the end of the image.
+
+        Arguments:
+            writer (object): object implementing write(buf).
+            offset (int): offset in the image to read from.
+            length (int): number of bytes to get.
+        """
+        self._backend.seek(offset)
+        self._backend.write_to(writer, length, self._buf)
+
+    def zero(self, offset, length):
+        """
+        Zero length bytes at offset.
+        """
+        self._backend.seek(offset)
+        self._backend.zero(length)
+
+    def flush(self):
+        """
+        Flush image data to storage.
+        """
+        self._backend.flush()
+
+    def close(self):
+        """
+        Close the client.
+        """
+        self._backend.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, t, v, tb):
+        try:
+            self.close()
+        except Exception:
+            # Do not hide the original error.
+            if t is None:
+                raise
+            log.exception("Error closing client")
+
+
 class ProgressWrapper:
     """
     In older versions we supported passing an update() callable instead of an
