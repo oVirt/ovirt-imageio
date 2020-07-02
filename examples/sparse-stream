@@ -1,0 +1,185 @@
+#!/usr/bin/python3
+# ovirt-imageio
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+"""
+Show how to stream sparse image data.
+
+Downloading image as sparse stream
+==================================
+
+1. Start a download transfer for a disk
+2. Run:
+
+    examples/sparse-stream download {transfer_url} > download.sparse
+
+To download compressed image, pipe via gzip:
+
+    examples/sparse-stream download {transfer_url} | gzip -c > download.sparse
+
+Uploading sparse image
+======================
+
+1. Create disk
+2. Start upload transfer for disk
+3. Run:
+
+    examples/sparse-stream upload {transfer_url} < download.sparse
+
+To upload compressed image, pipe via gzip:
+
+    gzip -dc download.sparse | examples/sparse-stream upload {transfer_url}
+
+
+Stream format
+=============
+
+Stream is composed of one of more frames.
+
+Data frame
+----------
+
+The header is followed by length bytes and terminator.
+
+"data" space start length "\r\n" <length bytes> "\r\n"
+
+Zero frame
+----------
+
+A zero extent, no payload.
+
+"zero" space start length "\r\n"
+
+Stop frame
+----------
+
+Marks the end of the stream, no payload.
+
+"stop" space start length "\r\n"
+
+Example
+-------
+
+data 0000000000000000 00000000000100000\r\n
+<1 MiB bytes>\r\n
+zero 0000000000100000 00000000040000000\r\n
+data 0000000040100000 00000000000001000\r\n
+<4096 bytes>\r\n
+stop 0000000000000000 00000000000000000\r\n
+
+"""
+
+import argparse
+import logging
+import sys
+
+from ovirt_imageio.client import ImageioClient
+
+DATA = b"data"
+ZERO = b"zero"
+STOP = b"stop"
+TERM = b"\r\n"
+FRAME = b"%s %016x %016x" + TERM
+FRAME_LEN = len(FRAME % (STOP, 0, 0))
+
+
+def download(args):
+    writer = sys.stdout.buffer
+
+    with ImageioClient(args.url, cafile=args.cafile) as client:
+        for extent in client.extents("zero"):
+            if extent.zero:
+                write_frame(writer, ZERO, extent.start, extent.length)
+            else:
+                write_frame(writer, DATA, extent.start, extent.length)
+                client.write_to(writer, extent.start, extent.length)
+                writer.write(TERM)
+
+        write_frame(writer, STOP, 0, 0)
+
+
+def upload(args):
+    reader = sys.stdin.buffer
+
+    with ImageioClient(args.url, cafile=args.cafile) as client:
+        while True:
+            kind, start, length = read_frame(reader)
+            if kind == ZERO:
+                client.zero(start, length)
+            elif kind == DATA:
+                client.read_from(reader, start, length)
+                assert reader.read(len(TERM)) == TERM
+            elif kind == STOP:
+                break
+            else:
+                raise RuntimeError(
+                    "Invalid frame kind={!r} start={!r} length={!r}"
+                    .format(kind, start, length))
+
+        client.flush()
+
+
+def write_frame(writer, kind, start, length):
+    writer.write(FRAME % (kind, start, length))
+
+
+def read_frame(reader):
+    header = reader.read(FRAME_LEN)
+    kind, start, length = header.split(b" ", 2)
+    return kind, int(start, 16), int(length, 16)
+
+
+parser = argparse.ArgumentParser(description="streaming example")
+
+parser.add_argument(
+    "-c", "--cafile",
+    help="path to CA certificate for verifying server certificate.")
+
+parser.add_argument(
+    "--insecure",
+    dest="secure",
+    action="store_false",
+    default=True,
+    help=("do not verify server certificates and host name (not "
+          "recommened)."))
+
+parser.add_argument(
+    "-v", "--verbose",
+    action="store_true",
+    help="Be more verbose")
+
+commands = parser.add_subparsers(title="commands")
+
+download_parser = commands.add_parser(
+    "download",
+    help="download sparse stream to stdout")
+
+download_parser.set_defaults(command=download)
+
+download_parser.add_argument(
+    "url",
+    help="transfer URL")
+
+upload_parser = commands.add_parser(
+    "upload",
+    help="upload sparse stream from stdin")
+
+upload_parser.set_defaults(command=upload)
+
+upload_parser.add_argument(
+    "url",
+    help="transfer URL")
+
+args = parser.parse_args()
+
+logging.basicConfig(
+    level=logging.DEBUG if args.verbose else logging.WARNING,
+    format=("%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+            "%(message)s"))
+
+args.command(args)
