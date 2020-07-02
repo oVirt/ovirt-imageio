@@ -7,8 +7,8 @@ License:   GPLv2+
 Url:       https://gerrit.ovirt.org/%{name}
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 
-%global user ovirtimg
-%global group ovirtimg
+%global ovirtimg_user ovirtimg
+%global ovirtimg_group ovirtimg
 %global srcname ovirt_imageio
 %global logdir %{_localstatedir}/log/%{name}
 
@@ -89,10 +89,10 @@ Daemon providing image transfer service on oVirt hosts.
 %{_sysconfdir}/%{name}/daemon.conf.sample
 # The log directory should belong to the daemon so it can create log files.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-ATTR-DIRECTIVE
-%dir %attr(755, %{user}, %{group}) %{logdir}
+%dir %attr(755, %{ovirtimg_user}, %{ovirtimg_group}) %{logdir}
 # The log files belongs to the package, so they will be removed with the package.
 # http://rpm.org/max-rpm-snapshot/s1-rpm-inside-files-list-directives.html#S3-RPM-INSIDE-FLIST-GHOST-DIRECTIVE
-%ghost %attr(644, %{user}, %{group}) %{logdir}/daemon.log*
+%ghost %attr(644, %{ovirtimg_user}, %{ovirtimg_group}) %{logdir}/daemon.log*
 
 # For more information about the systemd macros, see:
 # https://fedoraproject.org/wiki/Packaging:Scriptlets#New_Packages
@@ -101,13 +101,13 @@ Daemon providing image transfer service on oVirt hosts.
 
 %pre daemon
 # Create a user and group if needed
-if ! /usr/bin/getent passwd %{user} >/dev/null; then
+if ! /usr/bin/getent passwd %{ovirtimg_user} >/dev/null; then
     /usr/sbin/useradd --system \
         --user-group \
         --shell /sbin/nologin \
         --home-dir /run/%{name} \
         --comment "oVirt imageio" \
-        %{user}
+        %{ovirtimg_user}
 fi
 
 %post daemon
