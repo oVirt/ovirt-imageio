@@ -280,6 +280,42 @@ class ImageioClient:
         self._backend.seek(offset)
         self._backend.write_to(writer, length, self._buf)
 
+    def read(self, offset, buffer):
+        """
+        Send GET request, reading bytes at offset into buf.
+
+        Always read entire buffer. Raises if offset + len(buf) is after the end
+        of the image. It is more efficient to use write_to().
+
+        Arguments:
+            offset (int): offset in the image to read from.
+            buffer (object): object implementing the buffer interface
+                (bytearray, mmap).
+        """
+        if offset + len(buffer) > self._backend.size():
+            raise RuntimeError("Read out of image bounds")
+
+        self._backend.seek(offset)
+        return self._backend.readinto(offset, buffer)
+
+    def write(self, offset, buffer):
+        """
+        Send PUT request, writing buf contents at offset.
+
+        Always write entire buffer. Raises if offset + len(buf) is after the
+        end of the image. It is more efficient to use read_from().
+
+        Arguments:
+            offset (int): offset in the image to write to.
+            buffer (object): object implementing the buffer interface (bytes,
+                bytearray, mmap).
+        """
+        if offset + len(buffer) > self._backend.size():
+            raise RuntimeError("Write out of image bounds")
+
+        self._backend.seek(offset)
+        self._backend.write(buffer)
+
     def zero(self, offset, length):
         """
         Zero length bytes at offset.
