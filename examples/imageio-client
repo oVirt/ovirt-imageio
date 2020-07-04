@@ -94,6 +94,99 @@ Delete the ticket:
         -X DELETE \
         http://localhost/tickets/file
 
+Using the nbd backend
+---------------------
+
+The nbd backend is advanced high preformance backend powered by qemu-nbd. It
+supports multiple connections, on-the-fly format conversion, and reporting
+image extents for sparse images.
+
+imageio-client always transfer raw data. During upload, imageio daemon write
+raw data to qemu-nbd, converting the data to the underlying image. During
+download, imageio daemon read raw data from qemu-nbd, converting the underlying
+image data from the image format.
+
+In this example, we will use a qcow2 target image.
+
+Create target image:
+
+    $ qemu-img create -f qcow2 /var/tmp/target.qcow2 6g
+
+Create a ticket, allowing access the target image:
+
+    $ cat nbd.json
+    {
+        "uuid": "nbd",
+        "size": 6442450944,
+        "url": "nbd:unix:/tmp/nbd.sock",
+        "timeout": 3000,
+        "ops": ["read", "write"]
+    }
+
+Install the ticket:
+
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X PUT \
+        --upload-file nbd.json \
+        http://localhost/tickets/nbd
+
+In another shell, start qemu-nbd, serving the target image using the unix
+socket:
+
+    $ qemu-nbd --socket=/tmp/nbd.sock \
+        --persistent \
+        --shared=8 \
+        --format=qcow2 \
+        --aio=native \
+        --cache=none \
+        --discard=unmap \
+        /var/tmp/target.qcow2
+
+Upload the image:
+
+    $ ./imageio-client --insecure upload \
+        /var/tmp/upload.img https://localhost:54322/images/nbd
+    [ 100.00% ] 6.00 GiB, 1.48 seconds, 4.04 GiB/s
+
+For reference, copying the image to qemu-nbd using qemu-img:
+
+    $ time qemu-img convert -n -f raw -O raw -W /var/tmp/upload.img \
+        nbd:unix:/tmp/nbd.sock
+
+    real    0m1.398s
+    user    0m0.520s
+    sys     0m0.546s
+
+Download the image:
+
+    $ ./imageio-client --insecure download --format raw \
+        https://localhost:54322/images/nbd /dev/shm/download.img
+    Formatting '/dev/shm/download.img', fmt=raw size=6442450944
+    [ 100.00% ] 6.00 GiB, 1.23 seconds, 4.89 GiB/s
+
+You can compare the original image to the downloaded image to check that the
+upload and download were correct:
+
+    $ qemu-img compare /dev/shm/download.img /var/tmp/upload.img
+    Images are identical.
+
+For reference, copying the image from qemu-nbd using qemu-img:
+
+    $ time qemu-img convert -f raw -O raw -W nbd:unix:/tmp/nbd.sock \
+        /dev/shm/download.raw
+
+    real    0m0.978s
+    user    0m0.260s
+    sys     0m0.653s
+
+Delete the ticket:
+
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X DELETE \
+        http://localhost/tickets/nbd
+
+Finally shutdown qmeu-nbd in the other shell.
+
 """
 
 import argparse
