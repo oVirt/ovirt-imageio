@@ -16,7 +16,21 @@ Example usage
 In this example we will upload Fedora 31 image to ovirt-imageio server, and
 dowload the uploaded image.
 
-We can create a test image using virt-builder:
+Starting the imageio daemon
+---------------------------
+
+In another shell, start the ovirt-imageio daemon running as current user and
+group:
+
+    $ cd ../daemon
+    $ ./ovit-imageio -c test
+
+We can control the daemon now using ../daemon/test/daemon.sock.
+
+Creating a source image
+-----------------------
+
+We can create a source image using virt-builder:
 
     $ virt-builder fedora-31 -o /var/tmp/upload.img
 
@@ -28,24 +42,23 @@ Before we upload, we need to know the the image virtual size:
     virtual size: 6 GiB (6442450944 bytes)
     disk size: 1.18 GiB
 
-In another shell, start the ovirt-imageio daemon running as current user and
-group:
+Using the file backend
+----------------------
 
-    $ cd ../daemon
-    $ ./ovit-imageio -c test
+The file backend is a simple backend uploading or downloading the data as is.
 
 We need to create the target image. ovirt-imageio does not manage storage, it
 only handle the data transfer.
 
-    $ qemu-img create -f raw /var/tmp/test.img 6g
+    $ qemu-img create -f raw /var/tmp/target.raw 6g
 
-Create a ticket, allowing access the new image:
+Create a ticket, allowing access to the target image:
 
-    $ cat ticket.json
+    $ cat file.json
     {
-        "uuid": "test",
+        "uuid": "file",
         "size": 6442450944,
-        "url": "file:///var/tmp/test.img",
+        "url": "file:///var/tmp/target.raw",
         "timeout": 3000,
         "ops": ["read", "write"]
     }
@@ -54,30 +67,33 @@ Install the ticket:
 
     $ curl --unix-socket ../daemon/test/daemon.sock \
         -X PUT \
-        --upload-file ticket.json \
-        http://localhost/tickets/test
+        --upload-file file.json \
+        http://localhost/tickets/file
 
 Upload the image:
 
     $ ./imageio-client --insecure upload \
-        /var/tmp/upload.img https://localhost:54322/images/test
+        /var/tmp/upload.img https://localhost:54322/images/file
+    [ 100.00% ] 6.00 GiB, 2.06 seconds, 2.91 GiB/s
 
 Download the image:
 
-    $ ./imageio-client --insecure download \
-        --format raw \
-        https://localhost:54322/images/test /var/tmp/download.img
+    $ ./imageio-client --insecure download --format raw \
+        https://localhost:54322/images/file /dev/shm/download.img
+    Formatting '/dev/shm/download.img', fmt=raw size=6442450944
+    [ 100.00% ] 6.00 GiB, 4.24 seconds, 1.42 GiB/s
 
 You can compare the original image to the downloaded image to check that the
 upload and download were correct:
 
-    $ qemu-img compare /var/tmp/upload.img /var/tmp/download.img
+    $ qemu-img compare /var/tmp/upload.img /dev/shm/download.img
 
 Delete the ticket:
 
     $ curl --unix-socket ../daemon/test/daemon.sock \
         -X DELETE \
-        http://localhost/tickets/test
+        http://localhost/tickets/file
+
 """
 
 import argparse
