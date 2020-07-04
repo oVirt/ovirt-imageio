@@ -10,30 +10,99 @@
 """
 Show how to stream sparse image data.
 
-Downloading image as sparse stream
-==================================
+Example usage
+=============
 
-1. Start a download transfer for a disk
-2. Run:
+In this example we will download a Fedora 31 image from imageio daemon and
+stream it to disk using sparse format. Then we will stream the image back from
+a file to imageio daemon.
 
-    examples/sparse-stream download {transfer_url} > download.sparse
+Starting the imageio daemon
+---------------------------
 
-To download compressed image, pipe via gzip:
+In another shell, start the ovirt-imageio daemon running as current user and
+group:
 
-    examples/sparse-stream download {transfer_url} | gzip -c > download.sparse
+    $ cd ../daemon
+    $ ./ovit-imageio -c test
 
-Uploading sparse image
-======================
+We can control the daemon now using ../daemon/test/daemon.sock.
 
-1. Create disk
-2. Start upload transfer for disk
-3. Run:
+Creating a target image
+-----------------------
 
-    examples/sparse-stream upload {transfer_url} < download.sparse
+Imageio does not manage storage, only imageio transfer. Lets create a target
+image using virt-builder:
+
+    $ virt-builder fedora-31 --format qcow2 -o /var/tmp/target.qcow2
+
+Install a ticket allowing access to the target image using the nbd protocol:
+
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X PUT \
+        --upload-file nbd.json \
+        http://localhost/tickets/nbd
+
+In another shell, start qemu-nbd, serving the target image using the unix
+socket:
+
+    $ qemu-nbd --socket=/tmp/nbd.sock \
+        --persistent \
+        --shared=8 \
+        --format=qcow2 \
+        --aio=native \
+        --cache=none \
+        --discard=unmap \
+        /var/tmp/target.qcow2
+
+Downloading image to sparse format
+----------------------------------
+
+Download the image to sparse format:
+
+    $ time ./sparse-stream download https://localhost:54322/images/nbd \
+        > download.sparse
+
+    real    0m2.486s
+    user    0m0.131s
+    sys     0m0.919s
+
+To compress the downloaded image, pipe the image to pigz. pigz is like gzip but
+multithreaded. Compressing with gzip is 3 time slower:
+
+    $ time ./sparse-stream download https://localhost:54322/images/nbd \
+        | pigz -1 -c > download.sparse.gz
+
+    real    0m7.579s
+    user    0m31.141s
+    sys     0m1.607s
+
+Here are the downloaded files:
+
+    $ du -sh download.sparse*
+    1.2G	download.sparse
+    582M	download.sparse.gz
+
+Uploading from file
+-------------------
+
+Upload the sparse image back to target image:
+
+    $ time ./sparse-stream upload https://localhost:54322/images/nbd \
+        < download.sparse
+
+    real    0m2.611s
+    user    0m0.132s
+    sys     0m0.327s
 
 To upload compressed image, pipe via gzip:
 
-    gzip -dc download.sparse | examples/sparse-stream upload {transfer_url}
+    $ time gzip -d -c download.sparse.gz | ./sparse-stream upload \
+        https://localhost:54322/images/nbd
+
+    real    0m8.220s
+    user    0m7.223s
+    sys     0m1.097s
 
 
 Stream format
@@ -91,7 +160,7 @@ FRAME_LEN = len(FRAME % (STOP, 0, 0))
 def download(args):
     writer = sys.stdout.buffer
 
-    with ImageioClient(args.url, cafile=args.cafile) as client:
+    with ImageioClient(args.url, secure=False) as client:
         for extent in client.extents("zero"):
             if extent.zero:
                 write_frame(writer, ZERO, extent.start, extent.length)
@@ -106,7 +175,7 @@ def download(args):
 def upload(args):
     reader = sys.stdin.buffer
 
-    with ImageioClient(args.url, cafile=args.cafile) as client:
+    with ImageioClient(args.url, secure=False) as client:
         while True:
             kind, start, length = read_frame(reader)
             if kind == ZERO:
@@ -135,18 +204,6 @@ def read_frame(reader):
 
 
 parser = argparse.ArgumentParser(description="streaming example")
-
-parser.add_argument(
-    "-c", "--cafile",
-    help="path to CA certificate for verifying server certificate.")
-
-parser.add_argument(
-    "--insecure",
-    dest="secure",
-    action="store_false",
-    default=True,
-    help=("do not verify server certificates and host name (not "
-          "recommened)."))
 
 parser.add_argument(
     "-v", "--verbose",
