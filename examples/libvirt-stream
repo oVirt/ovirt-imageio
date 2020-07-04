@@ -1,0 +1,171 @@
+#!/usr/bin/python3
+# ovirt-imageio
+# Copyright (C) 2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+"""
+Show how to stream volumes from libvirt.
+
+Example usage
+=============
+
+In this example we will upload a Fedora 31 image from libvirt to imageio daemon.
+
+Starting the imageio daemon
+---------------------------
+
+In another shell, start the ovirt-imageio daemon running as current user and
+group:
+
+    $ cd ../daemon
+    $ ./ovit-imageio -c test
+
+We can control the daemon now using ../daemon/test/daemon.sock.
+
+Creating a target image
+-----------------------
+
+Imageio does not manage storage, only imageio transfer. Lets create a target
+image using qemu-img:
+
+    $ qemu-img create -f qcow2 /var/tmp/target.raw 6g
+
+Install a ticket allowing access to the target image using the nbd protocol:
+
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X PUT \
+        --upload-file nbd.json \
+        http://localhost/tickets/nbd
+
+In another shell, start qemu-nbd, serving the target image using the unix
+socket:
+
+    $ qemu-nbd --socket=/tmp/nbd.sock \
+        --persistent \
+        --shared=8 \
+        --format=qcow2 \
+        --aio=native \
+        --cache=none \
+        --discard=unmap \
+        /var/tmp/target.qcow2
+
+Uploading from libvirt
+----------------------
+
+Lets create a source volume using virt-builder:
+
+    $ virt-builder fedora-31 -o /var/tmp/fedora-31.raw
+    $ sudo mv /var/tmp/fedora-31.raw /var/lib/libvirt/images/
+
+Update libvirt about the new volume using virt-manager or virsh.
+
+Upload the volume to imageio daemon:
+
+    $ sudo ./libvirt-stream https://localhost:54322/images/nbd
+    [ 100.00% ] 6.00 GiB, 3.52 seconds, 1.70 GiB/s
+
+We have to use sudo to access libvirtd. Another option is to use
+libvirt.openAuth with a user and password.
+
+"""
+
+import libvirt
+
+from ovirt_imageio.client import ImageioClient, ProgressBar
+
+
+def iter_frames(stream, buffer_size=4 * 1024**2):
+    """
+    Iterate over data and hole frames.
+
+    buffer_size is important for getting good performance with imageio. The
+    default value is 5 times faster compared with libvit sparseRecvAll(), using
+    64 KiB blocks.
+
+    Arguments:
+        stream (libvit.virStream): stream to download from.
+        buffer_size (int): number of bytes to buffer before yielding.
+
+    Yields:
+        (offset, length, data) for data frame
+        (offset, length, None) for hole frame
+    """
+    buf = bytearray(buffer_size)
+    offset = 0
+    length = 0
+
+    while True:
+        # Try to fill the buffer.
+        res = stream.recvFlags(
+            len(buf) - length,
+            flags=libvirt.VIR_STREAM_RECV_STOP_AT_HOLE)
+
+        if res == -2:
+            raise RuntimeError("Stream is nonblocking")
+
+        # Handle a hole.
+        if res == -3:
+            if length:
+                with memoryview(buf)[:length] as view:
+                    yield offset, length, view
+                offset += length
+                length = 0
+
+            yield offset, stream.recvHole(), None
+            offset += length
+            continue
+
+        # Handle end of stream.
+        got = len(res)
+        if got == 0:
+            if length:
+                with memoryview(buf)[:length] as view:
+                    yield offset, length, view
+            break
+
+        # Handle data.
+        buf[length:length + got] = res
+        length += got
+        if length == len(buf):
+            yield offset, length, buf
+            offset += length
+            length = 0
+
+
+# You may need to adapt this for your environment.
+TRANSFER_URL = "https://localhost:54322/images/nbd"
+VOL_PATH = "/var/lib/libvirt/images/fedora-31.raw"
+
+# Open libvirt connection.
+with libvirt.open('qemu+unix:///system') as con:
+    # Locate the volume.
+    vol = con.storageVolLookupByPath(VOL_PATH)
+
+    # Create a stream and start a sparse download.
+    stream = con.newStream()
+    flags = libvirt.VIR_STORAGE_VOL_DOWNLOAD_SPARSE_STREAM
+    vol.download(stream, 0, 0, flags=flags)
+    try:
+        # Create a client with the transfer url, and progress bar.
+        with ImageioClient(TRANSFER_URL, secure=False) as client, \
+                ProgressBar() as progress:
+
+            # Set progress size to the volume capacity.
+            progress.size = vol.info()[1]
+
+            # Stream the data from the stream to imageio daemon.
+            for start, length, data in iter_frames(stream):
+                if data:
+                    client.write(start, data)
+                else:
+                    client.zero(start, length)
+                progress.update(length)
+
+            # finally flush the data to storage.
+            client.flush()
+    finally:
+        stream.finish()
