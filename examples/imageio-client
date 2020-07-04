@@ -18,30 +18,28 @@ dowload the uploaded image.
 
 We can create a test image using virt-builder:
 
-    $ virt-builder fedora-31 -o upload.img
+    $ virt-builder fedora-31 -o /var/tmp/upload.img
 
 Before we upload, we need to know the the image virtual size:
 
-    $ qemu-img info upload.img
-    image: upload.img
+    $ qemu-img info /var/tmp/upload.img
+    image: /var/tmp/upload.img
     file format: raw
     virtual size: 6 GiB (6442450944 bytes)
     disk size: 1.18 GiB
+
+In another shell, start the ovirt-imageio daemon running as current user and
+group:
+
+    $ cd ../daemon
+    $ ./ovit-imageio -c test
 
 We need to create the target image. ovirt-imageio does not manage storage, it
 only handle the data transfer.
 
     $ qemu-img create -f raw /var/tmp/test.img 6g
 
-Make the image accessible to ovirt-imageio daemon:
-
-    $ sudo chown ovirtimg:ovirtimg /var/tmp/test.img
-
-Start the ovirt-imageio.service:
-
-    $ systemctl start ovirt-imageio.service
-
-Create a ticket:
+Create a ticket, allowing access the new image:
 
     $ cat ticket.json
     {
@@ -54,27 +52,32 @@ Create a ticket:
 
 Install the ticket:
 
-    $ curl --unix-socket /run/ovirt-imageio/sock \
-          -X PUT \
-          --upload-file ticket.json \
-          http://localhost/tickets/test
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X PUT \
+        --upload-file ticket.json \
+        http://localhost/tickets/test
 
 Upload the image:
 
     $ ./imageio-client --insecure upload \
-        upload.img https://host:54322/images/test
+        /var/tmp/upload.img https://localhost:54322/images/test
 
 Download the image:
 
     $ ./imageio-client --insecure download \
         --format raw \
-        https://host:54322/images/test download.img
+        https://localhost:54322/images/test /var/tmp/download.img
 
 You can compare the original image to the downloaded image to check that the
 upload and download were correct:
 
-    $ qemu-img compare upload.img download.img
+    $ qemu-img compare /var/tmp/upload.img /var/tmp/download.img
 
+Delete the ticket:
+
+    $ curl --unix-socket ../daemon/test/daemon.sock \
+        -X DELETE \
+        http://localhost/tickets/test
 """
 
 import argparse
