@@ -33,7 +33,9 @@ class Handler(object):
 
         try:
             ticket = self.auth.authorize(ticket_id, "read")
+            ctx = backends.get(req, ticket, self.config)
         except errors.AuthorizationError as e:
+            resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
 
         context = validate.enum(
@@ -45,8 +47,6 @@ class Handler(object):
 
         log.info("[%s] EXTENTS ticket=%s context=%s",
                  req.client_addr, ticket_id, context)
-
-        ctx = backends.get(req, ticket, self.config)
 
         with req.clock.run("extents"):
             try:

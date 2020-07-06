@@ -9,8 +9,11 @@
 from __future__ import absolute_import
 
 from collections import namedtuple
+from functools import partial
 
+from .. import errors
 from .. import util
+
 from . import file
 from . import http
 from . import nbd
@@ -39,6 +42,14 @@ class Context(namedtuple("Context", "backend,buffer")):
             self.buffer.close()
 
 
+class Closer:
+    """
+    Call function when closed.
+    """
+    def __init__(self, func):
+        self.close = func
+
+
 def supports(name):
     return name in _modules
 
@@ -53,7 +64,9 @@ def get(req, ticket, config):
     Thread safety: requests are accessed by the single connection thread, no
     locking is needed.
     """
-    if ticket.uuid not in req.context:
+    try:
+        return ticket.get_context(req.connection_id)
+    except KeyError:
         if not supports(ticket.url.scheme):
             raise Unsupported(
                 "Unsupported backend {!r}".format(ticket.url.scheme))
@@ -70,7 +83,20 @@ def get(req, ticket, config):
             cafile=config.tls.ca_file)
 
         buf = util.aligned_buffer(config.daemon.buffer_size)
+        ctx = Context(backend, buf)
 
-        req.context[ticket.uuid] = Context(backend, buf)
+        # Keep the context in the ticket so we monitor the number of
+        # connections using the ticket.
+        try:
+            ticket.add_context(req.connection_id, ctx)
+        except errors.AuthorizationError:
+            # The ticket was canceled. close the backend and let the caller
+            # handle the failure.
+            ctx.close()
+            raise
 
-    return req.context[ticket.uuid]
+        # Register a closer removing the context when the connection is closed.
+        req.context[ticket.uuid] = Closer(
+            partial(ticket.remove_context, req.connection_id))
+
+        return ctx

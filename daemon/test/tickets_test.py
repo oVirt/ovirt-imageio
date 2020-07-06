@@ -367,8 +367,9 @@ def test_idle_time_patch(srv, fake_time, tmpdir, msg):
         assert srv.auth.get(ticket["uuid"]).idle_time == 0
 
 
-def test_idle_time_options(srv, fake_time):
-    ticket = testutil.create_ticket(url="file:///no/such/file")
+def test_idle_time_options(srv, tmpdir, fake_time):
+    image = testutil.create_tempfile(tmpdir, "image", size=8192)
+    ticket = testutil.create_ticket(url="file://" + str(image))
     srv.auth.add(ticket)
 
     # Request must reset idle time.

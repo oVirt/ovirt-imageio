@@ -852,35 +852,18 @@ def test_keep_alive_connection_on_success(tmpdir, srv, client, method, body):
         assert r.status == 200
 
 
-@pytest.mark.parametrize("method,body", [
+@pytest.mark.parametrize("method, body", [
     ("OPTIONS", None),
     ("GET", None),
     # Patch reads entire body before checking ticket, so connection should be
     # kept alive.
     ("PATCH", json.dumps({"op": "flush"}).encode("ascii")),
-])
-def test_keep_alive_connection_on_error(tmpdir, srv, client, method, body):
-    # When a request does not have a payload, the server can keep the
-    # connection open after and error.
-    uri = "/images/no-such-ticket"
-    # Disabling auto_open so we can test if a connection was closed.
-    client.con.auto_open = False
-    client.con.connect()
-
-    # Send couple of requests - all should fail, without closing the
-    # connection.
-    for i in range(3):
-        r = client.request(method, uri, body=body)
-        r.read()
-        assert r.status == 403
-
-
-@pytest.mark.parametrize("method, body", [
     ("PUT", "data"),
 ])
-def test_close_connection_on_errors(tmpdir, srv, client, method, body):
-    # When a request have a payload, the server must close the
-    # connection after an error, in case the entire body was not read.
+def test_close_connection_on_auth_errors(tmpdir, srv, client, method, body):
+    # When a request does not have a payload, the server can keep the
+    # connection open after an error. However we close the connection after
+    # authorization errors as part of cancellation support.
     uri = "/images/no-such-ticket"
     # Disabling auto_open so we can test if a connection was closed.
     client.con.auto_open = False

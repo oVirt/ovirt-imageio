@@ -53,7 +53,9 @@ class Handler(object):
 
         try:
             ticket = self.auth.authorize(ticket_id, "write")
+            ctx = backends.get(req, ticket, self.config)
         except errors.AuthorizationError as e:
+            resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
 
         validate.allowed_range(offset, size, ticket)
@@ -61,8 +63,6 @@ class Handler(object):
         log.debug(
             "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
             req.client_addr, size, offset, flush, close, ticket_id)
-
-        ctx = backends.get(req, ticket, self.config)
 
         op = ops.Receive(
             ctx.backend,
@@ -74,6 +74,9 @@ class Handler(object):
             clock=req.clock)
         try:
             ticket.run(op)
+        except errors.AuthorizationError as e:
+            resp.close_connection()
+            raise http.Error(http.FORBIDDEN, str(e)) from None
         except errors.PartialContent as e:
             raise http.Error(http.BAD_REQUEST, str(e))
 
@@ -105,10 +108,10 @@ class Handler(object):
 
         try:
             ticket = self.auth.authorize(ticket_id, "read")
+            ctx = backends.get(req, ticket, self.config)
         except errors.AuthorizationError as e:
+            resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
-
-        ctx = backends.get(req, ticket, self.config)
 
         if size is not None:
             validate.allowed_range(offset, size, ticket)
@@ -142,6 +145,9 @@ class Handler(object):
             clock=req.clock)
         try:
             ticket.run(op)
+        except errors.AuthorizationError as e:
+            resp.close_connection()
+            raise http.Error(http.FORBIDDEN, str(e)) from None
         except errors.PartialContent as e:
             raise http.Error(http.BAD_REQUEST, str(e))
 
@@ -172,7 +178,9 @@ class Handler(object):
 
         try:
             ticket = self.auth.authorize(ticket_id, "write")
+            ctx = backends.get(req, ticket, self.config)
         except errors.AuthorizationError as e:
+            resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
 
         validate.allowed_range(offset, size, ticket)
@@ -181,31 +189,38 @@ class Handler(object):
             "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
             req.client_addr, size, offset, flush, ticket_id)
 
-        ctx = backends.get(req, ticket, self.config)
-
         op = ops.Zero(
             ctx.backend,
             size,
             offset=offset,
             flush=flush,
             clock=req.clock)
+
         try:
             ticket.run(op)
+        except errors.AuthorizationError as e:
+            resp.close_connection()
+            raise http.Error(http.FORBIDDEN, str(e)) from None
         except errors.PartialContent as e:
             raise http.Error(http.BAD_REQUEST, str(e))
 
     def _flush(self, req, resp, ticket_id, msg):
         try:
             ticket = self.auth.authorize(ticket_id, "write")
+            ctx = backends.get(req, ticket, self.config)
         except errors.AuthorizationError as e:
+            resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
 
         log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
 
-        ctx = backends.get(req, ticket, self.config)
-
         op = ops.Flush(ctx.backend, clock=req.clock)
-        ticket.run(op)
+
+        try:
+            ticket.run(op)
+        except errors.AuthorizationError as e:
+            resp.close_connection()
+            raise http.Error(http.FORBIDDEN, str(e)) from None
 
     @cors.allow(allow_methods="OPTIONS,GET,PUT")
     def options(self, req, resp, ticket_id):
@@ -227,7 +242,9 @@ class Handler(object):
             # Reporting real image capabilities per ticket.
             try:
                 ticket = self.auth.authorize(ticket_id, "read")
+                ctx = backends.get(req, ticket, self.config)
             except errors.AuthorizationError as e:
+                resp.close_connection()
                 raise http.Error(http.FORBIDDEN, str(e))
 
             # Accessing ticket options considered as client activity.
@@ -244,7 +261,6 @@ class Handler(object):
                 options["features"].extend(("zero", "flush"))
 
             # Backend specific options.
-            ctx = backends.get(req, ticket, self.config)
             options["max_readers"] = ctx.backend.max_readers
             options["max_writers"] = ctx.backend.max_writers
 
