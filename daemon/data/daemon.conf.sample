@@ -131,6 +131,13 @@
 # dual stack system.
 #   prefer_ipv4 = true
 
+# Number of seconds to wait when removing a ticket. If ticket cannot be removed
+# within this timeout, the request will fail with "409 Conflict", and the user
+# need to retry the request again. A ticket can be removed only when the number
+# of connections using the ticket is zero.
+# The default value:
+#   remove_timeout = 60
+
 [profile]
 # Filename for storing profile data. Profiling requires the "yappi"
 # package. Version 0.93 is recommended for best performance.

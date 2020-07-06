@@ -28,7 +28,7 @@ def on_centos(version=""):
 def remote_service(config_file):
     path = os.path.join("test/conf", config_file)
     cfg = config.load([path])
-    authorizer = auth.Authorizer()
+    authorizer = auth.Authorizer(cfg)
     s = services.RemoteService(cfg, authorizer)
     s.start()
     try:

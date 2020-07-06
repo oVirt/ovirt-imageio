@@ -98,8 +98,11 @@ class Handler(object):
         if ticket_id:
             try:
                 self.auth.remove(ticket_id)
-            except KeyError:
-                log.debug("Ticket %s does not exists", ticket_id)
+            except errors.TicketCancelTimeout as e:
+                # The ticket is still used by some connection so we cannot
+                # remove it. The caller can retry the call again when the
+                # number connections reach zero.
+                raise http.Error(http.CONFLICT, str(e))
         else:
             self.auth.clear()
 

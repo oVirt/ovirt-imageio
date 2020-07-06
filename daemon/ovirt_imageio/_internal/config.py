@@ -126,6 +126,12 @@ class control:
     # dual stack system.
     prefer_ipv4 = True
 
+    # Number of seconds to wait when removing a ticket. If ticket cannot be
+    # removed within this timeout, the request will fail with "409 Conflict",
+    # and the user need to retry the request again. A ticket can be removed
+    # only when the number of connections using the ticket is zero.
+    remove_timeout = 60
+
 
 class profile:
 

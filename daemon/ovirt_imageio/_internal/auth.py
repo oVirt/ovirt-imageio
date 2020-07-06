@@ -352,7 +352,8 @@ def _validate(key, value, type):
 
 class Authorizer:
 
-    def __init__(self):
+    def __init__(self, config):
+        self._config = config
         self._tickets = {}
 
     def add(self, ticket_dict):
@@ -365,7 +366,18 @@ class Authorizer:
         self._tickets[ticket.uuid] = ticket
 
     def remove(self, ticket_id):
-        del self._tickets[ticket_id]
+        try:
+            ticket = self._tickets[ticket_id]
+        except KeyError:
+            log.debug("Ticket %s does not exist", ticket_id)
+            return
+
+        # Cancel the ticket and wait until the ticket is unused. Will raise
+        # errors.TicketCancelTimeout if the ticket could not be canceled within
+        # the timeout.
+        if ticket.cancel(self._config.control.remove_timeout):
+            # Ticket is unused now, so it is safe to remove it.
+            del self._tickets[ticket_id]
 
     def clear(self):
         self._tickets.clear()
@@ -387,6 +399,10 @@ class Authorizer:
         except KeyError:
             raise errors.AuthorizationError(
                 "No such ticket {}".format(ticket_id))
+
+        if ticket.canceled:
+            raise errors.AuthorizationError(
+                "Ticket {} was canceled".format(ticket_id))
 
         if ticket.expires <= util.monotonic_time():
             raise errors.AuthorizationError(

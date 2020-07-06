@@ -106,7 +106,7 @@ class Server:
     def __init__(self, config):
         self.config = config
         self.running = False
-        self.auth = auth.Authorizer()
+        self.auth = auth.Authorizer(config)
         self.remote_service = services.RemoteService(self.config, self.auth)
         self.local_service = None
         if config.local.enable:

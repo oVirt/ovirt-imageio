@@ -14,9 +14,10 @@ import pytest
 
 from six.moves import xrange
 
+from ovirt_imageio._internal import config
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import util
-from ovirt_imageio._internal.auth import Ticket
+from ovirt_imageio._internal.auth import Ticket, Authorizer
 
 from test import testutil
 
@@ -544,3 +545,163 @@ def test_remove_context_error():
 
     info = ticket.info()
     assert info["connections"] == 0
+
+
+def test_authorizer_add():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["read"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["uuid"])
+    assert ticket.uuid == ticket_info["uuid"]
+
+
+def test_authorizer_remove_unused():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["read"])
+    auth.add(ticket_info)
+
+    # Ticket is unused so it will be removed.
+    auth.remove(ticket_info["uuid"])
+    with pytest.raises(KeyError):
+        auth.get(ticket_info["uuid"])
+
+
+def test_authorizer_remove_timeout():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["read"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["uuid"])
+    ticket.add_context(1, Context())
+    assert ticket.info()["connections"] == 1
+
+    # Use short timeout to keep the tests fast.
+    cfg.control.remove_timeout = 0.001
+
+    # Ticket cannot be removed since it is used by connection 1.
+    with pytest.raises(errors.TicketCancelTimeout):
+        auth.remove(ticket.uuid)
+
+    # Ticket was not removed.
+    assert auth.get(ticket.uuid) is ticket
+
+    # The connection was closed, the ticket can be removed now.
+    ticket.remove_context(1)
+    assert ticket.info()["connections"] == 0
+
+    auth.remove(ticket.uuid)
+
+    # Ticket was removed.
+    with pytest.raises(KeyError):
+        auth.get(ticket.uuid)
+
+
+def test_authorizer_remove_async():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["read"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["uuid"])
+    ticket.add_context(1, Context())
+    assert ticket.info()["connections"] == 1
+
+    # Disable the timeout, so removing a ticket cancel the ticket without
+    # waiting, and requiring polling the ticket status.
+    cfg.control.remove_timeout = 0
+
+    # Ticket is canceled, but not removed.
+    auth.remove(ticket.uuid)
+    assert ticket.canceled
+    assert ticket.info()["connections"] == 1
+
+    # Ticket was not removed.
+    assert auth.get(ticket.uuid) is ticket
+
+    # The connection was closed, the ticket can be removed now.
+    ticket.remove_context(1)
+    assert ticket.info()["connections"] == 0
+
+    auth.remove(ticket.uuid)
+
+    # Ticket was removed.
+    with pytest.raises(KeyError):
+        auth.get(ticket.uuid)
+
+
+def test_authorizer_remove_mising():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    # Removing missing ticket does not raise.
+    auth.remove("no-such-ticket")
+
+
+def test_authorize_read():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["read"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["uuid"])
+    assert auth.authorize(ticket.uuid, "read") == ticket
+
+    with pytest.raises(errors.AuthorizationError):
+        auth.authorize(ticket.uuid, "write")
+
+
+def test_authorize_write():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["write"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["uuid"])
+    assert auth.authorize(ticket.uuid, "write") == ticket
+
+    # "write" implies also "read".
+    assert auth.authorize(ticket.uuid, "read") == ticket
+
+
+def test_authorizer_no_ticket():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    with pytest.raises(errors.AuthorizationError):
+        auth.authorize("no-such-ticket", "read")
+
+
+@pytest.mark.parametrize("ops,allowed", [
+    (["read"], ["read"]),
+    (["write"], ["read", "write"]),
+])
+def test_authorizer_canceled(ops, allowed):
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=ops)
+    auth.add(ticket_info)
+    ticket = auth.get(ticket_info["uuid"])
+
+    # Cancelling the ticket disables any operation.
+    ticket.cancel()
+
+    for op in allowed:
+        with pytest.raises(errors.AuthorizationError):
+            auth.authorize(ticket.uuid, op)
+
+
+def test_authorizer_expired():
+    cfg = config.load(["test/conf.d/daemon.conf"])
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(ops=["write"])
+    auth.add(ticket_info)
+    ticket = auth.get(ticket_info["uuid"])
+
+    # Extending with zero timeout expire the ticket.
+    ticket.extend(0)
+
+    for op in ("read", "write"):
+        with pytest.raises(errors.AuthorizationError):
+            auth.authorize(ticket.uuid, op)
