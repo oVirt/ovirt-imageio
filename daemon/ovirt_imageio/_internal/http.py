@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import io
+import itertools
 import json
 import logging
 import re
@@ -36,6 +37,7 @@ FORBIDDEN = 403
 NOT_FOUND = 404
 METHOD_NOT_ALLOWED = 405
 NOT_ACCEPTABLE = 406
+CONFLICT = 409
 REQUEST_URI_TOO_LARGE = 414
 REQUESTED_RANGE_NOT_SATISFIABLE = 416
 INTERNAL_SERVER_ERROR = 500
@@ -172,8 +174,14 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
     # keep the connection open after upload or download (e.g browsers).
     timeout = 60
 
+    # For generating connection ids. Start from 1 to match the connection
+    # thread name.
+    _counter = itertools.count(1)
+
     def setup(self):
-        log.info("OPEN client=%s", self.address_string())
+        self.id = next(self._counter)
+        log.info("OPEN connection=%s client=%s",
+                 self.id, self.address_string())
         BaseHTTPServer.BaseHTTPRequestHandler.setup(self)
         # Per connection context, used by application to cache state.
         self.context = Context()
@@ -182,9 +190,10 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def finish(self):
         self.clock.stop("connection")
-        log.info("CLOSE client=%s %s", self.address_string(), self.clock)
         self.context.close()
         del self.context
+        log.info("CLOSE connection=%s client=%s %s",
+                 self.id, self.address_string(), self.clock)
         try:
             BaseHTTPServer.BaseHTTPRequestHandler.finish(self)
         except socket.error as e:
@@ -290,6 +299,10 @@ class Request(object):
         closed. If the objects implement "close", they are also closed.
         """
         return self._con.context
+
+    @property
+    def connection_id(self):
+        return self._con.id
 
     @property
     def clock(self):
