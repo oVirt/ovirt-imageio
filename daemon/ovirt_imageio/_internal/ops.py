@@ -21,6 +21,10 @@ class EOF(Exception):
     """ Raised when no more data is available and size was not specifed """
 
 
+class Canceled(Exception):
+    """ Raised when operation was canceled """
+
+
 class Operation(object):
 
     def __init__(self, size=None, offset=0, buf=None, clock=stats.NullClock()):
@@ -29,6 +33,7 @@ class Operation(object):
         self._buf = buf
         self._done = 0
         self._clock = clock
+        self._canceled = False
 
     @property
     def size(self):
@@ -48,7 +53,14 @@ class Operation(object):
 
     def run(self):
         with self._clock.run("operation"):
-            self._run()
+            try:
+                self._run()
+            except Canceled:
+                log.debug("Operation %s was canceled", self)
+
+    def cancel(self):
+        log.debug("Cancelling operation %s", self)
+        self._canceled = True
 
     def __repr__(self):
         return ("<{self.__class__.__name__} "
@@ -98,6 +110,9 @@ class Send(Operation):
                 self._dst.write(view)
                 s.bytes += size
         self._done += size
+
+        if self._canceled:
+            raise Canceled
 
 
 class Receive(Operation):
@@ -169,6 +184,9 @@ class Receive(Operation):
                 raise EOF
             raise errors.PartialContent(self.size, self.done)
 
+        if self._canceled:
+            raise Canceled
+
 
 class Zero(Operation):
     """
@@ -204,6 +222,8 @@ class Zero(Operation):
                 n = self._dst.zero(step)
                 s.bytes += n
             self._done += n
+            if self._canceled:
+                raise Canceled
 
         if self._flush:
             self.flush()
