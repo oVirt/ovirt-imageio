@@ -32,9 +32,13 @@ class Operation(object):
         self.offset = offset
         self.size = size
         self.done = 0
+        self.canceled = False
 
     def run(self):
         self.done = self.size
+
+    def cancel(self):
+        self.canceled = True
 
 
 def test_transfered_nothing():
@@ -332,3 +336,211 @@ def test_ticket_run():
 
     assert ticket.transferred() == op.done
     assert op.done == 100
+
+
+def test_cancel_unused():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.cancel()
+
+    # Ticket is canceled and can be removed immediately.
+    assert ticket.canceled
+    info = ticket.info()
+    assert info["canceled"]
+    assert info["connections"] == 0
+
+
+def test_cancel_timeout():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.add_context(1, None)
+
+    # Canceling will time out.
+    with pytest.raises(errors.TicketCancelTimeout):
+        ticket.cancel(timeout=0.001)
+
+    # But ticket is marked as canceled.
+    assert ticket.canceled
+
+    # Caller can poll ticket status and remove the ticket when number of
+    # connections is zero.
+    info = ticket.info()
+    assert info["canceled"]
+    assert info["connections"] == 1
+
+
+def test_cancel_async():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.add_context(1, None)
+    ticket.cancel(timeout=0)
+
+    # Ticket is canceled, but it cannot be removed.
+    assert ticket.canceled
+    info = ticket.info()
+    assert info["canceled"]
+    assert info["connections"] == 1
+
+
+def test_cancel_ongoing_operations():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+
+    # Few connections are using this ticket. Each running an operation.
+    ops = []
+    for i in range(4):
+        ctx = Context()
+        op = Operation()
+        ticket.add_context(i, ctx)
+        ticket._add_operation(op)
+        ops.append(op)
+
+    ticket.cancel(timeout=0)
+
+    # All ongoing operations are canceled.
+    assert all(op.canceled for op in ops)
+
+
+class Context:
+
+    def __init__(self):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def test_cancel_wait():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+
+    # Add connections using this ticket.
+    connections = []
+    for i in range(4):
+        ctx = Context()
+        ticket.add_context(i, ctx)
+        connections.append(ctx)
+
+    def close_connections():
+        time.sleep(0.1)
+        for i in range(4):
+            ticket.remove_context(i)
+
+    info = ticket.info()
+    assert not info["canceled"]
+    assert info["connections"] == 4
+
+    t = util.start_thread(close_connections)
+    try:
+        ticket.cancel(timeout=10)
+
+        # After the ticket was canceled, number of connections must be zero.
+        info = ticket.info()
+        assert info["connections"] == 0
+
+        # And all contexts must be closed.
+        assert all(ctx.closed for ctx in connections)
+    finally:
+        t.join()
+
+
+def test_canceled_fail_run_before():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.cancel()
+
+    op = Operation()
+
+    # Running operations must fail.
+    with pytest.raises(errors.AuthorizationError):
+        ticket.run(op)
+
+    # Operation was not run.
+    assert op.done == 0
+
+
+def test_canceled_fail_run_after():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+
+    class Operation:
+
+        def __init__(self):
+            self.done = False
+            self.canceled = False
+
+        def run(self):
+            self.done = True
+            ticket.cancel()
+
+        def cancel(self):
+            self.canceled = True
+
+    op = Operation()
+
+    # If ticket was canceled while ongoing operations are running, ticket run
+    # will fail removing the operations.
+    with pytest.raises(errors.AuthorizationError):
+        ticket.run(op)
+
+    assert op.done
+
+
+def test_canceled_fail_add_context():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.cancel()
+
+    ctx = Context()
+
+    # Adding new context must fail.
+    with pytest.raises(errors.AuthorizationError):
+        ticket.add_context(2, ctx)
+
+
+def test_get_context_missing():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    with pytest.raises(KeyError):
+        ticket.get_context(1)
+
+
+def test_get_context():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ctx = Context()
+    ticket.add_context(1, ctx)
+    assert ticket.get_context(1) is ctx
+
+
+def test_remove_context_missing():
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.add_context(1, Context())
+    assert ticket.info()["connections"] == 1
+
+    ticket.remove_context(2)
+    assert ticket.info()["connections"] == 1
+
+
+def test_remove_context_error():
+
+    class FailingContext:
+
+        def __init__(self):
+            self.count = 1
+            self.closed = False
+
+        def close(self):
+            if self.count > 0:
+                self.count -= 1
+                raise RuntimeError("Cannot close yet")
+            self.closed = True
+
+    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket.add_context(1, FailingContext())
+
+    ticket.cancel(timeout=0)
+
+    # If closing a context fails, keep it. The ticket cannot be removed until
+    # this context is removed successfully.
+    with pytest.raises(RuntimeError):
+        ticket.remove_context(1)
+
+    info = ticket.info()
+    assert info["connections"] == 1
+
+    # Calling again will close and remove the context successfully.
+    ticket.remove_context(1)
+
+    info = ticket.info()
+    assert info["connections"] == 0

@@ -74,6 +74,8 @@ def test_get(srv, fake_time):
         ticket["active"] = False
         ticket["transferred"] = 0
         ticket["idle_time"] = 200
+        ticket["canceled"] = False
+        ticket["connections"] = 0
         assert server_ticket == ticket
 
 
@@ -92,6 +94,8 @@ def test_put(srv, fake_time):
         ticket["expires"] = int(util.monotonic_time()) + ticket["timeout"]
         ticket["active"] = False
         ticket["idle_time"] = 0
+        ticket["canceled"] = False
+        ticket["connections"] = 0
         server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 200
         assert res.getheader("content-length") == "0"
@@ -189,6 +193,8 @@ def test_extend(srv, fake_time):
         ticket["expires"] = int(fake_time.now + ticket["timeout"])
         ticket["active"] = False
         ticket["idle_time"] = 240
+        ticket["canceled"] = False
+        ticket["connections"] = 0
         server_ticket = srv.auth.get(ticket["uuid"]).info()
         assert res.status == 200
         assert res.getheader("content-length") == "0"

@@ -59,6 +59,18 @@ class Ticket(object):
         # Ranges transferred by completed operations.
         self._completed = []
 
+        # Set to true when a ticket is canceled. Once canceled, all operations
+        # on this ticket will raise errors.AuthorizationError.
+        self._canceled = False
+
+        # Mapping of connection id to connection context. When empty, this
+        # ticket is not used by any connection.
+        self._connections = {}
+
+        # Used for waiting until a ticket is unused during cancellation. A
+        # ticket can be removed only when this event is set.
+        self._unused = threading.Event()
+
     @property
     def uuid(self):
         return self._uuid
@@ -111,6 +123,47 @@ class Ticket(object):
             return 0
         return int(util.monotonic_time()) - self._access_time
 
+    @property
+    def canceled(self):
+        with self._lock:
+            return self._canceled
+
+    def add_context(self, con_id, context):
+        with self._lock:
+            if self._canceled:
+                raise errors.AuthorizationError(
+                    "Ticket {} was canceled".format(self.uuid))
+
+            log.debug("Adding connection %s context to ticket %s",
+                      con_id, self.uuid)
+            # If this is the first connection, clear the unused event.
+            if not self._connections:
+                self._unused.clear()
+            self._connections[con_id] = context
+
+    def get_context(self, con_id):
+        return self._connections[con_id]
+
+    def remove_context(self, con_id):
+        with self._lock:
+            try:
+                context = self._connections[con_id]
+            except KeyError:
+                return
+
+            log.debug("Removing connection %s context from ticket %s",
+                      con_id, self.uuid)
+            context.close()
+
+            # If context was closed, it is safe to remove it.
+            del self._connections[con_id]
+
+            # If this was the last connection, wake up caller waiting on
+            # cancel().
+            if not self._connections:
+                log.debug("Removing last connection for ticket %s", self.uuid)
+                self._unused.set()
+
     def run(self, operation):
         """
         Run an operation, binding it to the ticket.
@@ -133,11 +186,20 @@ class Ticket(object):
 
     def _add_operation(self, op):
         with self._lock:
+            if self._canceled:
+                raise errors.AuthorizationError(
+                    "Ticket {} was canceled".format(self.uuid))
+
             self._ongoing.add(op)
 
     def _remove_operation(self, op):
         with self._lock:
             self._ongoing.remove(op)
+
+            if self._canceled:
+                raise errors.AuthorizationError(
+                    "Ticket {} was canceled".format(self.uuid))
+
             r = measure.Range(op.offset, op.offset + op.done)
             bisect.insort(self._completed, r)
             self._completed = measure.merge_ranges(self._completed)
@@ -175,6 +237,8 @@ class Ticket(object):
     def info(self):
         info = {
             "active": self.active(),
+            "canceled": self._canceled,
+            "connections": len(self._connections),
             "expires": self._expires,
             "idle_time": self.idle_time,
             "ops": list(self._ops),
@@ -198,9 +262,53 @@ class Ticket(object):
         expires = int(util.monotonic_time()) + timeout
         self._expires = expires
 
+    def cancel(self, timeout=60):
+        """
+        Cancel a ticket and wait until all connections are removed.
+
+        Arguments:
+            timeout (float): number of seconds to wait until the ticket is
+                unused. If timeout is zero, return immediately without waiting.
+                The caller will have to poll the ticket status until the number
+                of connections becomes zero.
+
+        Returns:
+            True if ticket can be removed.
+
+        Raises:
+            errors.TicketCancelTimeout if timeout is non-zero and the ticket is
+            still used when the timeout expires.
+        """
+        log.debug("Cancelling ticket %s", self.uuid)
+
+        with self._lock:
+            self._canceled = True
+            if not self._connections:
+                log.debug("Ticket %s was canceled", self.uuid)
+                return True
+
+            # Cancel ongoing operations. This speeds up cancellation when
+            # streaming lot of data. Operations will be canceled once they
+            # complete the current I/O.
+            for op in self._ongoing:
+                op.cancel()
+
+        if timeout:
+            log.debug("Waiting until ticket %s is unused", self.uuid)
+            if not self._unused.wait(timeout):
+                raise errors.TicketCancelTimeout(self.uuid)
+
+            log.debug("Ticket %s was canceled", self.uuid)
+            return True
+
+        # The caller need to poll the number of connections.
+        return False
+
     def __repr__(self):
         return ("<Ticket "
                 "active={active!r} "
+                "canceled={self._canceled} "
+                "connections={connections} "
                 "expires={self.expires!r} "
                 "filename={self.filename!r} "
                 "idle_time={self.idle_time} "
@@ -216,6 +324,7 @@ class Ticket(object):
                 ).format(
                     active=self.active(),
                     addr=id(self),
+                    connections=len(self._connections),
                     self=self,
                     transferred=self.transferred(),
                     url=urllib_parse.urlunparse(self.url)
