@@ -177,7 +177,17 @@ class Zero(Operation):
 
     # Limit zero size so we update self._done frequently enough to provide
     # progress even with slow storage.
-    MAX_STEP = 1024**3
+    #
+    # Large concurrent zero requests may lead to SCSI timeouts. These errors
+    # seen on LIO server emulating thin provisioning:
+    #
+    #   Unable to recover from DataOut timeout while in ERL=0, closing iSCSI
+    #   connection
+    #
+    # Limiting request size seems to avoid these timeouts. The disadvantage is
+    # slower zeroing with file storage, but in this case the zeroing is
+    # extremely fast so the difference is tiny.
+    MAX_STEP = 128 * 1024**2
 
     def __init__(self, dst, size, offset=0, flush=False,
                  clock=stats.NullClock()):

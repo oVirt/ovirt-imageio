@@ -22,7 +22,7 @@ from . import util
 
 # Limit maximum zero and copy size to spread the workload better to multiple
 # workers and ensure frequent progress updates when handling large extents.
-MAX_ZERO_SIZE = 1024**3
+MAX_ZERO_SIZE = 128 * 1024**2
 MAX_COPY_SIZE = 128 * 1024**2
 
 # NBD hard limit.
