@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import time
 import pytest
 
 from six.moves.urllib_parse import urlparse
@@ -304,3 +305,59 @@ def test_copy_dirty_progress():
 
     # Report entire image size.
     assert sum(p.updates) == size
+
+
+class BackendError(Exception):
+    pass
+
+
+class FailingBackend:
+
+    def __init__(self, fail_read=False, fail_write=False, delay=0.1):
+        self.fail_read = fail_read
+        self.fail_write = fail_write
+        self.delay = delay
+
+    def clone(self):
+        return FailingBackend(
+            fail_read=self.fail_read, fail_write=self.fail_write)
+
+    def size(self):
+        return 10 * 1024**3
+
+    def extents(self, ctx="zero"):
+        return [image.ZeroExtent(0, self.size(), False, False)]
+
+    def readinto(self, buf):
+        time.sleep(self.delay)
+        if self.fail_read:
+            raise BackendError("read error")
+        return len(buf)
+
+    def write(self, buf):
+        time.sleep(self.delay)
+        if self.fail_write:
+            raise BackendError("write error")
+        return len(buf)
+
+    def seek(self, n, how=None):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_reraise_dst_error():
+    src = FailingBackend()
+    dst = FailingBackend(fail_write=True)
+    with pytest.raises(BackendError) as e:
+        io.copy(src, dst)
+    assert str(e.value) == "write error"
+
+
+def test_reraise_src_error():
+    src = FailingBackend(fail_read=True)
+    dst = FailingBackend()
+    with pytest.raises(BackendError) as e:
+        io.copy(src, dst)
+    assert str(e.value) == "read error"

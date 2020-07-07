@@ -58,11 +58,15 @@ def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
         if progress:
             progress.size = src.size()
 
-        # Submit requests to executor.
-        if dirty:
-            _submit_dirty_extents(src, executor, progress)
-        else:
-            _submit_data_extents(src, executor, zero, progress)
+        try:
+            # Submit requests to executor.
+            if dirty:
+                _submit_dirty_extents(src, executor, progress)
+            else:
+                _submit_data_extents(src, executor, zero, progress)
+        except Closed:
+            # Error will be raised when exiting the context.
+            log.debug("Executor failed")
 
 
 def _submit_data_extents(src, executor, zero=True, progress=None):
@@ -110,12 +114,13 @@ class Executor(object):
         self._name = name
         self._workers = []
         self._queue = Queue(queue_depth)
+        self._errors = []
 
     # Public interface.
 
     def add_worker(self, handler_factory):
         name = "{}/{}".format(self._name, len(self._workers))
-        w = Worker(handler_factory, self._queue, name=name)
+        w = Worker(handler_factory, self._queue, self._errors, name=name)
         self._workers.append(w)
 
     def submit(self, req):
@@ -128,14 +133,17 @@ class Executor(object):
     def stop(self):
         """
         Stop the executor when pending requests are processed. Blocks until all
-        workers exit.
+        workers exit, and report the first executor error.
         """
         log.debug("Stopping executor %s", self._name)
         for _ in self._workers:
-            self._queue.put(Request(STOP))
+            try:
+                self._queue.put(Request(STOP))
+            except Closed:
+                break
         self._join_workers()
-        if self._queue.closed:
-            raise RuntimeError("Execution failed")
+        if self._errors:
+            raise self._errors[0]
 
     def abort(self):
         """
@@ -184,9 +192,10 @@ class Executor(object):
 
 class Worker(object):
 
-    def __init__(self, handler_factory, queue, name="worker"):
+    def __init__(self, handler_factory, queue, errors, name="worker"):
         self._handler_factory = handler_factory
         self._queue = queue
+        self._errors = errors
         self._name = name
 
         log.debug("Starting worker %s", name)
@@ -212,7 +221,8 @@ class Worker(object):
                         break
         except Closed:
             log.debug("Worker %s cancelled", self._name)
-        except Exception:
+        except Exception as e:
+            self._errors.append(e)
             self._queue.close()
             log.exception("Worker %s failed", self._name)
         else:
