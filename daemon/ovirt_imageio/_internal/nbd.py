@@ -257,16 +257,21 @@ class ReplyError(RequestError):
     """
     Raised when server return an error reply.
     """
-    fmt = "[Error {self.code}] {self.reason}"
+    fmt = "{self.message}: [Error {self.code}] {self.reason}"
 
-    def __init__(self, code, reason=None):
-        if reason is None:
-            if code not in REPLY_ERRORS:
-                reason = "Unknown error"
-            else:
-                reason = os.strerror(REPLY_ERRORS[code])
+    def __init__(self, code, message):
+        """
+        Arguments:
+            code (int): NBD reply error code.
+            message (str): string suitable for displaying to the user.
+        """
+        # Message is optional, but qemu-nbd always sends a message.
+        if not message:
+            message = "Server error"
+
         self.code = code
-        self.reason = reason
+        self.message = message.capitalize()
+        self.reason = os.strerror(REPLY_ERRORS.get(code, code))
 
 
 class UnixAddress(sockutil.UnixAddress):
@@ -977,7 +982,8 @@ class Client(object):
         error, handle = self._recv_fmt("!IQ")
 
         if error != 0:
-            raise ReplyError(error)
+            # We have no context in this case.
+            raise ReplyError(error, "Simple reply failed")
 
         if handle != cmd.handle:
             raise UnexpectedHandle(handle, cmd.handle)
@@ -1175,7 +1181,8 @@ class Client(object):
                 "Invalid structure reply error message length {}, expected={}"
                 .format(msg_len, length - 6))
 
-        message = self._recv(msg_len)
+        # The protocol does not specify the encoding.
+        message = self._recv(msg_len).decode("utf-8", errors="replace")
         return code, message
 
     # Structured I/O

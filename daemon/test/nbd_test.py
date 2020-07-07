@@ -669,6 +669,26 @@ def test_extent_dirty_bitmap():
     assert ext.flags == nbd.STATE_DIRTY
 
 
+def test_reply_error_structured():
+    s = str(nbd.ReplyError(28, "writing to file failed"))
+    assert s == "Writing to file failed: [Error 28] No space left on device"
+
+
+def test_reply_error_simple():
+    s = str(nbd.ReplyError(1, "Simple reply failed"))
+    assert s == "Simple reply failed: [Error 1] Operation not permitted"
+
+
+def test_reply_error_unknown_code():
+    s = str(nbd.ReplyError(-1, "bad error"))
+    assert s == "Bad error: [Error -1] Unknown error -1"
+
+
+def test_reply_error_empty_message():
+    s = str(nbd.ReplyError(5, ""))
+    assert s == "Server error: [Error 5] Input/output error"
+
+
 def create_image(path, fmt, size):
     if fmt == "raw":
         # qemu-img allocates the first block on Fedora, but not on CentOS 8.0.
