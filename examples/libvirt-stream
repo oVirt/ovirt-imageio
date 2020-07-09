@@ -154,8 +154,15 @@ with libvirt.open('qemu+unix:///system') as con:
         with ImageioClient(TRANSFER_URL, secure=False) as client, \
                 ProgressBar() as progress:
 
-            # Set progress size to the volume capacity.
-            progress.size = vol.info()[1]
+            src_size = vol.info()[1]
+            dst_size = client.size()
+
+            # We cannot copy to smaller destination volume.
+            if src_size > dst_size:
+                raise RuntimeError("Target disk is smaller than source disk")
+
+            # Enable progress display.
+            progress.size = dst_size
 
             # Stream the data from the stream to imageio daemon.
             for start, length, data in iter_frames(stream):
@@ -163,6 +170,13 @@ with libvirt.open('qemu+unix:///system') as con:
                     client.write(start, data)
                 else:
                     client.zero(start, length)
+                progress.update(length)
+
+            # If destination disk is larger, zero the rest of the disk to avoid
+            # leftovers from previous use.
+            if dst_size > src_size:
+                length = dst_size - src_size
+                client.zero(src_size, length)
                 progress.update(length)
 
             # finally flush the data to storage.

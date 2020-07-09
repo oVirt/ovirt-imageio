@@ -237,6 +237,12 @@ class ImageioClient:
         """
         return self._backend.max_readers
 
+    def size(self):
+        """
+        Return image virtual size in bytes.
+        """
+        return self._backend.size()
+
     def extents(self, context="zero"):
         """
         Send extents request and iterate over returned extents.
