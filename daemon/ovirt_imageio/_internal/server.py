@@ -71,9 +71,9 @@ def parse_args():
     parser.add_argument(
         "--show-config",
         action="store_true",
-        help="print actual configration in json format and exit. This is "
+        help="print actual configuration in json format and exit. This is "
              "useful for debugging configuration issues, or reading imageio "
-             "configuraion by other programs.")
+             "configuration by other programs.")
     return parser.parse_args()
 
 
