@@ -34,7 +34,7 @@ Creating a target image
 Imageio does not manage storage, only imageio transfer. Lets create a target
 image using virt-builder:
 
-    $ virt-builder fedora-31 --format qcow2 -o /var/tmp/target.qcow2
+    $ virt-builder fedora-31 --format qcow2 -o /var/tmp/disk.qcow2
 
 Install a ticket allowing access to the target image using the nbd protocol:
 
@@ -53,7 +53,7 @@ socket:
         --aio=native \
         --cache=none \
         --discard=unmap \
-        /var/tmp/target.qcow2
+        /var/tmp/disk.qcow2
 
 Downloading image to sparse format
 ----------------------------------

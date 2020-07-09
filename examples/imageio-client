@@ -50,7 +50,7 @@ The file backend is a simple backend uploading or downloading the data as is.
 We need to create the target image. ovirt-imageio does not manage storage, it
 only handle the data transfer.
 
-    $ qemu-img create -f raw /var/tmp/target.raw 6g
+    $ qemu-img create -f raw /var/tmp/disk.raw 6g
 
 Create a ticket, allowing access to the target image:
 
@@ -58,7 +58,7 @@ Create a ticket, allowing access to the target image:
     {
         "uuid": "file",
         "size": 6442450944,
-        "url": "file:///var/tmp/target.raw",
+        "url": "file:///var/tmp/disk.raw",
         "timeout": 3000,
         "ops": ["read", "write"]
     }
@@ -110,7 +110,7 @@ In this example, we will use a qcow2 target image.
 
 Create target image:
 
-    $ qemu-img create -f qcow2 /var/tmp/target.qcow2 6g
+    $ qemu-img create -f qcow2 /var/tmp/disk.qcow2 6g
 
 Create a ticket, allowing access the target image:
 
@@ -140,7 +140,7 @@ socket:
         --aio=native \
         --cache=none \
         --discard=unmap \
-        /var/tmp/target.qcow2
+        /var/tmp/disk.qcow2
 
 Upload the image:
 

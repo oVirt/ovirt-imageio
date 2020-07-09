@@ -1,7 +1,7 @@
 {
     "uuid": "file",
     "size": 6442450944,
-    "url": "file:///var/tmp/test.img",
+    "url": "file:///var/tmp/disk.raw",
     "timeout": 3000,
     "sparse": true,
     "ops": ["read", "write"]

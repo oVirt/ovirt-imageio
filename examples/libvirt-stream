@@ -32,7 +32,7 @@ Creating a target image
 Imageio does not manage storage, only imageio transfer. Lets create a target
 image using qemu-img:
 
-    $ qemu-img create -f qcow2 /var/tmp/target.raw 6g
+    $ qemu-img create -f qcow2 /var/tmp/disk.raw 6g
 
 Install a ticket allowing access to the target image using the nbd protocol:
 
@@ -51,7 +51,7 @@ socket:
         --aio=native \
         --cache=none \
         --discard=unmap \
-        /var/tmp/target.qcow2
+        /var/tmp/disk.qcow2
 
 Uploading from libvirt
 ----------------------
