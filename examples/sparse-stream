@@ -8,7 +8,7 @@
 # (at your option) any later version.
 
 """
-Show how to stream sparse image data.
+Show how to stream sparse image extents in backup and restore.
 
 Example usage
 =============
@@ -110,6 +110,19 @@ Stream format
 
 Stream is composed of one of more frames.
 
+Meta frame
+----------
+
+Stream metadata, must be the first frame.
+
+"meta" space start length "\r\n" <json-payload> \r\n
+
+Metadata keys in the json payload:
+
+- virtual-size: image virtual size in bytes
+- data-size: number of bytes in data frames
+- date: ISO 8601 date string
+
 Data frame
 ----------
 
@@ -134,9 +147,17 @@ Marks the end of the stream, no payload.
 Example
 -------
 
+meta 0000000000000000 0000000000000083\r\n
+{
+    "virtual-size": 6442450944,
+    "data-size": 1288486912,
+    "date": "2020-07-09T20:33:34.349705",
+    "incremental": false
+}\r\n
 data 0000000000000000 00000000000100000\r\n
 <1 MiB bytes>\r\n
 zero 0000000000100000 00000000040000000\r\n
+...
 data 0000000040100000 00000000000001000\r\n
 <4096 bytes>\r\n
 stop 0000000000000000 00000000000000000\r\n
@@ -144,11 +165,14 @@ stop 0000000000000000 00000000000000000\r\n
 """
 
 import argparse
+import datetime
+import json
 import logging
 import sys
 
 from ovirt_imageio.client import ImageioClient
 
+META = b"meta"
 DATA = b"data"
 ZERO = b"zero"
 STOP = b"stop"
@@ -160,22 +184,61 @@ FRAME_LEN = len(FRAME % (STOP, 0, 0))
 def download(args):
     writer = sys.stdout.buffer
 
+    if args.incremental:
+        # During incremental backup we want to download and stream only the
+        # dirty extents and skip the rest. When we restore, we must skip the
+        # non-data extent.
+        context = "dirty"
+        zero = False
+    else:
+        # During full backup we want to downlod only the data extents, but
+        # stream both data and zero extents, since when we restore a full
+        # backup, we must zero the area on storage.
+        context = "zero"
+        zero = True
+
     with ImageioClient(args.url, secure=False) as client:
-        for extent in client.extents("zero"):
-            if extent.zero:
-                write_frame(writer, ZERO, extent.start, extent.length)
-            else:
+        extents = list(client.extents(context))
+
+        # Write metadata frame.
+        metadata = dump_metadata(extents, args.incremental)
+        write_frame(writer, META, 0, len(metadata))
+        writer.write(metadata)
+        writer.write(TERM)
+
+        # Stream data extents and optionally non-data extents.
+        for extent in extents:
+            if extent.data:
                 write_frame(writer, DATA, extent.start, extent.length)
                 client.write_to(writer, extent.start, extent.length)
                 writer.write(TERM)
+            elif zero:
+                write_frame(writer, ZERO, extent.start, extent.length)
 
+        # Mark the end of the stream.
         write_frame(writer, STOP, 0, 0)
 
 
 def upload(args):
     reader = sys.stdin.buffer
 
+    # Read metadata frame.
+    kind, start, length = read_frame(reader)
+    if kind != META:
+        raise RuntimeError("Missing meta frame")
+
+    meta = load_metadata(reader.read(length))
+    assert reader.read(len(TERM)) == TERM
+
     with ImageioClient(args.url, secure=False) as client:
+
+        # Validate source and destination size.
+        if meta["virtual-size"] > client.size():
+            raise RuntimeError("Target disk is smaller than stream size")
+
+        # Read and process restore frames. This can the exact frame streamed in
+        # download(), or arbritrary stream of frames for restoring a disk to
+        # specific point in time.
         while True:
             kind, start, length = read_frame(reader)
             if kind == ZERO:
@@ -190,6 +253,7 @@ def upload(args):
                     "Invalid frame kind={!r} start={!r} length={!r}"
                     .format(kind, start, length))
 
+        # Finally flush changes to storage.
         client.flush()
 
 
@@ -201,6 +265,20 @@ def read_frame(reader):
     header = reader.read(FRAME_LEN)
     kind, start, length = header.split(b" ", 2)
     return kind, int(start, 16), int(length, 16)
+
+
+def dump_metadata(extents, incremental):
+    meta = {
+        "virtual-size": extents[-1].start + extents[-1].length,
+        "data-size": sum(e.length for e in extents if e.data),
+        "date": datetime.datetime.now().isoformat(),
+        "incremental": incremental,
+    }
+    return json.dumps(meta, indent=4).encode("utf-8")
+
+
+def load_metadata(s):
+    return json.loads(s.decode("utf-8"))
 
 
 parser = argparse.ArgumentParser(description="streaming example")
@@ -217,6 +295,12 @@ download_parser = commands.add_parser(
     help="download sparse stream to stdout")
 
 download_parser.set_defaults(command=download)
+
+download_parser.add_argument(
+    "--incremental",
+    action="store_true",
+    help="stream only dirty extents instead of complete disk contents. "
+         "Works only during incremental backup.")
 
 download_parser.add_argument(
     "url",
