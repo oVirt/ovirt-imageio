@@ -8,6 +8,7 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import os
 import tarfile
 
@@ -543,3 +544,66 @@ def test_measure_from_ova(tmpdir, compressed, fmt):
         member_info = tar.getmember(member)
     assert ova_measure["member-offset"] == member_info.offset_data
     assert ova_measure["member-size"] == member_info.size
+
+
+@pytest.mark.parametrize("fmt, compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_checksum(tmpdir, fmt, compressed):
+    # Create temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Create test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
+
+    with open(tmp, "rb") as f:
+        checksum = hashlib.sha1(f.read()).hexdigest()
+
+    assert client.checksum(img) == checksum
+
+
+@pytest.mark.parametrize("fmt, compressed", [
+    ("raw", False),
+    ("qcow2", False),
+    ("qcow2", True),
+])
+def test_checksum_from_ova(tmpdir, fmt, compressed):
+    # Create temporary file with some data.
+    size = 2 * 1024**2
+    tmp = str(tmpdir.join("tmp"))
+    with open(tmp, "wb") as f:
+        f.truncate(size)
+        f.write(b"x" * CLUSTER_SIZE)
+
+    # Create test image from temporary file.
+    img = str(tmpdir.join("img"))
+    qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
+
+    # Add test image to ova.
+    member = os.path.basename(img)
+    ova = str(tmpdir.join("ova"))
+    with tarfile.open(ova, "w") as tar:
+        tar.add(img, arcname=member)
+
+    with open(tmp, "rb") as f:
+        checksum = hashlib.sha1(f.read()).hexdigest()
+
+    assert client.checksum(ova, member=member) == checksum
+
+
+@pytest.mark.parametrize("algorithm", ["sha1", "sha256"])
+def test_checksum_algorithm(tmpdir, algorithm):
+    img = str(tmpdir.join("img"))
+    qemu_img.create(img, "raw", size="2m")
+
+    with open(img, "rb") as f:
+        checksum = hashlib.new(algorithm, f.read()).hexdigest()
+
+    assert client.checksum(img, algorithm=algorithm) == checksum

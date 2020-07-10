@@ -25,6 +25,7 @@ from . _api import (
     download,
     info,
     measure,
+    checksum,
     ImageioClient,
 )
 

@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import logging
 import os
 
+from . import checksum
 from . import errors
 from . import extents
 from . import http
@@ -80,6 +81,9 @@ class RemoteService(Service):
             self._secure_server()
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
+            (r"/images/(.*)/checksum/algorithms",
+                checksum.Algorithms(config, auth)),
+            (r"/images/(.*)/checksum", checksum.Checksum(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),
             (r"/info/", info.Handler(config, auth)),
         ])
@@ -122,6 +126,9 @@ class LocalService(Service):
             config.local.socket = self.address
         self._server.app = http.Router([
             (r"/images/(.*)/extents", extents.Handler(config, auth)),
+            (r"/images/(.*)/checksum/algorithms",
+                checksum.Algorithms(config, auth)),
+            (r"/images/(.*)/checksum", checksum.Checksum(config, auth)),
             (r"/images/(.*)", images.Handler(config, auth)),
         ])
         log.info("%s listening on %r", self.name, self.address)

@@ -21,6 +21,7 @@ import tempfile
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
+from .. _internal import checksum as _checksum
 from .. _internal import io
 from .. _internal import qemu_img
 from .. _internal import qemu_nbd
@@ -192,6 +193,26 @@ def measure(filename, dst_fmt, member=None):
         return measure
     else:
         return qemu_img.measure(filename, dst_fmt)
+
+
+def checksum(filename, member=None, algorithm="sha1"):
+    """
+    Compute image checksum.
+
+    If member is specified, filename must be a tar file, and the call returns
+    checksum for file named member inside the tar file.
+    """
+    # Get image format and if member specified, its offset and size.
+    image_info = info(filename, member=member)
+
+    with _open_nbd(
+            filename,
+            image_info["format"],
+            read_only=True,
+            offset=image_info.get("member-offset"),
+            size=image_info.get("member-size")) as backend:
+        buf = bytearray(io.BUFFER_SIZE)
+        return _checksum.compute(backend, buf, algorithm=algorithm)
 
 
 class ImageioClient:
