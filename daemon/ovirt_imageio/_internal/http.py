@@ -491,9 +491,10 @@ class Response(object):
         if self._started:
             raise AssertionError("Response already sent")
 
-        # TODO: return json errors.
         self.status_code = e.code
-        body = str(e).encode("utf-8")
+
+        # Adding newline makes it easier to debug from the command line.
+        body = str(e).encode("utf-8") + b"\n"
 
         # Content-type header of the response is set to text/plain to mark
         # content as non-interpretable by the client and thus avoid false

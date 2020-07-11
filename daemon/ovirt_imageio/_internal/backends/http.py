@@ -577,7 +577,9 @@ class Backend(object):
 
         Trim large body since it cannot be a valid error message.
         """
-        msg = body[:512].decode("utf-8", errors="replace")
+        # Errors are always terminated by newline. Remove the newline before
+        # raising to avoid double newlines.
+        msg = body[:512].decode("utf-8", errors="replace").rstrip()
         raise http.Error(status, msg)
 
 
