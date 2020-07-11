@@ -20,6 +20,9 @@ from . import validate
 
 log = logging.getLogger("images")
 
+BASE_FEATURES = ("checksum", "extents")
+ALL_FEATURES = BASE_FEATURES + ("flush", "zero")
+
 
 class Handler(object):
     """
@@ -237,7 +240,7 @@ class Handler(object):
         if ticket_id == "*":
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
-            options["features"] = ["extents", "zero", "flush"]
+            options["features"] = ALL_FEATURES
         else:
             # Reporting real image capabilities per ticket.
             try:
@@ -251,14 +254,14 @@ class Handler(object):
             ticket.touch()
 
             allow = ["OPTIONS"]
-            options["features"] = ["extents"]
 
             if ticket.may("read"):
                 allow.append("GET")
+                options["features"] = BASE_FEATURES
 
             if ticket.may("write"):
                 allow.extend(("PUT", "PATCH"))
-                options["features"].extend(("zero", "flush"))
+                options["features"] = ALL_FEATURES
 
             # Backend specific options.
             options["max_readers"] = ctx.backend.max_readers

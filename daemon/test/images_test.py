@@ -35,6 +35,10 @@ CONNECTION_CLOSED = (
 )
 
 
+BASE_FEATURES = {"checksum", "extents"}
+ALL_FEATURES = BASE_FEATURES | {"zero", "flush"}
+
+
 @pytest.fixture(scope="module")
 def srv():
     cfg = config.load(["test/conf/daemon.conf"])
@@ -696,11 +700,10 @@ def test_flush_ticket_readonly(tmpdir, srv, client):
 def test_options_all(srv, client):
     res = client.options("/images/*")
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
-    assert set(options["features"]) == features
+    assert set(options["features"]) == ALL_FEATURES
     assert options["unix_socket"] == srv.config.local.socket
 
     # Maximum connections reported only for actual ticket since this depends on
@@ -717,11 +720,10 @@ def test_options_read_write(srv, client, tmpdir):
     srv.auth.add(ticket)
     res = client.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
-    assert set(options["features"]) == features
+    assert set(options["features"]) == ALL_FEATURES
     assert options["max_readers"] == srv.config.daemon.max_connections
     assert options["max_writers"] == 1  # Using file backend.
 
@@ -734,11 +736,10 @@ def test_options_read(srv, client, tmpdir):
     srv.auth.add(ticket)
     res = client.options("/images/" + ticket["uuid"])
     allows = {"OPTIONS", "GET"}
-    features = {"extents"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
-    assert set(options["features"]) == features
+    assert set(options["features"]) == BASE_FEATURES
     assert options["max_readers"] == srv.config.daemon.max_connections
     assert options["max_writers"] == 1  # Using file backend.
 
@@ -752,11 +753,10 @@ def test_options_write(srv, client, tmpdir):
     res = client.options("/images/" + ticket["uuid"])
     # Having "write" imply also "read".
     allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-    features = {"extents", "zero", "flush"}
     assert res.status == 200
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
-    assert set(options["features"]) == features
+    assert set(options["features"]) == ALL_FEATURES
     assert options["max_readers"] == srv.config.daemon.max_connections
     assert options["max_writers"] == 1  # Using file backend.
 

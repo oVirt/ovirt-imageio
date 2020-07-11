@@ -137,7 +137,7 @@ def test_options(srv):
     with http.LocalClient(srv.config) as c:
         res = c.options("/images/*")
         allows = {"OPTIONS", "GET", "PUT", "PATCH"}
-        features = {"zero", "flush", "extents"}
+        features = {"checksum", "extents", "flush", "zero"}
         assert res.status == http_client.OK
         assert set(res.getheader("allow").split(',')) == allows
         options = json.loads(res.read())
