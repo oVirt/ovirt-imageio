@@ -98,8 +98,11 @@ def base_image():
     env = dict(os.environ)
     env["LIBGUESTFS_BACKEND"] = "direct"
 
+    # Use -v -x for debugging info when the virt-builder fails.
     cmd = [
         "virt-builder",
+        "-v",
+        "-x",
         BASE_IMAGE,
         # Disable cloundinit on startup, delaying boot.
         "--write", '/etc/cirros-init/config:DATASOURCE_LIST="nocloud"',
