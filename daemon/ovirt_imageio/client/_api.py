@@ -296,7 +296,7 @@ class ImageioClient:
             raise RuntimeError("Read out of image bounds")
 
         self._backend.seek(offset)
-        return self._backend.readinto(offset, buffer)
+        return self._backend.readinto(buffer)
 
     def write(self, offset, buffer):
         """
