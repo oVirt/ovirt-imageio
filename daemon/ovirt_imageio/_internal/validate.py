@@ -23,8 +23,8 @@ def enum(d, name, values, default=None):
     if val not in values:
         raise http.Error(
             http.BAD_REQUEST,
-            "Unsupported value {!r} for {!r}, expecting {}"
-            .format(val, name, values))
+            "Unsupported value {!r} for {!r}, expecting one of {}"
+            .format(val, name, sorted(values)))
 
     return val
 
