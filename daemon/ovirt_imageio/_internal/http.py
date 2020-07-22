@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import errno
 import io
+import ipaddress
 import itertools
 import json
 import logging
@@ -106,15 +107,7 @@ class Server(socketserver.ThreadingMixIn,
         """
         host, port = self.server_address
 
-        # In the past we use "" as a special address to bind to all interfaces.
-        # Using "" with socket.getaddrinfo() would result into socket.gaierror.
-        # To keep backward compatibility with old configurations, replace ""
-        # with "0" which acts in the same way and will be bound to IPv4
-        # interface.
-        if host == "":
-            host = "0"
-
-        addresses = socket.getaddrinfo(host, port, type=self.socket_type)
+        addresses = list(find_addresses(host, port=port))
 
         # If IPv4 is preferred, sort addresses according to address family, so
         # that IPv4 addresses are before IPv6 addresses. Addresses is a list of
@@ -830,6 +823,27 @@ class Router(object):
                 return method(req, resp, *match.groups())
 
         raise Error(NOT_FOUND, "No handler for {!r}".format(path))
+
+
+# Helpers
+
+def find_addresses(host, port=0):
+    # In the past we use "" as a special address to bind to all interfaces.
+    # Using "" with socket.getaddrinfo() would result into socket.gaierror. To
+    # keep backward compatibility with old configurations, replace "" with "0"
+    # which acts in the same way and will be bound to IPv4 interface.
+    if host == "":
+        host = "0"
+
+    for ai in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
+        # Filter IPv6 link local addresses. Users can use "localhost" or "::1"
+        # to listen to local only address.
+        # https://en.wikipedia.org/wiki/Link-local_address
+        address = ipaddress.ip_address(ai[4][0])
+        if address.is_link_local:
+            continue
+
+        yield ai
 
 
 # Compatibility hacks

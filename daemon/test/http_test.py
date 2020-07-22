@@ -10,7 +10,6 @@ from __future__ import absolute_import
 
 import errno
 import io
-import ipaddress
 import json
 import logging
 import os
@@ -1154,20 +1153,8 @@ def test_server_bind_dual_stack(connect_address):
             con.getresponse()
 
 
-def addresses():
-    for ai in socket.getaddrinfo(
-            socket.gethostname(), 0, type=socket.SOCK_STREAM):
-
-        # Filter IPv6 link local addresses
-        # https://en.wikipedia.org/wiki/Link-local_address
-        address = ipaddress.ip_address(ai[4][0])
-        if address.is_link_local:
-            continue
-
-        yield str(address)
-
-
-@pytest.mark.parametrize("address", addresses())
+@pytest.mark.parametrize(
+    "address", [a[4][0] for a in http.find_addresses(socket.gethostname())])
 def test_server_bind_addr_from_hostname(address):
     with demo_server(address) as server:
         con = http_client.HTTPConnection(address, server.server_port)
