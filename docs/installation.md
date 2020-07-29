@@ -1,47 +1,35 @@
 # Installation
 
-## ovirt-imageio-proxy
+## Standalone installation
 
-The image proxy can be installed on most hosts that have a working
-Python 2 environment with the needed dependencies.  To install the
-rpm package:
+Starting version 2.0, imageio supports only Python 3 and Python 2 is
+not supported any more.  To install imageio service, run:
 
-  sudo yum install ovirt-imageio-proxy
-  engine-setup
+    sudo dnf install ovirt-imageio-daemon
 
-This will install all necessary dependencies and launch the setup,
-which is a module run by the oVirt engine setup program.  The prompts
-during setup depend on other installed packages; if ovirt-engine is
-on the host you may be prompted with additional questions.  On a
-separate host, you will be prompted to perform manual steps for the
-PKI setup.
 
-Installation from source is not recommended.  If you want to run the
-proxy without installing the packages and running engine-setup, it's
-best to run it in-place using the --config_file option to supply the
-runtime configuration.
+## Installation with ovirt-engine
+
+To install imageio in ovirt-engine environment, run:
+
+    engine-setup
+
+This will install ovirt-imageio-daemon itself and all necessary
+dependencies and launch the setup, which is a module run by the oVirt
+engine setup program.
 
 
 ### Installation with ovirt-engine developer environment
 
-For setting up ovirt-imageio-proxy in an ovirt dev environment, run:
-
-   make install-dev ENGINE_PREFIX=<engine prefix>
-
-Example:
-
-   make install-dev ENGINE_PREFIX=/home/user/my-ovirt-engine
-
-If ovirt-imageio-proxy wasn't configured yet, run engine setup, and
-choose "Yes" when prompted to install oVirt ImageIO proxy. After engine
-setup finishes to run, run `ovirt-imageio-proxy`.
+Please see [imageio
+section](https://github.com/ovirt/ovirt-engine#ovirt-imageio) in oVirt
+[README](https://github.com/oVirt/ovirt-engine/blob/master/README.adoc)
+how to configure imageio in ovirt-engine developer environment.
 
 
-### SSL installation
+## Configuration
 
-For using imageIO via the webadmin, the client will need to install
-oVirt's CA in its browser. oVirt's CA certificate can be fetched from
-the following link, as specified in oVirt's PKI wiki page
-http://www.ovirt.org/develop/release-management/features/infra/pki/:
-
-http://<engine_url>/ovirt-engine/services/pki-resource?resource=ca-certificate&format=X509-PEM-CA
+After installation, you must confgiure TLS and optionally you may want
+to change default configuration. See [configuration](configuration.md)
+page how to configure imageio and what are available configuration
+options.
