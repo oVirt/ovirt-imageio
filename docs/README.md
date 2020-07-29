@@ -16,4 +16,4 @@
 
 * [UNIX Socket Support](unix-socket.md)
 
-* [Example Upload Script](https://raw.githubusercontent.com/oVirt/ovirt-imageio/master/examples/upload)
+* [Example imageio client](https://raw.githubusercontent.com/oVirt/ovirt-imageio/master/examples/imageio-client)
