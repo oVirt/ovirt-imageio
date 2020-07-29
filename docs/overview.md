@@ -81,5 +81,7 @@ as followed:
 ## Packaging
 
 Multiple packaging options are available:
-  make dist  ## compile and create a distribution tarball
-  make rpm   ## compile and create an rpm
+
+- `make dist` compile and create a distribution tarball
+
+- `make rpm` compile and create an rpm
