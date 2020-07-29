@@ -4,6 +4,8 @@
 
 * [Installation](installation.md)
 
+* [Configration](configuration.md)
+
 * [Images API](images.md)
 
 * [UNIX Socket Support](unix-socket.md)
