@@ -312,6 +312,38 @@ def test_images_flush(daemon, proxy, tmpfile):
     assert res.status == 200
 
 
+@pytest.mark.xfail(reason="Failed to verify certificate.")
+def test_tls(daemon, tmpfile):
+    size = daemon.config.daemon.buffer_size
+    data = b"x" * size
+
+    with open(tmpfile, "wb") as f:
+        f.write(data)
+
+    # Add daemon ticket serving tmpfile.
+    ticket = testutil.create_ticket(
+        url="file://{}".format(tmpfile),
+        size=size)
+    daemon.auth.add(ticket)
+
+    proxy = server.Server(config.load(
+        ["test/conf/proxy.conf", "test/conf/user-tls.conf"]))
+    proxy.start()
+    try:
+        # Add proxy ticket, proxying request to daemon.
+        proxy.auth.add(proxy_ticket(daemon, ticket))
+
+        # Download complete image.
+        with http.RemoteClient(proxy.config) as c:
+            res = c.request("GET", "/images/{}".format(ticket["uuid"]))
+            client_data = res.read()
+    finally:
+        proxy.stop()
+
+    assert res.status == 200
+    assert client_data == data
+
+
 def proxy_ticket(daemon, daemon_ticket):
     """
     Create a proxy ticket from daemon ticket.
