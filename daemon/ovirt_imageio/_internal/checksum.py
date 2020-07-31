@@ -12,6 +12,8 @@ import logging
 from . import backends
 from . import errors
 from . import http
+from . import ops
+from . import stats
 from . import validate
 
 log = logging.getLogger("checksum")
@@ -48,8 +50,12 @@ class Checksum:
 
         ctx = backends.get(req, ticket, self.config)
 
-        with req.clock.run("checksum"):
-            checksum = compute(ctx.backend, ctx.buffer, algorithm=algorithm)
+        op = Operation(ctx.backend, ctx.buffer, algorithm, clock=req.clock)
+        try:
+            checksum = ticket.run(op)
+        except errors.AuthorizationError as e:
+            resp.close_connection()
+            raise http.Error(http.FORBIDDEN, str(e)) from None
 
         resp.send_json({"checksum": checksum, "algorithm": algorithm})
 
@@ -68,18 +74,46 @@ class Algorithms:
         resp.send_json({"algorithms": sorted(ALGORITHMS)})
 
 
+class Operation(ops.Operation):
+    """
+    Checksum operation.
+    """
+
+    def __init__(self, backend, buf, algorithm, clock=stats.NullClock()):
+        super().__init__(size=backend.size(), buf=buf, clock=clock)
+        self._backend = backend
+        self._algorithm = algorithm
+
+    def _run(self):
+        h = Hasher(self._algorithm)
+
+        # TODO: Split big extents to have progress for preallocated or empty
+        # images.
+        for extent in self._backend.extents("zero"):
+            if extent.data:
+                self._backend.seek(extent.start)
+                with self._clock.run("read_from") as s:
+                    h.read_from(self._backend, extent.length, self._buf)
+                    s.bytes += extent.length
+            else:
+                with self._clock.run("zero") as s:
+                    h.zero(extent.length)
+                    s.bytes += extent.length
+
+            self._done += extent.length
+
+            if self._canceled:
+                raise ops.Canceled
+
+        return h.hexdigest()
+
+
 def compute(backend, buf, algorithm="sha1"):
     """
     Compute image checksum.
     """
-    h = Hasher(algorithm)
-    for extent in backend.extents("zero"):
-        if extent.data:
-            backend.seek(extent.start)
-            h.read_from(backend, extent.length, buf)
-        else:
-            h.zero(extent.length)
-    return h.hexdigest()
+    op = Operation(backend, buf, algorithm)
+    return op.run()
 
 
 class Hasher:
