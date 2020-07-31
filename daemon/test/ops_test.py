@@ -53,6 +53,35 @@ OFFSET_SIZE = [
 ]
 
 
+class Operation(ops.Operation):
+
+    def _run(self):
+        if self._canceled:
+            raise ops.Canceled
+        self._done = 100
+        return self._done
+
+
+def test_run():
+    op = Operation(size=100)
+    assert op.offset == 0
+    assert op.size == 100
+    assert op.done == 0
+    assert op.run() == 100
+    assert op.done == 100
+
+
+def test_cancel():
+    op = Operation(size=100)
+    assert op.offset == 0
+    assert op.size == 100
+    assert op.done == 0
+    op.cancel()
+    assert op.run() is None
+    assert op.offset == 0
+    assert op.done == 0
+
+
 @pytest.mark.parametrize("trailer", [
     pytest.param(0, id="no-trailer"),
     pytest.param(8192, id="trailer"),

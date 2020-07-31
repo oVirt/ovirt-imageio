@@ -54,7 +54,7 @@ class Operation(object):
     def run(self):
         with self._clock.run("operation"):
             try:
-                self._run()
+                return self._run()
             except Canceled:
                 log.debug("Operation %s was canceled", self)
 

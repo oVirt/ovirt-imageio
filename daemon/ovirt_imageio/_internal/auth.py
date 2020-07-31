@@ -170,7 +170,7 @@ class Ticket(object):
         """
         self._add_operation(operation)
         try:
-            operation.run()
+            return operation.run()
         finally:
             self._remove_operation(operation)
 
