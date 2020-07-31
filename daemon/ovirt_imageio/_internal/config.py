@@ -78,6 +78,17 @@ class tls:
     enable_tls1_1 = False
 
 
+class backend_http:
+
+    # CA certificate file to be used with HTTP backend. Empty value is valid,
+    # meaning uses CA file configured in TLS section.
+    # This option has to be used when the daemon serving as a proxy use
+    # different CA than daemon serving storage backend. In most of the cases
+    # these CAs are the same and one would use same value as configured in
+    # tls.ca_file option.
+    ca_file = ""
+
+
 class remote:
 
     # Remote service interface. Use "::" to listen on any interface on both
@@ -187,6 +198,7 @@ class Config:
 
         self.daemon = daemon()
         self.tls = tls()
+        self.backend_http = backend_http()
         self.remote = remote()
         self.local = local()
         self.control = control()

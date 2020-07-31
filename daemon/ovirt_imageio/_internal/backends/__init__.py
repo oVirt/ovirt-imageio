@@ -74,13 +74,17 @@ def get(req, ticket, config):
         mode = "r+" if "write" in ticket.ops else "r"
         module = _modules[ticket.url.scheme]
 
+        # If HTTP backend has no explict CA file configuration, use CA file
+        # from TLS configuration.
+        ca_file = config.backend_http.ca_file or config.tls.ca_file
+
         backend = module.open(
             ticket.url,
             mode=mode,
             sparse=ticket.sparse,
             dirty=ticket.dirty,
             max_connections=config.daemon.max_connections,
-            cafile=config.tls.ca_file)
+            cafile=ca_file)
 
         buf = util.aligned_buffer(config.daemon.buffer_size)
         ctx = Context(backend, buf)

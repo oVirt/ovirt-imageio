@@ -312,8 +312,15 @@ def test_images_flush(daemon, proxy, tmpfile):
     assert res.status == 200
 
 
-@pytest.mark.xfail(reason="Failed to verify certificate.")
-def test_tls(daemon, tmpfile):
+@pytest.mark.parametrize("conf_files", [
+    # Using system PKI for both proxy and daemon (default oVirt setup).
+    pytest.param(["test/conf/proxy.conf"], id="system"),
+    # Using user PKI for proxy and system PKI for daemon (oVirt setup with user
+    # certificates).
+    pytest.param(
+        ["test/conf/proxy.conf", "test/conf/user-tls.conf"], id="user")
+])
+def test_tls(daemon, tmpfile, conf_files):
     size = daemon.config.daemon.buffer_size
     data = b"x" * size
 
@@ -326,8 +333,7 @@ def test_tls(daemon, tmpfile):
         size=size)
     daemon.auth.add(ticket)
 
-    proxy = server.Server(config.load(
-        ["test/conf/proxy.conf", "test/conf/user-tls.conf"]))
+    proxy = server.Server(config.load(conf_files))
     proxy.start()
     try:
         # Add proxy ticket, proxying request to daemon.

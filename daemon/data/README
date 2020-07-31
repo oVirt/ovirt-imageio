@@ -83,6 +83,16 @@
 # The default value:
 #   enable_tls1_1 = false
 
+[backend_http]
+# CA certificate file to be used with HTTP backend. Empty value is valid,
+# meaning use CA file configured in TLS section.
+# This option has to be used when the daemon serving as a proxy uses
+# different CA than daemon serving storage backend. In most of the cases
+# these CAs are the same and one would use same value as configured in
+# tls.ca_file option.
+# The default value:
+#   ca_file =
+
 [remote]
 # Remote service interface. Use "::" to listen on any interface on both
 # IPv4 and IPv6. To listen only on IPv4, use "0.0.0.0".
