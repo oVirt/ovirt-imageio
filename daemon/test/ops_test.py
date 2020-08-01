@@ -109,7 +109,7 @@ def test_stats(fake_time):
     op.run()
     times = str(clock)
     assert times == (
-        "[foo 1 ops, 0.015000 s] "
+        "[foo 1 ops, 0.015000 s, 8.00 MiB, 533.33 MiB/s] "
         "[foo.read 1 ops, 0.010000 s, 8.00 MiB, 800.00 MiB/s] "
         "[foo.write 1 ops, 0.005000 s, 8.00 MiB, 1.56 GiB/s]"
     )

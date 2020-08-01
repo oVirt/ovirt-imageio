@@ -55,8 +55,10 @@ class Operation(object):
         return self._size - self._done
 
     def run(self):
-        with self._clock.run(self.name):
-            return self._run()
+        with self._clock.run(self.name) as s:
+            res = self._run()
+            s.bytes += self.done
+        return res
 
     def cancel(self):
         log.debug("Cancelling operation %s", self)
