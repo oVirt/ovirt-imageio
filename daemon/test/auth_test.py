@@ -16,6 +16,7 @@ from six.moves import xrange
 
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import ops
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal.auth import Ticket, Authorizer
 
@@ -36,6 +37,8 @@ class Operation(object):
         self.canceled = False
 
     def run(self):
+        if self.canceled:
+            raise ops.Canceled
         self.done = self.size
 
     def cancel(self):

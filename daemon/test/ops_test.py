@@ -77,7 +77,8 @@ def test_cancel():
     assert op.size == 100
     assert op.done == 0
     op.cancel()
-    assert op.run() is None
+    with pytest.raises(ops.Canceled):
+        op.run()
     assert op.offset == 0
     assert op.done == 0
 

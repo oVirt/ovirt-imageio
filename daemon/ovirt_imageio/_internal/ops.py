@@ -53,10 +53,7 @@ class Operation(object):
 
     def run(self):
         with self._clock.run("operation"):
-            try:
-                return self._run()
-            except Canceled:
-                log.debug("Operation %s was canceled", self)
+            return self._run()
 
     def cancel(self):
         log.debug("Cancelling operation %s", self)

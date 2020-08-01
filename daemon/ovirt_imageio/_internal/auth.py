@@ -13,8 +13,9 @@ import urllib.parse as urllib_parse
 
 from . import backends
 from . import errors
-from . import util
 from . import measure
+from . import ops
+from . import util
 
 log = logging.getLogger("auth")
 
@@ -171,6 +172,8 @@ class Ticket(object):
         self._add_operation(operation)
         try:
             return operation.run()
+        except ops.Canceled:
+            log.debug("Operation %s was canceled", operation)
         finally:
             self._remove_operation(operation)
 
