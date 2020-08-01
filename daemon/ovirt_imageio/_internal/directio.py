@@ -37,8 +37,8 @@ class Receive(ops.Write):
         url = urllib_parse.urlparse("file:" + path)
         self._dst = file.open(url, "r+")
         buf = util.aligned_buffer(buffersize)
-        super(Receive, self).__init__(self._dst, src, buf, size=size,
-                                      offset=offset, flush=flush, clock=clock)
+        super().__init__(self._dst, src, buf, size=size, offset=offset,
+                         flush=flush, clock=clock)
 
     def close(self):
         if self._dst:
@@ -50,4 +50,4 @@ class Receive(ops.Write):
                 self._buf.close()
             finally:
                 self._buf = None
-            super(Receive, self).close()
+            super().close()

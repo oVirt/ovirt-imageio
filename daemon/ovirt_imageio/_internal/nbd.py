@@ -1280,7 +1280,7 @@ class Read(Command):
     name = "NBD_CMD_READ"
 
     def __init__(self, handle, offset, buf, only_structured=False):
-        super(Read, self).__init__(handle, offset, len(buf))
+        super().__init__(handle, offset, len(buf))
         # Buffer for storing the payload from the server.
         self.buf = buf
         self.only_structured = only_structured
@@ -1296,7 +1296,7 @@ class Disc(Command):
     name = "NBD_CMD_DISC"
 
     def __init__(self, handle):
-        super(Disc, self).__init__(handle, 0, 0)
+        super().__init__(handle, 0, 0)
 
 
 class Flush(Command):
@@ -1304,7 +1304,7 @@ class Flush(Command):
     name = "NBD_CMD_FLUSH"
 
     def __init__(self, handle):
-        super(Flush, self).__init__(handle, 0, 0)
+        super().__init__(handle, 0, 0)
 
 
 class WriteZeroes(Command):
@@ -1317,7 +1317,7 @@ class BlockStatus(Command):
     name = "NBD_CMD_BLOCK_STATUS"
 
     def __init__(self, handle, offset, length):
-        super(BlockStatus, self).__init__(handle, offset, length)
+        super().__init__(handle, offset, length)
         self.only_structured = True
         # Mapping of meta context name to list of Extent objects.
         self.reply = {}

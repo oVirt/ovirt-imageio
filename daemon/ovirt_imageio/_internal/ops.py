@@ -86,8 +86,7 @@ class Read(Operation):
     name = "read"
 
     def __init__(self, src, dst, buf, size, offset=0, clock=stats.NullClock()):
-        super(Read, self).__init__(size=size, offset=offset, buf=buf,
-                                   clock=clock)
+        super().__init__(size=size, offset=offset, buf=buf, clock=clock)
         self._src = src
         self._dst = dst
 
@@ -134,8 +133,7 @@ class Write(Operation):
 
     def __init__(self, dst, src, buf, size=None, offset=0, flush=True,
                  clock=stats.NullClock()):
-        super(Write, self).__init__(size=size, offset=offset, buf=buf,
-                                    clock=clock)
+        super().__init__(size=size, offset=offset, buf=buf, clock=clock)
         self._src = src
         self._dst = dst
         self._flush = flush
@@ -223,7 +221,7 @@ class Zero(Operation):
 
     def __init__(self, dst, size, offset=0, flush=False,
                  clock=stats.NullClock()):
-        super(Zero, self).__init__(size=size, offset=offset, clock=clock)
+        super().__init__(size=size, offset=offset, clock=clock)
         self._dst = dst
         self._flush = flush
 
@@ -255,7 +253,7 @@ class Flush(Operation):
     name = "flush"
 
     def __init__(self, dst, clock=stats.NullClock()):
-        super(Flush, self).__init__(clock=clock)
+        super().__init__(clock=clock)
         self._dst = dst
 
     def _run(self):

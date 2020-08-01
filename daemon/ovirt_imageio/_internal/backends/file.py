@@ -270,8 +270,7 @@ class BlockBackend(Backend):
             block_size (int): If set, use the specified block size. Otherwise
                 the value is detected automatically.
         """
-        super(BlockBackend, self).__init__(
-            fio, sparse=sparse, max_connections=max_connections)
+        super().__init__(fio, sparse=sparse, max_connections=max_connections)
         # May be set to False if the first call to fallocate() reveal that it
         # is not supported.
         self._can_fallocate = True
@@ -345,8 +344,7 @@ class FileBackend(Backend):
             block_size (int): If set, use the specified block size. Otherwise
                 the value is detected automatically.
         """
-        super(FileBackend, self).__init__(
-            fio, sparse=sparse, max_connections=max_connections)
+        super().__init__(fio, sparse=sparse, max_connections=max_connections)
         # These will be set to False if the first call to fallocate() reveal
         # that it is not supported on the current file system.
         self._can_zero_range = True
