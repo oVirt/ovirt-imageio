@@ -79,6 +79,8 @@ class Operation(ops.Operation):
     Checksum operation.
     """
 
+    name = "checksum"
+
     def __init__(self, backend, buf, algorithm, clock=stats.NullClock()):
         super().__init__(size=backend.size(), buf=buf, clock=clock)
         self._backend = backend
@@ -92,11 +94,11 @@ class Operation(ops.Operation):
         for extent in self._backend.extents("zero"):
             if extent.data:
                 self._backend.seek(extent.start)
-                with self._clock.run("read_from") as s:
+                with self._record("read_from") as s:
                     h.read_from(self._backend, extent.length, self._buf)
                     s.bytes += extent.length
             else:
-                with self._clock.run("zero") as s:
+                with self._record("zero") as s:
                     h.zero(extent.length)
                     s.bytes += extent.length
 

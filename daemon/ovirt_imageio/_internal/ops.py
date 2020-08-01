@@ -27,6 +27,9 @@ class Canceled(Exception):
 
 class Operation(object):
 
+    # Should be overriden in sub classes.
+    name = "operation"
+
     def __init__(self, size=None, offset=0, buf=None, clock=stats.NullClock()):
         self._size = size
         self._offset = offset
@@ -52,12 +55,18 @@ class Operation(object):
         return self._size - self._done
 
     def run(self):
-        with self._clock.run("operation"):
+        with self._clock.run(self.name):
             return self._run()
 
     def cancel(self):
         log.debug("Cancelling operation %s", self)
         self._canceled = True
+
+    def _record(self, name):
+        """
+        Return context manager for recording stats.
+        """
+        return self._clock.run(self.name + "." + name)
 
     def __repr__(self):
         return ("<{self.__class__.__name__} "
@@ -71,6 +80,8 @@ class Send(Operation):
     """
     Send data source backend to file object.
     """
+
+    name = "send"
 
     def __init__(self, src, dst, buf, size, offset=0, clock=stats.NullClock()):
         super(Send, self).__init__(size=size, offset=offset, buf=buf,
@@ -95,7 +106,7 @@ class Send(Operation):
         aligned_todo = util.round_up(self._todo, self._src.block_size)
 
         with memoryview(self._buf)[:aligned_todo] as view:
-            with self._clock.run("read") as s:
+            with self._record("read") as s:
                 count = self._src.readinto(view)
                 s.bytes += count
             if count == 0:
@@ -103,7 +114,7 @@ class Send(Operation):
 
         size = min(count - skip, self._todo)
         with memoryview(self._buf)[skip:skip + size] as view:
-            with self._clock.run("write") as s:
+            with self._record("write") as s:
                 self._dst.write(view)
                 s.bytes += size
         self._done += size
@@ -116,6 +127,8 @@ class Receive(Operation):
     """
     Receive data from file object to destination backend.
     """
+
+    name = "recv"
 
     def __init__(self, dst, src, buf, size=None, offset=0, flush=True,
                  clock=stats.NullClock()):
@@ -151,7 +164,7 @@ class Receive(Operation):
             pass
 
         if self._flush:
-            with self._clock.run("sync"):
+            with self._record("flush"):
                 self._dst.flush()
 
     def _receive_chunk(self, count):
@@ -160,7 +173,7 @@ class Receive(Operation):
             read = 0
             while read < count:
                 with view[read:] as v:
-                    with self._clock.run("read") as s:
+                    with self._record("read") as s:
                         n = self._src.readinto(v)
                         s.bytes += n
                 if not n:
@@ -170,7 +183,7 @@ class Receive(Operation):
             pos = 0
             while pos < read:
                 with view[pos:read] as v:
-                    with self._clock.run("write") as s:
+                    with self._record("write") as s:
                         n = self._dst.write(v)
                         s.bytes += n
                 pos += n
@@ -189,6 +202,8 @@ class Zero(Operation):
     """
     Zero byte range.
     """
+
+    name = "zero"
 
     # Limit zero size so we update self._done frequently enough to provide
     # progress even with slow storage.
@@ -215,7 +230,7 @@ class Zero(Operation):
 
         while self._todo:
             step = min(self._todo, self.MAX_STEP)
-            with self._clock.run("zero") as s:
+            with self._record("zero") as s:
                 n = self._dst.zero(step)
                 s.bytes += n
             self._done += n
@@ -226,7 +241,7 @@ class Zero(Operation):
             self.flush()
 
     def flush(self):
-        with self._clock.run("flush"):
+        with self._record("flush"):
             self._dst.flush()
 
 
@@ -235,10 +250,11 @@ class Flush(Operation):
     Flush received data to storage.
     """
 
+    name = "flush"
+
     def __init__(self, dst, clock=stats.NullClock()):
         super(Flush, self).__init__(clock=clock)
         self._dst = dst
 
     def _run(self):
-        with self._clock.run("flush"):
-            self._dst.flush()
+        self._dst.flush()

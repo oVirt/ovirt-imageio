@@ -16,6 +16,7 @@ import userstorage
 
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import ops
+from ovirt_imageio._internal import stats
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal.backends import file
 from ovirt_imageio._internal.backends import memory
@@ -81,6 +82,37 @@ def test_cancel():
         op.run()
     assert op.offset == 0
     assert op.done == 0
+
+
+def test_stats(fake_time):
+
+    class Operation(ops.Operation):
+
+        name = "foo"
+
+        def _run(self):
+
+            # Simulate reading from storage...
+            with self._record("read") as s:
+                fake_time.now += 0.01
+                s.bytes += self._size
+
+            # Simulate writing to client socket...
+            with self._record("write") as s:
+                fake_time.now += 0.005
+                s.bytes += self._size
+
+            self._done = self._size
+
+    clock = stats.Clock(now=fake_time.monotonic_time)
+    op = Operation(size=8 * 1024**2, clock=clock)
+    op.run()
+    times = str(clock)
+    assert times == (
+        "[foo 1 ops, 0.015000 s] "
+        "[foo.read 1 ops, 0.010000 s, 8.00 MiB, 800.00 MiB/s] "
+        "[foo.write 1 ops, 0.005000 s, 8.00 MiB, 1.56 GiB/s]"
+    )
 
 
 @pytest.mark.parametrize("trailer", [
