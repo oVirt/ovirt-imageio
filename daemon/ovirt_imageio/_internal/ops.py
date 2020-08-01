@@ -78,15 +78,15 @@ class Operation(object):
                 "at 0x{id}>").format(self=self, id=id(self))
 
 
-class Send(Operation):
+class Read(Operation):
     """
-    Send data source backend to file object.
+    Read data source backend to file object.
     """
 
-    name = "send"
+    name = "read"
 
     def __init__(self, src, dst, buf, size, offset=0, clock=stats.NullClock()):
-        super(Send, self).__init__(size=size, offset=offset, buf=buf,
+        super(Read, self).__init__(size=size, offset=offset, buf=buf,
                                    clock=clock)
         self._src = src
         self._dst = dst
@@ -95,11 +95,11 @@ class Send(Operation):
         skip = self._offset % self._src.block_size
         self._src.seek(self._offset - skip)
         if skip:
-            self._send_chunk(skip)
+            self._read_chunk(skip)
         while self._todo:
-            self._send_chunk()
+            self._read_chunk()
 
-    def _send_chunk(self, skip=0):
+    def _read_chunk(self, skip=0):
         if self._src.tell() % self._src.block_size:
             raise errors.PartialContent(self.size, self.done)
 
@@ -125,17 +125,17 @@ class Send(Operation):
             raise Canceled
 
 
-class Receive(Operation):
+class Write(Operation):
     """
-    Receive data from file object to destination backend.
+    Write data from file object to destination backend.
     """
 
-    name = "recv"
+    name = "write"
 
     def __init__(self, dst, src, buf, size=None, offset=0, flush=True,
                  clock=stats.NullClock()):
-        super(Receive, self).__init__(size=size, offset=offset, buf=buf,
-                                      clock=clock)
+        super(Write, self).__init__(size=size, offset=offset, buf=buf,
+                                    clock=clock)
         self._src = src
         self._dst = dst
         self._flush = flush
@@ -155,13 +155,13 @@ class Receive(Operation):
             unaligned = self._offset % self._dst.block_size
             if unaligned:
                 count = min(self._todo, self._dst.block_size - unaligned)
-                self._receive_chunk(count)
+                self._write_chunk(count)
 
             # Now current file position is aligned to block size and we can
             # receive full chunks.
             while self._todo:
                 count = min(self._todo, len(self._buf))
-                self._receive_chunk(count)
+                self._write_chunk(count)
         except EOF:
             pass
 
@@ -169,7 +169,7 @@ class Receive(Operation):
             with self._record("flush"):
                 self._dst.flush()
 
-    def _receive_chunk(self, count):
+    def _write_chunk(self, count):
         self._buf.seek(0)
         with memoryview(self._buf)[:count] as view:
             read = 0

@@ -67,7 +67,7 @@ class Handler(object):
             "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
             req.client_addr, size, offset, flush, close, ticket_id)
 
-        op = ops.Receive(
+        op = ops.Write(
             ctx.backend,
             req,
             ctx.buffer,
@@ -139,7 +139,7 @@ class Handler(object):
             resp.headers["content-range"] = "bytes %d-%d/%d" % (
                 offset, offset + size - 1, ticket.size)
 
-        op = ops.Send(
+        op = ops.Read(
             ctx.backend,
             resp,
             ctx.buffer,

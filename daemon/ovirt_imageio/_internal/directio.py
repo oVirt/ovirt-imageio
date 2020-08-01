@@ -25,9 +25,9 @@ from . import util
 from . backends import file
 
 
-class Receive(ops.Receive):
+class Receive(ops.Write):
     """
-    ops.Receive accepts a backend instead of path, and buffer instead of
+    ops.Write accepts a backend instead of path, and buffer instead of
     buffersize. Provide a backward compatible version for existing users (e.g.
     vdsm).
     """

@@ -120,7 +120,7 @@ def test_stats(fake_time):
     pytest.param(8192, id="trailer"),
 ])
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_send_full(user_file, offset, size, trailer):
+def test_read_full(user_file, offset, size, trailer):
     data = b"b" * size
 
     with io.open(user_file.path, "wb") as f:
@@ -131,21 +131,21 @@ def test_send_full(user_file, offset, size, trailer):
     dst = io.BytesIO()
     with file.open(user_file.url, "r") as src, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Send(src, dst, buf, size, offset=offset)
+        op = ops.Read(src, dst, buf, size, offset=offset)
         op.run()
 
     assert dst.getvalue() == data
 
 
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_send_partial_content(user_file, offset, size):
+def test_read_partial_content(user_file, offset, size):
     with io.open(user_file.path, "wb") as f:
         f.truncate(offset + size - 1)
 
     dst = io.BytesIO()
     with file.open(user_file.url, "r") as src, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Send(src, dst, buf, size, offset=offset)
+        op = ops.Read(src, dst, buf, size, offset=offset)
         with pytest.raises(errors.PartialContent) as e:
             op.run()
 
@@ -153,20 +153,20 @@ def test_send_partial_content(user_file, offset, size):
     assert e.value.available == size - 1
 
 
-def test_send_seek():
+def test_read_seek():
     src = memory.Backend("r", bytearray(b"0123456789"))
     src.seek(8)
     dst = io.BytesIO()
     with util.aligned_buffer(32) as buf:
-        op = ops.Send(src, dst, buf, 5)
+        op = ops.Read(src, dst, buf, 5)
         op.run()
     assert dst.getvalue() == b"01234"
 
 
-def test_send_repr():
-    op = ops.Send(None, None, None, 200, offset=24)
+def test_read_repr():
+    op = ops.Read(None, None, None, 200, offset=24)
     rep = repr(op)
-    assert "Send" in rep
+    assert "Read" in rep
     assert "size=200 offset=24 done=0" in rep
 
 
@@ -175,7 +175,7 @@ def test_send_repr():
     pytest.param(False, id="empty"),
 ])
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_receive_new(user_file, offset, size, preallocated):
+def test_write_new(user_file, offset, size, preallocated):
     with io.open(user_file.path, "wb") as f:
         if preallocated:
             f.truncate(offset + size)
@@ -183,7 +183,7 @@ def test_receive_new(user_file, offset, size, preallocated):
     src = io.BytesIO(b"x" * size)
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, size, offset=offset)
+        op = ops.Write(dst, src, buf, size, offset=offset)
         op.run()
 
     with io.open(user_file.path, "rb") as f:
@@ -201,7 +201,7 @@ def test_receive_new(user_file, offset, size, preallocated):
 
 
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_receive_inside(user_file, offset, size):
+def test_write_inside(user_file, offset, size):
     trailer = 8192
     with io.open(user_file.path, "wb") as f:
         f.truncate(offset + size + trailer)
@@ -209,7 +209,7 @@ def test_receive_inside(user_file, offset, size):
     src = io.BytesIO(b"x" * size)
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, size, offset=offset)
+        op = ops.Write(dst, src, buf, size, offset=offset)
         op.run()
 
     with io.open(user_file.path, "rb") as f:
@@ -225,14 +225,14 @@ def test_receive_inside(user_file, offset, size):
 
 
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_receive_partial_content(user_file, offset, size):
+def test_write_partial_content(user_file, offset, size):
     with io.open(user_file.path, "wb") as f:
         f.truncate(size + offset)
 
     src = io.BytesIO(b"x" * (size - 1))
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, size, offset=offset)
+        op = ops.Write(dst, src, buf, size, offset=offset)
         with pytest.raises(errors.PartialContent) as e:
             op.run()
 
@@ -240,12 +240,12 @@ def test_receive_partial_content(user_file, offset, size):
     assert e.value.available == size - 1
 
 
-def test_receive_seek():
+def test_write_seek():
     dst = memory.Backend("r+", bytearray(b"a" * 10))
     dst.seek(8)
     src = io.BytesIO(b"b" * 5)
     with util.aligned_buffer(32) as buf:
-        op = ops.Receive(dst, src, buf, 5)
+        op = ops.Write(dst, src, buf, 5)
         op.run()
     dst.seek(0)
     b = bytearray(11)
@@ -259,24 +259,24 @@ def test_receive_seek():
     ({"flush": True}, False),
     ({"flush": False}, True),
 ])
-def test_receive_flush(extra, dirty):
+def test_write_flush(extra, dirty):
     size = 4096
     dst = memory.Backend("r+", bytearray(b"a" * size))
     src = io.BytesIO(b"b" * size)
     with util.aligned_buffer(4096) as buf:
-        op = ops.Receive(dst, src, buf, size, **extra)
+        op = ops.Write(dst, src, buf, size, **extra)
         op.run()
     assert dst.dirty == dirty
 
 
-def test_recv_repr():
-    op = ops.Receive(None, None, None, 100, offset=42)
+def test_write_repr():
+    op = ops.Write(None, None, None, 100, offset=42)
     rep = repr(op)
-    assert "Receive" in rep
+    assert "Write" in rep
     assert "size=100 offset=42 done=0" in rep
 
 
-def test_receive_unbuffered_stream(user_file):
+def test_write_unbuffered_stream(user_file):
     chunks = [b"a" * 8192,
               b"b" * 42,
               b"c" * (8192 - 42)]
@@ -285,7 +285,7 @@ def test_receive_unbuffered_stream(user_file):
 
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, size)
+        op = ops.Write(dst, src, buf, size)
         op.run()
 
     with io.open(user_file.path, "rb") as f:
@@ -294,7 +294,7 @@ def test_receive_unbuffered_stream(user_file):
         assert f.read() == b""
 
 
-def test_receive_unbuffered_stream_partial_content(user_file):
+def test_write_unbuffered_stream_partial_content(user_file):
     chunks = [b"a" * 8192,
               b"b" * 42,
               b"c" * (8192 - 42)]
@@ -303,20 +303,20 @@ def test_receive_unbuffered_stream_partial_content(user_file):
 
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, size + 1)
+        op = ops.Write(dst, src, buf, size + 1)
         with pytest.raises(errors.PartialContent):
             op.run()
 
 
 @pytest.mark.parametrize("offset,size", OFFSET_SIZE)
-def test_receive_no_size(user_file, offset, size):
+def test_write_no_size(user_file, offset, size):
     with io.open(user_file.path, "wb") as f:
         f.truncate(offset + size)
 
     src = io.BytesIO(b"x" * size)
     with file.open(user_file.url, "r+") as dst, \
             util.aligned_buffer(1024**2) as buf:
-        op = ops.Receive(dst, src, buf, offset=offset)
+        op = ops.Write(dst, src, buf, offset=offset)
         op.run()
 
     with io.open(user_file.path, "rb") as f:
