@@ -60,6 +60,9 @@ class Operation(object):
             s.bytes += self.done
         return res
 
+    def _run(self):
+        raise NotImplementedError("Must be implemented by sub class")
+
     def cancel(self):
         log.debug("Cancelling operation %s", self)
         self._canceled = True
