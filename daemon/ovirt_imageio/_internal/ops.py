@@ -241,11 +241,8 @@ class Zero(Operation):
                 raise Canceled
 
         if self._flush:
-            self.flush()
-
-    def flush(self):
-        with self._record("flush"):
-            self._dst.flush()
+            with self._record("flush"):
+                self._dst.flush()
 
 
 class Flush(Operation):
