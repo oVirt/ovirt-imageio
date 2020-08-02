@@ -30,12 +30,12 @@ class Operation(object):
     # Should be overriden in sub classes.
     name = "operation"
 
-    def __init__(self, size=None, offset=0, buf=None, clock=stats.NullClock()):
+    def __init__(self, size=None, offset=0, buf=None, clock=None):
         self._size = size
         self._offset = offset
         self._buf = buf
         self._done = 0
-        self._clock = clock
+        self._clock = clock or stats.NullClock()
         self._canceled = False
 
     @property
@@ -88,7 +88,7 @@ class Read(Operation):
 
     name = "read"
 
-    def __init__(self, src, dst, buf, size, offset=0, clock=stats.NullClock()):
+    def __init__(self, src, dst, buf, size, offset=0, clock=None):
         super().__init__(size=size, offset=offset, buf=buf, clock=clock)
         self._src = src
         self._dst = dst
@@ -135,7 +135,7 @@ class Write(Operation):
     name = "write"
 
     def __init__(self, dst, src, buf, size=None, offset=0, flush=True,
-                 clock=stats.NullClock()):
+                 clock=None):
         super().__init__(size=size, offset=offset, buf=buf, clock=clock)
         self._src = src
         self._dst = dst
@@ -222,8 +222,7 @@ class Zero(Operation):
     # extremely fast so the difference is tiny.
     MAX_STEP = 128 * 1024**2
 
-    def __init__(self, dst, size, offset=0, flush=False,
-                 clock=stats.NullClock()):
+    def __init__(self, dst, size, offset=0, flush=False, clock=None):
         super().__init__(size=size, offset=offset, clock=clock)
         self._dst = dst
         self._flush = flush
@@ -252,7 +251,7 @@ class Flush(Operation):
 
     name = "flush"
 
-    def __init__(self, dst, clock=stats.NullClock()):
+    def __init__(self, dst, clock=None):
         super().__init__(clock=clock)
         self._dst = dst
 

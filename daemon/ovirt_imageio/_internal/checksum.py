@@ -13,7 +13,6 @@ from . import backends
 from . import errors
 from . import http
 from . import ops
-from . import stats
 from . import validate
 
 log = logging.getLogger("checksum")
@@ -81,7 +80,7 @@ class Operation(ops.Operation):
 
     name = "checksum"
 
-    def __init__(self, backend, buf, algorithm, clock=stats.NullClock()):
+    def __init__(self, backend, buf, algorithm, clock=None):
         super().__init__(size=backend.size(), buf=buf, clock=clock)
         self._backend = backend
         self._algorithm = algorithm
