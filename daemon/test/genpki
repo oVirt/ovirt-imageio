@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Usage: genpki [TARGET]
+# Generates PKI files for imageio tests into pki/$TARGET directory.
+# $TARGET is also used as common name (CN) in CA certificate.
+# If no target is provided, "system" is used as a target.
+
+TARGET="${1:-"system"}"
+
 tmpdir="$(mktemp -d pki.XXXXXXXXXX)"
 
 # Create CA private key.
@@ -13,7 +20,7 @@ openssl req \
     -key "$tmpdir/cakey.pem" \
     -sha256 \
     -days 3650 \
-    -subj "/CN=engine" \
+    -subj "/CN=${TARGET}" \
     -out "$tmpdir/ca.pem"
 
 # Create host private key.
@@ -26,7 +33,7 @@ openssl req \
     -subj "/CN=localhost" \
     -out "$tmpdir/cert.csr"
 
-# Create confiugrtion file or adding extensions.
+# Create configuration file or adding extensions.
 cat > "$tmpdir/cert.conf" <<EOF
 [san]
 subjectAltName = @alt_names
@@ -52,7 +59,7 @@ openssl x509 \
     -sha256 \
     -out "$tmpdir/cert.pem"
 
-mv "$tmpdir"/{ca.pem,cert.pem} "pki/"
-mv "$tmpdir/key.pem" "pki/"
+mkdir -p "pki/$TARGET"
+mv "$tmpdir"/{ca.pem,cert.pem,key.pem} "pki/$TARGET"
 
 rm -rf "$tmpdir"
