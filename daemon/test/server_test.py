@@ -31,9 +31,9 @@ user_name = {user_name}
 group_name = {group_name}
 
 [tls]
-key_file = test/pki/key.pem
-cert_file = test/pki/cert.pem
-ca_file = test/pki/ca.pem
+key_file = test/pki/system/key.pem
+cert_file = test/pki/system/cert.pem
+ca_file = test/pki/system/ca.pem
 
 [remote]
 port = 0
