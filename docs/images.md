@@ -4,7 +4,7 @@ redirect_from:
 ---
 # Images API
 
-# Overview
+## Overview
 
 The /images/ resource allows transferring virtual disk images and
 VM backups when using oVirt backup API.
