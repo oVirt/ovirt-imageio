@@ -137,6 +137,14 @@ fi
 
 %changelog
 
+* Wed Aug 5 2020 Nir Soffer <nsoffer@redhatcom> 2.0.10-1
+- Support 3rd party certificates #BZ1862107
+- Imageio low level API #BZ1855047
+- Compute image checksums #BZ1787906
+- Support transfer cancellation #BZ1524184
+- Imporve error reporting in io.copy() #BZ1854550
+- Create configuration directories
+
 * Wed Jul 1 2020 Nir Soffer <nsoffer@redhat.com> 2.0.9-1
 - Fix ipv6 regression in 2.0.8-1 #BZ1851707
 - Fix preallocation on NFS 4.2 and GlusterFS #BZ1851256
