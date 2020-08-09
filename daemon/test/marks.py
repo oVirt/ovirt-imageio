@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import pytest
 import six
 
+from . import ci
 from . import distro
 from . import testutil
 
@@ -25,3 +26,6 @@ requires_python3 = pytest.mark.skipif(six.PY2, reason="Requires python 3")
 requires_ipv6 = pytest.mark.skipif(
     not testutil.ipv6_enabled(),
     reason="IPv6 not available")
+
+flaky_in_ovirt_ci = pytest.mark.xfail(
+    ci.is_ovirt(), reason="Test is flaky in oVirt CI", strict=False)

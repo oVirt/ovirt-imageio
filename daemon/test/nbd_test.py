@@ -24,6 +24,7 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 
 from . import backup
+from . import ci
 from . import distro
 from . import storage
 from . import testutil
@@ -551,7 +552,7 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
     pytest.param(
         "raw",
         marks=pytest.mark.xfail(
-            distro.is_centos("8") and ("OVIRT_CI" in os.environ),
+            distro.is_centos("8") and ci.is_ovirt(),
             reason="unaligned write fails on el8/oVirt CI")
     ),
     pytest.param("qcow2", marks=requires_advanced_virt),
