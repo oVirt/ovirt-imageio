@@ -138,6 +138,10 @@ class Backend(object):
             raise
 
     @property
+    def name(self):
+        return "http"
+
+    @property
     def block_size(self):
         return 1
 

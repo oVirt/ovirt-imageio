@@ -43,7 +43,7 @@ def test_get_caching(tmpurl, cfg):
     # Context is cached in the ticket.
     assert ticket.get_context(req.connection_id) is c1
     assert c1.backend.name == "file"
-    assert len(c1.buffer) == cfg.daemon.buffer_size
+    assert len(c1.buffer) == cfg.backend_file.buffer_size
 
     # Next call return the cached instance.
     c2 = backends.get(req, ticket, cfg)

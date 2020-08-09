@@ -66,7 +66,7 @@ def test_images_extents(daemon, proxy, tmpfile):
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_download_full(daemon, proxy, tmpfile, align):
     # Simple download of entire image as done by stupid clients.
-    size = proxy.config.daemon.buffer_size + align
+    size = proxy.config.backend_file.buffer_size + align
     data = b"x" * size
 
     with open(tmpfile, "wb") as f:
@@ -163,7 +163,7 @@ def test_images_download_missing_image(daemon, proxy):
 @pytest.mark.parametrize("align", [-4096, 0, 4096])
 def test_images_upload_full(daemon, proxy, tmpfile, align):
     # Simple upload of entire image as done by stupid clients.
-    size = proxy.config.daemon.buffer_size + align
+    size = proxy.config.backend_file.buffer_size + align
     data = b"x" * size
 
     # Create empty sparse image.
@@ -321,7 +321,7 @@ def test_images_flush(daemon, proxy, tmpfile):
         ["test/conf/proxy.conf", "test/conf/user-tls.conf"], id="user")
 ])
 def test_tls(daemon, tmpfile, conf_files):
-    size = daemon.config.daemon.buffer_size
+    size = daemon.config.backend_file.buffer_size
     data = b"x" * size
 
     with open(tmpfile, "wb") as f:

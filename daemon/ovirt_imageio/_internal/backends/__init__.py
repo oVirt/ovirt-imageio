@@ -86,7 +86,8 @@ def get(req, ticket, config):
             max_connections=config.daemon.max_connections,
             cafile=ca_file)
 
-        buf = util.aligned_buffer(config.daemon.buffer_size)
+        backend_config = getattr(config, "backend_" + backend.name)
+        buf = util.aligned_buffer(backend_config.buffer_size)
         ctx = Context(backend, buf)
 
         # Keep the context in the ticket so we monitor the number of

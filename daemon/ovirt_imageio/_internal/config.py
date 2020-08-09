@@ -14,12 +14,6 @@ class daemon:
     # Interval in seconds for checking termination conditions.
     poll_interval = 1.0
 
-    # Buffer size in bytes for data operations. The default value seems
-    # to give optimal throughput with both low end and high end storage,
-    # using iSCSI and FC. Larger values may increase throughput
-    # slightly, but may also decrease it significantly.
-    buffer_size = 8388608
-
     # Maximum number of connections for same /image/ticket-id URL. Using more
     # connections improves throughput of a single image transfer. When
     # transferring images concurrently, using more connections per transfer may
@@ -78,6 +72,16 @@ class tls:
     enable_tls1_1 = False
 
 
+class backend_file:
+
+    # Buffer size in bytes for reading and writing using the file backend. The
+    # default value seems to give optimal throughput with both low end and high
+    # end storage, using iSCSI and FC. Larger values may increase throughput
+    # slightly, but may also decrease it significantly.
+    # TODO: Tested with single writer, needs testing with multiple readers.
+    buffer_size = 8 * 1024**2
+
+
 class backend_http:
 
     # CA certificate file to be used with HTTP backend. Empty value is valid,
@@ -87,6 +91,19 @@ class backend_http:
     # these CAs are the same and one would use same value as configured in
     # tls.ca_file option.
     ca_file = ""
+
+    # Buffer size in bytes for handling proxy requests. The default value was
+    # copied form the file backend.
+    # TODO: Needs testing with multiple readers and writers.
+    buffer_size = 8 * 1024**2
+
+
+class backend_nbd:
+
+    # Buffer size in bytes when reading and writing to the nbd backend. The
+    # default value was copied form the file backend.
+    # TODO: Needs testing with multiple readers and writers.
+    buffer_size = 8 * 1024**2
 
 
 class remote:
@@ -198,7 +215,9 @@ class Config:
 
         self.daemon = daemon()
         self.tls = tls()
+        self.backend_file = backend_file()
         self.backend_http = backend_http()
+        self.backend_nbd = backend_nbd()
         self.remote = remote()
         self.local = local()
         self.control = control()

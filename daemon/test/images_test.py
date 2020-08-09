@@ -480,11 +480,11 @@ def test_download_out_of_range(tmpdir, srv, client, rng, end):
 
 def test_download_progress(tmpdir, srv, client, monkeypatch):
     # We need to read at least one buffer to update the transfered value.
-    monkeypatch.setattr(srv.config.daemon, "buffer_size", 1024**2)
+    monkeypatch.setattr(srv.config.backend_file, "buffer_size", 1024**2)
 
     # And we need to request enough data so the server does not complete before
     # the client read all the data.
-    size = srv.config.daemon.buffer_size * 50
+    size = srv.config.backend_file.buffer_size * 50
 
     filename = tmpdir.join("image")
     with open(str(filename), 'wb') as image:
@@ -499,7 +499,7 @@ def test_download_progress(tmpdir, srv, client, monkeypatch):
     assert ticket.transferred() == 0
 
     res = client.get("/images/" + ticket.uuid)
-    res.read(srv.config.daemon.buffer_size)
+    res.read(srv.config.backend_file.buffer_size)
 
     # The server processed at least one buffer but we need to give it time
     # to touch the ticket.

@@ -32,13 +32,6 @@
 # The default internal:
 #   poll_interval = 1.0
 
-# Buffer size in bytes for data operations. The default value seems to
-# give optimal throughput with both low end and high end storage, using
-# iSCSI and FC. Larger values may increase throughput slightly, but may
-# also decrease it significantly.
-# The default buffer size:
-#   buffer_size = 8388608
-
 # Maximum number of connections for same /image/ticket-id URL. Using more
 # connections improves throughput of a single image transfer. When transferring
 # images concurrently, using more connections per transfer may decrease
@@ -83,6 +76,16 @@
 # The default value:
 #   enable_tls1_1 = false
 
+[backend_file]
+# Buffer size in bytes for reading and writing using the file backend.
+# The default value seems to give optimal throughput with both low end
+# and high end storage, using iSCSI and FC. Larger values may increase
+# throughput slightly, but may also decrease it significantly. The
+# default value was tested with single connection and requires more
+# testing with multiple connections.
+# The default buffer size:
+#   buffer_size = 8388608
+
 [backend_http]
 # CA certificate file to be used with HTTP backend. Empty value is valid,
 # meaning use CA file configured in TLS section.
@@ -93,14 +96,28 @@
 # The default value:
 #   ca_file =
 
+# Buffer size in bytes for handling proxy requests. The default value
+# was copied from the file backend and requires more testing with
+# multiple connections.
+# The default buffer size:
+#   buffer_size = 8388608
+
+[backend_nbd]
+# Buffer size in bytes for reading and writing to the nbd backend. The
+# default value was copied from the file backend and requires more
+# testing with multiple connections.
+# The default buffer size:
+#   buffer_size = 8388608
+
 [remote]
 # Remote service interface. Use "::" to listen on any interface on both
 # IPv4 and IPv6. To listen only on IPv4, use "0.0.0.0".
 # The default value:
 #   host = ::
 
-# Remote service port. Changing this value require change in the firewall
-# rules on the host, and changing this value in engine configuration.
+# Remote service port. Changing this value requires changes in the
+# firewall rules on the host, and changing this value in engine
+# configuration.
 # The defualt value:
 #   port = 54322
 
