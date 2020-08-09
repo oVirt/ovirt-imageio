@@ -23,14 +23,21 @@ from . import qemu
 from . import qmp
 from . import testutil
 
-from . marks import requires_advanced_virt, requires_python3
+from . marks import (
+    flaky_in_ovirt_ci,
+    requires_advanced_virt,
+    requires_python3,
+)
 
 pytestmark = requires_python3
 
 log = logging.getLogger("test")
 
 
-@pytest.mark.parametrize("transport", ["unix", "tcp"])
+@pytest.mark.parametrize("transport", [
+    "unix",
+    pytest.param("tcp", marks=flaky_in_ovirt_ci),
+])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_full_backup(tmpdir, fmt, transport):
     disk_size = 1024**2

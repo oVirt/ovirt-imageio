@@ -29,7 +29,12 @@ from . import distro
 from . import storage
 from . import testutil
 
-from . marks import requires_advanced_virt, requires_python3, requires_ipv6
+from . marks import (
+    flaky_in_ovirt_ci,
+    requires_advanced_virt,
+    requires_ipv6,
+    requires_python3,
+)
 
 pytestmark = requires_python3
 
@@ -52,7 +57,10 @@ def user_file(request):
         yield backend
 
 
-@pytest.fixture(params=["unix", "tcp"])
+@pytest.fixture(params=[
+    "unix",
+    pytest.param("tcp", marks=flaky_in_ovirt_ci),
+])
 def nbd_sock(request, tmpdir):
     if request.param == "unix":
         return nbd.UnixAddress(tmpdir.join("sock"))
@@ -286,6 +294,7 @@ def test_open_unix(tmpdir, url, export):
             assert c.export_size == 1024**3
 
 
+@flaky_in_ovirt_ci
 @pytest.mark.parametrize("url_template,host,export", [
     # Note: We get Unicode URL when parsing ticket JSON.
     # DNS name

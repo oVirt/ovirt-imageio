@@ -18,7 +18,7 @@ from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import nbd
 
 from . import testutil
-from . marks import requires_python3
+from . marks import requires_python3, flaky_in_ovirt_ci
 
 
 class Request(object):
@@ -100,7 +100,10 @@ def test_get_sparse(tmpurl, cfg, sparse):
 
 
 @requires_python3
-@pytest.mark.parametrize("transport", ["unix", "tcp"])
+@pytest.mark.parametrize("transport", [
+    "unix",
+    pytest.param("tcp", marks=flaky_in_ovirt_ci),
+])
 def test_get_nbd_backend(tmpdir, cfg, nbd_server, transport):
     if transport == "unix":
         nbd_server.sock = nbd.UnixAddress(tmpdir.join("sock"))

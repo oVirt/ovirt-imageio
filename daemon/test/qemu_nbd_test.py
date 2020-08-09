@@ -24,7 +24,7 @@ from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import sockutil
 
 from . import testutil
-from . marks import requires_python3
+from . marks import requires_python3, flaky_in_ovirt_ci
 
 pytestmark = requires_python3
 
@@ -155,6 +155,7 @@ def test_run_unix(tmpdir):
     assert not sockutil.wait_for_socket(addr, 0.0)
 
 
+@flaky_in_ovirt_ci
 def test_run_tcp(tmpfile):
     with io.open(tmpfile, "r+b") as f:
         f.truncate(1024**2)
