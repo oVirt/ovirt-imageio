@@ -440,18 +440,20 @@ def test_zero_aligned_after_end(user_file, sparse):
 
 
 def test_zero_allocate_space(user_file):
+    size = 1024**2
     with file.open(user_file.url, "r+", sparse=False) as f:
-        f.zero(8192)
+        f.zero(size)
     # File system may report more than file size.
-    assert os.stat(user_file.path).st_blocks * 512 >= 8192
+    assert os.stat(user_file.path).st_blocks * 512 >= size
 
 
 def test_zero_sparse_deallocate_space(user_file):
+    size = 1024**2
     with io.open(user_file.path, "wb") as f:
-        f.write(b"x" * 8192)
+        f.write(b"x" * size)
     with file.open(user_file.url, "r+", sparse=True) as f:
-        f.zero(8192)
-    assert os.stat(user_file.path).st_blocks * 512 < 8192
+        f.zero(size)
+    assert os.stat(user_file.path).st_blocks * 512 < size
 
 
 def test_zero_unaligned_offset_complete(user_file):
