@@ -6,13 +6,13 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-import hashlib
 import os
 import tarfile
 
 import pytest
 
 from ovirt_imageio import client
+from ovirt_imageio._internal import blkhash
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import ipv6
 from ovirt_imageio._internal import qemu_img
@@ -557,10 +557,9 @@ def test_checksum(tmpdir, fmt, compressed):
     img = str(tmpdir.join("img"))
     qemu_img.convert(tmp, img, "raw", fmt, compressed=compressed)
 
-    with open(tmp, "rb") as f:
-        checksum = hashlib.sha1(f.read()).hexdigest()
-
-    assert client.checksum(img) == checksum
+    expected = blkhash.checksum(tmp, block_size=1024**2)
+    actual = client.checksum(img, block_size=1024**2)
+    assert actual == expected
 
 
 @pytest.mark.parametrize("fmt, compressed", [
@@ -586,18 +585,20 @@ def test_checksum_from_ova(tmpdir, fmt, compressed):
     with tarfile.open(ova, "w") as tar:
         tar.add(img, arcname=member)
 
-    with open(tmp, "rb") as f:
-        checksum = hashlib.sha1(f.read()).hexdigest()
+    expected = blkhash.checksum(tmp, block_size=1024**2)
+    actual = client.checksum(ova, member=member, block_size=1024**2)
+    assert actual == expected
 
-    assert client.checksum(ova, member=member) == checksum
 
-
-@pytest.mark.parametrize("algorithm", ["sha1", "sha256"])
-def test_checksum_algorithm(tmpdir, algorithm):
+@pytest.mark.parametrize("algorithm,digest_size", [
+    ("blake2b", 32),
+    ("sha1", None),
+])
+def test_checksum_algorithm(tmpdir, algorithm, digest_size):
     img = str(tmpdir.join("img"))
     qemu_img.create(img, "raw", size="2m")
 
-    with open(img, "rb") as f:
-        checksum = hashlib.new(algorithm, f.read()).hexdigest()
-
-    assert client.checksum(img, algorithm=algorithm) == checksum
+    expected = blkhash.checksum(
+        img, block_size=1024**2, algorithm=algorithm, digest_size=digest_size)
+    actual = client.checksum(img, block_size=1024**2, algorithm=algorithm)
+    assert actual == expected

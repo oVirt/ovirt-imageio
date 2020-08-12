@@ -19,6 +19,7 @@ import tempfile
 from contextlib import contextmanager
 from urllib.parse import urlparse
 
+from .. _internal import blkhash
 from .. _internal import checksum as _checksum
 from .. _internal import io
 from .. _internal import qemu_img
@@ -193,12 +194,22 @@ def measure(filename, dst_fmt, member=None):
         return qemu_img.measure(filename, dst_fmt)
 
 
-def checksum(filename, member=None, algorithm="sha1"):
+def checksum(filename, member=None, block_size=blkhash.BLOCK_SIZE,
+             algorithm="blake2b", detect_zeroes=True):
     """
     Compute image checksum.
 
-    If member is specified, filename must be a tar file, and the call returns
-    checksum for file named member inside the tar file.
+    Arguments:
+        member (str): If specified, filename must be a tar file, and the call
+            returns checksum for image named member inside the tar file.
+        block_size (int): block size for computing the checksum. When comparing
+            to remote server checksum, the block size must match the remote
+            server block size, otherwise the checksums will not match.
+        algorithm (str): must one of the algorithms supported by python. See
+            python documentation for available algorithms.
+        detect_zeroes (bool): Detect zeroes in data extents, speeding up
+            checksum calculation of preallocated images or sparse images on
+            storage that does not report sparseness information.
     """
     # Get image format and if member specified, its offset and size.
     image_info = info(filename, member=member)
@@ -209,8 +220,9 @@ def checksum(filename, member=None, algorithm="sha1"):
             read_only=True,
             offset=image_info.get("member-offset"),
             size=image_info.get("member-size")) as backend:
-        buf = bytearray(io.BUFFER_SIZE)
-        return _checksum.compute(backend, buf, algorithm=algorithm)
+        buf = bytearray(block_size)
+        return _checksum.compute(
+            backend, buf, algorithm=algorithm, detect_zeroes=detect_zeroes)
 
 
 class ImageioClient:

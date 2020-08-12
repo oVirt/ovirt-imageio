@@ -13,6 +13,7 @@ import os
 import userstorage
 import pytest
 
+from ovirt_imageio._internal import blkhash
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
@@ -94,8 +95,7 @@ def test_file_backend(srv, client, user_file, fmt):
         c.flush()
 
     # File backend operate on host data, not guest data.
-    with open(user_file.path, "rb") as f:
-        checksum = hashlib.sha1(f.read()).hexdigest()
+    checksum = blkhash.checksum(user_file.path)
 
     # File backend uses actual size, not vitual size.
     size = os.path.getsize(user_file.path)
@@ -108,7 +108,57 @@ def test_file_backend(srv, client, user_file, fmt):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {"checksum": checksum, "algorithm": "sha1"}
+    assert res == {
+        "checksum": checksum,
+        "algorithm": "blake2b",
+        "block_size": blkhash.BLOCK_SIZE,
+    }
+
+
+@pytest.mark.parametrize("block_size", [
+    blkhash.BLOCK_SIZE // 4,
+    blkhash.BLOCK_SIZE,
+    blkhash.BLOCK_SIZE + 4096,
+    blkhash.BLOCK_SIZE * 4,
+])
+def test_user_block_size(srv, client, tmpdir, block_size):
+    size = 2 * 1024**2
+
+    img = str(tmpdir.join("file"))
+    qemu_img.create(img, "raw", size=size)
+
+    # File backend operate on host data, not guest data.
+    checksum = blkhash.checksum(img, block_size=block_size)
+
+    ticket = testutil.create_ticket(url="file://" + img, size=size)
+    srv.auth.add(ticket)
+
+    res = client.request("GET", "/images/{}/checksum?block_size={}"
+                         .format(ticket["uuid"], block_size))
+    data = res.read()
+    assert res.status == 200
+
+    res = json.loads(data)
+    assert res == {
+        "checksum": checksum,
+        "algorithm": "blake2b",
+        "block_size": block_size,
+    }
+
+
+@pytest.mark.parametrize("block_size", [
+    "invalid",
+    blkhash.BLOCK_SIZE // 4 - 1,
+    blkhash.BLOCK_SIZE * 4 + 1,
+    blkhash.BLOCK_SIZE + 1,
+])
+def test_user_block_size_invalid(srv, client, block_size):
+    ticket = testutil.create_ticket(url="file:///no/such/file")
+    srv.auth.add(ticket)
+    res = client.request("GET", "/images/{}/checksum?block_size={}"
+                         .format(ticket["uuid"], block_size))
+    res.read()
+    assert res.status == 400
 
 
 @pytest.mark.parametrize("fmt,compressed", [
@@ -130,8 +180,7 @@ def test_nbd_backend(srv, client, tmpdir, nbd_server, fmt, compressed):
         f.write(b"some data")
 
     # NBD backend checksums guest visible data.
-    with open(tmp, "rb") as f:
-        checksum = hashlib.sha1(f.read()).hexdigest()
+    checksum = blkhash.checksum(tmp)
 
     # Create test image.
     qemu_img.convert(tmp, nbd_server.image, "raw", fmt, compressed=compressed)
@@ -147,30 +196,42 @@ def test_nbd_backend(srv, client, tmpdir, nbd_server, fmt, compressed):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {"checksum": checksum, "algorithm": "sha1"}
+    assert res == {
+        "checksum": checksum,
+        "algorithm": "blake2b",
+        "block_size": blkhash.BLOCK_SIZE,
+    }
 
 
-@pytest.mark.parametrize("algorithm", ["sha1", "sha256"])
-def test_algorithms(srv, client, tmpdir, algorithm):
+@pytest.mark.parametrize("algorithm,digest_size", [
+    ("blake2b", 32),
+    ("sha1", None),
+])
+def test_algorithms(srv, client, tmpdir, algorithm, digest_size):
     size = 2 * 1024**2
+
     image = str(tmpdir.join("image"))
     qemu_img.create(image, "raw", size=size)
     ticket = testutil.create_ticket(url="file://" + image, size=size)
     srv.auth.add(ticket)
 
     # File backend operate on host data, not guest data.
-    with open(image, "rb") as f:
-        checksum = hashlib.new(algorithm, f.read()).hexdigest()
+    checksum = blkhash.checksum(
+        image, algorithm=algorithm, digest_size=digest_size)
 
-    res = client.request(
-        "GET",
-        "/images/{}/checksum?algorithm={}"
-        .format(ticket["uuid"], algorithm))
+    path = "/images/{}/checksum?algorithm={}".format(
+        ticket["uuid"], algorithm)
+
+    res = client.request("GET", path)
     data = res.read()
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {"checksum": checksum, "algorithm": algorithm}
+    assert res == {
+        "checksum": checksum,
+        "algorithm": algorithm,
+        "block_size": blkhash.BLOCK_SIZE,
+    }
 
 
 def test_algorithms_unknown(srv, client, tmpdir):

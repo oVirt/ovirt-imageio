@@ -10,14 +10,21 @@ import hashlib
 import logging
 
 from . import backends
+from . import blkhash
 from . import errors
 from . import http
+from . import ioutil
 from . import ops
+from . import util
 from . import validate
 
 log = logging.getLogger("checksum")
 
 ALGORITHMS = frozenset(hashlib.algorithms_available)
+
+# Limit allowed block size to avoid abusing server resources.
+MIN_BLOCK_SIZE = blkhash.BLOCK_SIZE // 4
+MAX_BLOCK_SIZE = blkhash.BLOCK_SIZE * 4
 
 
 class Checksum:
@@ -33,30 +40,54 @@ class Checksum:
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
-        try:
-            ticket = self.auth.authorize(ticket_id, "read")
-        except errors.AuthorizationError as e:
-            raise http.Error(http.FORBIDDEN, str(e))
-
         algorithm = validate.enum(
             req.query,
             "algorithm",
             ALGORITHMS,
-            default="sha1")
+            default="blake2b")
 
-        log.info("[%s] CHECKSUM ticket=%s algorithm=%s",
-                 req.client_addr, ticket_id, algorithm)
-
-        ctx = backends.get(req, ticket, self.config)
-
-        op = Operation(ctx.backend, ctx.buffer, algorithm, clock=req.clock)
         try:
-            checksum = ticket.run(op)
-        except errors.AuthorizationError as e:
-            resp.close_connection()
-            raise http.Error(http.FORBIDDEN, str(e)) from None
+            block_size = int(req.query.get("block_size", blkhash.BLOCK_SIZE))
+        except ValueError:
+            raise http.Error(
+                http.BAD_REQUEST,
+                "Invalid block size: {!r}".format(req.query["block_size"]))
 
-        resp.send_json({"checksum": checksum, "algorithm": algorithm})
+        if not MIN_BLOCK_SIZE <= block_size <= MAX_BLOCK_SIZE:
+            raise http.Error(
+                http.BAD_REQUEST,
+                "Block size out of allowed range: {}-{}"
+                .format(MIN_BLOCK_SIZE, MAX_BLOCK_SIZE))
+
+        if block_size % 4096:
+            raise http.Error(
+                http.BAD_REQUEST, "Block size is not aligned to 4096")
+
+        try:
+            ticket = self.auth.authorize(ticket_id, "read")
+            ctx = backends.get(req, ticket, self.config)
+        except errors.AuthorizationError as e:
+            raise http.Error(http.FORBIDDEN, str(e))
+
+        log.info("[%s] CHECKSUM ticket=%s algorithm=%s block_size=%s",
+                 req.client_addr, ticket_id, algorithm, block_size)
+
+        # For simplicity we create a new buffer even if block_size is same as
+        # ctx.buffer length.
+
+        with util.aligned_buffer(block_size) as buf:
+            op = Operation(ctx.backend, buf, algorithm, clock=req.clock)
+            try:
+                checksum = ticket.run(op)
+            except errors.AuthorizationError as e:
+                resp.close_connection()
+                raise http.Error(http.FORBIDDEN, str(e)) from None
+
+        resp.send_json({
+            "checksum": checksum,
+            "algorithm": algorithm,
+            "block_size": block_size,
+        })
 
 
 class Algorithms:
@@ -80,28 +111,35 @@ class Operation(ops.Operation):
 
     name = "checksum"
 
-    def __init__(self, backend, buf, algorithm, clock=None):
+    def __init__(self, backend, buf, algorithm, detect_zeroes=True,
+                 clock=None):
         super().__init__(size=backend.size(), buf=buf, clock=clock)
         self._backend = backend
         self._algorithm = algorithm
+        self._detect_zeroes = detect_zeroes
 
     def _run(self):
-        h = Hasher(self._algorithm)
+        block_size = len(self._buf)
+        h = blkhash.Hash(
+            block_size=block_size,
+            algorithm=self._algorithm,
+            # Only blakse2b and blake2s support variable digest size, and 32
+            # works with both and is large enough.
+            digest_size=32 if self._algorithm.startswith("blake2") else None)
 
-        # TODO: Split big extents to have progress for preallocated or empty
-        # images.
-        for extent in self._backend.extents("zero"):
-            if extent.data:
-                self._backend.seek(extent.start)
-                with self._record("read_from") as s:
-                    h.read_from(self._backend, extent.length, self._buf)
-                    s.bytes += extent.length
+        for block in blkhash.split(self._backend.extents("zero"), block_size):
+            if block.zero:
+                h.zero(block.length)
             else:
-                with self._record("zero") as s:
-                    h.zero(extent.length)
-                    s.bytes += extent.length
+                with memoryview(self._buf)[:block.length] as view:
+                    self._backend.seek(block.start)
+                    self._backend.readinto(view)
+                    if self._detect_zeroes and ioutil.is_zero(view):
+                        h.zero(block.length)
+                    else:
+                        h.update(view)
 
-            self._done += extent.length
+            self._done += block.length
 
             if self._canceled:
                 raise ops.Canceled
@@ -109,45 +147,9 @@ class Operation(ops.Operation):
         return h.hexdigest()
 
 
-def compute(backend, buf, algorithm="sha1"):
+def compute(backend, buf, algorithm="sha1", detect_zeroes=True):
     """
     Compute image checksum.
     """
-    op = Operation(backend, buf, algorithm)
+    op = Operation(backend, buf, algorithm, detect_zeroes=detect_zeroes)
     return op.run()
-
-
-class Hasher:
-
-    def __init__(self, algorithm):
-        self._hash = hashlib.new(algorithm)
-
-    def read_from(self, reader, length, buf):
-        todo = length
-        max_step = len(buf)
-
-        with memoryview(buf) as view:
-            while todo:
-                step = min(todo, max_step)
-                n = reader.readinto(view[:step])
-                if n == 0:
-                    raise RuntimeError(
-                        "Expected {} bytes, got {} bytes"
-                        .format(length, length - todo))
-
-                self._hash.update(view[:n])
-                todo -= n
-
-    def zero(self, count):
-        step = min(64 * 1024, count)
-        buf = bytearray(step)
-
-        while count > step:
-            self._hash.update(buf)
-            count -= step
-
-        with memoryview(buf)[:count] as v:
-            self._hash.update(v)
-
-    def hexdigest(self):
-        return self._hash.hexdigest()
