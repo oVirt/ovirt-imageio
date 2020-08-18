@@ -18,6 +18,7 @@ import logging.config
 import os
 import pwd
 import signal
+import socket
 import sys
 
 import systemd.daemon
@@ -41,7 +42,8 @@ def main():
             return
 
         configure_logger(cfg)
-        log.info("Starting (pid=%s, version=%s)", os.getpid(), version.string)
+        log.info("Starting (hostname=%s pid=%s, version=%s)",
+                 socket.gethostname(), os.getpid(), version.string)
 
         server = Server(cfg)
         signal.signal(signal.SIGINT, server.terminate)
