@@ -297,11 +297,11 @@ class Ticket(object):
                 op.cancel()
 
         if timeout:
-            log.debug("Waiting until ticket %s is unused", self.uuid)
+            log.info("Waiting until ticket %s is unused", self.uuid)
             if not self._unused.wait(timeout):
                 raise errors.TicketCancelTimeout(self.uuid)
 
-            log.debug("Ticket %s was canceled", self.uuid)
+            log.info("Ticket %s was canceled", self.uuid)
             return True
 
         # The caller need to poll the number of connections.
