@@ -86,12 +86,10 @@ Result:   [xxxxxxxxxxxxx|0000000000000|xxxxxx]
 from __future__ import absolute_import
 
 import logging
+import queue
 import sys
 
 from collections import namedtuple
-
-import six
-from six.moves import queue
 
 from . import util
 
@@ -198,7 +196,7 @@ def copy(src_client, dst_client, block_size=4 * 1024**2, queue_depth=4,
     writer.join()
 
     if error[0]:
-        six.reraise(*error[0])
+        raise error[0][1]
 
 
 # Request ops.
