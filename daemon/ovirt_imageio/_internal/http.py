@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import errno
+import http.server
 import io
 import ipaddress
 import itertools
@@ -16,11 +17,8 @@ import json
 import logging
 import re
 import socket
-
-import six
-from six.moves import BaseHTTPServer
-from six.moves import socketserver
-from six.moves import urllib
+import socketserver
+import urllib
 
 from . import stats
 from . import version
@@ -69,7 +67,7 @@ class Error(Exception):
 
 
 class Server(socketserver.ThreadingMixIn,
-             BaseHTTPServer.HTTPServer):
+             http.server.HTTPServer):
     """
     Threaded HTTP server.
     """
@@ -141,7 +139,7 @@ class Server(socketserver.ThreadingMixIn,
         self.server_address = self.server_address[:2]
 
 
-class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
+class Connection(http.server.BaseHTTPRequestHandler):
     """
     HTTP server connection.
 
@@ -175,7 +173,7 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
         self.id = next(self._counter)
         log.info("OPEN connection=%s client=%s",
                  self.id, self.address_string())
-        BaseHTTPServer.BaseHTTPRequestHandler.setup(self)
+        super().setup()
         # Per connection context, used by application to cache state.
         self.context = Context()
         self.clock = self.server.clock_class()
@@ -188,7 +186,7 @@ class Connection(BaseHTTPServer.BaseHTTPRequestHandler):
         log.info("CLOSE connection=%s client=%s %s",
                  self.id, self.address_string(), self.clock)
         try:
-            BaseHTTPServer.BaseHTTPRequestHandler.finish(self)
+            super().finish()
         except socket.error as e:
             if e.args[0] not in _DISCONNECTED:
                 raise
@@ -347,7 +345,7 @@ class Request(object):
         python 3. Value that cannot be decoded to utf-8 are dropped silently.
         """
         if self._query is _UNKNOWN:
-            self._query = dict(parse_qsl(
+            self._query = dict(urllib.parse.parse_qsl(
                 self._query_string, keep_blank_values=True))
         return self._query
 
@@ -568,7 +566,7 @@ class Response(object):
                 self._con.date_time_string().encode("latin1"))
 
         # Write user headers.
-        for name, value in six.iteritems(self.headers):
+        for name, value in self.headers.items():
             # Encoding entire line to allow using integer value, for example
             # content-length.
             # Note: content-disposition may contain unicode values, so we must
@@ -844,20 +842,3 @@ def find_addresses(host, port=0):
             continue
 
         yield ai
-
-
-# Compatibility hacks
-
-if six.PY2:
-    def parse_qsl(qs, keep_blank_values=False, strict_parsing=False):
-        for k, v in urllib.parse.parse_qsl(
-                qs,
-                keep_blank_values=keep_blank_values,
-                strict_parsing=strict_parsing):
-            try:
-                yield k.decode("utf-8"), v.decode("utf-8")
-            except UnicodeDecodeError:
-                if strict_parsing:
-                    raise
-else:
-    parse_qsl = urllib.parse.parse_qsl

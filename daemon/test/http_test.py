@@ -9,6 +9,7 @@
 from __future__ import absolute_import
 
 import errno
+import http.client as http_client
 import io
 import json
 import logging
@@ -18,9 +19,6 @@ import time
 
 from contextlib import closing
 from contextlib import contextmanager
-
-import six
-from six.moves import http_client
 
 import pytest
 
@@ -167,9 +165,9 @@ class RequestInfo(object):
         # Ensure that req.query return decoded values. This is hard to test
         # using json response, since json accepts both text and bytes and
         # generate a bytestream that decodes to unicode on the other side.
-        for k, v in six.iteritems(req.query):
-            assert type(k) == six.text_type
-            assert type(v) == six.text_type
+        for k, v in req.query.items():
+            assert type(k) == str
+            assert type(v) == str
 
         # Simple values
         info = {
@@ -383,8 +381,7 @@ def test_demo_get_utf8_headers(server):
         cd = r.getheader("content-disposition")
         # HTTP permit only ASCII for headers content, so python 3 decode
         # headers using latin1. This fixes the bad decoding.
-        if six.PY3:
-            cd = cd.encode("latin1")
+        cd = cd.encode("latin1")
         cd = cd.decode("utf-8")
         assert cd == b"attachment; filename=\xd7\x90".decode("utf-8")
 
