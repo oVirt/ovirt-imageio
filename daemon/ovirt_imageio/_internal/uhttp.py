@@ -9,12 +9,10 @@
 from __future__ import absolute_import
 
 import errno
+import http.client as http_client
 import logging
 import os
 import socket
-
-import six
-from six.moves import http_client
 
 from . import http
 from . import util
@@ -44,11 +42,7 @@ class UnixHTTPConnection(_UnixMixin, http_client.HTTPConnection):
 
     def __init__(self, path, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
         self.path = path
-        extra = {}
-        if six.PY2:
-            extra['strict'] = True
-        http_client.HTTPConnection.__init__(self, "localhost", timeout=timeout,
-                                            **extra)
+        super().__init__("localhost", timeout=timeout)
 
     def connect(self):
         self.sock = _create_unix_socket(self.timeout)
