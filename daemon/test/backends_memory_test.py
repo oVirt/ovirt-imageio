@@ -8,8 +8,9 @@
 
 from __future__ import absolute_import
 
-from six.moves.urllib_parse import urlparse
 import pytest
+
+from urllib.parse import urlparse
 
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal.backends import image

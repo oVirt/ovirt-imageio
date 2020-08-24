@@ -46,7 +46,7 @@ import logging
 import os
 import subprocess
 
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from ovirt_imageio import nbd
 from ovirt_imageio import nbdutil

@@ -13,7 +13,7 @@ import time
 
 from contextlib import contextmanager
 
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import nbdutil

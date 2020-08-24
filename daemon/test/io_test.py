@@ -11,7 +11,7 @@ from __future__ import absolute_import
 import time
 import pytest
 
-from six.moves.urllib_parse import urlparse
+from urllib.parse import urlparse
 
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd

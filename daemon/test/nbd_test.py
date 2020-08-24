@@ -13,10 +13,10 @@ import io
 import logging
 import os
 
-from six.moves.urllib_parse import urlparse
-
 import pytest
 import userstorage
+
+from urllib.parse import urlparse
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import nbdutil

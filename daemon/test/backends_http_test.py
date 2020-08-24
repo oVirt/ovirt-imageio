@@ -12,8 +12,9 @@ import io
 import json
 import logging
 
-from six.moves.urllib_parse import urlparse
 import pytest
+
+from urllib.parse import urlparse
 
 from ovirt_imageio._internal import http
 from ovirt_imageio._internal import ssl
