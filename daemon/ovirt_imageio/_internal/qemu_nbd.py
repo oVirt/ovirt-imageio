@@ -11,10 +11,9 @@ from __future__ import absolute_import
 import json
 import logging
 import subprocess
+import urllib.parse
 
 from contextlib import contextmanager
-
-from six.moves import urllib_parse
 
 from . import nbd
 from . import sockutil
@@ -71,7 +70,7 @@ class Server(object):
     @property
     def url(self):
         url = self.sock.url(self.export_name)
-        return urllib_parse.urlparse(url)
+        return urllib.parse.urlparse(url)
 
     def start(self):
         cmd = [

@@ -12,8 +12,7 @@ import io
 import os
 import struct
 import tarfile
-
-from six.moves import urllib_parse
+import urllib.parse
 
 import pytest
 
@@ -39,7 +38,7 @@ pytestmark = requires_python3
 ])
 def test_server_url(addr, export, url):
     srv = qemu_nbd.Server("image", "raw", addr, export_name=export)
-    assert srv.url == urllib_parse.urlparse(url)
+    assert srv.url == urllib.parse.urlparse(url)
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
