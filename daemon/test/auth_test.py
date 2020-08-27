@@ -12,8 +12,6 @@ import time
 
 import pytest
 
-from six.moves import xrange
-
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import ops
@@ -239,17 +237,17 @@ def test_transferred_benchmark(concurrent):
 
     # Add some completed ranges - assume worst case when ranges are not
     # continues.
-    for i in xrange(concurrent):
+    for i in range(concurrent):
         ticket.run(Operation(i * 1000, 100))
 
     # Add some ongoing operations - assume worst case when ranges are not
     # continues.
-    for i in xrange(concurrent):
+    for i in range(concurrent):
         ticket._add_operation(Operation(i * 1000 + 200, 100))
 
     # Time transferred call - merging ongoing and completed ranges.
     start = time.monotonic()
-    for i in xrange(calls):
+    for i in range(calls):
         ticket.transferred()
     elapsed = time.monotonic() - start
 
