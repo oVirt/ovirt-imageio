@@ -23,10 +23,6 @@ from ovirt_imageio._internal import server
 from . import http
 from . import testutil
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 
 @pytest.fixture(scope="module")
 def srv():

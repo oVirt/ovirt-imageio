@@ -18,7 +18,7 @@ from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import nbd
 
 from . import testutil
-from . marks import requires_python3, flaky_in_ovirt_ci
+from . marks import flaky_in_ovirt_ci
 
 
 class Request(object):
@@ -99,7 +99,6 @@ def test_get_sparse(tmpurl, cfg, sparse):
     assert b.sparse == sparse
 
 
-@requires_python3
 @pytest.mark.parametrize("transport", [
     "unix",
     pytest.param("tcp", marks=flaky_in_ovirt_ci),

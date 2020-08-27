@@ -23,10 +23,6 @@ from ovirt_imageio._internal import server
 
 from . import testutil
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 CLUSTER_SIZE = 64 * 1024
 IMAGE_SIZE = 3 * CLUSTER_SIZE
 

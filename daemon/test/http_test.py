@@ -26,10 +26,6 @@ from ovirt_imageio._internal import http
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal import version
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 log = logging.getLogger("test")
 
 ERROR_CONTENT_TYPE = "text/plain; charset=UTF-8"

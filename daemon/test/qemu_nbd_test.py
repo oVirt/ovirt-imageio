@@ -23,9 +23,7 @@ from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import sockutil
 
 from . import testutil
-from . marks import requires_python3, flaky_in_ovirt_ci
-
-pytestmark = requires_python3
+from . marks import flaky_in_ovirt_ci
 
 
 @pytest.mark.parametrize("addr,export,url", [

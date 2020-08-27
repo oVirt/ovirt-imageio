@@ -25,10 +25,6 @@ from ovirt_imageio._internal import errors
 from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends.http import Backend
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 log = logging.getLogger("test")
 
 

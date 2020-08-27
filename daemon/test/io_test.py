@@ -19,10 +19,6 @@ from ovirt_imageio._internal import io
 from ovirt_imageio._internal.backends import nbd, memory, image
 from ovirt_imageio._internal.nbd import UnixAddress
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 ZERO_PARAMS = [
     pytest.param(True, id="zero"),
     pytest.param(False, id="nozero"),

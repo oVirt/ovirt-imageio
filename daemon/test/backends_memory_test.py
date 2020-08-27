@@ -16,8 +16,6 @@ from ovirt_imageio._internal import errors
 from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends import memory
 
-from . marks import requires_python3
-
 
 def test_debugging_interface(tmpurl):
     with memory.open(urlparse("memory:"), "r+") as m:
@@ -260,7 +258,6 @@ def test_user_extents():
     assert list(m.extents("dirty")) == extents["dirty"]
 
 
-@requires_python3
 def test_read_from():
     size = 128
     src = memory.Backend(data=bytearray(b"x" * size))
@@ -273,7 +270,6 @@ def test_read_from():
     assert src.data() == dst.data()
 
 
-@requires_python3
 def test_read_from_some():
     src = memory.Backend(data=bytearray(b"x" * 128))
     dst = memory.ReaderFrom("r+", data=bytearray(b"y" * 128))
@@ -288,7 +284,6 @@ def test_read_from_some():
     assert dst.data() == b"y" * 32 + b"x" * 64 + b"y" * 32
 
 
-@requires_python3
 def test_write_to():
     size = 128
     src = memory.WriterTo(data=bytearray(b"x" * size))
@@ -301,7 +296,6 @@ def test_write_to():
     assert src.data() == dst.data()
 
 
-@requires_python3
 def test_write_to_some():
     size = 128
     src = memory.WriterTo(data=bytearray(b"x" * size))

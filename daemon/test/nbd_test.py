@@ -33,10 +33,7 @@ from . marks import (
     flaky_in_ovirt_ci,
     requires_advanced_virt,
     requires_ipv6,
-    requires_python3,
 )
-
-pytestmark = requires_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
@@ -99,7 +96,7 @@ def test_tcp_address_invalid(host, port):
 @pytest.mark.parametrize("export", [
     "",
     "ascii",
-    pytest.param("\u05d0", id="unicode", marks=requires_python3),
+    pytest.param("\u05d0", id="unicode"),
 ])
 def test_handshake(tmpdir, export, fmt):
     image = str(tmpdir.join("image"))

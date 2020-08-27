@@ -19,10 +19,6 @@ import pytest
 from ovirt_imageio._internal import ioutil
 from ovirt_imageio._internal import util
 
-from . marks import requires_python3
-
-pytestmark = requires_python3
-
 BLOCKSIZE = 4096
 
 requires_root = pytest.mark.skipif(os.geteuid() != 0, reason="Requires root")

@@ -13,8 +13,6 @@ import pytest
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 
-from . marks import requires_python3
-
 
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
@@ -37,7 +35,6 @@ def test_compare_identical_content(tmpdir, src_fmt, dst_fmt):
     qemu_img.compare(src, dst, format1=src_fmt, format2=dst_fmt)
 
 
-@requires_python3
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
     ("qcow2", "qcow2"),
@@ -75,7 +72,6 @@ def test_compare_wrong_format(tmpdir):
         qemu_img.compare(src, dst, format2="qcow2")
 
 
-@requires_python3
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
     ("qcow2", "qcow2"),

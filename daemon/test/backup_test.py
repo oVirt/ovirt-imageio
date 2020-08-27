@@ -26,10 +26,7 @@ from . import testutil
 from . marks import (
     flaky_in_ovirt_ci,
     requires_advanced_virt,
-    requires_python3,
 )
-
-pytestmark = requires_python3
 
 log = logging.getLogger("test")
 

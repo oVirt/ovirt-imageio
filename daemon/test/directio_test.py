@@ -18,9 +18,6 @@ from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import util
 
 from . import testutil
-from . marks import requires_python3
-
-pytestmark = requires_python3
 
 # Legacy code supports only 512 bytes.
 BLOCKSIZE = 512

@@ -21,9 +21,6 @@ from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends import nbd
 
 from . import storage
-from . marks import requires_python3
-
-pytestmark = requires_python3
 
 BACKENDS = userstorage.load_config("../storage.py").BACKENDS
 
