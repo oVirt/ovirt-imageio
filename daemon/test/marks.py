@@ -9,13 +9,11 @@
 from __future__ import absolute_import
 
 import pytest
-import six
 
 from . import ci
 from . import distro
 from . import testutil
 
-xfail_python3 = pytest.mark.xfail(six.PY3, reason="Needs porting to python 3")
 
 requires_advanced_virt = pytest.mark.skipif(
     distro.is_centos("8"),
