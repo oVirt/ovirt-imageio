@@ -8,8 +8,9 @@
 
 from __future__ import absolute_import
 
+import urllib.parse
+
 import pytest
-from six.moves import urllib_parse
 
 
 class Backend(object):
@@ -24,7 +25,7 @@ class Backend(object):
 
         self._storage = storage
         self.path = storage.path
-        self.url = urllib_parse.urlparse("file:" + storage.path)
+        self.url = urllib.parse.urlparse("file:" + storage.path)
         self.sector_size = storage.sector_size
         self.can_detect_sector_size = can_detect_sector_size
 

@@ -16,8 +16,7 @@ from __future__ import print_function
 
 import argparse
 import time
-
-from six.moves import urllib_parse
+import urllib.parse
 
 from ovirt_imageio._internal.backends import file
 
@@ -73,7 +72,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-url = urllib_parse.urlparse("file://" + args.filename)
+url = urllib.parse.urlparse("file://" + args.filename)
 
 start_time = time.monotonic()
 

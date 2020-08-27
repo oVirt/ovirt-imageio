@@ -14,11 +14,11 @@ import logging
 import os
 import platform
 import subprocess
+import urllib.parse
 
 from collections import namedtuple
 
 import pytest
-from six.moves import urllib_parse
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import qemu_nbd
@@ -52,7 +52,7 @@ def tmpurl(tmpfile):
     """
     Return a file: url to an empty temporary file.
     """
-    return urllib_parse.urlparse("file:" + tmpfile)
+    return urllib.parse.urlparse("file:" + tmpfile)
 
 
 @pytest.fixture

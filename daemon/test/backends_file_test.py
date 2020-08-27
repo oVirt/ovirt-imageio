@@ -12,10 +12,9 @@ import errno
 import io
 import os
 import subprocess
+import urllib.parse
 
 from contextlib import closing
-
-from six.moves import urllib_parse
 
 import pytest
 import userstorage
@@ -91,7 +90,7 @@ def test_open_read_write(user_file):
 @pytest.mark.parametrize("mode", ["r", "r+"])
 def test_open_no_create(mode):
     with pytest.raises(OSError) as e:
-        missing = urllib_parse.urlparse("file:/no/such/path")
+        missing = urllib.parse.urlparse("file:/no/such/path")
         with file.open(missing, mode):
             pass
     assert e.value.errno == errno.ENOENT
