@@ -14,7 +14,6 @@ import signal
 import time
 
 import pytest
-import six
 
 from ovirt_imageio._internal import util
 
@@ -124,7 +123,7 @@ def test_round_down(size, rounded):
 ])
 def test_ensure_text(value, expected):
     result = util.ensure_text(value)
-    assert isinstance(result, six.text_type)
+    assert isinstance(result, str)
     assert result == expected
 
 

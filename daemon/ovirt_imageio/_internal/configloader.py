@@ -78,8 +78,6 @@ from __future__ import absolute_import
 import configparser
 import keyword
 
-from . import util
-
 KEYWORD_PREFIX = "keyword__"
 
 
@@ -148,7 +146,7 @@ def _validate_bool(s):
 
 
 _validators = {
-    str: util.ensure_text,
+    str: str,
     int: int,
     float: float,
     bool: _validate_bool,

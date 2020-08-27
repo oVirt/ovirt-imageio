@@ -15,8 +15,6 @@ import mmap
 import os
 import threading
 
-import six
-
 
 def uninterruptible(func, *args):
     while True:
@@ -110,21 +108,16 @@ def open(path, mode, direct=True, sync=False):
 
 def ensure_text(s, encoding='utf-8', errors='strict'):
     """
-    Coerce *s* to six.text_type.
+    Converts:
 
-    For Python 2:
-      - `unicode` -> `unicode`
-      - `str` -> `unicode`
-
-    For Python 3:
       - `str` -> `str`
       - `bytes` -> decoded to `str`
 
-    Copied from six library.
+    Based on implementation in six library.
     """
-    if isinstance(s, six.binary_type):
+    if isinstance(s, bytes):
         return s.decode(encoding, errors)
-    elif isinstance(s, six.text_type):
+    elif isinstance(s, str):
         return s
     else:
         raise TypeError("not expecting type '%s'" % type(s))

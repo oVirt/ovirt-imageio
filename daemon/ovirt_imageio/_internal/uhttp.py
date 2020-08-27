@@ -75,6 +75,9 @@ class Server(http.Server):
             self._remove_socket()
 
         self.socket.bind(self.server_address)
+        # Socket addresses in Linux abstract namespace are returned as bytes,
+        # so we have to eventually convert address to string.
+        # See https://docs.python.org/3.9/library/socket.html#socket-families
         self.server_address = util.ensure_text(self.socket.getsockname())
 
     def get_request(self):
