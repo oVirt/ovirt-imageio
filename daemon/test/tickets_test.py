@@ -9,10 +9,9 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import http.client as http_client
 import json
 import uuid
-
-from six.moves import http_client
 
 import pytest
 

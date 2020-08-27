@@ -9,11 +9,10 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import http.client as http_client
 import io
 import json
 import time
-
-from six.moves import http_client
 
 import pytest
 

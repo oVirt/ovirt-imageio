@@ -14,11 +14,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import errno
+import http.client
 import logging
 
 from pprint import pprint
-
-from six.moves import http_client
 
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import ssl
@@ -92,12 +91,12 @@ class RemoteClient(HTTPClient):
     def __init__(self, cfg):
         if cfg.tls.enable:
             context = ssl.client_context(cfg.tls.ca_file)
-            con = http_client.HTTPSConnection(
+            con = http.client.HTTPSConnection(
                 cfg.remote.host,
                 cfg.remote.port,
                 context=context)
         else:
-            con = http_client.HTTPConnection(cfg.remote.host, cfg.remote.port)
+            con = http.client.HTTPConnection(cfg.remote.host, cfg.remote.port)
 
         super().__init__(con)
 
@@ -113,7 +112,7 @@ class ControlClient(HTTPClient):
     def __init__(self, cfg):
         transport = cfg.control.transport.lower()
         if transport == "tcp":
-            con = http_client.HTTPConnection("localhost", cfg.control.port)
+            con = http.client.HTTPConnection("localhost", cfg.control.port)
         elif transport == "unix":
             con = uhttp.UnixHTTPConnection(cfg.control.socket)
         else:
