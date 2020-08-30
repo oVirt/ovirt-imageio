@@ -28,10 +28,12 @@ class OpenImageError(Exception):
     """
 
 
-def create(path, fmt, size=None, backing=None):
+def create(path, fmt, size=None, backing=None, quiet=False):
     cmd = ["qemu-img", "create", "-f", fmt]
     if backing:
         cmd.extend(("-b", backing))
+    if quiet:
+        cmd.append("-q")
     cmd.append(path)
     if size is not None:
         cmd.append(str(size))

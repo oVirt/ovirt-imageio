@@ -139,7 +139,7 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
 
         # Create a local image. We know that this image is zeroed, so we don't
         # need to zero during copy.
-        qemu_img.create(filename, fmt, size=src.size())
+        qemu_img.create(filename, fmt, size=src.size(), quiet=True)
 
         max_workers = min(src.max_readers, max_workers)
 
