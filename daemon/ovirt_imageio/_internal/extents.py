@@ -16,7 +16,7 @@ from . import validate
 log = logging.getLogger("extents")
 
 
-class Handler(object):
+class Handler:
     """
     Handle requests for the /images/ticket-id/extents resource.
     """

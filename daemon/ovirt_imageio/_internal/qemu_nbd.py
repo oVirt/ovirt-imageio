@@ -19,7 +19,7 @@ from . import sockutil
 log = logging.getLogger("qemu_nbd")
 
 
-class Server(object):
+class Server:
 
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=1,

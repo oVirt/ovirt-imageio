@@ -20,7 +20,7 @@ from . import util
 log = logging.getLogger("auth")
 
 
-class Ticket(object):
+class Ticket:
 
     def __init__(self, ticket_dict):
         if not isinstance(ticket_dict, dict):

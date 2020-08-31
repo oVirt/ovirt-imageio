@@ -16,7 +16,7 @@ from . import validate
 log = logging.getLogger("tickets")
 
 
-class Handler(object):
+class Handler:
     """
     Handle requests for the /tickets/ resource.
     """

@@ -48,7 +48,7 @@ from ovirt_imageio._internal import stats
 log = logging.getLogger("httpdemo")
 
 
-class Echo(object):
+class Echo:
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
@@ -67,7 +67,7 @@ class Echo(object):
             count -= len(chunk)
 
 
-class Bench(object):
+class Bench:
 
     def get(self, req, resp, name):
         body = b"%s\n" % name.encode("utf-8")
@@ -76,7 +76,7 @@ class Bench(object):
             resp.write(body)
 
 
-class Stream(object):
+class Stream:
 
     def get(self, req, resp, count):
         count = int(count) * 1024**2

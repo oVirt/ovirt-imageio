@@ -48,7 +48,7 @@ def open(url, mode="r+", sparse=True, dirty=False, max_connections=8,
     return Backend(url, **options)
 
 
-class Backend(object):
+class Backend:
 
     def __init__(self, url, cafile=None, secure=True, connect_timeout=10,
                  read_timeout=60, connect=True):

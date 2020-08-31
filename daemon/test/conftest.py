@@ -141,7 +141,7 @@ def tmp_pki(tmpdir_factory):
     return PKI(certfile, certfile, keyfile)
 
 
-class FakeTime(object):
+class FakeTime:
 
     def __init__(self):
         self.now = 0

@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from . import util
 
 
-class Clock(object):
+class Clock:
     """
     Measure time for complex flows.
 
@@ -127,7 +127,7 @@ class Clock(object):
         return " ".join(stats)
 
 
-class NullClock(object):
+class NullClock:
     """
     Clock that does nothing.
 
@@ -153,7 +153,7 @@ class NullClock(object):
         return ""
 
 
-class Stats(object):
+class Stats:
 
     def __init__(self, name):
         self.name = name

@@ -121,7 +121,7 @@ def ensure_text(s, encoding='utf-8', errors='strict'):
         raise TypeError("not expecting type '%s'" % type(s))
 
 
-class UnbufferedStream(object):
+class UnbufferedStream:
     """
     Unlike regular file object, read may return any amount of bytes up to the
     requested size. This behavior is probably the result of doing one syscall

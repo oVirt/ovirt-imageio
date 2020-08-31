@@ -36,7 +36,7 @@ class NotFound(Error):
         self.nodes = nodes
 
 
-class Client(object):
+class Client:
 
     def __init__(self, sock):
         self.s = socket.socket(socket.AF_UNIX)

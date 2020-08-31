@@ -353,7 +353,7 @@ TRASMISSION = 2
 CLOSED = 3
 
 
-class Client(object):
+class Client:
 
     def __init__(self, address, export_name=None, dirty=False):
         self.address = address
@@ -1228,7 +1228,7 @@ class Client(object):
             log.exeption("Error closing")
 
 
-class Command(object):
+class Command:
     """
     Abstract NBD command.
 
@@ -1321,7 +1321,7 @@ class BlockStatus(Command):
         self.reply = {}
 
 
-class Extent(object):
+class Extent:
     """
     A mutable extent of data or zeroes.
 

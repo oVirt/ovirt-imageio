@@ -33,7 +33,7 @@ def open(url, mode="r", sparse=False, dirty=False, max_connections=8,
     return Backend(mode=mode, max_connections=max_connections)
 
 
-class Backend(object):
+class Backend:
     """
     Memory backend for testing.
     """

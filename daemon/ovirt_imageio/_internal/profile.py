@@ -21,7 +21,7 @@ log = logging.getLogger("profile")
 lock = threading.Lock()
 
 
-class Handler(object):
+class Handler:
     """
     Request handler for the /profile/ resource.
     """

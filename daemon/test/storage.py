@@ -11,7 +11,7 @@ import urllib.parse
 import pytest
 
 
-class Backend(object):
+class Backend:
     """
     Wrap a userstorage.Backend, adding a url and context manager interface to
     simplify fixtures.

@@ -51,7 +51,7 @@ def open(url, mode="r", sparse=False, dirty=False, max_connections=8,
         raise
 
 
-class Backend(object):
+class Backend:
     """
     NBD backend.
     """

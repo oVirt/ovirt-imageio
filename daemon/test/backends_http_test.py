@@ -71,7 +71,7 @@ def uhttp_server(tmp_pki):
 
 # Server personalies.
 
-class Handler(object):
+class Handler:
 
     def __init__(self, http_server, uhttp_server=None):
         self.features = []

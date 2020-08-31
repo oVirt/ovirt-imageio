@@ -19,7 +19,7 @@ from . import testutil
 from . marks import flaky_in_ovirt_ci
 
 
-class Request(object):
+class Request:
 
     connection_id = 1
 

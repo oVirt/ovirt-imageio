@@ -93,7 +93,7 @@ class Request(namedtuple("Request", "op,start,length")):
         return tuple.__new__(cls, (op, start, length))
 
 
-class Executor(object):
+class Executor:
 
     def __init__(self, name="executor", queue_depth=32):
         self._name = name
@@ -175,7 +175,7 @@ class Executor(object):
         yield Request(req.op, start, length)
 
 
-class Worker(object):
+class Worker:
 
     def __init__(self, handler_factory, queue, errors, name="worker"):
         self._handler_factory = handler_factory
@@ -214,7 +214,7 @@ class Worker(object):
             log.debug("Worker %s finished", self._name)
 
 
-class Handler(object):
+class Handler:
 
     def __init__(self, src_factory, dst_factory, buffer_size=BUFFER_SIZE,
                  progress=None):
@@ -288,7 +288,7 @@ class Closed(Exception):
     """
 
 
-class Queue(object):
+class Queue:
     """
     A simple queue supporting cancellation.
 

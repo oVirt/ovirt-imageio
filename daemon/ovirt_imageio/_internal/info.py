@@ -10,7 +10,7 @@ from . import cors
 from . import version
 
 
-class Handler(object):
+class Handler:
     """
     Handle requests for the /info resource.
     """

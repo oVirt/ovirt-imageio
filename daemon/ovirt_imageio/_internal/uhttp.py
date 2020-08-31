@@ -27,7 +27,7 @@ class UnsupportedError(Exception):
     pass
 
 
-class _UnixMixin(object):
+class _UnixMixin:
 
     def set_tunnel(self, host, port=None, headers=None):
         raise UnsupportedError("Tunneling is not supported")

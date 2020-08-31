@@ -10,7 +10,7 @@ import pytest
 from ovirt_imageio._internal import stats
 
 
-class FakeTime(object):
+class FakeTime:
 
     def __init__(self):
         self.value = 0

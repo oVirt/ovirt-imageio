@@ -22,7 +22,7 @@ BASE_FEATURES = ("checksum", "extents")
 ALL_FEATURES = BASE_FEATURES + ("flush", "zero")
 
 
-class Handler(object):
+class Handler:
     """
     Handle requests for the /images/ resource.
     """

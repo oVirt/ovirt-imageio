@@ -96,7 +96,7 @@ def run(image, fmt, qmp_sock=None, start_cpu=True, shutdown_timeout=1):
         log.debug("qemu terminated with exit code %s", p.returncode)
 
 
-class Guest(object):
+class Guest:
 
     def __init__(self, p):
         self._stdin = p.stdin

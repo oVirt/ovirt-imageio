@@ -27,7 +27,7 @@ DEFAULT_SOCKET_MODE = 0o660
 log = logging.getLogger("services")
 
 
-class Service(object):
+class Service:
 
     name = None
 

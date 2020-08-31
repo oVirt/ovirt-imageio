@@ -21,7 +21,7 @@ from test import testutil
 CHUNK_SIZE = 8 * 1024**2
 
 
-class Operation(object):
+class Operation:
     """
     Used to fake a ops.Operation object.
     """

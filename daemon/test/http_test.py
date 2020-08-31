@@ -29,7 +29,7 @@ log = logging.getLogger("test")
 ERROR_CONTENT_TYPE = "text/plain; charset=UTF-8"
 
 
-class Demo(object):
+class Demo:
 
     def get(self, req, resp, name):
         body = b"%s\n" % name.encode("utf-8")
@@ -49,7 +49,7 @@ class Demo(object):
         resp.headers["allow"] = "GET,DELETE,OPTIONS"
 
 
-class EchoRead(object):
+class EchoRead:
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
@@ -66,7 +66,7 @@ class EchoRead(object):
             count -= len(chunk)
 
 
-class EchoReadinto(object):
+class EchoReadinto:
 
     def put(self, req, resp, ticket):
         if req.headers.get("expect") == "100-continue":
@@ -85,14 +85,14 @@ class EchoReadinto(object):
                 count -= n
 
 
-class JSON(object):
+class JSON:
 
     def put(self, req, resp):
         msg = json.loads(req.read())
         resp.send_json(msg)
 
 
-class RangeDemo(object):
+class RangeDemo:
     """
     Demonstrate using Range and Content-Range headers.
     """
@@ -141,7 +141,7 @@ class RangeDemo(object):
             raise http.Error(http.BAD_REQUEST, "Unexpected EOF")
 
 
-class RequestInfo(object):
+class RequestInfo:
 
     def get(self, req, resp, arg=None):
         self.send_response(req, resp, arg)
@@ -193,7 +193,7 @@ class RequestInfo(object):
         resp.send_json(info)
 
 
-class Context(object):
+class Context:
     """
     Keep per-connection state example.
     """
@@ -214,7 +214,7 @@ class Context(object):
         resp.status_code = http.NO_CONTENT
 
 
-class Closeable(object):
+class Closeable:
 
     def __init__(self, name, log):
         self.name = name
@@ -226,7 +226,7 @@ class Closeable(object):
         raise RuntimeError("Error closing {!r}".format(self.name))
 
 
-class CloseContext(object):
+class CloseContext:
     """
     Example for closing objects when connection is closed.
     """
@@ -244,7 +244,7 @@ class CloseContext(object):
         resp.write(value)
 
 
-class ServerError(object):
+class ServerError:
 
     def get(self, req, resp, name):
         raise RuntimeError("secret data")
@@ -255,7 +255,7 @@ class ServerError(object):
         raise RuntimeError("secret data")
 
 
-class ServerSocketError(object):
+class ServerSocketError:
 
     def get(self, req, resp, name):
         # Fake a fatal socket error that is not related to the HTTP connection.
@@ -269,7 +269,7 @@ class ServerSocketError(object):
     put = get
 
 
-class ClientError(object):
+class ClientError:
 
     def get(self, req, resp, name):
         raise http.Error(http.FORBIDDEN, "No data for you!")
@@ -280,7 +280,7 @@ class ClientError(object):
         raise http.Error(http.FORBIDDEN, "No data for you!")
 
 
-class KeepConnection(object):
+class KeepConnection:
 
     def put(self, req, resp):
         # Fail after reading the entire request payload, so the server
@@ -289,7 +289,7 @@ class KeepConnection(object):
         raise http.Error(http.FORBIDDEN, "No data for you!")
 
 
-class PartialResponse(object):
+class PartialResponse:
 
     def get(self, req, resp):
         # Fail after sending the first part of the response. The

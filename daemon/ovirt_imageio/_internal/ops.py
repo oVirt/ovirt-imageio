@@ -23,7 +23,7 @@ class Canceled(Exception):
     """ Raised when operation was canceled """
 
 
-class Operation(object):
+class Operation:
 
     # Should be overriden in sub classes.
     name = "operation"

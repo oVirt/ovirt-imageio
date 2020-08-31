@@ -53,7 +53,7 @@ def run(qmp, sock, scratch_disk, checkpoint=None, incremental=None):
         b.stop()
 
 
-class Backup(object):
+class Backup:
 
     def __init__(self, qmp, sock, scratch_disk, checkpoint=None,
                  incremental=None):

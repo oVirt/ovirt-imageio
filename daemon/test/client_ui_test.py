@@ -9,7 +9,7 @@
 from ovirt_imageio import client
 
 
-class FakeTime(object):
+class FakeTime:
 
     def __init__(self):
         self.now = 0.0
@@ -18,7 +18,7 @@ class FakeTime(object):
         return self.now
 
 
-class FakeFile(object):
+class FakeFile:
 
     def __init__(self):
         self.last = None

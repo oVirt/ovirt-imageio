@@ -261,7 +261,7 @@ class Connection(http.server.BaseHTTPRequestHandler):
         return "imageio/" + version.string
 
 
-class Request(object):
+class Request:
 
     def __init__(self, con):
         self._con = con
@@ -443,7 +443,7 @@ class Request(object):
         return self._con.connection_error() in _DISCONNECTED
 
 
-class Response(object):
+class Response:
 
     def __init__(self, con):
         self._con = con
@@ -603,7 +603,7 @@ class Headers(dict):
         dict.__setitem__(self, name.lower(), value)
 
 
-class Range(object):
+class Range:
     """
     HTTP Range header.
 
@@ -683,7 +683,7 @@ class Range(object):
         return cls(first, last)
 
 
-class ContentRange(object):
+class ContentRange:
     """
     HTTP ContentRange header.
 
@@ -756,7 +756,7 @@ class ContentRange(object):
         return cls(first, last, complete)
 
 
-class Router(object):
+class Router:
     """
     Route requests to registered requests handlers.
     """

@@ -12,7 +12,7 @@ from ovirt_imageio._internal import measure
 from ovirt_imageio._internal.measure import Range
 
 
-class TestRange(object):
+class TestRange:
 
     """
     To make the cases visual, each test case is described using two ranges:

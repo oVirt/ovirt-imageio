@@ -13,7 +13,7 @@ import time
 from .. _internal import util
 
 
-class ProgressBar(object):
+class ProgressBar:
 
     def __init__(self, size=0, output=sys.stdout, step=0.1, width=79,
                  now=time.monotonic):
