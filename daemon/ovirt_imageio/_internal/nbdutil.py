@@ -83,8 +83,6 @@ Result:   [xxxxxxxxxxxxx|0000000000000|xxxxxx]
 
 """
 
-from __future__ import absolute_import
-
 import logging
 import queue
 import sys

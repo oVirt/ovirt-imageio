@@ -15,8 +15,6 @@ dependency, but we cannot fix old vdsm versions.
 Changes to this module must be tested with /usr/libexec/vdsm/kvm2ovirt.
 """
 
-from __future__ import absolute_import
-
 import urllib.parse as urllib_parse
 
 from . import ops

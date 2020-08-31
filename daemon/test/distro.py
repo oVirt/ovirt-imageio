@@ -6,8 +6,6 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from __future__ import absolute_import
-
 
 def is_fedora(version=""):
     return "Fedora release {}".format(version) in redhat_release()

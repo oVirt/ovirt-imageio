@@ -40,7 +40,6 @@ Transfer/sec:    578.34KB
 
 """
 
-from __future__ import absolute_import
 import argparse
 import logging
 from ovirt_imageio._internal import http

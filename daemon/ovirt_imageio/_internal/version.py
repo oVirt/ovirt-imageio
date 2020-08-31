@@ -6,9 +6,6 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 string = "2.1.0"
 
 if __name__ == "__main__":

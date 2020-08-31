@@ -10,9 +10,6 @@
 http helpers.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import errno
 import http.client
 import logging

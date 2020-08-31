@@ -73,8 +73,6 @@ appropriate config class should be
         keyword__class = "default.class"
 """
 
-from __future__ import absolute_import
-
 import configparser
 import keyword
 

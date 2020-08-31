@@ -9,8 +9,6 @@
 http - HTTP backend.
 """
 
-from __future__ import absolute_import
-
 import http.client as http_client
 import json
 import logging
