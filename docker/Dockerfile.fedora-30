@@ -12,7 +12,6 @@ RUN dnf update -y \
         openssl \
         python3-devel \
         python3-pip \
-        python3-six \
         python3-systemd \
         qemu-img \
         qemu-kvm \
