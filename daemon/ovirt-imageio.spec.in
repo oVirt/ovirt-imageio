@@ -45,7 +45,6 @@ BuildRequires: python3-devel
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  python3
-Requires:  python3-six
 
 %description common
 Common resources used by oVirt imageio server and client
