@@ -32,5 +32,15 @@ from . _api import (
 # For better user experience.
 from . _ui import ProgressBar
 
-__all__ = ("BUFFER_SIZE", "ProgressBar", "upload", "download")
+__all__ = (
+    "BUFFER_SIZE",
+    "ImageioClient",
+    "ProgressBar",
+    "checksum",
+    "download",
+    "info",
+    "measure",
+    "upload",
+)
+
 __version__ = version.string
