@@ -34,9 +34,9 @@ def srv():
     s.stop()
 
 
-def prepare_transfer(srv, dst, sparse=True, size=IMAGE_SIZE):
+def prepare_transfer(srv, url, sparse=True, size=IMAGE_SIZE):
     ticket = testutil.create_ticket(
-        url="file://" + dst,
+        url=url,
         size=size,
         sparse=sparse,
         ops=["read", "write"])
@@ -78,7 +78,7 @@ def test_upload_empty_sparse(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -101,7 +101,7 @@ def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -122,7 +122,7 @@ def test_upload_hole_at_middle_sparse(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -142,7 +142,7 @@ def test_upload_hole_at_end_sparse(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -162,7 +162,7 @@ def test_upload_full_sparse(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -178,7 +178,7 @@ def test_upload_preallocated(tmpdir, srv, fmt):
     with open(dst, "wb") as f:
         f.write(b"a" * IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst, sparse=False)
+    url = prepare_transfer(srv, "file://" + dst, sparse=False)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -223,7 +223,7 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
         f.truncate(IMAGE_SIZE)
 
     # Test uploading src from ova.
-    url = prepare_transfer(srv, dst)
+    url = prepare_transfer(srv, "file://" + dst)
     client.upload(
         ova,
         url,
@@ -241,7 +241,7 @@ def test_download_raw(tmpdir, srv, fmt):
         f.seek(IMAGE_SIZE // 2)
         f.write(b"data")
 
-    url = prepare_transfer(srv, src)
+    url = prepare_transfer(srv, "file://" + src)
     dst = str(tmpdir.join("dst"))
 
     # When we download raw data, we can convert it on-the-fly to other format.
@@ -262,7 +262,7 @@ def test_download_qcow2_as_raw(tmpdir, srv):
         c.flush()
 
     actual_size = os.path.getsize(src)
-    url = prepare_transfer(srv, src, size=actual_size)
+    url = prepare_transfer(srv, "file://" + src, size=actual_size)
     dst = str(tmpdir.join("dst.qcow2"))
 
     # When downloading qcow2 image using the nbd backend, we get raw data and
@@ -295,7 +295,7 @@ def test_upload_proxy_url(tmpdir, srv):
 
     # If transfer_url is not accessible, proxy_url is used.
     transfer_url = "https://no.server:54322/images/no-ticket"
-    proxy_url = prepare_transfer(srv, dst)
+    proxy_url = prepare_transfer(srv, "file://" + dst)
 
     client.upload(src, transfer_url, srv.config.tls.ca_file,
                   proxy_url=proxy_url)
@@ -313,7 +313,7 @@ def test_upload_proxy_url_unused(tmpdir, srv):
         f.truncate(IMAGE_SIZE)
 
     # If transfer_url is accessible, proxy_url is not used.
-    transfer_url = prepare_transfer(srv, dst)
+    transfer_url = prepare_transfer(srv, "file://" + dst)
     proxy_url = "https://no.proxy:54322/images/no-ticket"
 
     client.upload(src, transfer_url, srv.config.tls.ca_file,
@@ -331,7 +331,7 @@ def test_download_proxy_url(tmpdir, srv):
 
     # If transfer_url is not accessible, proxy_url is used.
     transfer_url = "https://no.server:54322/images/no-ticket"
-    proxy_url = prepare_transfer(srv, src)
+    proxy_url = prepare_transfer(srv, "file://" + src)
 
     client.download(transfer_url, dst, srv.config.tls.ca_file, fmt="raw",
                     proxy_url=proxy_url)
@@ -347,7 +347,7 @@ def test_download_proxy_url_unused(tmpdir, srv):
     dst = str(tmpdir.join("dst"))
 
     # If transfer_url is accessible, proxy_url is not used.
-    transfer_url = prepare_transfer(srv, src)
+    transfer_url = prepare_transfer(srv, "file://" + src)
     proxy_url = "https://no.proxy:54322/images/no-ticket"
 
     client.download(transfer_url, dst, srv.config.tls.ca_file, fmt="raw",
@@ -368,7 +368,7 @@ def test_progress(tmpdir, srv):
     with open(dst, "wb") as f:
         f.truncate(IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst, sparse=True)
+    url = prepare_transfer(srv, "file://" + dst, sparse=True)
 
     progress = FakeProgress()
     client.upload(
@@ -399,7 +399,7 @@ def test_progress_callback(tmpdir, srv):
     with open(dst, "wb") as f:
         f.truncate(IMAGE_SIZE)
 
-    url = prepare_transfer(srv, dst, size=IMAGE_SIZE, sparse=True)
+    url = prepare_transfer(srv, "file://" + dst, size=IMAGE_SIZE, sparse=True)
 
     progress = []
     client.upload(
