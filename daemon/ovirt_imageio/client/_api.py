@@ -32,7 +32,7 @@ log = logging.getLogger("client")
 
 def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
            progress=None, proxy_url=None, max_workers=io.MAX_WORKERS,
-           member=None):
+           member=None, backing_chain=True):
     """
     Upload filename to url
 
@@ -57,6 +57,11 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
         max_workers (int): Maximum number of worker threads to use.
         member (str): Upload a disk with specified name from OVA file. This is
             the name reported by "tar tf vm.ova".
+        backing_chain (bool): If True (default) and the image is in qcow2
+            format, upload also the backing chain. If False, upload only the
+            image data, leaving unallocated areas as holes, exposing data from
+            the target disk backing chain. Valid only when uploding to an empty
+            snapshot.
     """
     if callable(progress):
         progress = ProgressWrapper(progress)
@@ -82,7 +87,8 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
                 read_only=True,
                 shared=max_workers + 1,
                 offset=image_info.get("member-offset"),
-                size=image_info.get("member-size")) as src:
+                size=image_info.get("member-size"),
+                backing_chain=backing_chain) as src:
 
             # Upload the image to the server.
             io.copy(
@@ -90,6 +96,7 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
                 dst,
                 max_workers=max_workers,
                 buffer_size=buffer_size,
+                zero=backing_chain,
                 progress=progress,
                 name="upload")
 
@@ -420,7 +427,7 @@ def _json_uri(filename, offset, size):
 
 @contextmanager
 def _open_nbd(filename, fmt, read_only=False, shared=1, offset=None,
-              size=None):
+              size=None, backing_chain=True):
     with _tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
         with qemu_nbd.run(
@@ -433,7 +440,8 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, offset=None,
                 discard=None,
                 shared=shared,
                 offset=offset,
-                size=size):
+                size=size,
+                backing_chain=backing_chain):
             url = urlparse(sock.url())
             mode = "r" if read_only else "r+"
             yield nbd.open(url, mode=mode)

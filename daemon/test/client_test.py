@@ -233,6 +233,51 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
+def test_upload_no_backing_chain(srv, nbd_server, tmpdir):
+    size = CLUSTER_SIZE * 2
+
+    # Create base image with some data in first cluster.
+    base = str(tmpdir.join("base.qcow2"))
+    qemu_img.create(base, "qcow2", size=size)
+    with qemu_nbd.open(base, "qcow2") as c:
+        c.write(0, b"data from base")
+        c.flush()
+
+    # Create src image with some data in second cluster.
+    top = str(tmpdir.join("top.qcow2"))
+    qemu_img.create(top, "qcow2", backing_file=base, backing_format="qcow2")
+    with qemu_nbd.open(top, "qcow2") as c:
+        c.write(CLUSTER_SIZE, b"data from top")
+        c.flush()
+
+    # Create empty destination image.
+    dst = str(tmpdir.join("dst.qcow2"))
+    qemu_img.create(dst, "qcow2", size=size)
+
+    # Start nbd server for for destination image.
+    nbd_server.image = dst
+    nbd_server.fmt = "qcow2"
+    nbd_server.start()
+
+    # Upload using nbd backend.
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+    client.upload(
+        top,
+        url,
+        srv.config.tls.ca_file,
+        backing_chain=False)
+
+    # Stop the server to allow comparing.
+    nbd_server.stop()
+
+    # To compare top, we need to remove its backing file.
+    qemu_img.unsafe_rebase(top, "")
+
+    # Uploading without backing chain uploads data only from top image, and
+    # does not zero unallocated area.
+    qemu_img.compare(top, dst, format1="qcow2", format2="qcow2", strict=True)
+
+
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_download_raw(tmpdir, srv, fmt):
     src = str(tmpdir.join("src"))
