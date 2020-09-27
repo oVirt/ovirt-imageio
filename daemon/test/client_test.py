@@ -329,6 +329,57 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
+def test_download_shallow(srv, nbd_server, tmpdir):
+    size = CLUSTER_SIZE * 2
+
+    # Create source base image with some data in first cluster.
+    src_base = str(tmpdir.join("src_base.qcow2"))
+    qemu_img.create(src_base, "qcow2", size=size)
+    with qemu_nbd.open(src_base, "qcow2") as c:
+        c.write(0, b"data from base")
+        c.flush()
+
+    # Create source top image with some data in second cluster.
+    src_top = str(tmpdir.join("src_top.qcow2"))
+    qemu_img.create(
+        src_top, "qcow2", backing_file=src_base, backing_format="qcow2")
+    with qemu_nbd.open(src_top, "qcow2") as c:
+        c.write(CLUSTER_SIZE, b"data from top")
+        c.flush()
+
+    # Create empty backing file for downloding top image.
+    dst_base = str(tmpdir.join("dst_base.qcow2"))
+    qemu_img.create(dst_base, "qcow2", size=size)
+
+    dst_top = str(tmpdir.join("dst_top.qcow2"))
+
+    # Start nbd server exporting top image without the backing file.
+    nbd_server.image = src_top
+    nbd_server.fmt = "qcow2"
+    nbd_server.backing_chain = False
+    nbd_server.shared = 8
+    nbd_server.start()
+
+    # Upload using nbd backend.
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+    client.download(
+        url,
+        dst_top,
+        srv.config.tls.ca_file,
+        backing_file=dst_base,
+        backing_format="qcow2")
+
+    # Stop the server to allow comparing.
+    nbd_server.stop()
+
+    # To compare we need to remove its backing files.
+    qemu_img.unsafe_rebase(src_top, "")
+    qemu_img.unsafe_rebase(dst_top, "")
+
+    qemu_img.compare(
+        src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
+
+
 def test_upload_proxy_url(tmpdir, srv):
     src = str(tmpdir.join("src"))
     with open(src, "wb") as f:

@@ -103,7 +103,8 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
 
 def download(url, filename, cafile, fmt="qcow2", incremental=False,
              buffer_size=io.BUFFER_SIZE, secure=True, progress=None,
-             proxy_url=None, max_workers=io.MAX_WORKERS):
+             proxy_url=None, max_workers=io.MAX_WORKERS,
+             backing_file=None, backing_format=None):
     """
     Download url to filename.
 
@@ -129,6 +130,9 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
             as if url is not accessible.
             e.g. https://{proxy.server}:{port}/images/{ticket-id}.
         max_workers (int): Maximum number of worker threads to use.
+        backing_file (str): Set the backing file when creating qcow2 image. The
+            backing file must exist.
+        backing_format (str): Set the backing file format.
     """
     if incremental and fmt != "qcow2":
         raise ValueError(
@@ -145,7 +149,13 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
 
         # Create a local image. We know that this image is zeroed, so we don't
         # need to zero during copy.
-        qemu_img.create(filename, fmt, size=src.size(), quiet=True)
+        qemu_img.create(
+            filename,
+            fmt,
+            size=src.size(),
+            backing_file=backing_file,
+            backing_format=backing_format,
+            quiet=True)
 
         max_workers = min(src.max_readers, max_workers)
 
