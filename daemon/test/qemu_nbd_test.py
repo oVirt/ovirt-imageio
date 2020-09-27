@@ -221,7 +221,7 @@ def test_backing_chain(tmpdir):
         c.flush()
 
     # Add empty overlay.
-    qemu_img.create(top, "qcow2", backing=base)
+    qemu_img.create(top, "qcow2", backing_file=base, backing_format="raw")
 
     top_addr = nbd.UnixAddress(str(tmpdir.join("sock")))
 

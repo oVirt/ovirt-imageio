@@ -80,10 +80,12 @@ def test_full_backup(tmpdir, fmt, transport):
 @pytest.mark.timeout(120)
 @pytest.mark.xfail(ci.is_ovirt(), reason="Always times out", run=False)
 def test_full_backup_guest(tmpdir, base_image):
-    disk_size = qemu_img.info(base_image)["virtual-size"]
+    base = qemu_img.info(base_image)
+    disk_size = base["virtual-size"]
 
     disk = str(tmpdir.join("disk.qcow2"))
-    qemu_img.create(disk, "qcow2", backing=base_image)
+    qemu_img.create(
+        disk, "qcow2", backing_file=base_image, backing_format=base["format"])
 
     scratch_disk = str(tmpdir.join("scratch.qcow2"))
     qemu_img.create(scratch_disk, "qcow2", size=disk_size)
@@ -114,10 +116,12 @@ def test_full_backup_guest(tmpdir, base_image):
 @pytest.mark.xfail(ci.is_ovirt(), reason="Always times out", run=False)
 @requires_advanced_virt
 def test_incremental_backup_guest(tmpdir, base_image):
-    disk_size = qemu_img.info(base_image)["virtual-size"]
+    base = qemu_img.info(base_image)
+    disk_size = base["virtual-size"]
 
     disk = str(tmpdir.join("disk.qcow2"))
-    qemu_img.create(disk, "qcow2", backing=base_image)
+    qemu_img.create(
+        disk, "qcow2", backing_file=base_image, backing_format=base["format"])
 
     scratch_disk = str(tmpdir.join("scratch.qcow2"))
     qemu_img.create(scratch_disk, "qcow2", size=disk_size)
@@ -160,7 +164,11 @@ def verify_backup(backup_disk, expected_files):
     log.info("Verifying backup")
 
     preview_disk = backup_disk + ".preview"
-    qemu_img.create(preview_disk, "qcow2", backing=backup_disk)
+    qemu_img.create(
+        preview_disk,
+        "qcow2",
+        backing_file=backup_disk,
+        backing_format="qcow2")
 
     with qemu.run(preview_disk, "qcow2") as guest:
         guest.login("root", "")

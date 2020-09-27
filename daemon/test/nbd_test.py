@@ -606,7 +606,11 @@ def test_full_backup_complete_chain(tmpdir, nbd_sock, checkpoint):
         if i == 0:
             qemu_img.create(disk, "qcow2", size=disk_size)
         else:
-            qemu_img.create(disk, "qcow2", backing="disk.{}".format(i - 1))
+            qemu_img.create(
+                disk,
+                "qcow2",
+                backing_file="disk.{}".format(i - 1),
+                backing_format="qcow2")
 
         # This data can be read only from this disk.
         with qemu_nbd.open(disk, "qcow2") as d:
