@@ -108,11 +108,7 @@ def test_file_backend(srv, client, user_file, fmt):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {
-        "checksum": checksum,
-        "algorithm": "blake2b",
-        "block_size": blkhash.BLOCK_SIZE,
-    }
+    assert res == checksum
 
 
 @pytest.mark.parametrize("block_size", [
@@ -139,11 +135,7 @@ def test_user_block_size(srv, client, tmpdir, block_size):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {
-        "checksum": checksum,
-        "algorithm": "blake2b",
-        "block_size": block_size,
-    }
+    assert res == checksum
 
 
 @pytest.mark.parametrize("block_size", [
@@ -196,11 +188,7 @@ def test_nbd_backend(srv, client, tmpdir, nbd_server, fmt, compressed):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {
-        "checksum": checksum,
-        "algorithm": "blake2b",
-        "block_size": blkhash.BLOCK_SIZE,
-    }
+    assert res == checksum
 
 
 @pytest.mark.parametrize("algorithm,digest_size", [
@@ -227,11 +215,7 @@ def test_algorithms(srv, client, tmpdir, algorithm, digest_size):
     assert res.status == 200
 
     res = json.loads(data)
-    assert res == {
-        "checksum": checksum,
-        "algorithm": algorithm,
-        "block_size": blkhash.BLOCK_SIZE,
-    }
+    assert res == checksum
 
 
 def test_algorithms_unknown(srv, client, tmpdir):

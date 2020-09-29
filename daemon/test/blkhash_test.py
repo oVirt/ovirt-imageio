@@ -75,7 +75,7 @@ def test_hasher_zero():
     assert h1.hexdigest() == h2.hexdigest()
 
 
-@pytest.mark.parametrize("size,algorithm,digest_size,expected", [
+@pytest.mark.parametrize("size,algorithm,digest_size,checksum", [
     # Files aligned to block size.
     (4 * 1024**2, "blake2b", 32,
         "f426bb2cf1e1901fe4e87423950944ecfed6d9d18a09e6e802aa4912e1c9b2d6"),
@@ -96,17 +96,21 @@ def test_hasher_zero():
     (0, "sha1", None,
         "da39a3ee5e6b4b0d3255bfef95601890afd80709"),
 ])
-def test_checksum(tmpdir, size, algorithm, digest_size, expected):
+def test_checksum(tmpdir, size, algorithm, digest_size, checksum):
     path = str(tmpdir.join("file"))
 
     with open(path, "wb") as f:
         f.write(b"data")
         f.truncate(size)
 
-    checksum = blkhash.checksum(
+    actual = blkhash.checksum(
         path,
         block_size=blkhash.BLOCK_SIZE,
         algorithm=algorithm,
         digest_size=digest_size)
 
-    assert checksum == expected
+    assert actual == {
+        "algorithm": algorithm,
+        "block_size": blkhash.BLOCK_SIZE,
+        "checksum": checksum,
+    }

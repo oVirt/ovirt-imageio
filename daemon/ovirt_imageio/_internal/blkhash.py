@@ -100,7 +100,11 @@ def checksum(path, block_size=BLOCK_SIZE, algorithm="blake2b", digest_size=32,
                 _read_block(f, length, view)
                 h.update(view)
 
-    return h.hexdigest()
+    return {
+        "algorithm": algorithm,
+        "block_size": block_size,
+        "checksum": h.hexdigest(),
+    }
 
 
 def _read_block(f, length, buf):

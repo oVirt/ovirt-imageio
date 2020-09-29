@@ -83,11 +83,7 @@ class Checksum:
                 resp.close_connection()
                 raise http.Error(http.FORBIDDEN, str(e)) from None
 
-        resp.send_json({
-            "checksum": checksum,
-            "algorithm": algorithm,
-            "block_size": block_size,
-        })
+        resp.send_json(checksum)
 
 
 class Algorithms:
@@ -144,7 +140,11 @@ class Operation(ops.Operation):
             if self._canceled:
                 raise ops.Canceled
 
-        return h.hexdigest()
+        return {
+            "algorithm": self._algorithm,
+            "block_size": block_size,
+            "checksum": h.hexdigest(),
+        }
 
 
 def compute(backend, buf, algorithm="sha1", detect_zeroes=True):
