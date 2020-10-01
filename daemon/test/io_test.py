@@ -91,13 +91,12 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero, hole):
             src_backend,
             dst_backend,
             max_workers=max_workers,
-            zero=zero)
+            zero=zero,
+            hole=hole)
 
     # Allocation can be compared only with qcow2 images when we write zeroes to
     # zero extents and skip holes.
     strict = src_fmt == "qcow2" and dst_fmt == "qcow2" and zero and not hole
-    if strict:
-        pytest.xfail("zero extents are skipped")
 
     qemu_img.compare(src, dst, strict=strict)
 
@@ -122,6 +121,7 @@ def test_copy_generic(buffer_size, zero, hole, progress):
         max_workers=1,
         buffer_size=buffer_size,
         zero=zero,
+        hole=hole,
         progress=progress)
 
     assert dst_backing == src_backing
@@ -147,6 +147,7 @@ def test_copy_read_from(buffer_size, zero, hole, progress):
         max_workers=1,
         buffer_size=buffer_size,
         zero=zero,
+        hole=hole,
         progress=progress)
 
     assert dst_backing == src_backing
@@ -172,6 +173,7 @@ def test_copy_write_to(buffer_size, zero, hole, progress):
         max_workers=1,
         buffer_size=buffer_size,
         zero=zero,
+        hole=hole,
         progress=progress)
 
     assert dst_backing == src_backing
@@ -204,7 +206,7 @@ def test_copy_data_progress(zero, hole):
     dst = memory.Backend("r+", data=dst_backing)
 
     p = FakeProgress()
-    io.copy(src, dst, max_workers=1, zero=zero, progress=p)
+    io.copy(src, dst, max_workers=1, zero=zero, hole=hole, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4

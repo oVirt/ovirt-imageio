@@ -96,7 +96,14 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
                 dst,
                 max_workers=max_workers,
                 buffer_size=buffer_size,
-                zero=backing_chain,
+                # Since we don't know if the destination image is empty, we
+                # always want to zero. This can be optimized if the caller
+                # knows that the image is empty.
+                zero=True,
+                # When uploading without a backing chain, the destination image
+                # has a backing chain. We must keep holes unallocated on the so
+                # they expose data from the backing chain.
+                hole=backing_chain,
                 progress=progress,
                 name="upload")
 
@@ -147,8 +154,7 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
             secure=secure,
             proxy_url=proxy_url) as src:
 
-        # Create a local image. We know that this image is zeroed, so we don't
-        # need to zero during copy.
+        # Create a new empty image.
         qemu_img.create(
             filename,
             fmt,
@@ -169,7 +175,13 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
                 dirty=incremental,
                 max_workers=max_workers,
                 buffer_size=buffer_size,
-                zero=False,
+                # When downloading with a backing file, we must zero zero
+                # extents which are not holes, so they hide data from the
+                # backing chain.
+                zero=backing_file is not None,
+                # Since we always download to new empty image, we never want to
+                # zero holes.
+                hole=False,
                 progress=progress,
                 name="download")
 

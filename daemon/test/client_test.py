@@ -233,7 +233,6 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
-@pytest.mark.xfail(reason="zero extents are skipped")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2
@@ -341,7 +340,6 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
-@pytest.mark.xfail(reason="zero extents are skipped")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2

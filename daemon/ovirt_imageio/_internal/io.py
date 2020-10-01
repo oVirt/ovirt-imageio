@@ -34,7 +34,8 @@ log = logging.getLogger("io")
 
 
 def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
-         buffer_size=BUFFER_SIZE, zero=True, progress=None, name="copy"):
+         buffer_size=BUFFER_SIZE, zero=True, hole=True, progress=None,
+         name="copy"):
 
     buffer_size = min(buffer_size, MAX_BUFFER_SIZE)
 
@@ -56,29 +57,63 @@ def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
         if progress:
             progress.size = src.size()
 
-        if dirty:
-            # We must treat the non-dirty extents as holes. We use this more
-            # only with new qcow2 image.
-            context = "dirty"
-            zero = False
-        else:
-            # Caller controls zero behavior. When writing to new file we can
-            # always skip zeroes, when wrting to server we need to zero since
-            # we don't know the contents of disk on the server.
-            context = "zero"
-
         try:
             # Submit requests to executor.
-            for ext in src.extents(context):
-                if ext.data:
-                    executor.submit(Request(COPY, ext.start, ext.length))
-                elif zero:
-                    executor.submit(Request(ZERO, ext.start, ext.length))
-                elif progress:
-                    progress.update(ext.length)
+            if dirty:
+                _copy_dirty(executor, src, progress=progress)
+            else:
+                _copy_data(
+                    executor, src, zero=zero, hole=hole, progress=progress)
         except Closed:
             # Error will be raised when exiting the context.
             log.debug("Executor failed")
+
+
+def _copy_dirty(executor, src, progress=None):
+    """
+    Copy dirty extents, skipping clean extents. Since we always write to new
+    empty qcow2 image, clean areas are unallocated, exposing data from backing
+    chain.
+    """
+    for ext in src.extents("dirty"):
+        if ext.data:
+            log.debug("Copying %s", ext)
+            executor.submit(Request(COPY, ext.start, ext.length))
+        else:
+            log.debug("Skipping %s", ext)
+            if progress:
+                progress.update(ext.length)
+
+
+def _copy_data(executor, src, zero=True, hole=True, progress=None):
+    """
+    Copy data extents and zero zero and hole extents.
+
+    The defaults are correct when copying to raw or qcow2 image without a
+    backing file, when we do not know if the destination image is empty. If the
+    destination image is raw, the backend is sparse, and the storage supports
+    punching holes, zeroing will deallocate space. With qcow2 format, areas in
+    the qcow2 are never deallocated when zeroing.
+
+    When copying to qcow2 image with a backing file, holes must not be zeroed,
+    since zeroed areas will hide data from the backing chain. Use hole=False to
+    skip holes and keep them unallocated in the destination image.
+
+    When copying to new empty image without a backing file, we can optimize the
+    copy. Use zero=False to skip both zero and hole extents and leave the area
+    unallocated.
+    """
+    for ext in src.extents("zero"):
+        if ext.data:
+            log.debug("Copying %s", ext)
+            executor.submit(Request(COPY, ext.start, ext.length))
+        elif zero and (not ext.hole or hole):
+            log.debug("Zeroing %s", ext)
+            executor.submit(Request(ZERO, ext.start, ext.length))
+        else:
+            log.debug("Skipping %s", ext)
+            if progress:
+                progress.update(ext.length)
 
 
 # Request ops.
