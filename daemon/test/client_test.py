@@ -233,36 +233,48 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
-def test_upload_no_backing_chain(srv, nbd_server, tmpdir):
-    size = CLUSTER_SIZE * 2
+@pytest.mark.xfail(reason="zero extents are skipped")
+@pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
+def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
+    size = 10 * 1024**2
 
-    # Create base image with some data in first cluster.
-    base = str(tmpdir.join("base.qcow2"))
-    qemu_img.create(base, "qcow2", size=size)
-    with qemu_nbd.open(base, "qcow2") as c:
-        c.write(0, b"data from base")
+    # Create base image with some data in first 3 clusters.
+    src_base = str(tmpdir.join("src_base." + base_fmt))
+    qemu_img.create(src_base, base_fmt, size=size)
+    with qemu_nbd.open(src_base, base_fmt) as c:
+        c.write(0 * CLUSTER_SIZE, b"a" * CLUSTER_SIZE)
+        c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
+        c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
 
-    # Create src image with some data in second cluster.
-    top = str(tmpdir.join("top.qcow2"))
-    qemu_img.create(top, "qcow2", backing_file=base, backing_format="qcow2")
-    with qemu_nbd.open(top, "qcow2") as c:
-        c.write(CLUSTER_SIZE, b"data from top")
+    # Create src image with some data in second cluster and zero in third
+    # cluster.
+    src_top = str(tmpdir.join("src_top.qcow2"))
+    qemu_img.create(
+        src_top, "qcow2", backing_file=src_base, backing_format=base_fmt)
+    with qemu_nbd.open(src_top, "qcow2") as c:
+        c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
+        c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
 
-    # Create empty destination image.
-    dst = str(tmpdir.join("dst.qcow2"))
-    qemu_img.create(dst, "qcow2", size=size)
+    # Create empty destination base image.
+    dst_base = str(tmpdir.join("dst_base." + base_fmt))
+    qemu_img.create(dst_base, base_fmt, size=size)
+
+    # Create empty destination top image.
+    dst_top = str(tmpdir.join("dst_top.qcow2"))
+    qemu_img.create(
+        dst_top, "qcow2", backing_file=dst_base, backing_format=base_fmt)
 
     # Start nbd server for for destination image.
-    nbd_server.image = dst
+    nbd_server.image = dst_top
     nbd_server.fmt = "qcow2"
     nbd_server.start()
 
     # Upload using nbd backend.
     url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
     client.upload(
-        top,
+        src_top,
         url,
         srv.config.tls.ca_file,
         backing_chain=False)
@@ -270,12 +282,12 @@ def test_upload_no_backing_chain(srv, nbd_server, tmpdir):
     # Stop the server to allow comparing.
     nbd_server.stop()
 
-    # To compare top, we need to remove its backing file.
-    qemu_img.unsafe_rebase(top, "")
+    # To compare top, we need to remove the backing files.
+    qemu_img.unsafe_rebase(src_top, "")
+    qemu_img.unsafe_rebase(dst_top, "")
 
-    # Uploading without backing chain uploads data only from top image, and
-    # does not zero unallocated area.
-    qemu_img.compare(top, dst, format1="qcow2", format2="qcow2", strict=True)
+    qemu_img.compare(
+        src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -329,27 +341,33 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
-def test_download_shallow(srv, nbd_server, tmpdir):
-    size = CLUSTER_SIZE * 2
+@pytest.mark.xfail(reason="zero extents are skipped")
+@pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
+def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
+    size = 10 * 1024**2
 
-    # Create source base image with some data in first cluster.
-    src_base = str(tmpdir.join("src_base.qcow2"))
-    qemu_img.create(src_base, "qcow2", size=size)
-    with qemu_nbd.open(src_base, "qcow2") as c:
-        c.write(0, b"data from base")
+    # Create source base image with some data in first clusters.
+    src_base = str(tmpdir.join("src_base." + base_fmt))
+    qemu_img.create(src_base, base_fmt, size=size)
+    with qemu_nbd.open(src_base, base_fmt) as c:
+        c.write(0 * CLUSTER_SIZE, b"a" * CLUSTER_SIZE)
+        c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
+        c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
 
-    # Create source top image with some data in second cluster.
+    # Create source top image with some data in second cluster and zero in the
+    # third cluster.
     src_top = str(tmpdir.join("src_top.qcow2"))
     qemu_img.create(
-        src_top, "qcow2", backing_file=src_base, backing_format="qcow2")
+        src_top, "qcow2", backing_file=src_base, backing_format=base_fmt)
     with qemu_nbd.open(src_top, "qcow2") as c:
-        c.write(CLUSTER_SIZE, b"data from top")
+        c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
+        c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
 
     # Create empty backing file for downloding top image.
-    dst_base = str(tmpdir.join("dst_base.qcow2"))
-    qemu_img.create(dst_base, "qcow2", size=size)
+    dst_base = str(tmpdir.join("dst_base." + base_fmt))
+    qemu_img.create(dst_base, base_fmt, size=size)
 
     dst_top = str(tmpdir.join("dst_top.qcow2"))
 
@@ -367,7 +385,7 @@ def test_download_shallow(srv, nbd_server, tmpdir):
         dst_top,
         srv.config.tls.ca_file,
         backing_file=dst_base,
-        backing_format="qcow2")
+        backing_format=base_fmt)
 
     # Stop the server to allow comparing.
     nbd_server.stop()

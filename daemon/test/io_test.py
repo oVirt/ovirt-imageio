@@ -18,8 +18,14 @@ from ovirt_imageio._internal.backends import nbd, memory, image
 from ovirt_imageio._internal.nbd import UnixAddress
 
 ZERO_PARAMS = [
-    pytest.param(True, id="zero"),
-    pytest.param(False, id="nozero"),
+    # Copying to image with unknown content.
+    pytest.param(True, True, id="unknown-image"),
+
+    # Copying to new empty image.
+    pytest.param(False, True, id="new-image"),
+
+    # Copying to new empty image with a backing file.
+    pytest.param(True, False, id="backing-file"),
 ]
 
 CHUNK_SIZE = 512
@@ -40,8 +46,8 @@ class FakeProgress:
     ("qcow2", "qcow2"),
     ("qcow2", "raw"),
 ])
-@pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
+@pytest.mark.parametrize("zero,hole", ZERO_PARAMS)
+def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero, hole):
     # Default cluser size with qcow2 format.
     cluster_size = 64 * 1024
     extents = [
@@ -79,20 +85,32 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
             nbd.open(src_url, "r") as src_backend, \
             nbd.open(dst_url, "r+", sparse=True) as dst_backend:
 
-        # Because we copy to new image, we can alays use zero=False, but we
+        # Because we copy to new image, we can always use zero=False, but we
         # test both to verify that the result is the same.
-        io.copy(src_backend, dst_backend, max_workers=max_workers, zero=zero)
+        io.copy(
+            src_backend,
+            dst_backend,
+            max_workers=max_workers,
+            zero=zero)
 
-    qemu_img.compare(src, dst)
+    # Allocation can be compared only with qcow2 images when we write zeroes to
+    # zero extents and skip holes.
+    strict = src_fmt == "qcow2" and dst_fmt == "qcow2" and zero and not hole
+    if strict:
+        pytest.xfail("zero extents are skipped")
+
+    qemu_img.compare(src, dst, strict=strict)
 
 
 @pytest.mark.parametrize("buffer_size", [128, 1024])
-@pytest.mark.parametrize("zero", ZERO_PARAMS)
+@pytest.mark.parametrize("zero,hole", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
-def test_copy_generic(buffer_size, zero, progress):
+def test_copy_generic(buffer_size, zero, hole, progress):
     src_extents = create_zero_extents("B0-")
     src_backing = create_backing("B0-")
-    dst_backing = create_backing("AAA" if zero else "A00")
+
+    dst_backing = create_backing(
+        "AAA" if zero and hole else "AA0" if zero else "A00")
 
     src = memory.Backend(
         mode="r", data=src_backing, extents={"zero": src_extents})
@@ -110,12 +128,14 @@ def test_copy_generic(buffer_size, zero, progress):
 
 
 @pytest.mark.parametrize("buffer_size", [128, 1024])
-@pytest.mark.parametrize("zero", ZERO_PARAMS)
+@pytest.mark.parametrize("zero,hole", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
-def test_copy_read_from(buffer_size, zero, progress):
+def test_copy_read_from(buffer_size, zero, hole, progress):
     src_extents = create_zero_extents("B0-")
     src_backing = create_backing("B0-")
-    dst_backing = create_backing("AAA" if zero else "A00")
+
+    dst_backing = create_backing(
+        "AAA" if zero and hole else "AA0" if zero else "A00")
 
     src = memory.Backend(
         mode="r", data=src_backing, extents={"zero": src_extents})
@@ -133,12 +153,14 @@ def test_copy_read_from(buffer_size, zero, progress):
 
 
 @pytest.mark.parametrize("buffer_size", [128, 1024])
-@pytest.mark.parametrize("zero", ZERO_PARAMS)
+@pytest.mark.parametrize("zero,hole", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
-def test_copy_write_to(buffer_size, zero, progress):
+def test_copy_write_to(buffer_size, zero, hole, progress):
     src_extents = create_zero_extents("B0-")
     src_backing = create_backing("B0-")
-    dst_backing = create_backing("AAA" if zero else "A00")
+
+    dst_backing = create_backing(
+        "AAA" if zero and hole else "AA0" if zero else "A00")
 
     src = memory.WriterTo(
         mode="r", data=src_backing, extents={"zero": src_extents})
@@ -171,8 +193,8 @@ def test_copy_dirty(progress):
     assert dst_backing == create_backing("A0C0")
 
 
-@pytest.mark.parametrize("zero", ZERO_PARAMS)
-def test_copy_data_progress(zero):
+@pytest.mark.parametrize("zero,hole", ZERO_PARAMS)
+def test_copy_data_progress(zero, hole):
     src = memory.Backend(
         mode="r",
         data=create_backing("A0C-"),
