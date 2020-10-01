@@ -22,6 +22,8 @@ ZERO_PARAMS = [
     pytest.param(False, id="nozero"),
 ]
 
+CHUNK_SIZE = 512
+
 
 class FakeProgress:
 
@@ -34,41 +36,28 @@ class FakeProgress:
 
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
-    ("qcow2", "qcow2"),
     ("raw", "qcow2"),
+    ("qcow2", "qcow2"),
     ("qcow2", "raw"),
 ])
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
 def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
-    # Make sure we have zero extents larger than MAX_ZERO_SIZE (1 GiB). It
-    # would be nice to have also data extents larger than MAX_COPY_SIZE (128
-    # MiB), but this is too slow for automated tests.
-    size = 2 * io.MAX_ZERO_SIZE
-
     # Default cluser size with qcow2 format.
     cluster_size = 64 * 1024
+    extents = [
+        ("data", cluster_size),
+        ("zero", cluster_size),
+        ("data", cluster_size),
+        ("hole", cluster_size + io.MAX_ZERO_SIZE),
+        ("data", cluster_size + io.BUFFER_SIZE),
+        ("hole", cluster_size),
+        ("data", cluster_size),
+    ]
+    size = sum(length for _, length in extents)
 
     src = str(tmpdir.join("src." + src_fmt))
     qemu_img.create(src, src_fmt, size=size)
-
-    with qemu_nbd.open(src, src_fmt) as c:
-        # Create first data extent.
-        c.write(0, b"data extent 1\n")
-
-        # Between the data extents we have a zero extent bigger than
-        # io.MAX_ZERO_SIZE.
-
-        # Create data extent larger than io.BUFFER_SIZE.
-        data = b"data extent 2\n" + b"x" * io.BUFFER_SIZE
-        c.write(io.MAX_ZERO_SIZE + 2 * cluster_size, data)
-
-        # Between the data extents we have a zero extent smaller than
-        # io.MAX_ZERO_SIZE.
-
-        # Create last data extent at the end of the image.
-        c.write(size - 4096, b"data extent 3\n")
-
-        c.flush()
+    populate_image(src, src_fmt, extents)
 
     src_sock = UnixAddress(tmpdir.join("src.sock"))
     src_url = urlparse(src_sock.url())
@@ -88,7 +77,7 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
                 dst, dst_fmt, dst_sock,
                 shared=max_workers), \
             nbd.open(src_url, "r") as src_backend, \
-            nbd.open(dst_url, "r+") as dst_backend:
+            nbd.open(dst_url, "r+", sparse=True) as dst_backend:
 
         # Because we copy to new image, we can alays use zero=False, but we
         # test both to verify that the result is the same.
@@ -101,22 +90,12 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero):
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
 def test_copy_generic(buffer_size, zero, progress):
-    size = 1024
-    chunk_size = size // 2
-
-    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
-    dst_backing = bytearray((b"y" if zero else b"\0") * size)
+    src_extents = create_zero_extents("B0-")
+    src_backing = create_backing("B0-")
+    dst_backing = create_backing("AAA" if zero else "A00")
 
     src = memory.Backend(
-        mode="r",
-        data=src_backing,
-        extents={
-            "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
-            ]
-        }
-    )
+        mode="r", data=src_backing, extents={"zero": src_extents})
 
     dst = memory.Backend("r+", data=dst_backing)
 
@@ -134,22 +113,12 @@ def test_copy_generic(buffer_size, zero, progress):
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
 def test_copy_read_from(buffer_size, zero, progress):
-    size = 1024
-    chunk_size = size // 2
-
-    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
-    dst_backing = bytearray((b"y" if zero else b"\0") * size)
+    src_extents = create_zero_extents("B0-")
+    src_backing = create_backing("B0-")
+    dst_backing = create_backing("AAA" if zero else "A00")
 
     src = memory.Backend(
-        mode="r",
-        data=src_backing,
-        extents={
-            "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
-            ]
-        }
-    )
+        mode="r", data=src_backing, extents={"zero": src_extents})
 
     dst = memory.ReaderFrom("r+", data=dst_backing)
 
@@ -167,22 +136,12 @@ def test_copy_read_from(buffer_size, zero, progress):
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
 def test_copy_write_to(buffer_size, zero, progress):
-    size = 1024
-    chunk_size = size // 2
-
-    src_backing = bytearray(b"x" * chunk_size + b"\0" * chunk_size)
-    dst_backing = bytearray((b"y" if zero else b"\0") * size)
+    src_extents = create_zero_extents("B0-")
+    src_backing = create_backing("B0-")
+    dst_backing = create_backing("AAA" if zero else "A00")
 
     src = memory.WriterTo(
-        mode="r",
-        data=src_backing,
-        extents={
-            "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
-            ]
-        }
-    )
+        mode="r", data=src_backing, extents={"zero": src_extents})
 
     dst = memory.Backend("r+", data=dst_backing)
 
@@ -198,64 +157,29 @@ def test_copy_write_to(buffer_size, zero, progress):
 
 @pytest.mark.parametrize("progress", [None, FakeProgress()])
 def test_copy_dirty(progress):
-    size = 1024
-    chunk_size = size // 4
-
     src = memory.Backend(
         mode="r",
-        data=bytearray(
-            b"a" * chunk_size +
-            b"b" * chunk_size +
-            b"c" * chunk_size +
-            b"d" * chunk_size
-        ),
-        extents={
-            "dirty": [
-                image.DirtyExtent(0 * chunk_size, chunk_size, True),
-                image.DirtyExtent(1 * chunk_size, chunk_size, False),
-                image.DirtyExtent(2 * chunk_size, chunk_size, True),
-                image.DirtyExtent(3 * chunk_size, chunk_size, False),
-            ]
-        }
+        data=create_backing("ABCD"),
+        extents={"dirty": create_dirty_extents("AbCd")},
     )
-
-    dst_backing = bytearray(b"\0" * size)
+    dst_backing = create_backing("0000")
     dst = memory.Backend("r+", data=dst_backing)
 
     io.copy(src, dst, dirty=True, max_workers=1, progress=progress)
 
-    assert dst_backing == (
-        b"a" * chunk_size +
-        b"\0" * chunk_size +
-        b"c" * chunk_size +
-        b"\0" * chunk_size
-    )
+    # Copy dirty extents, skip clean extents.
+    assert dst_backing == create_backing("A0C0")
 
 
 @pytest.mark.parametrize("zero", ZERO_PARAMS)
 def test_copy_data_progress(zero):
-    size = 1024
-    chunk_size = size // 4
-
     src = memory.Backend(
         mode="r",
-        data=bytearray(
-            b"x" * chunk_size +
-            b"\0" * chunk_size +
-            b"x" * chunk_size +
-            b"\0" * chunk_size
-        ),
-        extents={
-            "zero": [
-                image.ZeroExtent(0 * chunk_size, chunk_size, False, False),
-                image.ZeroExtent(1 * chunk_size, chunk_size, True, False),
-                image.ZeroExtent(2 * chunk_size, chunk_size, False, False),
-                image.ZeroExtent(3 * chunk_size, chunk_size, True, False),
-            ]
-        }
+        data=create_backing("A0C-"),
+        extents={"zero": create_zero_extents("A0C-")},
     )
-
-    dst = memory.Backend("r+", data=bytearray(b"\0" * size))
+    dst_backing = create_backing("0000")
+    dst = memory.Backend("r+", data=dst_backing)
 
     p = FakeProgress()
     io.copy(src, dst, max_workers=1, zero=zero, progress=p)
@@ -264,32 +188,17 @@ def test_copy_data_progress(zero):
     assert len(p.updates) >= 4
 
     # Report entire image size.
-    assert sum(p.updates) == size
+    assert sum(p.updates) == len(dst_backing)
 
 
 def test_copy_dirty_progress():
-    size = 1024
-    chunk_size = size // 4
-
     src = memory.Backend(
         mode="r",
-        data=bytearray(
-            b"x" * chunk_size +
-            b"\0" * chunk_size +
-            b"x" * chunk_size +
-            b"\0" * chunk_size
-        ),
-        extents={
-            "dirty": [
-                image.DirtyExtent(0 * chunk_size, chunk_size, True),
-                image.DirtyExtent(1 * chunk_size, chunk_size, False),
-                image.DirtyExtent(2 * chunk_size, chunk_size, True),
-                image.DirtyExtent(3 * chunk_size, chunk_size, False),
-            ]
-        }
+        data=create_backing("A0C-"),
+        extents={"dirty": create_zero_extents("A0C-")},
     )
-
-    dst = memory.Backend("r+", bytearray(b"\0" * size))
+    dst_backing = create_backing("0000")
+    dst = memory.Backend("r+", data=dst_backing)
 
     p = FakeProgress()
     io.copy(src, dst, dirty=True, max_workers=1, progress=p)
@@ -298,7 +207,7 @@ def test_copy_dirty_progress():
     assert len(p.updates) >= 4
 
     # Report entire image size.
-    assert sum(p.updates) == size
+    assert sum(p.updates) == len(dst_backing)
 
 
 class BackendError(Exception):
@@ -355,3 +264,86 @@ def test_reraise_src_error():
     with pytest.raises(BackendError) as e:
         io.copy(src, dst)
     assert str(e.value) == "read error"
+
+
+# Testing helpers.
+
+def populate_image(path, fmt, extents):
+    with qemu_nbd.open(path, fmt) as c:
+        offset = 0
+        for kind, length in extents:
+            if kind == "data":
+                c.write(offset, b"x" * length)
+            elif kind == "zero":
+                c.zero(offset, length, punch_hole=False)
+            elif kind == "hole":
+                pass  # Unallocated
+            offset += length
+        c.flush()
+
+
+def create_zero_extents(fmt):
+    """
+    Create zero extents from format string.
+
+    "A0-" -> [
+        ZeroExtent(0 * CHUNK_SIZE, CHUNK_SIZE, False, False),
+        ZeroExtent(1 * CHUNK_SIZE, CHUNK_SIZE, True, False),
+        ZeroExtent(2 * CHUNK_SIZE, CHUNK_SIZE, True, True),
+    ]
+    """
+    extents = []
+    offset = 0
+
+    for c in fmt:
+        if c == "0":
+            extents.append(
+                image.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=False))
+        elif c == "-":
+            extents.append(
+                image.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=True))
+        else:
+            extents.append(
+                image.ZeroExtent(offset, CHUNK_SIZE, zero=False, hole=False))
+        offset += CHUNK_SIZE
+
+    return extents
+
+
+def create_dirty_extents(fmt):
+    """
+    Create dirty extents from format string.
+
+    "Ab" -> [
+        DirtyExtent(0 * CHUNK_SIZE, CHUNK_SIZE, True),
+        DirtyExtent(1 * CHUNK_SIZE, CHUNK_SIZE, False),
+    ]
+    """
+    extents = []
+    offset = 0
+
+    for c in fmt:
+        extents.append(
+            image.DirtyExtent(offset, CHUNK_SIZE, dirty=c.isupper()))
+        offset += CHUNK_SIZE
+
+    return extents
+
+
+def create_backing(fmt):
+    """
+    Create backing from format string.
+
+    "A0-" -> bytearray(
+        b"A" * CHUNK_SIZE + b"\0" * CHUNK_SIZE + b"\0" * CHUNK_SIZE
+    )
+    """
+    b = bytearray()
+
+    for c in fmt:
+        if c in ("0", "-"):
+            b += b"\0" * CHUNK_SIZE
+        else:
+            b += c.encode("ascii") * CHUNK_SIZE
+
+    return b
