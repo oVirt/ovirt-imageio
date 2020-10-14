@@ -136,7 +136,17 @@ fi
 
 %changelog
 
-* Wed Aug 5 2020 Nir Soffer <nsoffer@redhatcom> 2.0.10-1
+* Wed Oct 14 2020 Nir Soffer <nsoffer@redhat.com> 2.1.0-1
+- Support upload and download snapshots #BZ1847090
+- Remove python2 leftovers #BZ1862719
+- Faster checkusms using zero hashing
+- Report checksum configuration in client.checksum()
+- Improve logging for easier debugging
+- Improve client online help
+- Silence output from qemu-img create
+- Configurable buffer size per backend
+
+* Wed Aug 5 2020 Nir Soffer <nsoffer@redhat.com> 2.0.10-1
 - Support 3rd party certificates #BZ1862107
 - Imageio low level API #BZ1855047
 - Compute image checksums #BZ1787906
