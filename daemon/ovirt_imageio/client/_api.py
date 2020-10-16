@@ -255,6 +255,30 @@ def checksum(filename, member=None, block_size=blkhash.BLOCK_SIZE,
             backend, buf, algorithm=algorithm, detect_zeroes=detect_zeroes)
 
 
+def extents(filename, member=None):
+    """
+    Iterate over image extents, similiar to /extents API.
+
+    Arguments:
+        filename (str): Path to file to query.
+        member (str): If specified, filename must be a tar file, and the call
+            returns checksum for image named member inside the tar file.
+    Yields:
+        Zero extents in filename.
+    """
+    # Get image format and if member specified, its offset and size.
+    image_info = info(filename, member=member)
+
+    with _open_nbd(
+            filename,
+            image_info["format"],
+            read_only=True,
+            offset=image_info.get("member-offset"),
+            size=image_info.get("member-size")) as backend:
+        for extent in backend.extents("zero"):
+            yield extent
+
+
 class ImageioClient:
     """
     Client for imageio server.

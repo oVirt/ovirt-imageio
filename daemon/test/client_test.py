@@ -19,6 +19,8 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
 
+from ovirt_imageio._internal.backends.image import ZeroExtent
+
 from . import testutil
 
 CLUSTER_SIZE = 64 * 1024
@@ -714,3 +716,140 @@ def test_checksum_algorithm(tmpdir, algorithm, digest_size):
         img, block_size=1024**2, algorithm=algorithm, digest_size=digest_size)
     actual = client.checksum(img, block_size=1024**2, algorithm=algorithm)
     assert actual == expected
+
+
+def test_zero_extents_raw(tmpdir):
+    size = 10 * 1024**2
+
+    # Create image with some data, zero and holes.
+    image = str(tmpdir.join("image.raw"))
+    qemu_img.create(image, "raw", size=size)
+    with qemu_nbd.open(image, "raw") as c:
+        c.write(0 * CLUSTER_SIZE, b"A" * CLUSTER_SIZE)
+        c.zero(1 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.write(2 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
+        c.flush()
+
+    extents = list(client.extents(image))
+
+    # Note: raw files report unallocated as zero, not a a hole.
+    assert extents == [
+        ZeroExtent(
+            start=0 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=False,
+            hole=False),
+        ZeroExtent(
+            start=1 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=True,
+            hole=False),
+        ZeroExtent(
+            start=2 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=False,
+            hole=False),
+        ZeroExtent(
+            start=3 * CLUSTER_SIZE,
+            length=size - 3 * CLUSTER_SIZE,
+            zero=True,
+            hole=False),
+    ]
+
+
+def test_zero_extents_qcow2(tmpdir):
+    size = 10 * 1024**2
+
+    # Create base image with one data and one zero cluster.
+    base = str(tmpdir.join("base.qcow2"))
+    qemu_img.create(base, "qcow2", size=size)
+    with qemu_nbd.open(base, "qcow2") as c:
+        c.write(0 * CLUSTER_SIZE, b"A" * CLUSTER_SIZE)
+        c.zero(1 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.flush()
+
+    # Create top image with one data and one zero cluster.
+    top = str(tmpdir.join("top.qcow2"))
+    qemu_img.create(
+        top, "qcow2", backing_file=base, backing_format="qcow2")
+    with qemu_nbd.open(top, "qcow2") as c:
+        c.write(3 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
+        c.zero(4 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.flush()
+
+    extents = list(client.extents(top))
+
+    assert extents == [
+        # Extents from base...
+        ZeroExtent(
+            start=0 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=False,
+            hole=False),
+        ZeroExtent(
+            start=1 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=True,
+            hole=False),
+        ZeroExtent(
+            start=2 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=True,
+            hole=True),
+
+        # Extents from top...
+        ZeroExtent(
+            start=3 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=False,
+            hole=False),
+        ZeroExtent(
+            start=4 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=True,
+            hole=False),
+
+        # Rest of unallocated data...
+        ZeroExtent(
+            start=5 * CLUSTER_SIZE,
+            length=size - 5 * CLUSTER_SIZE,
+            zero=True,
+            hole=True),
+    ]
+
+
+def test_zero_extents_from_ova(tmpdir):
+    size = 10 * 1024**2
+
+    # Create image with data, zero and hole clusters.
+    disk = str(tmpdir.join("disk.qcow2"))
+    qemu_img.create(disk, "qcow2", size=size)
+    with qemu_nbd.open(disk, "qcow2") as c:
+        c.write(0 * CLUSTER_SIZE, b"A" * CLUSTER_SIZE)
+        c.zero(1 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.flush()
+
+    # Create OVA whith this image.
+    ova = str(tmpdir.join("vm.ova"))
+    with tarfile.open(ova, "w") as tar:
+        tar.add(disk, arcname=os.path.basename(disk))
+
+    extents = list(client.extents(ova, member="disk.qcow2"))
+
+    assert extents == [
+        ZeroExtent(
+            start=0 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=False,
+            hole=False),
+        ZeroExtent(
+            start=1 * CLUSTER_SIZE,
+            length=CLUSTER_SIZE,
+            zero=True,
+            hole=False),
+        ZeroExtent(
+            start=2 * CLUSTER_SIZE,
+            length=size - 2 * CLUSTER_SIZE,
+            zero=True,
+            hole=True),
+    ]

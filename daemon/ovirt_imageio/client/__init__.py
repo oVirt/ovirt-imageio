@@ -26,6 +26,7 @@ from . _api import (
     info,
     measure,
     checksum,
+    extents,
     ImageioClient,
 )
 
@@ -38,6 +39,7 @@ __all__ = (
     "ProgressBar",
     "checksum",
     "download",
+    "extents",
     "info",
     "measure",
     "upload",
