@@ -21,7 +21,7 @@ from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import sockutil
 
 from . import testutil
-from . marks import flaky_in_ovirt_ci
+from . marks import flaky_in_ovirt_ci, requires_advanced_virt
 
 
 @pytest.mark.parametrize("addr,export,url", [
@@ -279,3 +279,31 @@ def test_shared(tmpdir, fmt):
         dst_client2.flush()
 
     qemu_img.compare(src, dst)
+
+
+@requires_advanced_virt
+def test_dirty_bitmap(tmpdir):
+    size = 1024**2
+
+    # Create image with empty bitmap.
+    img = str(tmpdir.join("img.qcow2"))
+    qemu_img.create(img, "qcow2", size=size)
+    qemu_img.bitmap_add(img, "b0")
+
+    # Write data to image, modifying the bitmap.
+    with qemu_nbd.open(img, "qcow2") as c:
+        # This will allocate one cluster. By default bitmap granularity is also
+        # one cluster, so this will make the first extent dirty.
+        c.write(0, b"a")
+        c.flush()
+
+    # Read dirty extents.
+    with qemu_nbd.open(img, "qcow2", read_only=True, bitmap="b0") as c:
+        extents = c.extents(0, size)["qemu:dirty-bitmap:b0"]
+
+    bitmap = qemu_img.info(img)["format-specific"]["data"]["bitmaps"][0]
+
+    assert extents == [
+        nbd.Extent(length=bitmap["granularity"], flags=1),
+        nbd.Extent(length=size - bitmap["granularity"], flags=0),
+    ]

@@ -23,8 +23,8 @@ class Server:
 
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=1,
-            cache="none", aio="native", discard="unmap", backing_chain=True,
-            offset=None, size=None, timeout=10.0):
+            cache="none", aio="native", discard="unmap", bitmap=None,
+            backing_chain=True, offset=None, size=None, timeout=10.0):
         """
         Initialize qemu-nbd Server.
 
@@ -38,6 +38,7 @@ class Server:
             cache (str): cache mode (none, writeback, ...)
             aio (str): AIO mode (native or threads)
             discard (str): discard mode (ignore, unmap)
+            bitmap (str): export this dirty bitmap
             backing_chain (bool): when using qcow2 format, open the backing
                 chain. When set to False, override the backing chain to null.
                 Unallocated extents will be read as zeroes, instead of reading
@@ -59,6 +60,7 @@ class Server:
         self.cache = cache
         self.aio = aio
         self.discard = discard
+        self.bitmap = bitmap
         self.backing_chain = backing_chain
         self.offset = offset
         self.size = size
@@ -97,6 +99,9 @@ class Server:
 
         if self.discard:
             cmd.append("--discard={}".format(self.discard)),
+
+        if self.bitmap:
+            cmd.append("--bitmap={}".format(self.bitmap))
 
         # Build a 'json:{...}' filename allowing control all aspects of the
         # image.
@@ -156,8 +161,8 @@ class Server:
 
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=1,
-        cache="none", aio="native", discard="unmap", backing_chain=True,
-        offset=None, size=None, timeout=10.0):
+        cache="none", aio="native", discard="unmap", bitmap=None,
+        backing_chain=True, offset=None, size=None, timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
@@ -166,6 +171,7 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
         cache=cache,
         aio=aio,
         discard=discard,
+        bitmap=bitmap,
         backing_chain=backing_chain,
         offset=offset,
         size=size,
@@ -178,11 +184,16 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
 
 
 @contextmanager
-def open(image, fmt, read_only=False, offset=None, size=None):
+def open(image, fmt, read_only=False, bitmap=None, offset=None, size=None):
     """
     Open nbd client for accessing image using qemu-nbd.
     """
     sock = nbd.UnixAddress(image + ".sock")
-    with run(image, fmt, sock, read_only=read_only, offset=offset, size=size):
-        with nbd.Client(sock) as c:
+    with run(
+            image, fmt, sock,
+            read_only=read_only,
+            bitmap=bitmap,
+            offset=offset,
+            size=size):
+        with nbd.Client(sock, dirty=bitmap is not None) as c:
             yield c
