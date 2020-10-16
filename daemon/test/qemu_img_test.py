@@ -11,6 +11,8 @@ import pytest
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 
+from . marks import requires_advanced_virt
+
 
 @pytest.mark.parametrize("src_fmt,dst_fmt", [
     ("raw", "raw"),
@@ -113,3 +115,15 @@ def test_create_info(tmpdir, fmt):
     assert info["filename"] == image
     assert info["virtual-size"] == size
     assert info["format"] == fmt
+
+
+@requires_advanced_virt
+def test_add_bitmap(tmpdir):
+    size = 10 * 1024**2
+    img = str(tmpdir.join("img.qcow2"))
+    qemu_img.create(img, "qcow2", size=size)
+    qemu_img.bitmap_add(img, "b0")
+    bitmaps = qemu_img.info(img)["format-specific"]["data"]["bitmaps"]
+    assert bitmaps == [
+        {"name": "b0", "flags": ["auto"], "granularity": 65536}
+    ]

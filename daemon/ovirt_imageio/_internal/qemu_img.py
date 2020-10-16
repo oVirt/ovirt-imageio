@@ -95,3 +95,8 @@ def compare(a, b, format1=None, format2=None, strict=False):
         raise OpenImageError(out.decode("utf-8"))
     else:
         raise RuntimeError(err.decode("utf-8"))
+
+
+def bitmap_add(path, bitmap):
+    cmd = ["qemu-img", "bitmap", "--add", path, bitmap]
+    subprocess.check_call(cmd)
