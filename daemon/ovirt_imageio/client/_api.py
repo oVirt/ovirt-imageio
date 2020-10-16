@@ -255,7 +255,7 @@ def checksum(filename, member=None, block_size=blkhash.BLOCK_SIZE,
             backend, buf, algorithm=algorithm, detect_zeroes=detect_zeroes)
 
 
-def extents(filename, member=None):
+def extents(filename, member=None, bitmap=None):
     """
     Iterate over image extents, similiar to /extents API.
 
@@ -263,8 +263,10 @@ def extents(filename, member=None):
         filename (str): Path to file to query.
         member (str): If specified, filename must be a tar file, and the call
             returns checksum for image named member inside the tar file.
+        bitmap (str): Report dirty extents using specified bitmap. Extents are
+            not reported from the backing chain.
     Yields:
-        Zero extents in filename.
+        Zero or dirty extents in filename.
     """
     # Get image format and if member specified, its offset and size.
     image_info = info(filename, member=member)
@@ -273,9 +275,10 @@ def extents(filename, member=None):
             filename,
             image_info["format"],
             read_only=True,
+            bitmap=bitmap,
             offset=image_info.get("member-offset"),
             size=image_info.get("member-size")) as backend:
-        for extent in backend.extents("zero"):
+        for extent in backend.extents("dirty" if bitmap else "zero"):
             yield extent
 
 
@@ -473,8 +476,8 @@ def _json_uri(filename, offset, size):
 
 
 @contextmanager
-def _open_nbd(filename, fmt, read_only=False, shared=1, offset=None,
-              size=None, backing_chain=True):
+def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
+              offset=None, size=None, backing_chain=True):
     with _tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
         with qemu_nbd.run(
@@ -486,12 +489,13 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, offset=None,
                 aio=None,
                 discard=None,
                 shared=shared,
+                bitmap=bitmap,
                 offset=offset,
                 size=size,
                 backing_chain=backing_chain):
             url = urlparse(sock.url())
             mode = "r" if read_only else "r+"
-            yield nbd.open(url, mode=mode)
+            yield nbd.open(url, mode=mode, dirty=bitmap is not None)
 
 
 def _open_http(transfer_url, mode, cafile=None, secure=True, proxy_url=None):

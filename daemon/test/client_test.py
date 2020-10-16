@@ -19,9 +19,10 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
 
-from ovirt_imageio._internal.backends.image import ZeroExtent
+from ovirt_imageio._internal.backends.image import ZeroExtent, DirtyExtent
 
 from . import testutil
+from . marks import requires_advanced_virt
 
 CLUSTER_SIZE = 64 * 1024
 IMAGE_SIZE = 3 * CLUSTER_SIZE
@@ -852,4 +853,62 @@ def test_zero_extents_from_ova(tmpdir):
             length=size - 2 * CLUSTER_SIZE,
             zero=True,
             hole=True),
+    ]
+
+
+@requires_advanced_virt
+def test_dirty_extents(tmpdir):
+    size = 1024**2
+
+    # Create base image with empty dirty bitmap.
+    base = str(tmpdir.join("base.qcow2"))
+    qemu_img.create(base, "qcow2", size=size)
+    qemu_img.bitmap_add(base, "b0")
+
+    # Write data, modifying the dirty bitmap.
+    with qemu_nbd.open(base, "qcow2") as c:
+        c.write(0 * CLUSTER_SIZE, b"A" * CLUSTER_SIZE)
+        c.zero(1 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.flush()
+
+    # Create top image with empty dirty bitmap.
+    top = str(tmpdir.join("top.qcow2"))
+    qemu_img.create(top, "qcow2", backing_file=base, backing_format="qcow2")
+    qemu_img.bitmap_add(top, "b0")
+
+    # Write data, modifying the dirty bitmap.
+    with qemu_nbd.open(top, "qcow2") as c:
+        c.write(3 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
+        c.zero(4 * CLUSTER_SIZE, CLUSTER_SIZE)
+        c.flush()
+
+    dirty_extents = list(client.extents(base, bitmap="b0"))
+
+    assert dirty_extents == [
+        DirtyExtent(
+            start=0 * CLUSTER_SIZE,
+            length=2 * CLUSTER_SIZE,
+            dirty=True),
+        DirtyExtent(
+            start=2 * CLUSTER_SIZE,
+            length=size - 2 * CLUSTER_SIZE,
+            dirty=False),
+    ]
+
+    dirty_extents = list(client.extents(top, bitmap="b0"))
+
+    # Note: qemu-nbd reports dirty extents only for the top image.
+    assert dirty_extents == [
+        DirtyExtent(
+            start=0 * CLUSTER_SIZE,
+            length=3 * CLUSTER_SIZE,
+            dirty=False),
+        DirtyExtent(
+            start=3 * CLUSTER_SIZE,
+            length=2 * CLUSTER_SIZE,
+            dirty=True),
+        DirtyExtent(
+            start=5 * CLUSTER_SIZE,
+            length=size - 5 * CLUSTER_SIZE,
+            dirty=False),
     ]
