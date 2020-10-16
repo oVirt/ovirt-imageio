@@ -229,6 +229,7 @@ def checksum(filename, member=None, block_size=blkhash.BLOCK_SIZE,
     Compute image checksum.
 
     Arguments:
+        filename (str): File name for computing checksum.
         member (str): If specified, filename must be a tar file, and the call
             returns checksum for image named member inside the tar file.
         block_size (int): block size for computing the checksum. When comparing
