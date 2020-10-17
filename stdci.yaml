@@ -2,7 +2,6 @@ archs:
 - x86_64:
     distributions:
     - el8
-    - fc30
 - ppc64le:
     distributions:
     - el8
@@ -13,7 +12,6 @@ stages:
       substages:
       - py3:
           distributions:
-          - fc30
           - el8
 
 release-branches:
