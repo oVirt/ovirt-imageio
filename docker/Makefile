@@ -1,4 +1,4 @@
-targets := centos-8 fedora-31 fedora-32
+targets := centos-8 fedora-31 fedora-32 fedora-33
 
 .PHONY: $(targets) push
 
