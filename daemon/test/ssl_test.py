@@ -17,11 +17,7 @@ from ovirt_imageio._internal import config
 from ovirt_imageio._internal import services
 from ovirt_imageio._internal.ssl import check_protocol
 
-
-def on_centos(version=""):
-    prefix = "CentOS Linux release {}".format(version)
-    with open("/etc/redhat-release") as f:
-        return f.readline().startswith(prefix)
+from . import distro
 
 
 @contextmanager
@@ -62,7 +58,7 @@ def test_legacy_reject(protocol):
     pytest.param(
         "-tls1_1",
         marks=pytest.mark.skipif(
-            on_centos("8"),
+            distro.is_centos("8") or distro.is_fedora("33"),
             reason="Default crypto policy disable TLS v1.1"
         )
     ),
