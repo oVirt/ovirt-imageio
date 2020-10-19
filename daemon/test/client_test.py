@@ -209,15 +209,9 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     src = str(tmpdir.join("src"))
     qemu_img.convert(tmp, src, "raw", fmt, compressed=compressed)
 
-    # Create placeholder ovf file.
-    ovf = str(tmpdir.join("vm.ovf"))
-    with open(ovf, "w") as f:
-        f.write("<xml/>")
-
     # Create OVA package.
     ova = str(tmpdir.join("src.ova"))
     with tarfile.open(ova, "w") as tar:
-        tar.add(ovf, arcname=os.path.basename(ovf))
         tar.add(src, arcname=os.path.basename(src))
 
     # Prepare destination file.

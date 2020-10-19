@@ -68,15 +68,10 @@ def test_ova(tmpdir, fmt):
             d.flush()
         disks.append(disk)
 
-    ovf = str(tmpdir.join("vm.ovf"))
-    with open(ovf, "w") as f:
-        f.write('<xml/>')
-
     ova = str(tmpdir.join("vm.ova"))
 
     # Create a ova file.
     with tarfile.open(ova, "w") as tar:
-        tar.add(ovf, arcname=os.path.basename(ovf))
         for disk in disks:
             tar.add(disk, arcname=os.path.basename(disk))
 
@@ -109,15 +104,10 @@ def test_ova_compressed_qcow2(tmpdir):
     disk = str(tmpdir.join("disk.qcow2"))
     qemu_img.convert(tmp, disk, "raw", "qcow2", compressed=True)
 
-    ovf = str(tmpdir.join("vm.ovf"))
-    with open(ovf, "w") as f:
-        f.write('<xml/>')
-
     ova = str(tmpdir.join("vm.ova"))
 
     # Create tar file with compressed qcow2 disk.
     with tarfile.open(ova, "w") as tar:
-        tar.add(ovf, arcname=os.path.basename(ovf))
         tar.add(disk, arcname=os.path.basename(disk))
 
     # Read disk contents from the tar file.
