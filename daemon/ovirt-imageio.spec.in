@@ -136,6 +136,10 @@ fi
 
 %changelog
 
+* Wed Oct 21 2020 Nir Soffer <nsoffer@redhat.com> 2.1.1-1
+- Add client.extents() function
+- Add Fedora 33 CI
+
 * Wed Oct 14 2020 Nir Soffer <nsoffer@redhat.com> 2.1.0-1
 - Support upload and download snapshots #BZ1847090
 - Remove python2 leftovers #BZ1862719
