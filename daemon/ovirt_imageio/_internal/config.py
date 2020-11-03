@@ -199,6 +199,7 @@ class handler_logfile:
 
 class handler_stderr:
     keyword__class = "logging.StreamHandler"
+    args = "()"
     level = "DEBUG"
     formatter = "long"
 
