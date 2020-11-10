@@ -896,7 +896,7 @@ class Client:
             else:
                 raise AssertionError(
                     "Cannot initiate soft disconnect at state {!r}"
-                    .foramt(self._state))
+                    .format(self._state))
         except socket.error as e:
             log.debug("Error initiating soft disconnect: %s", e)
         except Exception:
