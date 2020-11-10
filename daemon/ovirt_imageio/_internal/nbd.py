@@ -349,7 +349,7 @@ def _parse_url(url):
 
 CONNECTING = 0
 HANDSHAKE = 1
-TRASMISSION = 2
+TRANSMISSION = 2
 CLOSED = 3
 
 
@@ -446,7 +446,7 @@ class Client:
         return cmd.reply
 
     def close(self):
-        if self._state in (HANDSHAKE, TRASMISSION):
+        if self._state in (HANDSHAKE, TRANSMISSION):
             self._soft_disconnect()
         else:
             self._hard_disconnect()
@@ -531,7 +531,7 @@ class Client:
 
         self._negotiate_go_option()
 
-        self._state = TRASMISSION
+        self._state = TRANSMISSION
 
     def _send_client_flags(self, flags):
         log.debug("Sending client flags: %x", flags)
@@ -890,7 +890,7 @@ class Client:
         try:
             if self._state == HANDSHAKE:
                 self._send_option(OPT_ABORT)
-            elif self._state == TRASMISSION:
+            elif self._state == TRANSMISSION:
                 cmd = Disc(self._next_handle())
                 self._send_command(cmd)
             else:
