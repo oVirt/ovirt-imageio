@@ -189,11 +189,11 @@ Response:
 
 Download entire image:
 
-    $ curl -k https://server:54322/images/{tikcet-id} > disk.img
+    $ curl -k https://server:54322/images/{ticket-id} > disk.img
 
 Download 64 KiB extent starting at 2 MiB:
 
-    $ curl -k --range 2097152-2162687 https://server:54322/images/{tikcet-id} > extent
+    $ curl -k --range 2097152-2162687 https://server:54322/images/{ticket-id} > extent
 
 
 ## EXTENTS
@@ -354,7 +354,7 @@ Response:
 
 Upload an entire image and flush data to storage:
 
-    $ curl -k -X PUT --upload-file disk.img https://server:54322/images/{tikcet-id}
+    $ curl -k -X PUT --upload-file disk.img https://server:54322/images/{ticket-id}
 
 curl does support uploading part of a file, but if you downloaded
 an extent using GET request you can upload it back by specifying the
@@ -365,14 +365,14 @@ Upload 64 KiB extent starting at 2 MiB, without flushing to storage:
     $ curl -k -X PUT \
         --upload-file extent \
         --header "Content-Range: bytes 2097152-2162687/*" \
-        https://server:54322/images/{tikcet-id}?flush=n
+        https://server:54322/images/{ticket-id}?flush=n
 
 Upload 1 GiB extent starting at offset 5 GiB, and flush data to storage:
 
     $ curl -k -X PUT \
         --upload-file extent \
         --header "Content-Range: bytes 5368709120-6442450943/*" \
-        https://server:54322/images/{tikcet-id}?flush=y
+        https://server:54322/images/{ticket-id}?flush=y
 
 Note that the server uses only the start byte from the Content-Range
 header. The length of the upload is taken from the "Content-Length"

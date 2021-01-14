@@ -90,4 +90,4 @@ Here is an example of UnixHTTPConnection class:
             self.sock.connect(self.path)
 
 See upload example for more info:
-https://github.com/oVirt/ovirt-imageio/blob/master/examples/upload
+https://github.com/oVirt/ovirt-engine-sdk/blob/master/sdk/examples/upload_disk.py
