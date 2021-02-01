@@ -6,42 +6,11 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-import os
-import signal
 import time
 
 import pytest
 
 from ovirt_imageio._internal import util
-
-
-def test_uninterruptible_interrupt():
-    r, w = os.pipe()
-    signo = signal.SIGUSR1
-    prev = signal.signal(signo, lambda s, f: True)
-    try:
-
-        def read():
-            return os.read(r, 1)
-
-        def write():
-            time.sleep(0.1)
-            os.kill(os.getpid(), signo)
-            time.sleep(0.1)
-            os.write(w, b'a')
-
-        util.start_thread(write)
-        assert util.uninterruptible(read) == b'a'
-    finally:
-        signal.signal(signo, prev)
-        os.close(r)
-        os.close(w)
-
-
-def test_uninterruptible_raise():
-    def fail():
-        raise OSError(0, "fake")
-    pytest.raises(OSError, util.uninterruptible, fail)
 
 
 def test_start_thread_args():

@@ -75,7 +75,7 @@ class Backend:
     # io.FileIO interface
 
     def readinto(self, buf):
-        return util.uninterruptible(self._fio.readinto, buf)
+        return self._fio.readinto(buf)
 
     def write(self, buf):
         self._dirty = True
@@ -85,11 +85,11 @@ class Backend:
         else:
             # The fast path.
             if self._aligned(len(buf)):
-                return util.uninterruptible(self._fio.write, buf)
+                return self._fio.write(buf)
             else:
                 count = util.round_down(len(buf), self._block_size)
                 with memoryview(buf)[:count] as view:
-                    return util.uninterruptible(self._fio.write, view)
+                    return self._fio.write(view)
 
     def tell(self):
         return self._fio.tell()
@@ -229,7 +229,7 @@ class Backend:
             # TODO: When writing to file system, block size may be wrong, so we
             # need to take care of short writes.
             self.seek(start - offset)
-            util.uninterruptible(self._fio.write, block)
+            self._fio.write(block)
 
             # 4. Update position.
             self.seek(start + count)
@@ -299,8 +299,7 @@ class BlockBackend(Backend):
         if self._can_fallocate:
             mode = ioutil.FALLOC_FL_ZERO_RANGE
             try:
-                util.uninterruptible(ioutil.fallocate, self._fio.fileno(),
-                                     mode, offset, count)
+                ioutil.fallocate(self._fio.fileno(), mode, offset, count)
             except EnvironmentError as e:
                 # On RHEL 7.5 (kenerl 3.10.0) this will fail with ENODEV.
                 if e.errno not in (errno.EOPNOTSUPP, errno.ENODEV):
@@ -316,8 +315,7 @@ class BlockBackend(Backend):
 
         # If we reach this, this kernel does not support fallocate() for block
         # devices, so we fallback to BLKZEROOUT.
-        util.uninterruptible(
-            ioutil.blkzeroout, self._fio.fileno(), offset, count)
+        ioutil.blkzeroout(self._fio.fileno(), offset, count)
         self.seek(offset + count)
         return count
 
@@ -491,8 +489,7 @@ class FileBackend(Backend):
         False if this mode is not supported. Any other error is raised.
         """
         try:
-            util.uninterruptible(
-                ioutil.fallocate, self._fio.fileno(), mode, offset, count)
+            ioutil.fallocate(self._fio.fileno(), mode, offset, count)
             return True
         except EnvironmentError as e:
             if e.errno != errno.EOPNOTSUPP:
@@ -500,7 +497,7 @@ class FileBackend(Backend):
             return False
 
     def _truncate(self, size):
-        util.uninterruptible(self._fio.truncate, size)
+        self._fio.truncate(size)
 
     def _write_zeros(self, count):
         """

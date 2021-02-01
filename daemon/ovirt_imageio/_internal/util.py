@@ -7,20 +7,10 @@
 # (at your option) any later version.
 
 import collections
-import errno
 import io
 import mmap
 import os
 import threading
-
-
-def uninterruptible(func, *args):
-    while True:
-        try:
-            return func(*args)
-        except EnvironmentError as e:
-            if e.errno != errno.EINTR:
-                raise
 
 
 def start_thread(func, args=(), kwargs=None, name=None, daemon=True):

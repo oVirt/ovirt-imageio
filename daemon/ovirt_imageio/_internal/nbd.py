@@ -19,7 +19,6 @@ import struct
 
 from . import ipv6
 from . import sockutil
-from . import util
 
 # Matcher for NBD Unix URL path.
 # nbd:unix:path[:exportname=name]
@@ -1234,7 +1233,7 @@ class Client:
             length = len(view)
             pos = 0
             while pos < length:
-                n = util.uninterruptible(self._sock.recv_into, view[pos:])
+                n = self._sock.recv_into(view[pos:])
                 if not n:
                     raise ProtocolError(
                         "Server closed the connection, read {} bytes, "
