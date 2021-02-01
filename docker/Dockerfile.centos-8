@@ -13,8 +13,8 @@ RUN dnf update -y \
         python3-devel \
         python3-pip \
         python3-systemd \
-        qemu-img \
-        qemu-kvm \
+        qemu-img-5.1.0 \
+        qemu-kvm-5.1.0 \
         sudo \
         systemd-udev \
         util-linux \
