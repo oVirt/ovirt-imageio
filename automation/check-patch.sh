@@ -29,6 +29,9 @@ teardown() {
 print_builder_info() {
     echo -n "release: "
     cat /etc/redhat-release
+
+    echo "Installed packages:"
+    rpm -q qemu-kvm qemu-img
 }
 
 trap teardown EXIT
