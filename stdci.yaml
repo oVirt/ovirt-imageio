@@ -1,18 +1,18 @@
 archs:
-- x86_64:
-    distributions:
-    - el8
-- ppc64le:
-    distributions:
-    - el8
+  - x86_64:
+      distributions:
+        - el8
+  - ppc64le:
+      distributions:
+        - el8
 
 stages:
-  - check-patch
+  - check-patch:
+      archs:
+        - x86_64
   - build-artifacts:
       substages:
-      - py3:
-          distributions:
-          - el8
+      - py3
 
 release-branches:
   master:
