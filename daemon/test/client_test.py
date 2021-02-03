@@ -22,7 +22,6 @@ from ovirt_imageio._internal import server
 from ovirt_imageio._internal.backends.image import ZeroExtent, DirtyExtent
 
 from . import testutil
-from . marks import requires_advanced_virt
 
 CLUSTER_SIZE = 64 * 1024
 IMAGE_SIZE = 3 * CLUSTER_SIZE
@@ -850,7 +849,6 @@ def test_zero_extents_from_ova(tmpdir):
     ]
 
 
-@requires_advanced_virt
 def test_dirty_extents(tmpdir):
     size = 1024**2
 

@@ -21,10 +21,7 @@ from . import qemu
 from . import qmp
 from . import testutil
 
-from . marks import (
-    flaky_in_ovirt_ci,
-    requires_advanced_virt,
-)
+from . marks import flaky_in_ovirt_ci
 
 log = logging.getLogger("test")
 
@@ -114,7 +111,6 @@ def test_full_backup_guest(tmpdir, base_image):
 
 @pytest.mark.timeout(120)
 @pytest.mark.xfail(ci.is_ovirt(), reason="Always times out", run=False)
-@requires_advanced_virt
 def test_incremental_backup_guest(tmpdir, base_image):
     base = qemu_img.info(base_image)
     disk_size = base["virtual-size"]

@@ -21,7 +21,7 @@ from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import sockutil
 
 from . import testutil
-from . marks import flaky_in_ovirt_ci, requires_advanced_virt
+from . marks import flaky_in_ovirt_ci
 
 
 @pytest.mark.parametrize("addr,export,url", [
@@ -271,7 +271,6 @@ def test_shared(tmpdir, fmt):
     qemu_img.compare(src, dst)
 
 
-@requires_advanced_virt
 def test_dirty_bitmap(tmpdir):
     size = 1024**2
 

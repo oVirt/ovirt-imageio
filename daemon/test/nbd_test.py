@@ -29,7 +29,6 @@ from . import testutil
 
 from . marks import (
     flaky_in_ovirt_ci,
-    requires_advanced_virt,
     requires_ipv6,
 )
 
@@ -559,7 +558,7 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             distro.is_centos("8") and ci.is_ovirt(),
             reason="unaligned write fails on el8/oVirt CI")
     ),
-    pytest.param("qcow2", marks=requires_advanced_virt),
+    pytest.param("qcow2"),
 ])
 def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
     chunk_size = 1024**3
@@ -589,11 +588,7 @@ def test_full_backup_single_image(tmpdir, user_file, fmt, nbd_sock):
 
 @pytest.mark.parametrize("checkpoint", [
     pytest.param(None, id="no-checkpoint"),
-    pytest.param(
-        "check1",
-        id="with-checkpoint",
-        marks=requires_advanced_virt
-    ),
+    pytest.param("check1", id="with-checkpoint"),
 ])
 def test_full_backup_complete_chain(tmpdir, nbd_sock, checkpoint):
     depth = 3

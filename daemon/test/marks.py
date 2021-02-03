@@ -9,13 +9,7 @@
 import pytest
 
 from . import ci
-from . import distro
 from . import testutil
-
-
-requires_advanced_virt = pytest.mark.skipif(
-    distro.is_centos("8"),
-    reason="Advanced virt stream not available")
 
 requires_ipv6 = pytest.mark.skipif(
     not testutil.ipv6_enabled(),
