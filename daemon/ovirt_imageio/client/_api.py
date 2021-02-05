@@ -224,7 +224,7 @@ def measure(filename, dst_fmt, member=None):
 
 
 def checksum(filename, member=None, block_size=blkhash.BLOCK_SIZE,
-             algorithm="blake2b", detect_zeroes=True):
+             algorithm=blkhash.ALGORITHM, detect_zeroes=True):
     """
     Compute image checksum.
 

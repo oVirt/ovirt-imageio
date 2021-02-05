@@ -44,7 +44,7 @@ class Checksum:
             req.query,
             "algorithm",
             ALGORITHMS,
-            default="blake2b")
+            default=blkhash.ALGORITHM)
 
         try:
             block_size = int(req.query.get("block_size", blkhash.BLOCK_SIZE))
@@ -116,12 +116,17 @@ class Operation(ops.Operation):
 
     def _run(self):
         block_size = len(self._buf)
+        # Only blakse2b and blake2s support variable digest size, and 32 works
+        # with both and is large enough.
+        if self._algorithm.startswith("blake2"):
+            digest_size = blkhash.DIGEST_SIZE
+        else:
+            digest_size = None
+
         h = blkhash.Hash(
             block_size=block_size,
             algorithm=self._algorithm,
-            # Only blakse2b and blake2s support variable digest size, and 32
-            # works with both and is large enough.
-            digest_size=32 if self._algorithm.startswith("blake2") else None)
+            digest_size=digest_size)
 
         for block in blkhash.split(self._backend.extents("zero"), block_size):
             if block.zero:
@@ -147,7 +152,7 @@ class Operation(ops.Operation):
         }
 
 
-def compute(backend, buf, algorithm="blake2b", detect_zeroes=True):
+def compute(backend, buf, algorithm=blkhash.ALGORITHM, detect_zeroes=True):
     """
     Compute image checksum.
     """

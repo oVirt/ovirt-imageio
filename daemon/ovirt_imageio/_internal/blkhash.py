@@ -12,9 +12,11 @@ from functools import partial
 
 from . import ioutil
 
-# This gives best result for Fedora 32 image when using the nbd backend.
-# More testing is needed to determine if this is the best default.
+# These settings give best result for Fedora 32 image when using the nbd
+# backend. More testing is needed to determine if this is the best default.
 BLOCK_SIZE = 4 * 1024**2
+ALGORITHM = "blake2b"
+DIGEST_SIZE = 32
 
 
 class Hash:
@@ -36,8 +38,8 @@ class Hash:
     The last block may be shorter if the file is not aligned to block_size.
     """
 
-    def __init__(self, block_size=BLOCK_SIZE, algorithm="blake2b",
-                 digest_size=32):
+    def __init__(self, block_size=BLOCK_SIZE, algorithm=ALGORITHM,
+                 digest_size=DIGEST_SIZE):
         self._func = getattr(hashlib, algorithm)
         if digest_size:
             self._func = partial(self._func, digest_size=digest_size)
@@ -65,8 +67,8 @@ class Hash:
         return self._hash.hexdigest()
 
 
-def checksum(path, block_size=BLOCK_SIZE, algorithm="blake2b", digest_size=32,
-             detect_zeroes=True):
+def checksum(path, block_size=BLOCK_SIZE, algorithm=ALGORITHM,
+             digest_size=DIGEST_SIZE, detect_zeroes=True):
     """
     Compute file checksum without extents information.
 
