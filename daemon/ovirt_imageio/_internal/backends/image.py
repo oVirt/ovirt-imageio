@@ -25,6 +25,7 @@ class ZeroExtent(namedtuple("ZeroExtent", "start,length,zero,hole")):
     the the backend. For example, file backend always reutrn host data, while
     NBD backend always return guest data.
     """
+    __slots__ = ()
 
     @classmethod
     def from_dict(cls, d):
@@ -66,6 +67,7 @@ class DirtyExtent(namedtuple("DirtyExtent", "start,length,dirty,zero")):
 
     The extent always describes raw guest data.
     """
+    __slots__ = ()
 
     @classmethod
     def from_dict(cls, d):
