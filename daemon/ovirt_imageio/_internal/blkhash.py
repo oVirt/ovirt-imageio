@@ -156,6 +156,10 @@ class Block:
 
         return block
 
+    def __repr__(self):
+        return (f"Block(start={self.start}, length={self.length}, "
+                f"zero={self.zero})")
+
 
 def split(extents, block_size=BLOCK_SIZE):
     """
