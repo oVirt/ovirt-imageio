@@ -147,7 +147,7 @@ class Operation(ops.Operation):
         }
 
 
-def compute(backend, buf, algorithm="sha1", detect_zeroes=True):
+def compute(backend, buf, algorithm="blake2b", detect_zeroes=True):
     """
     Compute image checksum.
     """
