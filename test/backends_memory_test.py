@@ -230,6 +230,25 @@ def test_extents():
     assert list(m.extents()) == [image.ZeroExtent(0, 4, False, False)]
 
 
+def test_extents_range():
+    m = memory.Backend(data=bytearray(b"x" * 100))
+    assert list(m.extents(length=20)) == [
+        image.ZeroExtent(0, 20, False, False)
+    ]
+    assert list(m.extents(offset=0, length=20)) == [
+        image.ZeroExtent(0, 20, False, False)
+    ]
+    assert list(m.extents(offset=80, length=20)) == [
+        image.ZeroExtent(80, 20, False, False)
+    ]
+
+
+def test_extents_range_invalid():
+    m = memory.Backend(data=bytearray(b"x" * 100))
+    with pytest.raises(ValueError):
+        list(m.extents(offset=m.size() - 1, length=2))
+
+
 def test_extents_dirty():
     m = memory.Backend(data=bytearray(b"data"))
     with pytest.raises(errors.UnsupportedOperation):
@@ -240,11 +259,11 @@ def test_user_extents():
     extents = {
         "zero": [
             image.ZeroExtent(0, 32, False, False),
-            image.ZeroExtent(0, 32, True, False),
+            image.ZeroExtent(32, 32, True, False),
         ],
         "dirty": [
             image.DirtyExtent(0, 16, True, False),
-            image.DirtyExtent(0, 48, False, False),
+            image.DirtyExtent(16, 48, False, False),
         ]
     }
     data = b"a" * 32 + b"\0" * 32
@@ -254,6 +273,87 @@ def test_user_extents():
     assert list(m.extents()) == extents["zero"]
     assert list(m.extents("zero")) == extents["zero"]
     assert list(m.extents("dirty")) == extents["dirty"]
+
+
+def test_user_extents_zero_range():
+    extents = {
+        "zero": [
+            image.ZeroExtent(0, 32, False, False),
+            image.ZeroExtent(32, 32, True, False),
+            image.ZeroExtent(64, 32, False, False),
+        ]
+    }
+    data = b"a" * 32 + b"\0" * 32 + b"b" * 32
+
+    m = memory.Backend(data=data, extents=extents)
+
+    # All extents.
+    assert list(m.extents("zero", offset=0, length=96)) == [
+        image.ZeroExtent(0, 32, False, False),
+        image.ZeroExtent(32, 32, True, False),
+        image.ZeroExtent(64, 32, False, False),
+    ]
+
+    # First extent.
+    assert list(m.extents("zero", offset=0, length=32)) == [
+        image.ZeroExtent(0, 32, False, False),
+    ]
+
+    # Second extent.
+    assert list(m.extents("zero", offset=32, length=32)) == [
+        image.ZeroExtent(32, 32, True, False),
+    ]
+
+    # Last extent.
+    assert list(m.extents("zero", offset=64, length=32)) == [
+        image.ZeroExtent(64, 32, False, False),
+    ]
+
+    # Start of first extent.
+    assert list(m.extents("zero", offset=0, length=16)) == [
+        image.ZeroExtent(0, 16, False, False),
+    ]
+
+    # End of first extent.
+    assert list(m.extents("zero", offset=16, length=16)) == [
+        image.ZeroExtent(16, 16, False, False),
+    ]
+
+    # Start of last extent.
+    assert list(m.extents("zero", offset=64, length=16)) == [
+        image.ZeroExtent(64, 16, False, False),
+    ]
+
+    # End of last extent.
+    assert list(m.extents("zero", offset=80, length=16)) == [
+        image.ZeroExtent(80, 16, False, False),
+    ]
+
+    # End of first extent and start of second extent.
+    assert list(m.extents("zero", offset=16, length=64)) == [
+        image.ZeroExtent(16, 16, False, False),
+        image.ZeroExtent(32, 32, True, False),
+        image.ZeroExtent(64, 16, False, False),
+    ]
+
+
+def test_user_extents_dirty_range():
+    extents = {
+        "dirty": [
+            image.DirtyExtent(0, 32, False, False),
+            image.DirtyExtent(32, 32, True, False),
+            image.DirtyExtent(64, 32, False, False),
+        ]
+    }
+    data = b"a" * 32 + b"b" * 32 + b"c" * 32
+
+    m = memory.Backend(data=data, extents=extents)
+
+    assert list(m.extents("dirty", offset=16, length=64)) == [
+        image.DirtyExtent(16, 16, False, False),
+        image.DirtyExtent(32, 32, True, False),
+        image.DirtyExtent(64, 16, False, False),
+    ]
 
 
 def test_read_from():

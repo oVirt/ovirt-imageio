@@ -148,11 +148,19 @@ class Backend:
     def block_size(self):
         return 1
 
-    def extents(self, context="zero"):
+    def extents(self, context="zero", offset=0, length=None):
         self._check_closed()
+
+        if length is None:
+            length = self.size() - offset
+        elif offset + length > self.size():
+            raise ValueError(
+                "Invalid range: offset {} + length {} > size {}"
+                .format(offset, length, self.size()))
+
         # If not configured, report single data extent.
         if not self._extents and context == "zero":
-            yield image.ZeroExtent(0, self.size(), False, False)
+            yield image.ZeroExtent(offset, length, False, False)
             return
 
         if context not in self._extents:
@@ -160,8 +168,29 @@ class Backend:
                 "Backend {} does not support {} extents"
                 .format(self.name, context))
 
+        end = offset + length
+
         for ext in self._extents[context]:
-            yield ext
+            # Stop when extent is after requested range.
+            if ext.start >= end:
+                return
+
+            # Skip over extents before the requested range.
+            if ext.start + ext.length <= offset:
+                continue
+
+            if ext.start < offset:
+                # Partial extent starting before offset?
+                partlen = min(ext.length - (offset - ext.start), length)
+                yield ext._replace(start=offset, length=partlen)
+
+            elif ext.start + ext.length > end:
+                # Partial extent ending after end?
+                yield ext._replace(length=end - ext.start)
+
+            else:
+                # Extent within requested range.
+                yield ext
 
     # Debugging interface
 
