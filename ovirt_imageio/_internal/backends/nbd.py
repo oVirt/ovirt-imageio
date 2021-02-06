@@ -161,15 +161,22 @@ class Backend:
                 raise
             log.exception("Error closing")
 
-    def extents(self, context="zero"):
+    def extents(self, context="zero", offset=0, length=None):
         if context not in ("zero", "dirty"):
             raise errors.UnsupportedOperation(
                 "Backend nbd does not support {} extents".format(context))
 
+        if length is None:
+            length = self._client.export_size - offset
+        elif offset + length > self._client.export_size:
+            raise ValueError(
+                "Invalid range: offset {} + length {} > size {}"
+                .format(offset, length, self._client.export_size))
+
         # If server does not support base:allocation, we can safely report one
         # data extent like other backends.
         if context == "zero" and not self._client.has_base_allocation:
-            yield image.ZeroExtent(0, self._client.export_size, False, False)
+            yield image.ZeroExtent(offset, length, False, False)
             return
 
         # If dirty extents are not available, client may be able to use zero
@@ -180,8 +187,9 @@ class Backend:
                 .format(self._client.export_name))
 
         dirty = context == "dirty"
-        start = 0
-        for ext in nbdutil.extents(self._client, dirty=dirty):
+        start = offset
+        for ext in nbdutil.extents(
+                self._client, offset=offset, length=length, dirty=dirty):
             if dirty:
                 yield image.DirtyExtent(start, ext.length, ext.dirty, ext.zero)
             else:

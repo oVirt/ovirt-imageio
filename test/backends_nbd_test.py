@@ -276,6 +276,112 @@ def test_extents_zero(nbd_server, user_file, fmt):
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_extents_zero_range(nbd_server, user_file, fmt):
+    size = 6 * 1024**3
+    qemu_img.create(user_file.path, fmt, size=size)
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+") as b:
+        # qcow2 extents resolution is cluster size.
+        data = b"x" * 64 * 1024
+        b.write(data)
+        b.seek(5 * 1024**3)
+        b.write(data)
+
+        # Holes are reported only for qcow2 images.
+        hole = fmt == "qcow2"
+
+        # All extents.
+        assert list(b.extents(offset=0, length=b.size())) == [
+            image.ZeroExtent(0, len(data), False, False),
+            image.ZeroExtent(len(data), 5 * 1024**3 - len(data), True, hole),
+            image.ZeroExtent(5 * 1024**3, len(data), False, False),
+            image.ZeroExtent(
+                5 * 1024**3 + len(data), 1024**3 - len(data), True, hole),
+        ]
+
+        # First extent.
+        assert list(b.extents(offset=0, length=len(data))) == [
+            image.ZeroExtent(0, len(data), False, False),
+        ]
+
+        # Second extent.
+        offset = len(data)
+        length = 5 * 1024**3 - len(data)
+        assert list(b.extents(offset=offset, length=length)) == [
+            image.ZeroExtent(offset, length, True, hole),
+        ]
+
+        # Third extent.
+        offset = 5 * 1024**3
+        length = len(data)
+        assert list(b.extents(offset=offset, length=length)) == [
+            image.ZeroExtent(offset, length, False, False),
+        ]
+
+        # Last extent.
+        offset = 5 * 1024**3 + len(data)
+        length = 1024**3 - len(data)
+        assert list(b.extents(offset=offset, length=length)) == [
+            image.ZeroExtent(offset, length, True, hole),
+        ]
+
+        length = 128 * 1024**2
+
+        # First segment - first extents and start of the second.
+        assert list(b.extents(offset=0, length=length)) == [
+            image.ZeroExtent(0, len(data), False, False),
+            image.ZeroExtent(len(data), length - len(data), True, hole),
+        ]
+
+        # Second segment - part of the second extent.
+        assert list(b.extents(offset=length, length=length)) == [
+            image.ZeroExtent(length, length, True, hole),
+        ]
+
+        # Second segment - part of the second extent.
+        assert list(b.extents(offset=length, length=length)) == [
+            image.ZeroExtent(length, length, True, hole),
+        ]
+
+        # Segment including end of second extent, third extent, and start of
+        # last extent.
+        offset = 5 * 1024**3 - length // 2
+        assert list(b.extents(offset=offset, length=length)) == [
+            image.ZeroExtent(offset, length // 2, True, hole),
+            image.ZeroExtent(offset + length // 2, len(data), False, False),
+            image.ZeroExtent(
+                offset + length // 2 + len(data),
+                length // 2 - len(data),
+                True,
+                hole),
+        ]
+
+        # Last segment including end of last extent.
+        offset = 6 * 1024**3 - length
+        assert list(b.extents(offset=offset, length=length)) == [
+            image.ZeroExtent(offset, length, True, hole),
+        ]
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_extents_zero_range_invalid(nbd_server, user_file, fmt):
+    size = 6 * 1024**3
+    qemu_img.create(user_file.path, fmt, size=size)
+
+    nbd_server.image = user_file.path
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    with nbd.open(nbd_server.url, "r+") as b:
+        with pytest.raises(ValueError):
+            list(b.extents(offset=b.size() - 1, length=2))
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_extents_dirty_not_availabe(nbd_server, fmt):
     qemu_img.create(nbd_server.image, fmt, 65536)
     nbd_server.fmt = fmt
