@@ -624,6 +624,30 @@ def test_extents(user_file):
         ]
 
 
+def test_extents_ragne(user_file):
+    size = user_file.sector_size * 2
+
+    with io.open(user_file.path, "wb") as f:
+        f.truncate(size)
+
+    with file.open(user_file.url, "r+", sparse=True) as f:
+        assert list(f.extents(offset=0)) == [
+            image.ZeroExtent(0, size, False, False)
+        ]
+
+        assert list(f.extents(offset=0, length=size)) == [
+            image.ZeroExtent(0, size, False, False)
+        ]
+
+        assert list(f.extents(offset=0, length=size // 2)) == [
+            image.ZeroExtent(0, size // 2, False, False)
+        ]
+
+        assert list(f.extents(offset=size // 2, length=size // 2)) == [
+            image.ZeroExtent(size // 2, size // 2, False, False)
+        ]
+
+
 def test_extents_dirty(user_file):
     with file.open(user_file.url, "r+", dirty=True) as f:
         with pytest.raises(errors.UnsupportedOperation):

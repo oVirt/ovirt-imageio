@@ -149,14 +149,21 @@ class Backend:
     def block_size(self):
         return self._block_size
 
-    def extents(self, context="zero"):
+    def extents(self, context="zero", offset=0, length=None):
         if context != "zero":
             raise errors.UnsupportedOperation(
                 "Backend {} does not support {} extents"
                 .format(self.name, context))
 
+        if length is None:
+            length = self.size() - offset
+        elif offset + length > self.size():
+            raise ValueError(
+                "Invalid range: offset {} + length {} > size {}"
+                .format(offset, length, self.size()))
+
         # TODO: Use qemu-img map to get extents.
-        yield image.ZeroExtent(0, self.size(), False, False)
+        yield image.ZeroExtent(offset, length, False, False)
 
     # Debugging interface
 
