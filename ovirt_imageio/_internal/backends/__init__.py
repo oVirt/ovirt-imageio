@@ -48,6 +48,27 @@ class Closer:
         self.close = func
 
 
+class Wrapper:
+    """
+    Use to lend a backend without closing the wrapped backend.
+    """
+
+    def __init__(self, backend):
+        self._backend = backend
+
+    def close(self):
+        self._backend = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, t, v, tb):
+        self.close()
+
+    def __getattr__(self, name):
+        return getattr(self._backend, name)
+
+
 def supports(name):
     return name in _modules
 

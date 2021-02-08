@@ -17,6 +17,7 @@ from contextlib import closing
 from functools import partial
 
 from . import util
+from . backends import Wrapper
 
 # Limit maximum zero and copy size to spread the workload better to multiple
 # workers and ensure frequent progress updates when handling large extents.
@@ -45,9 +46,10 @@ def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
         # iterate over image extents. We need to clone src backend max_workers
         # times, and dst backend max_workers - 1) times.
 
-        # The first worker clones src and use dst itself.
+        # The first worker clones src and use a wrapped dst.
         executor.add_worker(
-            partial(Handler, src.clone, lambda: dst, buffer_size, progress))
+            partial(Handler, src.clone, lambda: Wrapper(dst), buffer_size,
+                    progress))
 
         # The rest of the workers clone both src and dst.
         for _ in range(max_workers - 1):
