@@ -137,7 +137,7 @@ class Backend:
             # The fast path.
             count = util.round_down(count, self._block_size)
             if self._sparse:
-                return self._trim(count)
+                return self._zero_sparse(count)
             else:
                 return self._zero(count)
 
@@ -289,7 +289,7 @@ class BlockBackend(Backend):
 
     def _zero(self, count):
         """
-        Zero count bytes at current file position.
+        Zero count bytes at current file position, allocating space.
         """
         offset = self.tell()
 
@@ -321,8 +321,10 @@ class BlockBackend(Backend):
         self.seek(offset + count)
         return count
 
-    # Emulate trim using zero.
-    _trim = _zero
+    # Emulate with zero.
+    # TODO: With recent kernel we can use fallocate(PUNCH_HOLE). It works for
+    # devices whitelisted to zero discarded range.
+    _zero_sparse = _zero
 
 
 class FileBackend(Backend):
@@ -405,6 +407,9 @@ class FileBackend(Backend):
             "Cannot use direct I/O with {}".format(self._fio.path))
 
     def _zero(self, count):
+        """
+        Zero count bytes at current file position, allocating space.
+        """
         offset = self.tell()
 
         # First try the modern way. If this works, we can zero a range using
@@ -449,7 +454,10 @@ class FileBackend(Backend):
         self._write_zeros(count)
         return count
 
-    def _trim(self, count):
+    def _zero_sparse(self, count):
+        """
+        Zero count bytes at current file position, punching a hole.
+        """
         # First try to punch a hole.
         if self._can_punch_hole:
             offset = self.tell()
