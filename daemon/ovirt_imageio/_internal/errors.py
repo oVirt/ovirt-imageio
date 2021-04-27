@@ -79,3 +79,10 @@ class InvalidConfig(Error):
     def __init__(self, key, value):
         self.key = key
         self.value = value
+
+
+class ServerStartupError(Error):
+    msg = "Server failed to start: {self.reason}"
+
+    def __init__(self, reason):
+        self.reason = reason

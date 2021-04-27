@@ -18,6 +18,7 @@ import socket
 import socketserver
 import urllib
 
+from . import errors
 from . import stats
 from . import version
 
@@ -120,7 +121,17 @@ class Server(socketserver.ThreadingMixIn,
             "Creating server socket with family=%s and type=%s",
             self.address_family,
             self.socket_type)
-        self.socket = socket.socket(self.address_family, self.socket_type)
+        try:
+            self.socket = socket.socket(self.address_family, self.socket_type)
+        except OSError as e:
+            raise errors.ServerStartupError(
+                "Failed to create socket for address={!r} address family={} "
+                "socket type={} prefer IPv4={}. Underlying error is {}".format(
+                    host,
+                    self.address_family,
+                    self.socket_type,
+                    prefer_ipv4,
+                    e))
 
     def server_bind(self):
         """
