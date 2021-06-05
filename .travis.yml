@@ -10,6 +10,9 @@ jobs:
     - env: DIST=centos-8
     - env: DIST=fedora-32
     - env: DIST=fedora-33
+    - env: DIST=fedora-34
+  allow_failures:
+    - env: DIST=fedora-34
 
 before_install:
   - docker pull quay.io/ovirt/imageio-test-$DIST
