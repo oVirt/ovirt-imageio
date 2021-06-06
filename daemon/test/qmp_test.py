@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 import logging
+import pprint
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import qemu_img
@@ -45,5 +46,11 @@ def test_add_bitmap(tmpdir):
                 "node": "file0",
                 "name": "bitmap0",
             })
-            b = qmp.find_node(c, image)
-            assert b["dirty-bitmaps"][0]["name"] == "bitmap0"
+            node = qmp.find_node(c, image)
+            log.debug("Found node:\n%s", pprint.pformat(node))
+
+            if qemu.version() >= (6, 0, 0):
+                bitmaps = node["inserted"]["dirty-bitmaps"]
+            else:
+                bitmaps = node["dirty-bitmaps"]
+            assert bitmaps[0]["name"] == "bitmap0"
