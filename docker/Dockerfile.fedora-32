@@ -1,4 +1,4 @@
-FROM fedora:32
+FROM registry.fedoraproject.org/fedora:32
 
 # Runtime packages.
 RUN dnf update -y \
