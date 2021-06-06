@@ -9,6 +9,7 @@
 import functools
 import json
 import logging
+import os
 import subprocess
 import urllib.parse
 
@@ -18,6 +19,9 @@ from . import nbd
 from . import sockutil
 
 log = logging.getLogger("qemu_nbd")
+
+# Allow using non system qemu-nbd, for example built from source.
+QEMU_NBD = os.environ.get("QEMU_NBD", "qemu-nbd")
 
 
 class Server:
@@ -75,7 +79,7 @@ class Server:
 
     def start(self):
         cmd = [
-            "qemu-nbd",
+            QEMU_NBD,
             "--export-name={}".format(self.export_name),
             "--persistent",
             "--shared={}".format(self.shared),
@@ -208,7 +212,7 @@ def version():
     # Typical output:
     # qemu-nbd 5.1.0 (qemu-kvm-5.1.0-20.el8)
     # ...
-    out = subprocess.check_output(["qemu-nbd", "--version"])
+    out = subprocess.check_output([QEMU_NBD, "--version"])
     first_line = out.decode("utf-8").splitlines()[0]
     version_string = first_line.split(None, 2)[1]
     return tuple(int(n) for n in version_string.split("."))
