@@ -14,6 +14,7 @@ import userstorage
 
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import qemu_img
+from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends import nbd
@@ -263,8 +264,9 @@ def test_extents_zero(nbd_server, user_file, fmt):
         b.seek(5 * 1024**3)
         b.write(data)
 
-        # Holes are reported only for qcow2 images.
-        hole = fmt == "qcow2"
+        # With qemu >= 6.0, holes are reported properly for both raw and qcow2
+        # images. Before that holes were reported only for qcow2 images.
+        hole = qemu_nbd.version() >= (6, 0, 0) or fmt == "qcow2"
 
         assert list(b.extents()) == [
             image.ZeroExtent(0, len(data), False, False),

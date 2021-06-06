@@ -321,16 +321,17 @@ def test_open_tcp(tmpdir, url_template, host, export):
             assert c.export_size == 1024**3
 
 
-FMT_ZERO_FLAGS_PARAMS = [
-    # raw format does not report holes, only zero status.
-    ("raw", nbd.STATE_ZERO),
-    # qcow2 format report unallocated clusters as holes.
-    ("qcow2", nbd.STATE_ZERO | nbd.STATE_HOLE),
+# TODO: Remove when we require qemu-nbd >= 6.0.0.
+FMT_HOLE_FLAGS_PARAMS = [
+    ["raw", nbd.STATE_ZERO],
+    ["qcow2", nbd.STATE_ZERO | nbd.STATE_HOLE],
 ]
+if qemu_nbd.version() >= (6, 0, 0):
+    FMT_HOLE_FLAGS_PARAMS[0][1] |= nbd.STATE_HOLE
 
 
-@pytest.mark.parametrize("fmt,zero_flags", FMT_ZERO_FLAGS_PARAMS)
-def test_base_allocation_empty(nbd_server, user_file, fmt, zero_flags):
+@pytest.mark.parametrize("fmt,hole_flags", FMT_HOLE_FLAGS_PARAMS)
+def test_base_allocation_empty(nbd_server, user_file, fmt, hole_flags):
     size = nbd.MAX_LENGTH
     create_image(user_file.path, fmt, size)
 
@@ -341,31 +342,31 @@ def test_base_allocation_empty(nbd_server, user_file, fmt, zero_flags):
     with nbd.open(nbd_server.url) as c:
         # Entire image.
         extents = c.extents(0, size)["base:allocation"]
-        assert extents == [nbd.Extent(length=size, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=size, flags=hole_flags)]
 
         # First block.
         extents = c.extents(0, 4096)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096, flags=hole_flags)]
 
         # Last block.
         extents = c.extents(size - 4096, 4096)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096, flags=hole_flags)]
 
         # Some block.
         extents = c.extents(4096, 4096)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096, flags=hole_flags)]
 
         # Unaligned start.
         extents = c.extents(4096 - 1, 4096 + 1)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096 + 1, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096 + 1, flags=hole_flags)]
 
         # Unaligned end.
         extents = c.extents(4096, 4096 + 1)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096 + 1, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096 + 1, flags=hole_flags)]
 
         # Unaligned start and end.
         extents = c.extents(4096 - 1, 4096 + 2)["base:allocation"]
-        assert extents == [nbd.Extent(length=4096 + 2, flags=zero_flags)]
+        assert extents == [nbd.Extent(length=4096 + 2, flags=hole_flags)]
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -409,8 +410,8 @@ def test_base_allocation_full(nbd_server, user_file, fmt):
         assert extents == [nbd.Extent(length=4096 + 2, flags=0)]
 
 
-@pytest.mark.parametrize("fmt,zero_flags", FMT_ZERO_FLAGS_PARAMS)
-def test_base_allocation_some_data(nbd_server, user_file, fmt, zero_flags):
+@pytest.mark.parametrize("fmt,hole_flags", FMT_HOLE_FLAGS_PARAMS)
+def test_base_allocation_some_data(nbd_server, user_file, fmt, hole_flags):
     size = 1024**3
     create_image(user_file.path, fmt, size)
 
@@ -432,15 +433,15 @@ def test_base_allocation_some_data(nbd_server, user_file, fmt, zero_flags):
 
     assert extents == [
         nbd.Extent(length=data_length, flags=0),
-        nbd.Extent(length=zero_length, flags=zero_flags),
+        nbd.Extent(length=zero_length, flags=hole_flags),
         nbd.Extent(length=data_length, flags=0),
-        nbd.Extent(length=zero_length, flags=zero_flags),
+        nbd.Extent(length=zero_length, flags=hole_flags),
     ]
 
 
-@pytest.mark.parametrize("fmt,zero_flags", FMT_ZERO_FLAGS_PARAMS)
+@pytest.mark.parametrize("fmt,hole_flags", FMT_HOLE_FLAGS_PARAMS)
 def test_base_allocation_some_data_unaligned(
-        nbd_server, user_file, fmt, zero_flags):
+        nbd_server, user_file, fmt, hole_flags):
     size = 1024**2
     create_image(user_file.path, fmt, size)
 
@@ -458,9 +459,9 @@ def test_base_allocation_some_data_unaligned(
         # Unaligned part from first extent and last extent.
         extents = list(nbdutil.extents(c, data_offset - 1, data_length + 2))
         assert extents == [
-            nbd.Extent(length=1, flags=zero_flags),
+            nbd.Extent(length=1, flags=hole_flags),
             nbd.Extent(length=data_length, flags=0),
-            nbd.Extent(length=1, flags=zero_flags),
+            nbd.Extent(length=1, flags=hole_flags),
         ]
 
         # Unaligned part from second extent.
@@ -473,7 +474,7 @@ def test_base_allocation_some_data_unaligned(
         extents = list(nbdutil.extents(c, data_offset + 1, data_length))
         assert extents == [
             nbd.Extent(length=data_length - 1, flags=0),
-            nbd.Extent(length=1, flags=zero_flags),
+            nbd.Extent(length=1, flags=hole_flags),
         ]
 
 
