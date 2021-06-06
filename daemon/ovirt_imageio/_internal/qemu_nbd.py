@@ -6,6 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import functools
 import json
 import logging
 import subprocess
@@ -197,3 +198,17 @@ def open(image, fmt, read_only=False, bitmap=None, offset=None, size=None):
             size=size):
         with nbd.Client(sock, dirty=bitmap is not None) as c:
             yield c
+
+
+@functools.lru_cache(maxsize=1)
+def version():
+    """
+    Return current version tuple (major, minir, patch).
+    """
+    # Typical output:
+    # qemu-nbd 5.1.0 (qemu-kvm-5.1.0-20.el8)
+    # ...
+    out = subprocess.check_output(["qemu-nbd", "--version"])
+    first_line = out.decode("utf-8").splitlines()[0]
+    version_string = first_line.split(None, 2)[1]
+    return tuple(int(n) for n in version_string.split("."))
