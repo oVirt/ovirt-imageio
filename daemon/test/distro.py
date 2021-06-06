@@ -12,7 +12,7 @@ def is_fedora(version=""):
 
 
 def is_centos(version=""):
-    return "CentOS Linux release {}".format(version) in redhat_release()
+    return "CentOS Stream release {}".format(version) in redhat_release()
 
 
 def redhat_release():

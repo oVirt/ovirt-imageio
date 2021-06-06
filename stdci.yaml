@@ -1,15 +1,20 @@
 archs:
   - x86_64:
       distributions:
-        - el8
+        - el8stream
   - ppc64le:
       distributions:
-        - el8
+        - el8stream
 
 stages:
   - check-patch:
       archs:
         - x86_64
+      distributions:
+        - el8stream:
+            runtime-requirements:
+              jenkins_master: ovirt.org
+              host-distro: newer
   - build-artifacts:
       substages:
       - py3
