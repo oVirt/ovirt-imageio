@@ -90,20 +90,29 @@ def test_upload_empty_sparse(tmpdir, srv, fmt):
     qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
 
 
-@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("fmt", [
+    pytest.param(
+        "raw",
+        marks=pytest.mark.xfail(
+            qemu_nbd.version() < (6, 0, 0),
+            reason="broken with qemu-nbd < 6.0.0")
+    ),
+    "qcow2"
+])
 def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
+    size = 3 * 1024**2
     src = str(tmpdir.join("src"))
-    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+    qemu_img.create(src, fmt, size=size)
 
     with qemu_nbd.open(src, fmt) as c:
-        c.write(IMAGE_SIZE - 6, b"middle")
+        c.write(size - 1024**2, b"b" * 1024**2)
         c.flush()
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
+        f.write(b"a" * size)
 
-    url = prepare_transfer(srv, "file://" + dst)
+    url = prepare_transfer(srv, "file://" + dst, size=size)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -112,19 +121,20 @@ def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_upload_hole_at_middle_sparse(tmpdir, srv, fmt):
+    size = 3 * 1024**2
     src = str(tmpdir.join("src"))
-    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+    qemu_img.create(src, fmt, size=size)
 
     with qemu_nbd.open(src, fmt) as c:
-        c.write(0, b"start")
-        c.write(IMAGE_SIZE - 3, b"end")
+        c.write(0, b"b" * 1024**2)
+        c.write(size - 1024**2, b"b" * 1024**2)
         c.flush()
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
+        f.write(b"a" * size)
 
-    url = prepare_transfer(srv, "file://" + dst)
+    url = prepare_transfer(srv, "file://" + dst, size=size)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
@@ -133,18 +143,19 @@ def test_upload_hole_at_middle_sparse(tmpdir, srv, fmt):
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_upload_hole_at_end_sparse(tmpdir, srv, fmt):
+    size = 3 * 1024**2
     src = str(tmpdir.join("src"))
-    qemu_img.create(src, fmt, size=IMAGE_SIZE)
+    qemu_img.create(src, fmt, size=size)
 
     with qemu_nbd.open(src, fmt) as c:
-        c.write(0, b"start")
+        c.write(0, b"b" * 1024**2)
         c.flush()
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
-        f.write(b"a" * IMAGE_SIZE)
+        f.write(b"a" * size)
 
-    url = prepare_transfer(srv, "file://" + dst)
+    url = prepare_transfer(srv, "file://" + dst, size=size)
 
     client.upload(src, url, srv.config.tls.ca_file)
 
