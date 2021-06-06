@@ -8,6 +8,7 @@
 
 import os
 import tarfile
+import logging
 
 import pytest
 
@@ -15,6 +16,7 @@ from ovirt_imageio import client
 from ovirt_imageio._internal import blkhash
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import ipv6
+from ovirt_imageio._internal import nbdutil
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
@@ -22,6 +24,8 @@ from ovirt_imageio._internal import server
 from ovirt_imageio._internal.backends.image import ZeroExtent, DirtyExtent
 
 from . import testutil
+
+log = logging.getLogger("test")
 
 CLUSTER_SIZE = 64 * 1024
 IMAGE_SIZE = 3 * CLUSTER_SIZE
@@ -240,6 +244,8 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
+@pytest.mark.xfail(
+    qemu_nbd.version() >= (6, 0, 0), reason="broken with qemu-nbd >= 6.0.0")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2
@@ -252,6 +258,8 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("base extents: %s", list(nbdutil.extents(c)))
 
     # Create src image with some data in second cluster and zero in third
     # cluster.
@@ -262,6 +270,8 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("top extents: %s", list(nbdutil.extents(c)))
 
     # Create empty destination base image.
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
@@ -272,12 +282,38 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     qemu_img.create(
         dst_top, "qcow2", backing_file=dst_base, backing_format=base_fmt)
 
-    # Start nbd server for for destination image.
+    # Upload base image.
+
+    nbd_server.image = dst_base
+    nbd_server.fmt = base_fmt
+    nbd_server.start()
+
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+    client.upload(
+        src_base,
+        url,
+        srv.config.tls.ca_file,
+        backing_chain=False)
+
+    nbd_server.stop()
+
+    # Compare image content - must match.
+    qemu_img.compare(
+        src_base, dst_base, format1=base_fmt, format2=base_fmt, strict=False)
+
+    # Compare allocation if we use recent enough qemu-nbd reporting holes in
+    # raw images.
+    if base_fmt == "raw" and qemu_nbd.version() > (6, 0, 0):
+        qemu_img.compare(
+            src_base, dst_base, format1=base_fmt, format2=base_fmt,
+            strict=True)
+
+    # Upload top image.
+
     nbd_server.image = dst_top
     nbd_server.fmt = "qcow2"
     nbd_server.start()
 
-    # Upload using nbd backend.
     url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
     client.upload(
         src_top,
@@ -285,15 +321,17 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         srv.config.tls.ca_file,
         backing_chain=False)
 
-    # Stop the server to allow comparing.
     nbd_server.stop()
 
-    # To compare top, we need to remove the backing files.
-    qemu_img.unsafe_rebase(src_top, "")
-    qemu_img.unsafe_rebase(dst_top, "")
-
+    # Test image content - must match.
     qemu_img.compare(
-        src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
+        src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
+
+    # Compare allocation if we use recent enough qemu-nbd reporting holes in
+    # raw images.
+    if base_fmt == "raw" and qemu_nbd.version() > (6, 0, 0):
+        qemu_img.compare(
+            src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -347,6 +385,8 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
+@pytest.mark.xfail(
+    qemu_nbd.version() >= (6, 0, 0), reason="broken with qemu-nbd >= 6.0.0")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2
@@ -359,6 +399,8 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("base extents: %s", list(nbdutil.extents(c)))
 
     # Create source top image with some data in second cluster and zero in the
     # third cluster.
@@ -369,21 +411,36 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("top extents: %s", list(nbdutil.extents(c)))
 
-    # Create empty backing file for downloding top image.
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
-    qemu_img.create(dst_base, base_fmt, size=size)
-
     dst_top = str(tmpdir.join("dst_top.qcow2"))
 
-    # Start nbd server exporting top image without the backing file.
+    # Download base image.
+
+    nbd_server.image = src_base
+    nbd_server.fmt = base_fmt
+    nbd_server.shared = 8
+    nbd_server.start()
+
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+    client.download(
+        url,
+        dst_base,
+        srv.config.tls.ca_file,
+        fmt=base_fmt)
+
+    nbd_server.stop()
+
+    # Download top image.
+
     nbd_server.image = src_top
     nbd_server.fmt = "qcow2"
     nbd_server.backing_chain = False
     nbd_server.shared = 8
     nbd_server.start()
 
-    # Upload using nbd backend.
     url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
     client.download(
         url,
@@ -392,13 +449,13 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         backing_file=dst_base,
         backing_format=base_fmt)
 
-    # Stop the server to allow comparing.
     nbd_server.stop()
 
-    # To compare we need to remove its backing files.
-    qemu_img.unsafe_rebase(src_top, "")
-    qemu_img.unsafe_rebase(dst_top, "")
+    # Compare both image content - must match.
+    qemu_img.compare(
+        src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
 
+    # And allocation - nice to have.
     qemu_img.compare(
         src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
@@ -737,7 +794,9 @@ def test_zero_extents_raw(tmpdir):
 
     extents = list(client.extents(image))
 
-    # Note: raw files report unallocated as zero, not a a hole.
+    # Unallocated area is reported as a hole since qemu-nbd 6.0.0.
+    hole = qemu_nbd.version() >= (6, 0, 0)
+
     assert extents == [
         ZeroExtent(
             start=0 * CLUSTER_SIZE,
@@ -748,7 +807,7 @@ def test_zero_extents_raw(tmpdir):
             start=1 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
             zero=True,
-            hole=False),
+            hole=hole),
         ZeroExtent(
             start=2 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
@@ -758,10 +817,12 @@ def test_zero_extents_raw(tmpdir):
             start=3 * CLUSTER_SIZE,
             length=size - 3 * CLUSTER_SIZE,
             zero=True,
-            hole=False),
+            hole=hole),
     ]
 
 
+@pytest.mark.xfail(
+    qemu_nbd.version() >= (6, 0, 0), reason="broken in qemu-nbd 6.0.0")
 def test_zero_extents_qcow2(tmpdir):
     size = 10 * 1024**2
 
@@ -808,6 +869,9 @@ def test_zero_extents_qcow2(tmpdir):
             length=CLUSTER_SIZE,
             zero=False,
             hole=False),
+
+        # Broken since qemu-nbd 6.0.0, zero area in top reported as a hole
+        # instead of data.
         ZeroExtent(
             start=4 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
@@ -823,6 +887,8 @@ def test_zero_extents_qcow2(tmpdir):
     ]
 
 
+@pytest.mark.xfail(
+    qemu_nbd.version() >= (6, 0, 0), reason="broken in qemu-nbd 6.0.0")
 def test_zero_extents_from_ova(tmpdir):
     size = 10 * 1024**2
 
@@ -847,11 +913,14 @@ def test_zero_extents_from_ova(tmpdir):
             length=CLUSTER_SIZE,
             zero=False,
             hole=False),
+
+        # Broken since qemu-nbd 6.0.0.
         ZeroExtent(
             start=1 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
             zero=True,
             hole=False),
+
         ZeroExtent(
             start=2 * CLUSTER_SIZE,
             length=size - 2 * CLUSTER_SIZE,
