@@ -58,7 +58,11 @@ def test_legacy_reject(protocol):
     pytest.param(
         "-tls1_1",
         marks=pytest.mark.skipif(
-            distro.is_centos("8") or distro.is_fedora("33"),
+            (
+                distro.is_centos("8") or
+                distro.is_fedora("33") or
+                distro.is_rhel("8")
+            ),
             reason="Default crypto policy disable TLS v1.1"
         )
     ),

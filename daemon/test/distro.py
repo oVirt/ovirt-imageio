@@ -8,13 +8,18 @@
 
 
 def is_fedora(version=""):
-    return "Fedora release {}".format(version) in redhat_release()
+    return _check("Fedora release {}".format(version))
 
 
 def is_centos(version=""):
-    return "CentOS Stream release {}".format(version) in redhat_release()
+    return _check("CentOS Stream release {}".format(version))
 
 
-def redhat_release():
+def is_rhel(version=""):
+    return _check("Red Hat Enterprise Linux release {}".format(version))
+
+
+def _check(text):
     with open("/etc/redhat-release") as f:
-        return f.readline()
+        line = f.readline()
+    return text in line
