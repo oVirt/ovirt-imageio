@@ -263,8 +263,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("base extents: %s", list(nbdutil.extents(c)))
+        log.debug("base extents: %s", list(nbdutil.extents(c)))
 
     # Create src image with some data in second cluster and zero in third
     # cluster.
@@ -275,8 +274,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("top extents: %s", list(nbdutil.extents(c)))
+        log.debug("top extents: %s", list(nbdutil.extents(c)))
 
     # Create empty destination base image.
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
@@ -404,8 +402,7 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("base extents: %s", list(nbdutil.extents(c)))
+        log.debug("base extents: %s", list(nbdutil.extents(c)))
 
     # Create source top image with some data in second cluster and zero in the
     # third cluster.
@@ -416,8 +413,7 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug("top extents: %s", list(nbdutil.extents(c)))
+        log.debug("top extents: %s", list(nbdutil.extents(c)))
 
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
     dst_top = str(tmpdir.join("dst_top.qcow2"))
