@@ -263,7 +263,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
-        log.debug("base extents: %s", list(nbdutil.extents(c)))
+        log.debug("src_base extents: %s", list(nbdutil.extents(c)))
 
     # Create src image with some data in second cluster and zero in third
     # cluster.
@@ -274,7 +274,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
-        log.debug("top extents: %s", list(nbdutil.extents(c)))
+        log.debug("src_top extents: %s", list(nbdutil.extents(c)))
 
     # Create empty destination base image.
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
@@ -307,6 +307,9 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     # Compare allocation if we use recent enough qemu-nbd reporting holes in
     # raw images.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+        with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
+            log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
+
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
@@ -332,6 +335,9 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     # Compare allocation - nice to have.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+        with qemu_nbd.open(dst_top, "qcow2", read_only=True) as c:
+            log.debug("dst_top extents: %s", list(nbdutil.extents(c)))
+
         qemu_img.compare(
             src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
@@ -401,7 +407,7 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"b" * CLUSTER_SIZE)
         c.write(2 * CLUSTER_SIZE, b"c" * CLUSTER_SIZE)
         c.flush()
-        log.debug("base extents: %s", list(nbdutil.extents(c)))
+        log.debug("src_base extents: %s", list(nbdutil.extents(c)))
 
     # Create source top image with some data in second cluster and zero in the
     # third cluster.
@@ -412,7 +418,7 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         c.write(1 * CLUSTER_SIZE, b"B" * CLUSTER_SIZE)
         c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE)
         c.flush()
-        log.debug("top extents: %s", list(nbdutil.extents(c)))
+        log.debug("src_top extents: %s", list(nbdutil.extents(c)))
 
     dst_base = str(tmpdir.join("dst_base." + base_fmt))
     dst_top = str(tmpdir.join("dst_top.qcow2"))
@@ -439,6 +445,9 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     # And allocation - nice to have.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+        with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
+            log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
+
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
@@ -464,6 +473,9 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
     # Compare both image content - must match.
     qemu_img.compare(
         src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
+
+    with qemu_nbd.open(dst_top, "qcow2", read_only=True) as c:
+        log.debug("dst_top extents: %s", list(nbdutil.extents(c)))
 
     # And allocation - nice to have.
     qemu_img.compare(
