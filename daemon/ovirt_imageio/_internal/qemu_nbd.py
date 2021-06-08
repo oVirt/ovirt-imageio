@@ -189,7 +189,8 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
 
 
 @contextmanager
-def open(image, fmt, read_only=False, bitmap=None, offset=None, size=None):
+def open(image, fmt, read_only=False, bitmap=None, backing_chain=True,
+         offset=None, size=None):
     """
     Open nbd client for accessing image using qemu-nbd.
     """
@@ -198,6 +199,7 @@ def open(image, fmt, read_only=False, bitmap=None, offset=None, size=None):
             image, fmt, sock,
             read_only=read_only,
             bitmap=bitmap,
+            backing_chain=backing_chain,
             offset=offset,
             size=size):
         with nbd.Client(sock, dirty=bitmap is not None) as c:
