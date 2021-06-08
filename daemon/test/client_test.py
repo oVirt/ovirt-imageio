@@ -303,6 +303,9 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     nbd_server.stop()
 
+    with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
+        log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
+
     # Compare image content - must match.
     qemu_img.compare(
         src_base, dst_base, format1=base_fmt, format2=base_fmt, strict=False)
@@ -310,9 +313,6 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     # Compare allocation if we use recent enough qemu-nbd reporting holes in
     # raw images.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
-        with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
-            log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
-
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
@@ -332,16 +332,16 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     nbd_server.stop()
 
+    with qemu_nbd.open(
+            dst_top, "qcow2", read_only=True, backing_chain=False) as c:
+        log.debug("dst_top extents: %s", list(nbdutil.extents(c)))
+
     # Test image content - must match.
     qemu_img.compare(
         src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
 
     # Compare allocation - nice to have.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
-        with qemu_nbd.open(
-                dst_top, "qcow2", read_only=True, backing_chain=False) as c:
-            log.debug("dst_top extents: %s", list(nbdutil.extents(c)))
-
         qemu_img.compare(
             src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
@@ -446,15 +446,15 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     nbd_server.stop()
 
+    with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
+        log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
+
     # Compare image content - must match.
     qemu_img.compare(
         src_base, dst_base, format1=base_fmt, format2=base_fmt, strict=False)
 
     # And allocation - nice to have.
     if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
-        with qemu_nbd.open(dst_base, base_fmt, read_only=True) as c:
-            log.debug("dst_base extents: %s", list(nbdutil.extents(c)))
-
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
@@ -477,13 +477,13 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     nbd_server.stop()
 
-    # Compare both image content - must match.
-    qemu_img.compare(
-        src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
-
     with qemu_nbd.open(
             dst_top, "qcow2", read_only=True, backing_chain=False) as c:
         log.debug("dst_top extents: %s", list(nbdutil.extents(c)))
+
+    # Compare both image content - must match.
+    qemu_img.compare(
+        src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
 
     # And allocation - nice to have.
     qemu_img.compare(
