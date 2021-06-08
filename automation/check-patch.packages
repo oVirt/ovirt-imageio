@@ -7,8 +7,8 @@ openssl
 python3-devel
 python3-pip
 python3-systemd
-qemu-img-5.2.0
-qemu-kvm-5.2.0
+qemu-img-6.0.0
+qemu-kvm-6.0.0
 sudo
 systemd-udev
 util-linux
