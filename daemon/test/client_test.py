@@ -24,6 +24,7 @@ from ovirt_imageio._internal import server
 from ovirt_imageio._internal.backends.image import ZeroExtent, DirtyExtent
 
 from . import testutil
+from . import ci
 
 log = logging.getLogger("test")
 
@@ -98,8 +99,8 @@ def test_upload_empty_sparse(tmpdir, srv, fmt):
     pytest.param(
         "raw",
         marks=pytest.mark.xfail(
-            qemu_nbd.version() < (6, 0, 0),
-            reason="broken with qemu-nbd < 6.0.0")
+            ci.is_ovirt(),
+            reason="Broken in oVirt CI for unknown reason")
     ),
     "qcow2"
 ])
@@ -111,6 +112,7 @@ def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
     with qemu_nbd.open(src, fmt) as c:
         c.write(size - 1024**2, b"b" * 1024**2)
         c.flush()
+        log.debug("src extents: %s", list(nbdutil.extents(c)))
 
     dst = str(tmpdir.join("dst"))
     with open(dst, "wb") as f:
@@ -119,6 +121,9 @@ def test_upload_hole_at_start_sparse(tmpdir, srv, fmt):
     url = prepare_transfer(srv, "file://" + dst, size=size)
 
     client.upload(src, url, srv.config.tls.ca_file)
+
+    with qemu_nbd.open(dst, "raw", read_only=True) as c:
+        log.debug("dst extents: %s", list(nbdutil.extents(c)))
 
     qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
 
