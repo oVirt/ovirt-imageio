@@ -80,6 +80,9 @@ STATE_ZERO = (1 << 1)
 # Flags for qemu:dirty-bitmap meta context.
 STATE_DIRTY = (1 << 0)
 
+# Adusted to support merging allocation and dirty bits.
+EXTENT_DIRTY = (1 << 2)
+
 # Command flags
 CMD_FLAG_NO_HOLE = (1 << 1)
 
@@ -1052,8 +1055,10 @@ class Client:
             raise ProtocolError(
                 "Received unexpected metadata context id {}".format(ctx_id))
 
+        dirty = ctx_name == self.dirty_bitmap
+
         extents = []
-        for ext in self._recv_extents(length - ctx_id_size):
+        for ext in self._recv_extents(length - ctx_id_size, dirty=dirty):
             if ext.length % self.minimum_block_size:
                 raise ProtocolError(
                     "Invalid extent length {}: not an integer multiple "
@@ -1063,7 +1068,7 @@ class Client:
 
         cmd.reply[ctx_name] = extents
 
-    def _recv_extents(self, length):
+    def _recv_extents(self, length, dirty=False):
         """
         Iterator receiving and unpacking extents descriptors form block status
         payload.
@@ -1086,7 +1091,7 @@ class Client:
             # Unpack extents in buffer.
             view = memoryview(buf)
             while len(view):
-                yield Extent.unpack(view[:Extent.size])
+                yield Extent.unpack(view[:Extent.size], dirty=dirty)
                 view = view[Extent.size:]
 
     def _handle_none_chunk(self, flags, length):
@@ -1349,11 +1354,20 @@ class Extent:
         self._flags = flags
 
     @classmethod
-    def unpack(cls, data):
+    def unpack(cls, data, dirty=False):
+        """
+        Create extent instance from extent data.
+
+        If dirty is set, map STATE_DIRTY bit to EXTENT_DIRTY bit to allow
+        merging allocation and dirty extents.
+        """
         length, flags = cls.wire_format.unpack(data)
         if length == 0:
             raise ProtocolError(
                 "Invalid extent length=0 flags={}".format(flags))
+
+        if dirty:
+            flags = EXTENT_DIRTY if flags & STATE_DIRTY else 0
 
         return cls(length, flags)
 
@@ -1382,7 +1396,7 @@ class Extent:
         For qemu:dirty-bitmap extent, True if extents was modified and is
         included in this incremental backup.
         """
-        return bool(self._flags & STATE_DIRTY)
+        return bool(self._flags & EXTENT_DIRTY)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and

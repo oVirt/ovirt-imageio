@@ -668,20 +668,52 @@ def test_extent_base_allocation():
 def test_extent_dirty_bitmap():
     # Clean area.
     data = nbd.Extent.pack(4096, 0)
-    ext = nbd.Extent.unpack(data)
+    ext = nbd.Extent.unpack(data, dirty=True)
     assert not ext.dirty
     assert ext.flags == 0
 
     # Dirty area.
     data = nbd.Extent.pack(4096, nbd.STATE_DIRTY)
-    ext = nbd.Extent.unpack(data)
+    ext = nbd.Extent.unpack(data, dirty=True)
     assert ext.dirty
-    assert ext.flags == nbd.STATE_DIRTY
+    # nbd.STATE_DIRTY is mapped to nbd.EXTENT_DIRTY to allow merging allocation
+    # and dirty bitmap info in same extent.
+    assert ext.flags == nbd.EXTENT_DIRTY
 
 
 def test_extent_compare():
     assert nbd.Extent(4096, 0) == nbd.Extent(4096, 0)
     assert nbd.Extent(4096, 0) != nbd.Extent(4096, nbd.STATE_ZERO)
+
+
+def test_extent_merge_clean_hole():
+    alloc_data = nbd.Extent.pack(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
+    alloc = nbd.Extent.unpack(alloc_data)
+
+    dirty_data = nbd.Extent.pack(4096, 0)
+    dirty = nbd.Extent.unpack(dirty_data)
+
+    merged = nbd.Extent(4096, alloc.flags | dirty.flags)
+
+    assert merged.length == 4096
+    assert merged.zero is True
+    assert merged.hole is True
+    assert not merged.dirty
+
+
+def test_extent_merge_dirty_data():
+    alloc_data = nbd.Extent.pack(4096, 0)
+    alloc = nbd.Extent.unpack(alloc_data, dirty=True)
+
+    dirty_data = nbd.Extent.pack(4096, nbd.STATE_DIRTY)
+    dirty = nbd.Extent.unpack(dirty_data, dirty=True)
+
+    merged = nbd.Extent(4096, alloc.flags | dirty.flags)
+
+    assert merged.length == 4096
+    assert not merged.zero
+    assert not merged.hole
+    assert merged.dirty
 
 
 def test_reply_error_structured():

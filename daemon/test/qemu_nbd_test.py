@@ -293,6 +293,6 @@ def test_dirty_bitmap(tmpdir):
     bitmap = qemu_img.info(img)["format-specific"]["data"]["bitmaps"][0]
 
     assert extents == [
-        nbd.Extent(length=bitmap["granularity"], flags=1),
+        nbd.Extent(length=bitmap["granularity"], flags=nbd.EXTENT_DIRTY),
         nbd.Extent(length=size - bitmap["granularity"], flags=0),
     ]
