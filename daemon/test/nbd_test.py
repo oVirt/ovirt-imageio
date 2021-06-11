@@ -644,19 +644,22 @@ def verify_full_backup(sock, export_name):
 
 def test_extent_base_allocation():
     # Allocated aread with data.
-    ext = nbd.Extent(4096, 0)
+    data = nbd.Extent.pack(4096, 0)
+    ext = nbd.Extent.unpack(data)
     assert not ext.zero
     assert not ext.hole
     assert ext.flags == 0
 
     # Allocated aread that reads as zero.
-    ext = nbd.Extent(4096, nbd.STATE_ZERO)
+    data = nbd.Extent.pack(4096, nbd.STATE_ZERO)
+    ext = nbd.Extent.unpack(data)
     assert ext.zero
     assert not ext.hole
     assert ext.flags == nbd.STATE_ZERO
 
     # Unallocated aread that reads as zero.
-    ext = nbd.Extent(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
+    data = nbd.Extent.pack(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
+    ext = nbd.Extent.unpack(data)
     assert ext.zero
     assert ext.hole
     assert ext.flags == nbd.STATE_ZERO | nbd.STATE_HOLE
@@ -664,14 +667,21 @@ def test_extent_base_allocation():
 
 def test_extent_dirty_bitmap():
     # Clean area.
-    ext = nbd.Extent(4096, 0)
+    data = nbd.Extent.pack(4096, 0)
+    ext = nbd.Extent.unpack(data)
     assert not ext.dirty
     assert ext.flags == 0
 
     # Dirty area.
-    ext = nbd.Extent(4096, nbd.STATE_DIRTY)
+    data = nbd.Extent.pack(4096, nbd.STATE_DIRTY)
+    ext = nbd.Extent.unpack(data)
     assert ext.dirty
     assert ext.flags == nbd.STATE_DIRTY
+
+
+def test_extent_compare():
+    assert nbd.Extent(4096, 0) == nbd.Extent(4096, 0)
+    assert nbd.Extent(4096, 0) != nbd.Extent(4096, nbd.STATE_ZERO)
 
 
 def test_reply_error_structured():

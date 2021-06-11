@@ -1357,6 +1357,10 @@ class Extent:
 
         return cls(length, flags)
 
+    @classmethod
+    def pack(cls, length, flags):
+        return cls.wire_format.pack(length, flags)
+
     @property
     def flags(self):
         return self._flags
