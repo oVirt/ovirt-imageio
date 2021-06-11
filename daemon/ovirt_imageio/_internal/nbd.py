@@ -1389,9 +1389,5 @@ class Extent:
                 self.length == other.length and
                 self.flags == other.flags)
 
-    # TODO: For python 2; remove when we require python 3.
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
     def __repr__(self):
         return "Extent(length={}, flags={})".format(self.length, self._flags)
