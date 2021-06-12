@@ -629,17 +629,14 @@ class Client:
             self._meta_context[ctx_name] = ctx_id
             self._meta_context[ctx_id] = ctx_name
 
-        # Warn if we failed to activate some meta context. This is a
-        # performance issue.
-
-        if "base:allocation" not in self._meta_context:
-            log.warning("Failed to activate base:allocation")
-
-        if dirty_bitmap:
-            if dirty_bitmap in self._meta_context:
+            if ctx_name == dirty_bitmap:
                 self.dirty_bitmap = dirty_bitmap
-            else:
-                log.warning("Failed to activate %s", dirty_bitmap)
+
+        # Warn if we failed to activate some meta context. This may affect
+        # performance or reduce funcionaliity.
+        for ctx_name in queries:
+            if ctx_name not in self._meta_context:
+                log.warning("Failed to activate %s", ctx_name)
 
     def _format_meta_context_data(self, *queries):
         """
@@ -1055,10 +1052,13 @@ class Client:
             raise ProtocolError(
                 "Received unexpected metadata context id {}".format(ctx_id))
 
-        dirty = ctx_name == self.dirty_bitmap
+        if ctx_name == self.dirty_bitmap:
+            context = Extent.DIRTY
+        else:
+            context = Extent.ALLOC
 
         extents = []
-        for ext in self._recv_extents(length - ctx_id_size, dirty=dirty):
+        for ext in self._recv_extents(length - ctx_id_size, context):
             if ext.length % self.minimum_block_size:
                 raise ProtocolError(
                     "Invalid extent length {}: not an integer multiple "
@@ -1068,7 +1068,7 @@ class Client:
 
         cmd.reply[ctx_name] = extents
 
-    def _recv_extents(self, length, dirty=False):
+    def _recv_extents(self, length, context):
         """
         Iterator receiving and unpacking extents descriptors form block status
         payload.
@@ -1091,7 +1091,7 @@ class Client:
             # Unpack extents in buffer.
             view = memoryview(buf)
             while len(view):
-                yield Extent.unpack(view[:Extent.size], dirty=dirty)
+                yield Extent.unpack(view[:Extent.size], context)
                 view = view[Extent.size:]
 
     def _handle_none_chunk(self, flags, length):
@@ -1340,6 +1340,10 @@ class Extent:
     Since this class is mutable, it must not implement __hash__.
     """
 
+    # Contexts ids copied from qemu-nbd.
+    ALLOC = 0  # base:allocation
+    DIRTY = 2  # qemu:dirty-bitmap:name
+
     __slots__ = ("length", "_flags")
 
     # 32 bits, length of the extent to which the status below applies
@@ -1354,19 +1358,19 @@ class Extent:
         self._flags = flags
 
     @classmethod
-    def unpack(cls, data, dirty=False):
+    def unpack(cls, data, context=ALLOC):
         """
         Create extent instance from extent data.
 
-        If dirty is set, map STATE_DIRTY bit to EXTENT_DIRTY bit to allow
-        merging allocation and dirty extents.
+        Based on context, we map NBD flags bits to private bits to allow
+        merging different types of extents.
         """
         length, flags = cls.wire_format.unpack(data)
         if length == 0:
             raise ProtocolError(
                 "Invalid extent length=0 flags={}".format(flags))
 
-        if dirty:
+        if context == cls.DIRTY:
             flags = EXTENT_DIRTY if flags & STATE_DIRTY else 0
 
         return cls(length, flags)
