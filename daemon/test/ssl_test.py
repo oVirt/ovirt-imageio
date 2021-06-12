@@ -61,6 +61,7 @@ def test_legacy_reject(protocol):
             (
                 distro.is_centos("8") or
                 distro.is_fedora("33") or
+                distro.is_fedora("34") or
                 distro.is_rhel("8")
             ),
             reason="Default crypto policy disable TLS v1.1"
