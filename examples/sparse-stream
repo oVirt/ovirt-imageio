@@ -184,18 +184,7 @@ FRAME_LEN = len(FRAME % (STOP, 0, 0))
 def download(args):
     writer = sys.stdout.buffer
 
-    if args.incremental:
-        # During incremental backup we want to download and stream only the
-        # dirty extents and skip the rest. When we restore, we must skip the
-        # non-data extent.
-        context = "dirty"
-        zero = False
-    else:
-        # During full backup we want to downlod only the data extents, but
-        # stream both data and zero extents, since when we restore a full
-        # backup, we must zero the area on storage.
-        context = "zero"
-        zero = True
+    context = "dirty" if args.incremental else "zero"
 
     with ImageioClient(args.url, secure=False) as client:
         extents = list(client.extents(context))
@@ -206,14 +195,26 @@ def download(args):
         writer.write(metadata)
         writer.write(TERM)
 
-        # Stream data extents and optionally non-data extents.
+        # During full backup we want to downlod the data extents and stream
+        # both data and zero extents. When we restore a full backup, we
+        # must write entire image to storage.
+        # During incremental backup we want to download and stream only the
+        # dirty data and zero extents, and skip the rest. When we restore,
+        # we must skip non-existant data.
+
+        # Filter out clean extents.
+        if args.incremental:
+            extents = (e for e in extents if e.dirty)
+
         for extent in extents:
-            if extent.data:
+            if extent.zero:
+                # Stream zero extent.
+                write_frame(writer, ZERO, extent.start, extent.length)
+            else:
+                # Download and stream data extent.
                 write_frame(writer, DATA, extent.start, extent.length)
                 client.write_to(writer, extent.start, extent.length)
                 writer.write(TERM)
-            elif zero:
-                write_frame(writer, ZERO, extent.start, extent.length)
 
         # Mark the end of the stream.
         write_frame(writer, STOP, 0, 0)
