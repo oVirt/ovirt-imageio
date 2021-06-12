@@ -168,7 +168,7 @@ class Backend:
 
         # If server does not support base:allocation, we can safely report one
         # data extent like other backends.
-        if context == "zero" and not self._client.base_allocation:
+        if context == "zero" and not self._client.has_base_allocation:
             yield image.ZeroExtent(0, self._client.export_size, False, False)
             return
 

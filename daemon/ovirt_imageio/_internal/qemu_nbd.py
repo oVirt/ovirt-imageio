@@ -83,6 +83,8 @@ class Server:
             "--export-name={}".format(self.export_name),
             "--persistent",
             "--shared={}".format(self.shared),
+            # Added in qemu 5.2.0, required to detect holes in qcow2 images.
+            "--allocation-depth",
         ]
 
         if self.sock.transport == "unix":

@@ -100,8 +100,6 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero, hole):
     # Allocation can be compared only with qcow2 images when we write zeroes to
     # zero extents and skip holes.
     if src_fmt == "qcow2" and dst_fmt == "qcow2" and zero and not hole:
-        if qemu_nbd.version() >= (6, 0, 0):
-            pytest.xfail("broken with qemu-nbd 6.0.0")
         qemu_img.compare(src, dst, strict=True)
 
 

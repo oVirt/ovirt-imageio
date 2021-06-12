@@ -111,7 +111,9 @@ def test_handshake(tmpdir, export, fmt):
             assert c.minimum_block_size == 1
             assert c.preferred_block_size == 4096
             assert c.maximum_block_size == 32 * 1024**2
-            assert c.base_allocation
+            # Both available in in current qemu-nbd (>= 5.2.0).
+            assert c.has_base_allocation
+            assert c.has_allocation_depth
 
 
 def test_raw_read(tmpdir):
@@ -321,11 +323,14 @@ def test_open_tcp(tmpdir, url_template, host, export):
             assert c.export_size == 1024**3
 
 
-# TODO: Remove when we require qemu-nbd >= 6.0.0.
 FMT_HOLE_FLAGS_PARAMS = [
+    # In qemu-nbd 5.2.0 we get only the zero bit.
     ["raw", nbd.STATE_ZERO],
-    ["qcow2", nbd.STATE_ZERO | nbd.STATE_HOLE],
+    ["qcow2", nbd.STATE_ZERO | nbd.STATE_HOLE | nbd.EXTENT_BACKING],
 ]
+
+# Since qemu-nbd 6.0.0 we get also the hole bit, but we don't get the backing
+# bit, so unallocated areas in raw images are not considered as holes.
 if qemu_nbd.version() >= (6, 0, 0):
     FMT_HOLE_FLAGS_PARAMS[0][1] |= nbd.STATE_HOLE
 
@@ -549,7 +554,10 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             assert c.minimum_block_size == 1
             assert c.preferred_block_size == 4096
             assert c.maximum_block_size == 32 * 1024**2
-            assert c.base_allocation
+            assert c.has_base_allocation
+            # TODO: qemu supports exposing allocation depth via
+            # block-export-add but we use legacy APIs in the backup helper.
+            assert not c.has_allocation_depth
 
 
 @pytest.mark.parametrize("fmt", [
@@ -661,7 +669,8 @@ def test_extent_base_allocation():
     data = nbd.Extent.pack(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
     ext = nbd.Extent.unpack(data)
     assert ext.zero
-    assert ext.hole
+    # Hole can be detected only when using depth data with qcow2 image.
+    assert not ext.hole
     assert ext.flags == nbd.STATE_ZERO | nbd.STATE_HOLE
 
 
@@ -689,6 +698,34 @@ def test_extent_dirty_bitmap():
     assert ext.flags == nbd.EXTENT_DIRTY
 
 
+def test_extent_depth():
+    # Unallocated extent.
+    depth_data = nbd.Extent.pack(65536, 0)
+    ext = nbd.Extent.unpack(depth_data, nbd.Extent.DEPTH)
+    assert ext.length == 65536
+    assert not ext.zero
+    # Hole status is determined only by the EXTENT_BACKING bit.
+    assert ext.hole
+    assert not ext.dirty
+    assert ext.flags == nbd.EXTENT_BACKING
+
+    # Allocated extents from top layer.
+    data = nbd.Extent.pack(4096, 1)
+    ext = nbd.Extent.unpack(data, nbd.Extent.DEPTH)
+    assert not ext.zero
+    assert not ext.hole
+    assert not ext.dirty
+    assert ext.flags == 0
+
+    # Allocated extents from top backing file.
+    data = nbd.Extent.pack(4096, 2)
+    ext = nbd.Extent.unpack(data, nbd.Extent.DEPTH)
+    assert not ext.zero
+    assert not ext.hole
+    assert not ext.dirty
+    assert ext.flags == 0
+
+
 def test_extent_compare():
     assert nbd.Extent(4096, 0) == nbd.Extent(4096, 0)
     assert nbd.Extent(4096, 0) != nbd.Extent(4096, nbd.STATE_ZERO)
@@ -705,7 +742,8 @@ def test_extent_merge_clean_hole():
 
     assert merged.length == 4096
     assert merged.zero is True
-    assert merged.hole is True
+    # Hole can be detected only when using depth data with qcow2 image.
+    assert merged.hole is False
     assert not merged.dirty
 
 
@@ -722,6 +760,48 @@ def test_extent_merge_dirty_data():
     assert not merged.zero
     assert not merged.hole
     assert merged.dirty
+
+
+def test_extent_merge_qcow2_unallocated_cluster():
+    alloc_data = nbd.Extent.pack(65536, nbd.STATE_ZERO | nbd.STATE_HOLE)
+    alloc = nbd.Extent.unpack(alloc_data)
+
+    depth_data = nbd.Extent.pack(65536, 0)
+    depth = nbd.Extent.unpack(depth_data, nbd.Extent.DEPTH)
+
+    merged = nbd.Extent(65536, alloc.flags | depth.flags)
+
+    assert merged.length == 65536
+    assert merged.zero is True
+    assert merged.hole is True
+
+
+def test_extent_merge_qcow2_zero_cluster():
+    alloc_data = nbd.Extent.pack(65536, nbd.STATE_ZERO | nbd.STATE_HOLE)
+    alloc = nbd.Extent.unpack(alloc_data)
+
+    depth_data = nbd.Extent.pack(65536, 1)
+    depth = nbd.Extent.unpack(depth_data, nbd.Extent.DEPTH)
+
+    merged = nbd.Extent(65536, alloc.flags | depth.flags)
+
+    assert merged.length == 65536
+    assert merged.zero is True
+    assert merged.hole is False
+
+
+def test_extent_merge_qcow2_data_cluster():
+    alloc_data = nbd.Extent.pack(65536, 0)
+    alloc = nbd.Extent.unpack(alloc_data)
+
+    depth_data = nbd.Extent.pack(65536, 1)
+    depth = nbd.Extent.unpack(depth_data, nbd.Extent.DEPTH)
+
+    merged = nbd.Extent(65536, alloc.flags | depth.flags)
+
+    assert merged.length == 65536
+    assert merged.zero is False
+    assert merged.hole is False
 
 
 def test_reply_error_structured():

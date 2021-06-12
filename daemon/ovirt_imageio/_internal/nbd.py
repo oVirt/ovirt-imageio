@@ -74,7 +74,14 @@ REP_META_CONTEXT = 4
 REPLY_FLAG_DONE = (1 << 0)
 
 # Flags for base:allocation meta context.
+
+# This range does not allocate any data on storage. Examples are a hole
+# in raw image, or zero cluster in qcow2 image. This is flag is optional
+# and may be ommited by a NBD server. Cannot be used to detect
+# unallocated areas in qcow2 exposing data from the backing file.
 STATE_HOLE = (1 << 0)
+
+# The range is read as zero.
 STATE_ZERO = (1 << 1)
 
 # Flags for qemu:dirty-bitmap meta context.
@@ -82,6 +89,9 @@ STATE_DIRTY = (1 << 0)
 
 # Adusted to support merging allocation and dirty bits.
 EXTENT_DIRTY = (1 << 2)
+
+# Extent does not exist, exposing data from the backing file.
+EXTENT_BACKING = (1 << 3)
 
 # Command flags
 CMD_FLAG_NO_HOLE = (1 << 1)
@@ -401,8 +411,12 @@ class Client:
         log.debug("Ready for transmission")
 
     @property
-    def base_allocation(self):
+    def has_base_allocation(self):
         return "base:allocation" in self._meta_context
+
+    @property
+    def has_allocation_depth(self):
+        return "qemu:allocation-depth" in self._meta_context
 
     def read(self, offset, length):
         buf = bytearray(length)
@@ -595,7 +609,10 @@ class Client:
         """
         opt = OPT_SET_META_CONTEXT
 
-        queries = ["base:allocation"]
+        # qemu:allocation-depth is required to detect holes in qcow2 images -
+        # unallocated clusters exposing data from the backing chain.
+        # Added in qemu 5.2.0.
+        queries = ["base:allocation", "qemu:allocation-depth"]
         if dirty_bitmap:
             queries.append(dirty_bitmap)
 
@@ -1054,6 +1071,8 @@ class Client:
 
         if ctx_name == self.dirty_bitmap:
             context = Extent.DIRTY
+        elif ctx_name == "qemu:allocation-depth":
+            context = Extent.DEPTH
         else:
             context = Extent.ALLOC
 
@@ -1342,6 +1361,7 @@ class Extent:
 
     # Contexts ids copied from qemu-nbd.
     ALLOC = 0  # base:allocation
+    DEPTH = 1  # qemu:allocation-depth
     DIRTY = 2  # qemu:dirty-bitmap:name
 
     __slots__ = ("length", "_flags")
@@ -1370,8 +1390,13 @@ class Extent:
             raise ProtocolError(
                 "Invalid extent length=0 flags={}".format(flags))
 
+        log.debug("Extent length=%s flags=%s context=%s",
+                  length, flags, context)
+
         if context == cls.DIRTY:
             flags = EXTENT_DIRTY if flags & STATE_DIRTY else 0
+        elif context == cls.DEPTH:
+            flags = EXTENT_BACKING if flags == 0 else 0
 
         return cls(length, flags)
 
@@ -1392,7 +1417,22 @@ class Extent:
 
     @property
     def hole(self):
-        return bool(self._flags & STATE_HOLE)
+        """
+        Return True if this is a non existing extent in qcow2 image. If the
+        image has a backing file the content of the extent are read from the
+        backing file.
+
+        Return False if the extent exist in the one of the layers, or if the
+        image is a raw image, even if this is unallocated area in a raw
+        image.
+
+        By definition, a hole has also the STATE_HOLE | STATE_ZERO
+        flags. But the oposite is not true.
+
+        For more info see
+        https://lists.nongnu.org/archive/html/qemu-block/2021-06/msg00756.html
+        """
+        return bool(self._flags & EXTENT_BACKING)
 
     @property
     def dirty(self):

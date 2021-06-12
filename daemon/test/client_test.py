@@ -249,8 +249,6 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
-@pytest.mark.xfail(
-    qemu_nbd.version() >= (6, 0, 0), reason="broken with qemu-nbd >= 6.0.0")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2
@@ -397,8 +395,6 @@ def test_download_qcow2_as_raw(tmpdir, srv):
     qemu_img.compare(src, dst, format1="qcow2", format2="qcow2", strict=True)
 
 
-@pytest.mark.xfail(
-    qemu_nbd.version() >= (6, 0, 0), reason="broken with qemu-nbd >= 6.0.0")
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
 def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
     size = 10 * 1024**2
@@ -824,9 +820,7 @@ def test_zero_extents_raw(tmpdir):
 
     extents = list(client.extents(image))
 
-    # Unallocated area is reported as a hole since qemu-nbd 6.0.0.
-    hole = qemu_nbd.version() >= (6, 0, 0)
-
+    # Unallocated area in raw image is not reported as a hole.
     assert extents == [
         ZeroExtent(
             start=0 * CLUSTER_SIZE,
@@ -837,7 +831,7 @@ def test_zero_extents_raw(tmpdir):
             start=1 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
             zero=True,
-            hole=hole),
+            hole=False),
         ZeroExtent(
             start=2 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
@@ -847,12 +841,10 @@ def test_zero_extents_raw(tmpdir):
             start=3 * CLUSTER_SIZE,
             length=size - 3 * CLUSTER_SIZE,
             zero=True,
-            hole=hole),
+            hole=False),
     ]
 
 
-@pytest.mark.xfail(
-    qemu_nbd.version() >= (6, 0, 0), reason="broken in qemu-nbd 6.0.0")
 def test_zero_extents_qcow2(tmpdir):
     size = 10 * 1024**2
 
@@ -899,9 +891,6 @@ def test_zero_extents_qcow2(tmpdir):
             length=CLUSTER_SIZE,
             zero=False,
             hole=False),
-
-        # Broken since qemu-nbd 6.0.0, zero area in top reported as a hole
-        # instead of data.
         ZeroExtent(
             start=4 * CLUSTER_SIZE,
             length=CLUSTER_SIZE,
@@ -917,8 +906,6 @@ def test_zero_extents_qcow2(tmpdir):
     ]
 
 
-@pytest.mark.xfail(
-    qemu_nbd.version() >= (6, 0, 0), reason="broken in qemu-nbd 6.0.0")
 def test_zero_extents_from_ova(tmpdir):
     size = 10 * 1024**2
 

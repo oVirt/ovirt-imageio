@@ -132,6 +132,9 @@ def extents(client, offset=0, length=None, dirty=False):
 
         if dirty:
             extents = merged(res["base:allocation"], res[client.dirty_bitmap])
+        elif "qemu:allocation-depth" in res:
+            extents = merged(
+                res["base:allocation"], res["qemu:allocation-depth"])
         else:
             extents = res["base:allocation"]
 
