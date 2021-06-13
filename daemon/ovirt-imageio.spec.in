@@ -61,7 +61,10 @@ Summary:   oVirt imageio client library
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  %{name}-common = %{version}-%{release}
-Requires:  qemu-img
+
+# For "qemu:allocation-depth" meta context.
+# https://bugzilla.redhat.com/1971182
+Requires:  qemu-img >= 5.2.0
 
 %description client
 Python client library for accessing imageio server on oVirt hosts.
