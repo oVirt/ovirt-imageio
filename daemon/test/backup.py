@@ -194,14 +194,23 @@ class Backup:
     def add_to_nbd_server(self):
         log.debug("Adding node %s and bitmap %s to nbd server",
                   self.node, self.bitmap)
-        arguments = {"name": self.export, "device": self.node}
+        arguments = {
+            "type": "nbd",
+            "id": self.export,
+            "node-name": self.node,
+            "name": self.export,
+            "allocation-depth": True,
+        }
         if self.bitmap:
-            arguments["bitmap"] = self.bitmap
-        self.qmp.execute("nbd-server-add", arguments)
+            arguments["bitmaps"] = [self.bitmap]
+        self.qmp.execute("block-export-add", arguments)
 
     def remove_from_nbd_server(self):
         log.debug("Removing export %s from nbd server", self.export)
-        self.qmp.execute("nbd-server-remove", {"name": self.export})
+        self.qmp.execute("block-export-del", {
+            "id": self.export,
+            "mode": "hard",
+        })
 
     def stop_nbd_server(self):
         log.debug("Stopping nbd server")

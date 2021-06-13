@@ -554,10 +554,9 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
             assert c.minimum_block_size == 1
             assert c.preferred_block_size == 4096
             assert c.maximum_block_size == 32 * 1024**2
+            # Both available in in current qemu (>= 5.2.0).
             assert c.has_base_allocation
-            # TODO: qemu supports exposing allocation depth via
-            # block-export-add but we use legacy APIs in the backup helper.
-            assert not c.has_allocation_depth
+            assert c.has_allocation_depth
 
 
 @pytest.mark.parametrize("fmt", [
