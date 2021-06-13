@@ -18,7 +18,10 @@ class Client:
 
     def __init__(self, flags, dirty):
         self.flags = flags
-        self.dirty_bitmap = "qemu:dirty-bitmap:bitmap-name" if dirty else None
+        if dirty:
+            self.dirty_bitmap = nbd.QEMU_DIRTY_BITMAP + "bitmap-name"
+        else:
+            self.dirty_bitmap = None
 
     def extents(self, offset, length):
         assert 0 < length <= nbd.MAX_LENGTH
@@ -26,7 +29,7 @@ class Client:
 
         extents = self.reply(offset, length)
 
-        res = {"base:allocation": extents}
+        res = {nbd.BASE_ALLOCATION: extents}
 
         if self.dirty_bitmap:
             res[self.dirty_bitmap] = extents

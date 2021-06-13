@@ -109,6 +109,11 @@ REPLY_TYPE_ERROR_OFFSET = REPLY_ERROR_BASE + 2
 INFO_EXPORT = 0
 INFO_BLOCK_SIZE = 3
 
+# Meta context names.
+BASE_ALLOCATION = "base:allocation"
+QEMU_ALLOCATION_DEPTH = "qemu:allocation-depth"
+QEMU_DIRTY_BITMAP = "qemu:dirty-bitmap:"
+
 # Error replies
 ERR_BASE = 2**31
 REP_ERR_UNSUP = ERR_BASE + 1
@@ -412,11 +417,11 @@ class Client:
 
     @property
     def has_base_allocation(self):
-        return "base:allocation" in self._meta_context
+        return BASE_ALLOCATION in self._meta_context
 
     @property
     def has_allocation_depth(self):
-        return "qemu:allocation-depth" in self._meta_context
+        return QEMU_ALLOCATION_DEPTH in self._meta_context
 
     def read(self, offset, length):
         buf = bytearray(length)
@@ -585,14 +590,14 @@ class Client:
         more than one.
         """
         opt = OPT_LIST_META_CONTEXT
-        data = self._format_meta_context_data("qemu:dirty-bitmap:")
+        data = self._format_meta_context_data(QEMU_DIRTY_BITMAP)
         self._send_option(opt, data)
 
         bitmaps = list(self._iter_meta_context_replies(opt))
 
         if len(bitmaps) == 0:
             log.warning(
-                "Server does not support qemu:dirty-bitmap meta context")
+                "Server does not support %s meta context", QEMU_DIRTY_BITMAP)
             return None
 
         if len(bitmaps) > 1:
@@ -612,7 +617,7 @@ class Client:
         # qemu:allocation-depth is required to detect holes in qcow2 images -
         # unallocated clusters exposing data from the backing chain.
         # Added in qemu 5.2.0.
-        queries = ["base:allocation", "qemu:allocation-depth"]
+        queries = [BASE_ALLOCATION, QEMU_ALLOCATION_DEPTH]
         if dirty_bitmap:
             queries.append(dirty_bitmap)
 
@@ -1071,7 +1076,7 @@ class Client:
 
         if ctx_name == self.dirty_bitmap:
             context = Extent.DIRTY
-        elif ctx_name == "qemu:allocation-depth":
+        elif ctx_name == QEMU_ALLOCATION_DEPTH:
             context = Extent.DEPTH
         else:
             context = Extent.ALLOC

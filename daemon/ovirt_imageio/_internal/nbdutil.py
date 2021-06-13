@@ -131,12 +131,13 @@ def extents(client, offset=0, length=None, dirty=False):
         res = client.extents(offset, step)
 
         if dirty:
-            extents = merged(res["base:allocation"], res[client.dirty_bitmap])
-        elif "qemu:allocation-depth" in res:
             extents = merged(
-                res["base:allocation"], res["qemu:allocation-depth"])
+                res[nbd.BASE_ALLOCATION], res[client.dirty_bitmap])
+        elif nbd.QEMU_ALLOCATION_DEPTH in res:
+            extents = merged(
+                res[nbd.BASE_ALLOCATION], res[nbd.QEMU_ALLOCATION_DEPTH])
         else:
-            extents = res["base:allocation"]
+            extents = res[nbd.BASE_ALLOCATION]
 
         for ext in extents:
             # Handle the case of last extent of the last block status command

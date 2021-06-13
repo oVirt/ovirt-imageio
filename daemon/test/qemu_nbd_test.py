@@ -288,7 +288,7 @@ def test_dirty_bitmap(tmpdir):
 
     # Read dirty extents.
     with qemu_nbd.open(img, "qcow2", read_only=True, bitmap="b0") as c:
-        extents = c.extents(0, size)["qemu:dirty-bitmap:b0"]
+        extents = c.extents(0, size)[nbd.QEMU_DIRTY_BITMAP + "b0"]
 
     bitmap = qemu_img.info(img)["format-specific"]["data"]["bitmaps"][0]
 
