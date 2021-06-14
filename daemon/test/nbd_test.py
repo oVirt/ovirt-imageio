@@ -643,21 +643,21 @@ def verify_full_backup(sock, export_name):
 
 
 def test_extent_base_allocation():
-    # Allocated aread with data.
+    # Allocated area with data.
     data = nbd.Extent.pack(4096, 0)
     ext = nbd.Extent.unpack(data)
     assert not ext.zero
     assert not ext.hole
     assert ext.flags == 0
 
-    # Allocated aread that reads as zero.
+    # Allocated area that reads as zero.
     data = nbd.Extent.pack(4096, nbd.STATE_ZERO)
     ext = nbd.Extent.unpack(data)
     assert ext.zero
     assert not ext.hole
     assert ext.flags == nbd.STATE_ZERO
 
-    # Unallocated aread that reads as zero.
+    # Unallocated area that reads as zero.
     data = nbd.Extent.pack(4096, nbd.STATE_ZERO | nbd.STATE_HOLE)
     ext = nbd.Extent.unpack(data)
     assert ext.zero
