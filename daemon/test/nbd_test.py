@@ -672,6 +672,14 @@ def test_extent_base_allocation():
     assert not ext.hole
     assert ext.flags == nbd.STATE_ZERO | nbd.STATE_HOLE
 
+    # Ignore unexpected bits
+    data = nbd.Extent.pack(4096, 0xffff)
+    ext = nbd.Extent.unpack(data)
+    assert ext.zero
+    assert not ext.hole
+    assert not ext.dirty
+    assert ext.flags == nbd.STATE_HOLE | nbd.STATE_ZERO
+
 
 def test_extent_dirty_bitmap():
     # Clean area.

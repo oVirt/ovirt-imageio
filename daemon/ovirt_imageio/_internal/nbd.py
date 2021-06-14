@@ -1398,7 +1398,11 @@ class Extent:
         log.debug("Extent length=%s flags=%s context=%s",
                   length, flags, context)
 
-        if context == cls.DIRTY:
+        if context == cls.ALLOC:
+            # The remainder of the flags field is reserved. Servers SHOULD set
+            # it to all-zero; clients MUST ignore unknown flags.
+            flags = flags & (STATE_HOLE | STATE_ZERO)
+        elif context == cls.DIRTY:
             flags = EXTENT_DIRTY if flags & STATE_DIRTY else 0
         elif context == cls.DEPTH:
             flags = EXTENT_BACKING if flags == 0 else 0
