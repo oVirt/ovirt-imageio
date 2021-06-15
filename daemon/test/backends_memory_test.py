@@ -243,8 +243,8 @@ def test_user_extents():
             image.ZeroExtent(0, 32, True, False),
         ],
         "dirty": [
-            image.DirtyExtent(0, 16, True),
-            image.DirtyExtent(0, 48, False),
+            image.DirtyExtent(0, 16, True, False),
+            image.DirtyExtent(0, 48, False, False),
         ]
     }
     data = b"a" * 32 + b"\0" * 32

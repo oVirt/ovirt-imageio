@@ -562,8 +562,8 @@ def test_daemon_extents_dirty(http_server, uhttp_server):
             image.ZeroExtent(0, b.size(), True, False),
         ]
         assert list(b.extents("dirty")) == [
-            image.DirtyExtent(0, chunk_size, True),
-            image.DirtyExtent(chunk_size, chunk_size, False),
+            image.DirtyExtent(0, chunk_size, True, False),
+            image.DirtyExtent(chunk_size, chunk_size, False, False),
         ]
 
 

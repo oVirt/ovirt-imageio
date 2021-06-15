@@ -223,7 +223,7 @@ def test_copy_dirty_progress():
     src = memory.Backend(
         mode="r",
         data=create_backing("A0C-"),
-        extents={"dirty": create_zero_extents("A0C-")},
+        extents={"dirty": create_dirty_extents("A0C-")},
     )
     dst_backing = create_backing("0000")
     dst = memory.Backend("r+", data=dst_backing)
@@ -343,8 +343,8 @@ def create_dirty_extents(fmt):
     Create dirty extents from format string.
 
     "Ab" -> [
-        DirtyExtent(0 * CHUNK_SIZE, CHUNK_SIZE, True),
-        DirtyExtent(1 * CHUNK_SIZE, CHUNK_SIZE, False),
+        DirtyExtent(0 * CHUNK_SIZE, CHUNK_SIZE, True, False),
+        DirtyExtent(1 * CHUNK_SIZE, CHUNK_SIZE, False, False),
     ]
     """
     extents = []
@@ -352,7 +352,8 @@ def create_dirty_extents(fmt):
 
     for c in fmt:
         extents.append(
-            image.DirtyExtent(offset, CHUNK_SIZE, dirty=c.isupper()))
+            image.DirtyExtent(
+                offset, CHUNK_SIZE, dirty=c.isupper(), zero=False))
         offset += CHUNK_SIZE
 
     return extents

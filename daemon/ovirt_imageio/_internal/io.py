@@ -76,9 +76,13 @@ def _copy_dirty(executor, src, progress=None):
     chain.
     """
     for ext in src.extents("dirty"):
-        if ext.data:
-            log.debug("Copying %s", ext)
-            executor.submit(Request(COPY, ext.start, ext.length))
+        if ext.dirty:
+            if ext.data:
+                log.debug("Copying %s", ext)
+                executor.submit(Request(COPY, ext.start, ext.length))
+            elif ext.zero:
+                log.debug("Zeroing %s", ext)
+                executor.submit(Request(ZERO, ext.start, ext.length))
         else:
             log.debug("Skipping %s", ext)
             if progress:

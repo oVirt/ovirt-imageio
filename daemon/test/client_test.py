@@ -986,31 +986,67 @@ def test_dirty_extents(tmpdir):
 
     dirty_extents = list(client.extents(base, bitmap="b0"))
 
-    assert dirty_extents == [
+    expected = [
+        # First cluster is dirty data.
         DirtyExtent(
             start=0 * CLUSTER_SIZE,
-            length=2 * CLUSTER_SIZE,
-            dirty=True),
+            length=1 * CLUSTER_SIZE,
+            dirty=True,
+            zero=False),
+        # Second cluster is dirty zero.
+        DirtyExtent(
+            start=1 * CLUSTER_SIZE,
+            length=1 * CLUSTER_SIZE,
+            dirty=True,
+            zero=True),
+        # Third cluster is clean zero.
         DirtyExtent(
             start=2 * CLUSTER_SIZE,
             length=size - 2 * CLUSTER_SIZE,
-            dirty=False),
+            dirty=False,
+            zero=True),
     ]
+
+    log.debug("base image dirty extents: %s", dirty_extents)
+    assert dirty_extents == expected
 
     dirty_extents = list(client.extents(top, bitmap="b0"))
 
-    # Note: qemu-nbd reports dirty extents only for the top image.
-    assert dirty_extents == [
+    # Note: qemu-nbd reports dirty extents only for the top image, but zero
+    # extents are read from the base image.
+    expected = [
+        # First cluster is clean data, read from base image.
         DirtyExtent(
             start=0 * CLUSTER_SIZE,
-            length=3 * CLUSTER_SIZE,
-            dirty=False),
+            length=1 * CLUSTER_SIZE,
+            dirty=False,
+            zero=False),
+        # Second and third clusters are read from base image. Because they are
+        # both clean zero, they are merged.
+        DirtyExtent(
+            start=1 * CLUSTER_SIZE,
+            length=2 * CLUSTER_SIZE,
+            dirty=False,
+            zero=True),
+        # Forth cluster is a data extent modified in top image.
         DirtyExtent(
             start=3 * CLUSTER_SIZE,
-            length=2 * CLUSTER_SIZE,
-            dirty=True),
+            length=1 * CLUSTER_SIZE,
+            dirty=True,
+            zero=False),
+        # Fifth cluster is a zero extent modifed in to image.
+        DirtyExtent(
+            start=4 * CLUSTER_SIZE,
+            length=1 * CLUSTER_SIZE,
+            dirty=True,
+            zero=True),
+        # The rest is clean zero extent.
         DirtyExtent(
             start=5 * CLUSTER_SIZE,
             length=size - 5 * CLUSTER_SIZE,
-            dirty=False),
+            dirty=False,
+            zero=True),
     ]
+
+    log.debug("top image dirty extents: %s", dirty_extents)
+    assert dirty_extents == expected

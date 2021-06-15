@@ -116,8 +116,6 @@ def extents(client, offset=0, length=None, dirty=False):
     else:
         end = offset + length
 
-    meta_context = client.dirty_bitmap if dirty else "base:allocation"
-
     # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
     # number of extents kept in memory when accessing very fragmented images.
     max_step = 2 * 1024**3
@@ -132,7 +130,12 @@ def extents(client, offset=0, length=None, dirty=False):
         step = min(end - offset, max_step)
         res = client.extents(offset, step)
 
-        for ext in res[meta_context]:
+        if dirty:
+            extents = merged(res["base:allocation"], res[client.dirty_bitmap])
+        else:
+            extents = res["base:allocation"]
+
+        for ext in extents:
             # Handle the case of last extent of the last block status command
             # exceeding requested range.
             if offset + ext.length > end:

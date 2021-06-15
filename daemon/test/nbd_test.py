@@ -680,6 +680,14 @@ def test_extent_dirty_bitmap():
     # and dirty bitmap info in same extent.
     assert ext.flags == nbd.EXTENT_DIRTY
 
+    # Ignore unexpected bits
+    data = nbd.Extent.pack(4096, 0xffff)
+    ext = nbd.Extent.unpack(data, dirty=True)
+    assert not ext.zero
+    assert not ext.hole
+    assert ext.dirty
+    assert ext.flags == nbd.EXTENT_DIRTY
+
 
 def test_extent_compare():
     assert nbd.Extent(4096, 0) == nbd.Extent(4096, 0)

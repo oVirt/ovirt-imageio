@@ -183,7 +183,7 @@ class Backend:
         start = 0
         for ext in nbdutil.extents(self._client, dirty=dirty):
             if dirty:
-                yield image.DirtyExtent(start, ext.length, ext.dirty)
+                yield image.DirtyExtent(start, ext.length, ext.dirty, ext.zero)
             else:
                 yield image.ZeroExtent(start, ext.length, ext.zero, ext.hole)
             start += ext.length
