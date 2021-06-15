@@ -268,3 +268,77 @@ def test_some_data_offset_length_unaligned(dirty):
         nbd.Extent(c.extent_size, 1),
         nbd.Extent(c.extent_size // 2, 0),
     ]
+
+
+def test_merge_simple():
+    n = 1024**3
+    a = [nbd.Extent(n, 0)]
+    b = [nbd.Extent(n, 0)]
+
+    merged = list(nbdutil.merged(a, b))
+    assert merged == a
+
+
+def test_merge_split_one():
+    n = 1024**3
+    a = [
+        nbd.Extent(n, 1),
+        nbd.Extent(n, 2),
+        nbd.Extent(n, 4),
+    ]
+    b = [
+        nbd.Extent(n * 3, 8)
+    ]
+
+    merged1 = list(nbdutil.merged(a, b))
+    assert merged1 == [
+        nbd.Extent(n, 1 | 8),
+        nbd.Extent(n, 2 | 8),
+        nbd.Extent(n, 4 | 8),
+    ]
+
+    merged2 = list(nbdutil.merged(b, a))
+    assert merged2 == merged1
+
+
+def test_merge_split_both():
+    n = 1024**3
+    a = [
+        nbd.Extent(n * 1, 1),
+        nbd.Extent(n * 2, 2),
+    ]
+    b = [
+        nbd.Extent(n * 2, 4),
+        nbd.Extent(n * 1, 8),
+    ]
+
+    merged1 = list(nbdutil.merged(a, b))
+    assert merged1 == [
+        nbd.Extent(n, 1 | 4),
+        nbd.Extent(n, 2 | 4),
+        nbd.Extent(n, 2 | 8),
+    ]
+
+    merged2 = list(nbdutil.merged(b, a))
+    assert merged2 == merged1
+
+
+def test_merge_clip():
+    n = 1024**3
+    a = [
+        nbd.Extent(n * 1, 1),
+        nbd.Extent(n * 1, 2),
+    ]
+    b = [
+        nbd.Extent(n * 1, 4),
+        nbd.Extent(n * 2, 8),
+    ]
+
+    merged1 = list(nbdutil.merged(a, b))
+    assert merged1 == [
+        nbd.Extent(n * 1, 1 | 4),
+        nbd.Extent(n * 1, 2 | 8),
+    ]
+
+    merged2 = list(nbdutil.merged(b, a))
+    assert merged2 == merged1

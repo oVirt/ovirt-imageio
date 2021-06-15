@@ -89,6 +89,7 @@ import sys
 
 from collections import namedtuple
 
+from . import nbd
 from . import util
 
 # NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
@@ -154,6 +155,46 @@ def extents(client, offset=0, length=None, dirty=False):
                 break
 
     yield cur
+
+
+def merged(extents_a, extents_b):
+    """
+    Merge lists of extents with distinct flags bits, yielding merged extents
+    with flags from both lists. Yielding ends when the first iterator is
+    consumed.
+
+    Yields nbd.Extent() including all bits from both extents.
+    """
+    iter_a = iter(extents_a)
+    iter_b = iter(extents_b)
+
+    a = None
+    b = None
+
+    while True:
+        try:
+            if a is None:
+                a = next(iter_a)
+            if b is None:
+                b = next(iter_b)
+        except StopIteration:
+            return
+
+        if a.length == b.length:
+            # The easy case, merge and clear both.
+            yield nbd.Extent(a.length, a.flags | b.flags)
+            a = None
+            b = None
+        elif a.length > b.length:
+            # Yield the overlapping area and keep rest of a.
+            yield nbd.Extent(b.length, a.flags | b.flags)
+            a = nbd.Extent(a.length - b.length, a.flags)
+            b = None
+        else:  # a.length < b.length
+            # Yield the overlapping area and keep rest of b.
+            yield nbd.Extent(a.length, a.flags | b.flags)
+            b = nbd.Extent(b.length - a.length, b.flags)
+            a = None
 
 
 def copy(src_client, dst_client, block_size=4 * 1024**2, queue_depth=4,
