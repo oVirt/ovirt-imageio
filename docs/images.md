@@ -221,16 +221,17 @@ A zero extent is an area on storage that reads as zeroes. The storage
 area may be allocated or not.
 
 If the extent content is zero, it may be a hole. A hole extent is
-reported only for qcow2 images with a backing file, when transferring
-the image without the backing file. For raw images unallocated areas are
-never reported as holes.
+reported only for qcow2 images, when transferring the image without the
+backing file. For raw images unallocated areas are never reported as
+holes.
 
 Properties:
 - `start`: The offset in bytes from the start of the image.
 - `length`: The length in bytes.
 - `zero`: true if the extent reads as zeroes; false if the extent is
   data.
-- `hole`: true if the extent is unallocated areas in a qcow2 image.
+- `hole`: true if the extent is unallocated areas in a qcow2 image,
+  exposing data from the backing chain.
 
 ### Dirty extent
 
