@@ -241,11 +241,17 @@ downloaded in this incremental backup. If the `dirty` flag is false, the
 extent did not change and it should not be downloaded during this
 backup.
 
+If a dirty extent has the `"zero": true` flag, this extent is read as
+zeroes, so there is no need to download it. You must write zeroes to
+this byte range in the backup, but this can be done in an efficient way.
+
 Properties:
 - `start`: The offset in bytes from the start of the image.
 - `length`: The length in bytes.
 - `dirty`: true if the extent was modified and should be downloaded in
   this incremental backup.
+- `zero`: true if the extent reads as zeroes; false if the extent is
+  data (since 2.2.0-1).
 
 ### Errors
 
@@ -267,7 +273,7 @@ Request zero extents:
 Response:
 
     HTTP/1.1 200 OK
-    Content-Length: 68
+    Content-Length: 67
     Content-Type: application/json
 
     [{"start": 0, "length": 107374182400, "zero": true, "hole": false}]
@@ -279,11 +285,12 @@ Request dirty extents:
 Response:
 
     HTTP/1.1 200 OK
-    Content-Length: 102
+    Content-Length: 206
     Content-Type: application/json
 
-    [{"start": 0, "length": 64536, "dirty": true},
-    {"start": 64536, "length": 1073676288, "dirty": false}]
+    [{"start": 0, "length": 65536, "dirty": true, "zero": false},
+    {"start": 65536, "length": 1073676288, "dirty": false, "zero": false},
+    {"start": 1073741824, "length": 1073741824, "dirty": true, "zero": true}]
 
 Getting extents for empty 100 GiB image:
 
@@ -303,19 +310,29 @@ Getting extents during incremental backup:
     [
       {
         "start": 0,
-        "length": 64536,
+        "length": 65536,
         "dirty": true,
+        "zero": false
       }
       {
-        "start": 64536,
-        "length": 1073676288,,
+        "start": 65536,
+        "length": 1073676288,
         "dirty": false,
+        "zero": false
+      }
+      {
+        "start": 1073741824,
+        "length": 1073741824,
+        "dirty": false,
+        "zero": true
       }
     ]
 
 The first extent was modified and should be downloaded in this
 incremental backup. The second extent was not modified and should not be
-downloaded in this incremental backup.
+downloaded in this incremental backup. The third extent was modified but
+it is read as zeroes, so you don't need to download it, but you must
+write zeroes to this area in the backup.
 
 
 ## PUT
