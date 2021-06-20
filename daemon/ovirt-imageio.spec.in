@@ -139,6 +139,10 @@ fi
 
 %changelog
 
+* Sun Jun 20 2021 Nir Soffer <nsoffer@redhat.com> 2.2.0-1
+- Report zero status in dirty extents response #BZ1971185
+- Use "qemu:allocation-depth" meta context to report holes #BZ1971182
+
 * Wed Oct 21 2020 Nir Soffer <nsoffer@redhat.com> 2.1.1-1
 - Add client.extents() function
 - Add Fedora 33 CI
