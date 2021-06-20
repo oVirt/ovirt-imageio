@@ -430,7 +430,6 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
 
     nbd_server.image = src_base
     nbd_server.fmt = base_fmt
-    nbd_server.shared = 8
     nbd_server.start()
 
     url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
@@ -460,7 +459,6 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
     nbd_server.image = src_top
     nbd_server.fmt = "qcow2"
     nbd_server.backing_chain = False
-    nbd_server.shared = 8
     nbd_server.start()
 
     url = prepare_transfer(srv, nbd_server.sock.url(), size=size)

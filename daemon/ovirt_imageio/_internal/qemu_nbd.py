@@ -27,7 +27,7 @@ QEMU_NBD = os.environ.get("QEMU_NBD", "qemu-nbd")
 class Server:
 
     def __init__(
-            self, image, fmt, sock, export_name="", read_only=False, shared=1,
+            self, image, fmt, sock, export_name="", read_only=False, shared=8,
             cache="none", aio="native", discard="unmap", bitmap=None,
             backing_chain=True, offset=None, size=None, timeout=10.0):
         """
