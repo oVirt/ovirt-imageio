@@ -1,5 +1,6 @@
 # Development
 
+
 ## Getting the source
 
 Clone from gerrit:
@@ -26,36 +27,30 @@ Make the commit-msg hook executable:
 
 Install the runtime requirements using automation packages files:
 
-For Fedora 29:
-
-    sudo yum install $(cat automation/check-patch.packages.fc29)
-
-For CentOS 7:
-
-    sudo yum install $(cat automation/check-patch.packages.el7)
+    sudo yum install $(cat automation/check-patch.packages)
 
 Install development tools:
 
     yum install git-review
 
-Upgrade pip, since older pip versions have issues with installing
-correct version of requirements:
+Create a virtual environment for running the tests:
 
-    sudo pip install --upgrade pip
-
-Install development python packages:
-
-    pip install --upgrade --user -r docker/requirements.txt
-
-Except when upgrading pip itself, do not use pip as root unless you like
-a lot of pain.
-
-Do not install pytest in your development machine. pytest will be
-installed by tox in a virtual environment. If you need pytest for other
-projects install it in a virtual environment for the other project.
+    python3 -m venv ~/venv/ovirt-imageio
+    source ~/venv/ovirt-imageio/bin/activate
+    pip install --upgrade pip
+    pip install --upgrade -r docker/requirements.txt
+    deactivate
 
 
 ## Running the tests
+
+Before running the tests, enter the virtual environment:
+
+    source ~/venv/ovirt-imageio/bin/activate
+
+When you are done, you can deactivate the environment using:
+
+    deactivate
 
 Create storage for the tests:
 
