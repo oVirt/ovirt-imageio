@@ -66,28 +66,38 @@ To run all the tests:
 
     make check
 
-When working on a specific component, best change to the component
-directory and run only the component test:
+During development, it is recommended to run the tests directly with
+tox:
 
-    cd common
+    cd daemon
     tox
 
 When working on a specific module, best run the specific module tests
 directly using tox:
 
-    tox -e py27 test/foo_test.py
+    tox -e test-py38 test/nbd_test.py
 
 You can also use -k to select only certain tests. Check all available
 options using:
 
-    tox -e py27 -- --help
+    tox -e test-py38 -- --help
 
-## Using non-standard qemu version
+To list all test envs use:
 
-Some tests run qemu-kvm. To your own qemu-kvm built from source, you can
-specify the path to qemu in the QEMU environment variable:
+    tox -l
 
-    QEMU=../../qemu/build/x86_64-softmmu/qemu-system-x86_64 tox -e py27
+
+## Using local qemu builds
+
+Some tests run qemu-kvm or qemu-nbd. To run qemu or qemu-nbd built from
+source, you can change these environment variables:
+
+    export QEMU=/home/username/src/qemu/build/x86_64-softmmu/qemu-system-x86_64
+    export QEMU_NBD=/home/username/src/qemu/build/qemu-nbd
+
+When you run the tests, they will use QEMU and QEMU_NBD from the
+environment variables.
+
 
 ## Submitting patches
 
