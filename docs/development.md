@@ -187,13 +187,6 @@ a few ways to go about this:
   python-setuptools for some of the work.
 
 
-## General tips
-
-When using an editor with code completion, it may be useful to have run
-`make generated-files` to create any files with constants that depend
-on the environment.
-
-
 ## Organizing imports:
 
 Imports should be organized in the following groups, separated by one
@@ -201,13 +194,13 @@ blank line:
 
 - Future import group (e.g. `from __future__ import ...`)
 
-- Standard library (e..g `import os`)
+- Standard library (e.g. `import os`)
 
 - "from" imports (e.g. `from contextlib import closing`)
 
 - 3rd party imports (e.g. `import six`)
 
-- Local imports (e.g `from . import ...`)
+- Local imports (e.g. `from . import nbd`)
 
 As a general rule, only modules should be imported, never import names
 from modules. The only exception is common imports from the standard
