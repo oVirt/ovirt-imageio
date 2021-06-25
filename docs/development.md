@@ -99,6 +99,22 @@ When you run the tests, they will use QEMU and QEMU_NBD from the
 environment variables.
 
 
+## Testing rpms
+
+To build the rpms:
+
+    cd daemon
+    make clean rpm
+
+To install the built rpms:
+
+    sudo dnf install dist/ovirt-imageio-{daemon,client,common}*.rpm
+
+Once imageio is installed, it is easier to upgrade the installed rpms:
+
+    sudo dnf upgrade dist/*.rpm
+
+
 ## Submitting patches
 
 To send patches for master branch:
@@ -167,24 +183,6 @@ however if you want to do this, run:
     make clean-storage
 
 For more info on userstorage see https://github.com/nirs/userstorage.
-
-
-## Installing the proxy with engine development environment
-
-During development you may want to build/install the proxy.  There are
-a few ways to go about this:
-
-- `ovirt-imageio-proxy [options]` - run the proxy in-place, with debug
-   options and alternate paths to configuration files, if desired.
-
-- `python setup.py install` - Build/install the lib files and main
-  script, but not the service/log/etc files.
-
-- `make install` - Build/install everything (with DESTDIR specified
-  if packaging); this uses python-setuptools for some of the work.
-
-- `make rpm` - Build the proxy and setup rpms; this uses
-  python-setuptools for some of the work.
 
 
 ## Organizing imports:
