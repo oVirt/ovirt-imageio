@@ -6,10 +6,6 @@ Clone from gerrit:
 
     git clone git://gerrit.ovirt.org/ovirt-imageio
 
-Apply the git commit template:
-
-    git config commit.template commit-template.txt
-
 Install the commit message hook:
 
     wget -P .git/hooks https://gerrit.ovirt.org/tools/hooks/commit-msg
