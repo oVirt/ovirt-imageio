@@ -1,5 +1,7 @@
 # Image I/O flows
 
+**WARNING: this document is outdated.**
+
 ## Upload image flow
 
 In this flow, client can be engine UI (webadmin), or user program using
