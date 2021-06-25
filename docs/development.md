@@ -122,9 +122,7 @@ architectures.
 
 When you submit patches to gerrit, oVirt CI will run all the tests on:
 
-- CentOS 7, x86_64
-- Fedora 29, x86_64
-- Fedora 29, ppc64
+- Centos Stream 8, x86_64
 
 Note that tests using 4k storage cannot run in oVirt CI, but they can
 run in Travis CI. This is not integrated yet with gerrit, but easy to
@@ -132,13 +130,15 @@ run manually.
 
 On Travis CI all tests run on:
 
-- CentOS 7, x86_64
-- Fedora 29, x86_64
+- Centos Stream 8, x86_64
+- Fedora 32, x86_64
+- Fedora 33, x86_64
+- Fedora 34, x86_64
 
 To test your changes on Travis:
 
 - Fork the project on github
-- Visit https://travis-ci.org, register using your github account, and
+- Visit https://travis-ci.com, register using your github account, and
   enable builds for your ovirt-imageio fork
 - Push your changes to your github fork to trigger a build
 
