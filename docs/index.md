@@ -12,7 +12,7 @@
 
 * [Development](development.md)
 
-* [Modules](modules.md)
+* [Packages](packages.md)
 
 * [Flows](flows.md)
 
