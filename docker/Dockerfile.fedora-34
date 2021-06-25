@@ -21,6 +21,7 @@ RUN dnf update -y \
         systemd-udev \
         util-linux \
         xfsprogs \
+    && depmod $(basename /lib/modules/*) \
     && dnf clean all
 
 # Developemnt tools.
