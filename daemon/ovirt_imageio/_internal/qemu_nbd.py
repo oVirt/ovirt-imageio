@@ -49,6 +49,7 @@ class Server:
                 Unallocated extents will be read as zeroes, instead of reading
                 data from the backing chain. It is possible to tell if an
                 extent is allocated using the extent NBD_STATE_HOLE bit.
+                Using backing_chain=False requires qemu-nbd >= 5.2.0.
             offset (int): Expose a range starting at offset in raw image.
                 See BlockdevOptionsRaw type in qemu source.
             size (int): Expose a range of size bytes in a raw image.
@@ -83,8 +84,6 @@ class Server:
             "--export-name={}".format(self.export_name),
             "--persistent",
             "--shared={}".format(self.shared),
-            # Added in qemu 5.2.0, required to detect holes in qcow2 images.
-            "--allocation-depth",
         ]
 
         if self.sock.transport == "unix":
@@ -109,6 +108,15 @@ class Server:
 
         if self.bitmap:
             cmd.append("--bitmap={}".format(self.bitmap))
+
+        # Always using --allocation-depth simplfy everything, but we want to
+        # support RHEL users that have qemu-nbd 4.2.0. Add the option only on
+        # qemu-nbd >= 5.2.0, and disable backing_chain=False otherwise.
+        if version() >= (5, 2, 0):
+            cmd.append("--allocation-depth")
+        elif self.fmt == "qcow2" and not self.backing_chain:
+            raise RuntimeError(
+                "backing_chain=False requires qemu-nbd >= 5.2.0")
 
         # Build a 'json:{...}' filename allowing control all aspects of the
         # image.
