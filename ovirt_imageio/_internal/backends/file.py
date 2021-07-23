@@ -74,6 +74,13 @@ class Backend:
     def max_readers(self):
         return self._max_connections
 
+    @property
+    def format(self):
+        """
+        Currently we don't have access to the underlying disk format.
+        """
+        return None
+
     # io.FileIO interface
 
     def readinto(self, buf):

@@ -14,8 +14,9 @@ import time
 import pytest
 
 from ovirt_imageio._internal import config
+from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import server
-from ovirt_imageio._internal.units import KiB, MiB
+from ovirt_imageio._internal.units import KiB, MiB, GiB
 
 from .. import testutil
 from .. import http
@@ -705,7 +706,7 @@ def test_options_all(srv, client):
     assert "max_writers" not in options
 
 
-def test_options_read_write(srv, client, tmpdir):
+def test_options_file_read_write(srv, client, tmpdir):
     size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
@@ -717,11 +718,15 @@ def test_options_read_write(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == ALL_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
 
 
-def test_options_read(srv, client, tmpdir):
+def test_options_file_read(srv, client, tmpdir):
     size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
@@ -733,11 +738,15 @@ def test_options_read(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == BASE_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
 
 
-def test_options_write(srv, client, tmpdir):
+def test_options_file_write(srv, client, tmpdir):
     size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
@@ -750,8 +759,77 @@ def test_options_write(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == ALL_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_options_nbd_read(srv, client, tmpdir, nbd_server, fmt):
+    # Create disk.
+    size = GiB
+    disk = str(tmpdir.join(f"disk.{fmt}"))
+    qemu_img.create(disk, fmt, size=size)
+
+    # Start nbd server exporting the disk.
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.read_only = True
+    nbd_server.start()
+
+    # Add ticket using nbd server url.
+    ticket = testutil.create_ticket(
+        url=nbd_server.sock.url(), size=size, ops=["read"])
+    srv.auth.add(ticket)
+
+    # Get OPTIONS.
+    res = client.options("/images/" + ticket["uuid"])
+    allows = {"OPTIONS", "GET"}
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    options = json.loads(res.read())
+    assert set(options["features"]) == BASE_FEATURES
+
+    # NBD backend specific options.
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == srv.config.daemon.max_connections
+    assert options["transfer_format"] == "raw"
+    assert options["virtual_size"] == size
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_options_nbd_write(srv, client, tmpdir, nbd_server, fmt):
+    # Create disk.
+    size = GiB
+    disk = str(tmpdir.join(f"disk.{fmt}"))
+    qemu_img.create(disk, fmt, size=size)
+
+    # Start nbd server exporting the disk.
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    # Add ticket using nbd server url.
+    ticket = testutil.create_ticket(
+        url=nbd_server.sock.url(), size=size, ops=["write"])
+    srv.auth.add(ticket)
+
+    # Get OPTIONS.
+    res = client.options("/images/" + ticket["uuid"])
+    allows = {"OPTIONS", "GET", "PUT", "PATCH"}
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    options = json.loads(res.read())
+    assert set(options["features"]) == ALL_FEATURES
+
+    # NBD backend specific options.
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == srv.config.daemon.max_connections
+    assert options["transfer_format"] == "raw"
+    assert options["virtual_size"] == size
 
 
 def test_options_extends_ticket(srv, client, tmpdir, fake_time):

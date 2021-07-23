@@ -63,7 +63,6 @@ class Backend:
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
         self._position = 0
-        self._size = None
         self._extents = {}
 
         # Initlized during connection.
@@ -74,6 +73,8 @@ class Backend:
         self._can_flush = False
         self._max_readers = 1
         self._max_writers = 1
+        self._format = None
+        self._size = None
 
         if connect:
             self._connect()
@@ -104,8 +105,10 @@ class Backend:
             backend._can_flush = self._can_flush
             backend._max_readers = self._max_readers
             backend._max_writers = self._max_writers
+            backend._format = self._format
 
-            # Copy size and extents to save expensive EXTENTS calls.
+            # Copy extents and size to save expensive EXTENTS calls with old
+            # imageio servers.
             backend._size = self._size
             for ctx in list(self._extents):
                 backend._extents[ctx] = self._extents[ctx].copy()
@@ -133,6 +136,10 @@ class Backend:
             # max_writers does not support multiple writers.
             self._max_writers = options.get("max_writers", 1)
 
+            # Newer server reports also transfer_format and virtual_size.
+            self._format = options.get("transfer_format")
+            self._size = options.get("virtual_size")
+
             self._optimize_connection(options.get("unix_socket"))
         except Exception:
             self._con.close()
@@ -154,6 +161,14 @@ class Backend:
     @property
     def max_writers(self):
         return self._max_writers
+
+    @property
+    def format(self):
+        """
+        Will be None for old server (imageio < 2.4.6) or when server is using
+        file backend.
+        """
+        return self._format
 
     # Preferred interface.
 
@@ -325,10 +340,17 @@ class Backend:
         return self._position
 
     def size(self):
-        # We have 2 bad options:
-        # - Get last extent, may be slow, and may not be neded otherwise.
-        # - Emulate HEAD request, logging tracebacks in the remote server.
-        # Getting extents is more polite, so lets use it if we can.
+        """
+        Return backend size in bytes.
+
+        With newer server (imageio >= 2.4.6) reporting the virtual size the
+        size is intialized in connect().
+
+        Otherwise we have 2 bad options:
+        - Get the last extent, may be slow, and may not be neded otherwise.
+        - Emulate HEAD request, logging tracebacks in the remote server.
+          Getting extents is more polite, so lets use it if we can.
+        """
         if self._size is None:
             if self._can_extents:
                 last = list(self.extents())[-1]
@@ -454,7 +476,7 @@ class Backend:
         self._con.putheader("content-length", length)
         self._con.putheader("content-type", "application/octet-stream")
         self._con.putheader("content-range", "bytes {}-{}/*".format(
-                self._position, self._position + length - 1))
+            self._position, self._position + length - 1))
 
         self._con.endheaders()
 

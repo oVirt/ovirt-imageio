@@ -268,5 +268,11 @@ class Handler:
             options["max_readers"] = ctx.backend.max_readers
             options["max_writers"] = ctx.backend.max_writers
 
+            # Optional backend options.
+            if ctx.backend.format is not None:
+                options["transfer_format"] = ctx.backend.format
+            if ctx.backend.format == "raw":
+                options["virtual_size"] = ctx.backend.size()
+
         resp.headers["allow"] = ",".join(allow)
         resp.send_json(options)
