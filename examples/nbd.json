@@ -1,4 +1,5 @@
 {
+    "dirty": true,
     "uuid": "nbd",
     "size": 6442450944,
     "url": "nbd:unix:/tmp/nbd.sock",

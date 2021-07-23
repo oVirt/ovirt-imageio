@@ -213,6 +213,7 @@ def download(args):
             args.filename,
             args.cafile,
             fmt=args.format,
+            incremental=args.incremental,
             buffer_size=args.buffer_size,
             secure=args.secure,
             progress=pb)
