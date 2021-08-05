@@ -202,6 +202,7 @@ def upload(args):
             args.url,
             args.cafile,
             buffer_size=args.buffer_size,
+            max_workers=args.max_workers,
             secure=args.secure,
             progress=pb)
 
@@ -215,6 +216,7 @@ def download(args):
             fmt=args.format,
             incremental=args.incremental,
             buffer_size=args.buffer_size,
+            max_workers=args.max_workers,
             secure=args.secure,
             progress=pb)
 
@@ -239,6 +241,12 @@ parser.add_argument(
     default=client.BUFFER_SIZE,
     help="buffer size in KiB for performance tuning (default {})"
          .format(client.BUFFER_SIZE // 1024))
+
+parser.add_argument(
+    "-w", "--max-workers",
+    type=int,
+    default=4,
+    help="number of workers (default 4)")
 
 parser.add_argument(
     "-v", "--verbose",
