@@ -62,9 +62,14 @@ Summary:   oVirt imageio client library
 # NOTE: keep in sync with automation/check.packages
 Requires:  %{name}-common = %{version}-%{release}
 
+%if 0%{?rhel}
 # RHEL 8.4 version. Some features require qemu-nbd 5.2.0 and are disabled when
 # using older qemu-nbd.
 Requires:  qemu-img >= 15:4.2.0
+%else
+# Fedora.
+Requires:  qemu-img
+%endif
 
 %description client
 Python client library for accessing imageio server on oVirt hosts.
