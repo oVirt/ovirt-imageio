@@ -450,7 +450,7 @@ def test_download_shallow(srv, nbd_server, tmpdir, base_fmt):
         src_base, dst_base, format1=base_fmt, format2=base_fmt, strict=False)
 
     # And allocation - nice to have.
-    if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+    if base_fmt == "qcow2" or qemu_nbd.version() >= (6, 0, 0):
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
