@@ -308,9 +308,10 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     qemu_img.compare(
         src_base, dst_base, format1=base_fmt, format2=base_fmt, strict=False)
 
-    # Compare allocation if we use recent enough qemu-nbd reporting holes in
-    # raw images.
-    if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+    # Comparing allocation is not possible with raw format since qemu-nbd does
+    # not report allocation for raw images, so we treat unallocated areas as
+    # zero area instead of a hole.
+    if base_fmt == "qcow2":
         qemu_img.compare(
             src_base, dst_base, format1=base_fmt, format2=base_fmt,
             strict=True)
@@ -338,8 +339,8 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
     qemu_img.compare(
         src_top, dst_top, format1="qcow2", format2="qcow2", strict=False)
 
-    # Compare allocation - nice to have.
-    if base_fmt == "qcow2" or qemu_nbd.version() > (6, 0, 0):
+    # Compare allocation for qcow2 chain - nice to have.
+    if base_fmt == "qcow2":
         qemu_img.compare(
             src_top, dst_top, format1="qcow2", format2="qcow2", strict=True)
 
