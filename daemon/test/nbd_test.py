@@ -563,7 +563,7 @@ def test_full_backup_handshake(tmpdir, fmt, nbd_sock):
     pytest.param(
         "raw",
         marks=pytest.mark.xfail(
-            distro.is_centos("8") and ci.is_ovirt(),
+            distro.is_centos() and ci.is_ovirt(),
             reason="unaligned write fails on el8/oVirt CI")
     ),
     pytest.param("qcow2"),
