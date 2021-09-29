@@ -51,8 +51,8 @@ def convert(src, dst, src_fmt, dst_fmt, progress=False, compressed=False):
     subprocess.check_call(cmd)
 
 
-def unsafe_rebase(path, backing):
-    cmd = ["qemu-img", "rebase", "-u", "-b", backing, path]
+def unsafe_rebase(path, backing, backing_fmt):
+    cmd = ["qemu-img", "rebase", "-u", "-b", backing, "-F", backing_fmt, path]
     subprocess.check_call(cmd)
 
 

@@ -152,7 +152,7 @@ def test_incremental_backup_guest(tmpdir, base_image):
 
             backup.copy_dirty(nbd_sock.url("sda"), incr_backup_disk)
 
-    qemu_img.unsafe_rebase(incr_backup_disk, full_backup_disk)
+    qemu_img.unsafe_rebase(incr_backup_disk, full_backup_disk, "qcow2")
     verify_backup(incr_backup_disk, ["before-backup"])
 
 
