@@ -14,7 +14,7 @@ stages:
         - el8stream:
             runtime-requirements:
               jenkins_master: ovirt.org
-              host-distro: newer
+              host-distro: el8
   - build-artifacts:
       substages:
       - py3
