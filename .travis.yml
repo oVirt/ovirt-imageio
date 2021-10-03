@@ -8,6 +8,7 @@ services:
 jobs:
   include:
     - env: DIST=centos-8
+    - env: DIST=centos-9
     - env: DIST=fedora-33
     - env: DIST=fedora-34
 
