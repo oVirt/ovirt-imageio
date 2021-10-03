@@ -155,12 +155,22 @@ def test_run_tcp(tmpfile):
     assert not sockutil.wait_for_socket(addr, 0.0)
 
 
-@pytest.mark.parametrize("cache,aio,discard", [
-    pytest.param("none", "native", "unmap", id="qemu_nbd defaults"),
-    pytest.param(None, None, None, id="qemu-nbd defaults"),
+@pytest.mark.parametrize("options", [
+    pytest.param({
+        "cache": "none",
+        "aio": "native",
+        "discard": "unmap",
+        "detect_zeroes": "unmap"
+    }, id="qemu_nbd defaults"),
+    pytest.param({
+        "cache": None,
+        "aio": None,
+        "discard": None,
+        "detect_zeroes": None
+    }, id="qemu-nbd defaults"),
 ])
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
-def test_options(tmpdir, fmt, cache, aio, discard):
+def test_options(tmpdir, fmt, options):
     size = 4 * 1024**2
     chunk_size = 128 * 1024
 
@@ -181,14 +191,10 @@ def test_options(tmpdir, fmt, cache, aio, discard):
     with qemu_nbd.run(
                 src, fmt, src_addr,
                 read_only=True,
-                cache=cache,
-                aio=aio,
-                discard=discard), \
+                **options), \
             qemu_nbd.run(
                 dst, fmt, dst_addr,
-                cache=cache,
-                aio=aio,
-                discard=discard), \
+                **options), \
             nbd.Client(src_addr) as src_client, \
             nbd.Client(dst_addr) as dst_client:
 
@@ -296,3 +302,43 @@ def test_dirty_bitmap(tmpdir):
         nbd.Extent(length=bitmap["granularity"], flags=nbd.EXTENT_DIRTY),
         nbd.Extent(length=size - bitmap["granularity"], flags=0),
     ]
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("detect_zeroes", ["on", "unmap"])
+def test_detect_zeroes_enabled(tmpdir, fmt, detect_zeroes):
+    size = 1024**2
+
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=size)
+
+    with qemu_nbd.open(disk, fmt, detect_zeroes=detect_zeroes) as c:
+        # These zeroes should be detected.
+        c.write(0, b"\0" * size)
+        c.flush()
+        extents = c.extents(0, size)
+
+    assert extents == {
+        "base:allocation": [nbd.Extent(length=1048576, flags=3)],
+        "qemu:allocation-depth": [nbd.Extent(length=1048576, flags=0)],
+    }
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("detect_zeroes", ["off", None])
+def test_detect_zeroes_disabled(tmpdir, fmt, detect_zeroes):
+    size = 1024**2
+
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=size)
+
+    with qemu_nbd.open(disk, fmt, detect_zeroes=detect_zeroes) as c:
+        # These zeroes should not be detected.
+        c.write(0, b"\0" * size)
+        c.flush()
+        extents = c.extents(0, size)
+
+    assert extents == {
+        "base:allocation": [nbd.Extent(length=1048576, flags=0)],
+        "qemu:allocation-depth": [nbd.Extent(length=1048576, flags=0)],
+    }

@@ -28,8 +28,9 @@ class Server:
 
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=8,
-            cache="none", aio="native", discard="unmap", bitmap=None,
-            backing_chain=True, offset=None, size=None, timeout=10.0):
+            cache="none", aio="native", discard="unmap", detect_zeroes="unmap",
+            bitmap=None, backing_chain=True, offset=None, size=None,
+            timeout=10.0):
         """
         Initialize qemu-nbd Server.
 
@@ -43,6 +44,11 @@ class Server:
             cache (str): cache mode (none, writeback, ...)
             aio (str): AIO mode (native or threads)
             discard (str): discard mode (ignore, unmap)
+            detect_zeroes (str): Control the automatic conversion of plain zero
+                writes by the OS to driver-specific optimized zero write
+                commands.  Value is one of "off", "on", or "unmap".  "unmap"
+                converts a zero write to an unmap operation and can only be
+                used if "discard" is set to "unmap".  The default is "unmap".
             bitmap (str): export this dirty bitmap
             backing_chain (bool): when using qcow2 format, open the backing
                 chain. When set to False, override the backing chain to null.
@@ -66,6 +72,7 @@ class Server:
         self.cache = cache
         self.aio = aio
         self.discard = discard
+        self.detect_zeroes = detect_zeroes
         self.bitmap = bitmap
         self.backing_chain = backing_chain
         self.offset = offset
@@ -105,6 +112,9 @@ class Server:
 
         if self.discard:
             cmd.append("--discard={}".format(self.discard)),
+
+        if self.detect_zeroes:
+            cmd.append("--detect-zeroes={}".format(self.detect_zeroes)),
 
         if self.bitmap:
             cmd.append("--bitmap={}".format(self.bitmap))
@@ -176,8 +186,8 @@ class Server:
 
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=1,
-        cache="none", aio="native", discard="unmap", bitmap=None,
-        backing_chain=True, offset=None, size=None, timeout=10.0):
+        cache="none", aio="native", discard="unmap", detect_zeroes="unmap",
+        bitmap=None, backing_chain=True, offset=None, size=None, timeout=10.0):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
@@ -186,6 +196,7 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
         cache=cache,
         aio=aio,
         discard=discard,
+        detect_zeroes=detect_zeroes,
         bitmap=bitmap,
         backing_chain=backing_chain,
         offset=offset,
@@ -199,8 +210,8 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=1,
 
 
 @contextmanager
-def open(image, fmt, read_only=False, bitmap=None, backing_chain=True,
-         offset=None, size=None):
+def open(image, fmt, read_only=False, bitmap=None, discard="unmap",
+         detect_zeroes="unmap", backing_chain=True, offset=None, size=None):
     """
     Open nbd client for accessing image using qemu-nbd.
     """
@@ -209,6 +220,8 @@ def open(image, fmt, read_only=False, bitmap=None, backing_chain=True,
             image, fmt, sock,
             read_only=read_only,
             bitmap=bitmap,
+            discard=discard,
+            detect_zeroes=detect_zeroes,
             backing_chain=backing_chain,
             offset=offset,
             size=size):
