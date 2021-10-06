@@ -144,6 +144,10 @@ fi
 
 %changelog
 
+* Wed Oct 6 2021 Nir Soffer <nsoffer@redhat.com> 2.3.0-1
+- Downloading images much slower than uploading #BZ1990656
+- Downloading prellocated disk created preallocated image #BZ2010067
+
 * Sun Jun 20 2021 Nir Soffer <nsoffer@redhat.com> 2.2.0-1
 - Report zero status in dirty extents response #BZ1971185
 - Use "qemu:allocation-depth" meta context to report holes #BZ1971182
