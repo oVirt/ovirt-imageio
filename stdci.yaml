@@ -8,6 +8,9 @@ archs:
   - ppc64le:
       distributions:
         - el8stream
+  - s390x:
+      distributions:
+        - el9stream
 
 stages:
   - check-patch:
