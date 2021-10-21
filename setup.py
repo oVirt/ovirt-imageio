@@ -11,10 +11,15 @@ from distutils.core import Extension
 
 from ovirt_imageio._internal import version
 
+with open("README.md") as f:
+    long_description = f.read()
+
 setup(
     author="oVirt Authors",
     author_email="devel@ovirt.org",
-    description="oVirt imageio",
+    description="Transfer disk images on oVirt system",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     license="GNU GPLv2+",
     name="ovirt-imageio",
     packages=[
@@ -25,8 +30,22 @@ setup(
     ],
     platforms=["Linux"],
     scripts=["ovirt-imageio"],
-    url="https://gerrit.ovirt.org/ovirt-imageio",
+    url="https://github.com/oVirt/ovirt-imageio",
+    project_urls={
+        "Documentation":
+            "http://ovirt.github.io/ovirt-imageio/",
+        "Bug Tracker":
+            "https://bugzilla.redhat.com/enter_bug.cgi?product=ovirt-imageio",
+    },
     version=version.string,
+    python_requires=">=3.6",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: System Administrators",
+        "Intended Audience :: Developers",
+        "Topic :: System :: Archiving :: Backup",
+        "Topic :: Utilities",
+    ],
     ext_modules=[
         Extension(
             "ovirt_imageio/_internal/ioutil",

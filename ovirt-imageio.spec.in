@@ -4,7 +4,7 @@ Release:   @RELEASE@%{?dist}
 Summary:   oVirt imageio
 
 License:   GPLv2+
-Url:       https://gerrit.ovirt.org/%{name}
+Url:       https://github.com/oVirt/%{name}
 Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
 
 %global ovirtimg_user ovirtimg
@@ -14,7 +14,7 @@ Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{na
 %global vendor_confdir %{_prefix}/lib/%{name}
 
 %description
-Image data transfer on oVirt virtualization hosts.
+Transfer disk images on oVirt system.
 
 %prep
 %setup -q
