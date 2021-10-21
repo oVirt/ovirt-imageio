@@ -6,7 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-string = "2.4.0"
+string = "2.4.1"
 
 if __name__ == "__main__":
     print(string)
