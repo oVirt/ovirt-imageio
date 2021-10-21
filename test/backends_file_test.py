@@ -24,7 +24,7 @@ from ovirt_imageio._internal.backends import image
 
 from . import storage
 
-BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
 # Up to kernel 5.5, block size detection for unallocated file was broken only
 # on XFS.  Since 5.5 it is broken on all file systems.

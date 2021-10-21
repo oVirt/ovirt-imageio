@@ -20,7 +20,7 @@ from ovirt_imageio._internal.backends import nbd
 
 from . import storage
 
-BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
 
 @pytest.fixture(

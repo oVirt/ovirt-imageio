@@ -20,7 +20,7 @@ from . import testutil
 from . import http
 from . import storage
 
-BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
 
 @pytest.fixture(

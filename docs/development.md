@@ -69,7 +69,6 @@ To run all the tests:
 During development, it is recommended to run the tests directly with
 tox:
 
-    cd daemon
     tox
 
 When working on a specific module, best run the specific module tests
@@ -103,7 +102,6 @@ environment variables.
 
 To build the rpms:
 
-    cd daemon
     make clean rpm
 
 To install the built rpms:

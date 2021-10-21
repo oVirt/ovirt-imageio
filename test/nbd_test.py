@@ -32,7 +32,7 @@ from . marks import (
     requires_ipv6,
 )
 
-BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
 log = logging.getLogger("test")
 

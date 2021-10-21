@@ -21,7 +21,7 @@ from ovirt_imageio._internal.backends import memory
 
 from . import storage
 
-BACKENDS = userstorage.load_config("../storage.py").BACKENDS
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
 
 @pytest.fixture(
