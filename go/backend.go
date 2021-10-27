@@ -8,7 +8,8 @@
 
 package imageio
 
-// Backend is used to copy data between image server and local image.
+// Backend exposes a disk image for copying image data from one server to
+// another.
 type Backend interface {
 	Size() (uint64, error)
 	Extents() ([]*Extent, error)

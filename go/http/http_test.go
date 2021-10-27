@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"ovirt.org/imageio"
-	. "ovirt.org/imageio/units"
+	"ovirt.org/imageio/units"
 )
 
 func TestHTTPSize(t *testing.T) {
@@ -26,7 +26,7 @@ func TestHTTPSize(t *testing.T) {
 	}
 	defer b.Close()
 
-	imageSize := 6 * GiB
+	imageSize := 6 * units.GiB
 	size, err := b.Size()
 	if err != nil {
 		t.Fatalf("Size() failed: %s", err)
@@ -50,7 +50,9 @@ func TestHTTPExtents(t *testing.T) {
 	}
 
 	// Imageio merges extents with same flags.
-	expected := []*imageio.Extent{{0 * GiB, 6 * GiB, true}}
+	expected := []*imageio.Extent{
+		{Start: 0 * units.GiB, Length: 6 * units.GiB, Zero: true},
+	}
 	if !reflect.DeepEqual(extents, expected) {
 		t.Fatalf("extents:\n%s\nexpected:\n%s\n", dump(extents), dump(expected))
 	}

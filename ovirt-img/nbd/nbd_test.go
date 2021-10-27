@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"ovirt.org/imageio"
-	. "ovirt.org/imageio/units"
+	"ovirt.org/imageio/units"
 )
 
 func TestNbdSize(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNbdSize(t *testing.T) {
 	}
 	defer b.Close()
 
-	imageSize := 6 * GiB
+	imageSize := 6 * units.GiB
 	size, err := b.Size()
 	if err != nil {
 		t.Fatalf("Size() failed: %s", err)
@@ -49,12 +49,12 @@ func TestNbdExtents(t *testing.T) {
 
 	// We don't merge extents with same flags yet.
 	expected := []*imageio.Extent{
-		{0 * GiB, 1 * GiB, true},
-		{1 * GiB, 1 * GiB, true},
-		{2 * GiB, 1 * GiB, true},
-		{3 * GiB, 1 * GiB, true},
-		{4 * GiB, 1 * GiB, true},
-		{5 * GiB, 1 * GiB, true},
+		{Start: 0 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 1 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 2 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 3 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 4 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 5 * units.GiB, Length: 1 * units.GiB, Zero: true},
 	}
 	if !reflect.DeepEqual(extents, expected) {
 		t.Fatalf("extents:\n%s\nexpected:\n%s\n", dump(extents), dump(expected))

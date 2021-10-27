@@ -18,15 +18,17 @@ import (
 	"ovirt.org/imageio"
 )
 
-type backend struct {
+// Backend exposes a disk image served by imageio server on a oVirt host.
+type Backend struct {
 	url     string
 	client  *http.Client
 	size    uint64
 	extents []*imageio.Extent
 }
 
-// Connect to imageio http server.
-func Connect(url string) (*backend, error) {
+// Connect returns a connected Backend. Caller should close the backend when
+// done.
+func Connect(url string) (*Backend, error) {
 	tr := &http.Transport{
 		// TODO: Support server certificate verification.
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -41,11 +43,11 @@ func Connect(url string) (*backend, error) {
 
 	// TODO: Send OPTIONS request
 
-	return &backend{url: url, client: client}, nil
+	return &Backend{url: url, client: client}, nil
 }
 
 // Size return image size.
-func (b *backend) Size() (uint64, error) {
+func (b *Backend) Size() (uint64, error) {
 	if b.size == 0 {
 		// imageio does not expose the size of the image in the OPTIONS request
 		// yet. The only way to get size is to get all the extents and compute
@@ -62,7 +64,7 @@ func (b *backend) Size() (uint64, error) {
 
 // Extents returns all image extents. Imageio server does not support getting
 // partial extent yet.
-func (b *backend) Extents() ([]*imageio.Extent, error) {
+func (b *Backend) Extents() ([]*imageio.Extent, error) {
 	if len(b.extents) == 0 {
 		if err := b.getExtents(); err != nil {
 			return nil, err
@@ -72,11 +74,11 @@ func (b *backend) Extents() ([]*imageio.Extent, error) {
 }
 
 // Close closes the connection to imageio server.
-func (b *backend) Close() {
+func (b *Backend) Close() {
 	b.client.CloseIdleConnections()
 }
 
-func (b *backend) getExtents() error {
+func (b *Backend) getExtents() error {
 	res, err := b.client.Get(b.url + "/extents")
 	if err != nil {
 		return err

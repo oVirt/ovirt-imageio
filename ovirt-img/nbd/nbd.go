@@ -13,20 +13,23 @@ import (
 
 	"libguestfs.org/libnbd"
 	"ovirt.org/imageio"
-	. "ovirt.org/imageio/units"
+	"ovirt.org/imageio/units"
 )
 
 const (
 	// The NBD protocol allows up to 2**32 - 1 (4 GiB), but large requests can
 	// be slow, so we limit the size.
-	MAX_EXTENT = 1 * GiB
+	maxExtent = 1 * units.GiB
 )
 
-type backend struct {
+// Backend exposes a disk image served by a Network Block Device (NBD) server.
+type Backend struct {
 	h *libnbd.Libnbd
 }
 
-func Connect(url string) (*backend, error) {
+// Connect returns a connected Backend. Caller should close the backend when
+// done.
+func Connect(url string) (*Backend, error) {
 	h, err := libnbd.Create()
 	if err != nil {
 		return nil, err
@@ -44,11 +47,11 @@ func Connect(url string) (*backend, error) {
 		return nil, err
 	}
 
-	return &backend{h: h}, nil
+	return &Backend{h: h}, nil
 }
 
 // Size return image size.
-func (b *backend) Size() (uint64, error) {
+func (b *Backend) Size() (uint64, error) {
 	size, err := b.h.GetSize()
 	if err != nil {
 		return 0, err
@@ -58,7 +61,7 @@ func (b *backend) Size() (uint64, error) {
 
 // Extents returns all image extents. The NBD prototcol supports getting
 // partial extents, but imageio server does not support this yet.
-func (b *backend) Extents() ([]*imageio.Extent, error) {
+func (b *Backend) Extents() ([]*imageio.Extent, error) {
 	size, err := b.Size()
 	if err != nil {
 		return nil, err
@@ -66,8 +69,8 @@ func (b *backend) Extents() ([]*imageio.Extent, error) {
 
 	var result []*imageio.Extent
 
-	for offset := uint64(0); offset < size; offset += MAX_EXTENT {
-		length := min(size-offset, MAX_EXTENT)
+	for offset := uint64(0); offset < size; offset += maxExtent {
+		length := min(size-offset, maxExtent)
 
 		entries, err := b.blockStatus(offset, length)
 		if err != nil {
@@ -89,7 +92,7 @@ func (b *backend) Extents() ([]*imageio.Extent, error) {
 	return result, nil
 }
 
-func (b *backend) blockStatus(offset, length uint64) ([]uint32, error) {
+func (b *Backend) blockStatus(offset, length uint64) ([]uint32, error) {
 	var result []uint32
 
 	cb := func(metacontext string, offset uint64, e []uint32, error *int) int {
@@ -117,9 +120,9 @@ func (b *backend) blockStatus(offset, length uint64) ([]uint32, error) {
 	return result, nil
 }
 
-// Close closes the connection the NBD server. The backend cannot be used after
+// Close closes the connection the NBD server. The Backend cannot be used after
 // closing the connection.
-func (b *backend) Close() {
+func (b *Backend) Close() {
 	b.h.Shutdown(nil)
 	b.h.Close()
 }
