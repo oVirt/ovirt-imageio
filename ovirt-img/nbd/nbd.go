@@ -69,14 +69,37 @@ func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 
 	result := &ExtentsResult{}
 
-	for offset := uint64(0); offset < size; offset += maxExtent {
+	// The server may return a short or long reply:
+	//
+	// - short reply: one of more extents, ending before the requested range.
+	//   We want to consume what we got, and make more request to the server to
+	//   get the rest.
+	//
+	// - long reply: all extents, the last extent may end after the requested
+	//   range. We want to consume all the extent to minimize the number of
+	//   calls to the server, and avoid duplicate work on the server side.
+	//
+	// In both cases we want to continue where the last extent ended.
+
+	var offset uint64
+
+	for offset < size {
 		length := min(size-offset, maxExtent)
 		entries, err := b.blockStatus(offset, length)
 		if err != nil {
 			return nil, err
 		}
 
-		result.entries = append(result.entries, entries...)
+		// Collect the entries, clipping long reply and stopping if we reach
+		// the end of the image. A compliant NBD server must not return an
+		// extent after the end of the image, but it is easy to handle this.
+
+		for i := 0; i < len(entries) && offset < size; i += 2 {
+			length := uint32(min(size-offset, uint64(entries[i])))
+			flags := entries[i+1]
+			offset += uint64(length)
+			result.entries = append(result.entries, length, flags)
+		}
 	}
 
 	return result, nil
