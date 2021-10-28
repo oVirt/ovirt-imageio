@@ -26,6 +26,7 @@ from . import config
 from . import services
 from . import version
 
+DEFAULT_CONF_DIR = "/etc/ovirt-imageio"
 VENDOR_CONF_DIR = "/usr/lib/ovirt-imageio"
 
 log = logging.getLogger("server")
@@ -34,7 +35,7 @@ log = logging.getLogger("server")
 def main():
     args = parse_args()
     try:
-        cfg = load_config(args)
+        cfg = load_config(args.conf_dir)
         if args.show_config:
             show_config(cfg)
             return
@@ -65,7 +66,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-c", "--conf-dir",
-        default="/etc/ovirt-imageio",
+        default=DEFAULT_CONF_DIR,
         help="path to configuration directory, where daemon.conf and "
              "logger.conf are located.")
     parser.add_argument(
@@ -90,8 +91,8 @@ def find_configs(cfg_dirs):
     return files
 
 
-def load_config(args):
-    files = find_configs([VENDOR_CONF_DIR, args.conf_dir])
+def load_config(conf_dir):
+    files = find_configs([VENDOR_CONF_DIR, conf_dir])
     return config.load(files)
 
 

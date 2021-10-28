@@ -135,10 +135,6 @@ transport = tcp
 port = 10000
 """
 
-    class FakeArgs():
-        def __init__(self, conf_dir):
-            self.conf_dir = conf_dir
-
     etc_dir = tmpdir.mkdir("etc")
     etc_conf_d = etc_dir.mkdir("conf.d")
     install_cfg = etc_conf_d.join("50-install.conf")
@@ -151,7 +147,7 @@ port = 10000
     vendor_cfg.write(vendor_config)
 
     monkeypatch.setattr(server, "VENDOR_CONF_DIR", str(vendor_dir))
-    cfg = server.load_config(FakeArgs(str(etc_dir)))
+    cfg = server.load_config(str(etc_dir))
 
     assert cfg.control.transport == "tcp"
     assert cfg.control.port == 10000
