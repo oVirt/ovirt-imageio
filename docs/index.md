@@ -8,6 +8,8 @@
 
 * [Images API](images.md)
 
+* [Administration](admin.md)
+
 * [UNIX Socket Support](unix-socket.md)
 
 * [Development](development.md)
