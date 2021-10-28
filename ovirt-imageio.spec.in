@@ -54,6 +54,7 @@ Common resources used by oVirt imageio server and client
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
+%exclude %{python3_sitearch}/%{srcname}/admin
 
 
 %package client
@@ -92,7 +93,9 @@ Requires:  python3-systemd
 Daemon providing image transfer service on oVirt hosts.
 
 %files daemon
+%{python3_sitearch}/%{srcname}/admin
 %{_bindir}/%{name}
+%{_bindir}/%{name}ctl
 %{_unitdir}/%{name}.service
 %dir %{admin_confdir}
 %dir %{admin_confdir}/conf.d
