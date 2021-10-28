@@ -12,6 +12,6 @@ package imageio
 // another.
 type Backend interface {
 	Size() (uint64, error)
-	Extents() ([]*Extent, error)
+	Extents() (ExtentsResult, error)
 	Close()
 }

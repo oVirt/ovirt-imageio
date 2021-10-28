@@ -25,3 +25,11 @@ type Extent struct {
 func NewExtent(start uint64, length uint64, zero bool) *Extent {
 	return &Extent{start, length, zero}
 }
+
+// ExtentsResult iterates over extents.
+type ExtentsResult interface {
+	// Next returns true if there are more extents.
+	Next() bool
+	// Value returns the next extent.
+	Value() *Extent
+}

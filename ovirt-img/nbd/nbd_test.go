@@ -42,9 +42,14 @@ func TestNbdExtents(t *testing.T) {
 	}
 	defer b.Close()
 
-	extents, err := b.Extents()
+	res, err := b.Extents()
 	if err != nil {
 		t.Fatalf("Extents() failed: %s", err)
+	}
+
+	var extents []*imageio.Extent
+	for res.Next() {
+		extents = append(extents, res.Value())
 	}
 
 	// We don't merge extents with same flags yet.

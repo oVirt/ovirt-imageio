@@ -61,32 +61,22 @@ func (b *Backend) Size() (uint64, error) {
 
 // Extents returns all image extents. The NBD prototcol supports getting
 // partial extents, but imageio server does not support this yet.
-func (b *Backend) Extents() ([]*imageio.Extent, error) {
+func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 	size, err := b.Size()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*imageio.Extent
+	result := &ExtentsResult{}
 
 	for offset := uint64(0); offset < size; offset += maxExtent {
 		length := min(size-offset, maxExtent)
-
 		entries, err := b.blockStatus(offset, length)
 		if err != nil {
 			return nil, err
 		}
 
-		start := offset
-		for i := 0; i < len(entries); i += 2 {
-			length := uint64(entries[i])
-			flags := entries[i+1]
-			zero := (flags & libnbd.STATE_ZERO) == libnbd.STATE_ZERO
-
-			// TODO: Merge extents with same flags.
-			result = append(result, imageio.NewExtent(start, length, zero))
-			start += length
-		}
+		result.entries = append(result.entries, entries...)
 	}
 
 	return result, nil
@@ -132,4 +122,38 @@ func min(a, b uint64) uint64 {
 		return a
 	}
 	return b
+}
+
+// ExtentsResult iterate over extents from the NBD server, converting
+// NBD pairs (length, flags) to *imageio.Extent. This minimizes
+// allocations and enables merging extents during iteration.
+type ExtentsResult struct {
+	// {length, flags, length, flags, ...}
+	// TODO: Keep multiple meta contexts.
+	entries []uint32
+
+	// Start of next value to return.
+	start uint64
+
+	// Index of next pair in entries.
+	next int
+}
+
+// Next return true if there are move values.
+func (r *ExtentsResult) Next() bool {
+	return r.next < (len(r.entries) - 1)
+}
+
+// Value return the next extent.
+// TODO: Merge extents with same flags or differnt meta context.
+func (r *ExtentsResult) Value() *imageio.Extent {
+	length := uint64(r.entries[r.next])
+	flags := r.entries[r.next+1]
+	r.next += 2
+
+	zero := (flags & libnbd.STATE_ZERO) == libnbd.STATE_ZERO
+	res := imageio.NewExtent(r.start, length, zero)
+	r.start += length
+
+	return res
 }

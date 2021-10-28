@@ -26,12 +26,13 @@ func main() {
 	}
 	defer b.Close()
 
-	extents, err := b.Extents()
+	res, err := b.Extents()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	for _, e := range extents {
+	for res.Next() {
+		e := res.Value()
 		fmt.Printf("start=%v length=%v zero=%v\n",
 			e.Start, e.Length, e.Zero)
 	}

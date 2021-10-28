@@ -44,9 +44,14 @@ func TestHTTPExtents(t *testing.T) {
 	}
 	defer b.Close()
 
-	extents, err := b.Extents()
+	res, err := b.Extents()
 	if err != nil {
 		t.Fatalf("Extents() failed: %s", err)
+	}
+
+	var extents []*imageio.Extent
+	for res.Next() {
+		extents = append(extents, res.Value())
 	}
 
 	// Imageio merges extents with same flags.

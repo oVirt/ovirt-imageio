@@ -52,11 +52,11 @@ func (b *Backend) Size() (uint64, error) {
 		// imageio does not expose the size of the image in the OPTIONS request
 		// yet. The only way to get size is to get all the extents and compute
 		// the size from the last extent.
-		extents, err := b.Extents()
+		err := b.getExtents()
 		if err != nil {
 			return 0, err
 		}
-		last := extents[len(extents)-1]
+		last := b.extents[len(b.extents)-1]
 		b.size = last.Start + last.Length
 	}
 	return b.size, nil
@@ -64,13 +64,13 @@ func (b *Backend) Size() (uint64, error) {
 
 // Extents returns all image extents. Imageio server does not support getting
 // partial extent yet.
-func (b *Backend) Extents() ([]*imageio.Extent, error) {
+func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 	if len(b.extents) == 0 {
 		if err := b.getExtents(); err != nil {
 			return nil, err
 		}
 	}
-	return b.extents, nil
+	return &ExtentsResult{extents: b.extents}, nil
 }
 
 // Close closes the connection to imageio server.
@@ -111,4 +111,22 @@ func (b *Backend) getExtents() error {
 	}
 
 	return nil
+}
+
+// ExtentsResult iterate over extents returned from imageio server.
+type ExtentsResult struct {
+	extents []*imageio.Extent
+	next int
+}
+
+// Next returns true if there are move values.
+func (r *ExtentsResult) Next() bool {
+	return r.next < len(r.extents)
+}
+
+// Value returns next value.
+func (r *ExtentsResult) Value() *imageio.Extent {
+	v := r.extents[r.next]
+	r.next++
+	return v
 }
