@@ -52,14 +52,8 @@ func TestNbdExtents(t *testing.T) {
 		extents = append(extents, res.Value())
 	}
 
-	// We don't merge extents with same flags yet.
 	expected := []*imageio.Extent{
-		{Start: 0 * units.GiB, Length: 1 * units.GiB, Zero: true},
-		{Start: 1 * units.GiB, Length: 1 * units.GiB, Zero: true},
-		{Start: 2 * units.GiB, Length: 1 * units.GiB, Zero: true},
-		{Start: 3 * units.GiB, Length: 1 * units.GiB, Zero: true},
-		{Start: 4 * units.GiB, Length: 1 * units.GiB, Zero: true},
-		{Start: 5 * units.GiB, Length: 1 * units.GiB, Zero: true},
+		{Start: 0 * units.GiB, Length: 6 * units.GiB, Zero: true},
 	}
 	if !reflect.DeepEqual(extents, expected) {
 		t.Fatalf("extents:\n%s\nexpected:\n%s\n", dump(extents), dump(expected))

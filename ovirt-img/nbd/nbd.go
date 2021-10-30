@@ -170,9 +170,16 @@ func (r *ExtentsResult) Next() bool {
 // Value return the next extent.
 // TODO: Merge extents with same flags or differnt meta context.
 func (r *ExtentsResult) Value() *imageio.Extent {
+	// Take the current pair.
 	length := uint64(r.entries[r.next])
 	flags := r.entries[r.next+1]
 	r.next += 2
+
+	// Merge with next pairs with same flags.
+	for r.next < len(r.entries)-1 && flags == r.entries[r.next+1] {
+		length += uint64(r.entries[r.next])
+		r.next += 2
+	}
 
 	zero := (flags & libnbd.STATE_ZERO) == libnbd.STATE_ZERO
 	res := imageio.NewExtent(r.start, length, zero)
