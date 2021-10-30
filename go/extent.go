@@ -33,3 +33,26 @@ type ExtentsResult interface {
 	// Value returns the next extent.
 	Value() *Extent
 }
+
+// ExtentsWraper wrapps []*Extent to provied the ExtentsResult interface.
+type ExtentsWrapper struct {
+	extents []*Extent
+	next int
+}
+
+// NewExtentsWrapper create new wrapper.
+func NewExtentsWrapper(e []*Extent) *ExtentsWrapper {
+	return &ExtentsWrapper{extents: e}
+}
+
+// Next returns true if there are move extents.
+func (w *ExtentsWrapper) Next() bool {
+	return w.next < len(w.extents)
+}
+
+// Value returns the next extent.
+func (w *ExtentsWrapper) Value() *Extent {
+	v := w.extents[w.next]
+	w.next++
+	return v
+}

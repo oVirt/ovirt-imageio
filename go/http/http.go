@@ -70,7 +70,7 @@ func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 			return nil, err
 		}
 	}
-	return &ExtentsResult{extents: b.extents}, nil
+	return imageio.NewExtentsWrapper(b.extents), nil
 }
 
 // Close closes the connection to imageio server.
@@ -111,22 +111,4 @@ func (b *Backend) getExtents() error {
 	}
 
 	return nil
-}
-
-// ExtentsResult iterate over extents returned from imageio server.
-type ExtentsResult struct {
-	extents []*imageio.Extent
-	next int
-}
-
-// Next returns true if there are move values.
-func (r *ExtentsResult) Next() bool {
-	return r.next < len(r.extents)
-}
-
-// Value returns next value.
-func (r *ExtentsResult) Value() *imageio.Extent {
-	v := r.extents[r.next]
-	r.next++
-	return v
 }
