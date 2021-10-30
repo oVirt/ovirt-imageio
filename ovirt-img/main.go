@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
@@ -48,9 +49,12 @@ func main() {
 		log.Fatalf("%s", err)
 	}
 
+	// Buffer output so we print only on success.
+	var out bytes.Buffer
 	for res.Next() {
 		e := res.Value()
-		fmt.Printf("start=%v length=%v zero=%v\n",
+		fmt.Fprintf(&out, "start=%v length=%v zero=%v\n",
 			e.Start, e.Length, e.Zero)
 	}
+	out.WriteTo(os.Stdout)
 }
