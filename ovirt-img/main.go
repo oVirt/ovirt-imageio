@@ -9,52 +9,80 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
+	"strings"
 )
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var (
+	// Common flags.
+	cpuprofile string
+
+	// Sub commands.
+	commands = map[string]*flag.FlagSet{}
+)
 
 func main() {
-	flag.Parse()
+	// Add commands flagsets.
 
-	if len(flag.Args()) != 1 {
-		flag.Usage()
-		// TODO: Can define URL as a flag?
-		fmt.Println("  URL")
+	commands["map"] = flag.NewFlagSet("map", flag.ExitOnError)
+	addCommonFlags()
+
+	// Parse command.
+
+	if len(os.Args) < 2 {
+		fmt.Fprintf(os.Stderr, "Usage: ovirt-img {%v}\n", strings.Join(commandNames(), ","))
 		os.Exit(1)
 	}
 
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	cmdName := os.Args[1]
+	cmd, ok := commands[cmdName]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Unknown command %v\n", cmdName)
+		os.Exit(1)
+	}
+
+	// Parse command arguments.
+
+	cmd.Parse(os.Args[2:])
+
+	if cpuprofile != "" {
+		f, err := os.Create(cpuprofile)
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
 
-	b, err := connect(flag.Arg(0))
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
-	defer b.Close()
+	// Run comamnd.
 
-	res, err := b.Extents()
-	if err != nil {
-		log.Fatalf("%s", err)
+	switch cmdName {
+	case "map":
+		if len(cmd.Args()) != 1 {
+			fmt.Fprintln(os.Stderr, "Usage: ovirt-img map [-cpuprofile=PROF] URL")
+			os.Exit(1)
+		}
+		mapURL(cmd.Arg(0))
+	default:
+		panic("Unexpected error")
 	}
+}
 
-	// Buffer output so we print only on success.
-	var out bytes.Buffer
-	for res.Next() {
-		e := res.Value()
-		fmt.Fprintf(&out, "start=%v length=%v zero=%v\n",
-			e.Start, e.Length, e.Zero)
+func commandNames() []string {
+	res := make([]string, 0, len(commands))
+	for name := range commands {
+		res = append(res, name)
 	}
-	out.WriteTo(os.Stdout)
+	return res
+}
+
+func addCommonFlags() {
+	for _, cmd := range commands {
+		cmd.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to file")
+	}
 }
