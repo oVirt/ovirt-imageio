@@ -9,18 +9,35 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"runtime/pprof"
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
-	if len(os.Args) != 2 {
-		// TODO: Add upload/download commands.
-		log.Fatalf("Usage: ovirt-img URL")
+	flag.Parse()
+
+	if len(flag.Args()) != 1 {
+		flag.Usage()
+		// TODO: Can define URL as a flag?
+		fmt.Println("  URL")
+		os.Exit(1)
 	}
 
-	b, err := connect(os.Args[1])
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
+	b, err := connect(flag.Arg(0))
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
