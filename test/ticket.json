@@ -1,0 +1,8 @@
+{
+    "ops": ["read", "write"],
+    "size": 6442450944,
+    "sparse": true,
+    "timeout": 300,
+    "url": "nbd:unix:/tmp/nbd.sock",
+    "uuid": "test"
+}
