@@ -64,7 +64,7 @@ func main() {
 	switch cmdName {
 	case "map":
 		if len(cmd.Args()) != 1 {
-			fmt.Fprintln(os.Stderr, "Usage: ovirt-img map [-cpuprofile=PROF] URL")
+			fmt.Fprintln(os.Stderr, "Usage: ovirt-img map [-cpuprofile=PROF] FILE|URL")
 			os.Exit(1)
 		}
 		mapURL(cmd.Arg(0))

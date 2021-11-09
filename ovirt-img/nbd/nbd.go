@@ -27,6 +27,38 @@ type Backend struct {
 	h *libnbd.Libnbd
 }
 
+// Connect runs qemu-nbd and returns a connected Backend. qemu-nbd will be
+// terminated when the backend is closed.
+func ConnectFile(filename, format string) (*Backend, error) {
+	h, err := libnbd.Create()
+	if err != nil {
+		return nil, err
+	}
+
+	err = h.AddMetaContext("base:allocation")
+	if err != nil {
+		h.Close()
+		return nil, err
+	}
+
+	args := []string{
+		"qemu-nbd",
+		"--read-only",
+		"--persistent",
+		"--shared", "8",
+		"--format", format,
+		filename,
+	}
+
+	err = h.ConnectSystemdSocketActivation(args)
+	if err != nil {
+		h.Close()
+		return nil, err
+	}
+
+	return &Backend{h: h}, nil
+}
+
 // Connect returns a connected Backend. Caller should close the backend when
 // done.
 func Connect(url string) (*Backend, error) {
