@@ -24,7 +24,8 @@ const (
 
 // Backend exposes a disk image served by a Network Block Device (NBD) server.
 type Backend struct {
-	h *libnbd.Libnbd
+	h    *libnbd.Libnbd
+	size uint64
 }
 
 // Connect runs qemu-nbd and returns a connected Backend. qemu-nbd will be
@@ -56,7 +57,12 @@ func ConnectFile(filename, format string) (*Backend, error) {
 		return nil, err
 	}
 
-	return &Backend{h: h}, nil
+	size, err := h.GetSize()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Backend{h: h, size: size}, nil
 }
 
 // Connect returns a connected Backend. Caller should close the backend when
@@ -79,26 +85,22 @@ func Connect(url string) (*Backend, error) {
 		return nil, err
 	}
 
-	return &Backend{h: h}, nil
+	size, err := h.GetSize()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Backend{h: h, size: size}, nil
 }
 
 // Size return image size.
 func (b *Backend) Size() (uint64, error) {
-	size, err := b.h.GetSize()
-	if err != nil {
-		return 0, err
-	}
-	return size, nil
+	return b.size, nil
 }
 
 // Extents returns all image extents. The NBD prototcol supports getting
 // partial extents, but imageio server does not support this yet.
 func (b *Backend) Extents() (imageio.ExtentsResult, error) {
-	size, err := b.Size()
-	if err != nil {
-		return nil, err
-	}
-
 	result := &ExtentsResult{}
 
 	// The server may return a short or long reply:
@@ -115,8 +117,8 @@ func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 
 	var offset uint64
 
-	for offset < size {
-		length := min(size-offset, maxExtent)
+	for offset < b.size {
+		length := min(b.size-offset, maxExtent)
 		entries, err := b.blockStatus(offset, length)
 		if err != nil {
 			return nil, err
@@ -126,8 +128,8 @@ func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 		// the end of the image. A compliant NBD server must not return an
 		// extent after the end of the image, but it is easy to handle this.
 
-		for i := 0; i < len(entries) && offset < size; i += 2 {
-			length := uint32(min(size-offset, uint64(entries[i])))
+		for i := 0; i < len(entries) && offset < b.size; i += 2 {
+			length := uint32(min(b.size-offset, uint64(entries[i])))
 			flags := entries[i+1]
 			offset += uint64(length)
 			result.entries = append(result.entries, length, flags)
