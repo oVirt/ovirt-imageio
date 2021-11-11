@@ -8,10 +8,15 @@
 
 package imageio
 
-// Backend exposes a disk image for copying image data from one server to
-// another.
+// Backend exposes a disk image for transferring image data.
 type Backend interface {
+
+	// Size return the size of the underlying disk image.
 	Size() (uint64, error)
+
+	// Extents return image extents.
 	Extents() (ExtentsResult, error)
+
+	// Close the backend.
 	Close()
 }
