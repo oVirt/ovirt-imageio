@@ -83,32 +83,29 @@ func (b *Backend) getExtents() error {
 	if err != nil {
 		return err
 	}
-
-	// We always want to read the entire response and close the body so we can
-	// send a new request on the same connection.
 	defer res.Body.Close()
 
-	// If the response is an errror, the response body contains the error
-	// message from the server.
-	if res.StatusCode != 200 {
-		reason, err := io.ReadAll(res.Body)
-		if err != nil {
-			reason = []byte(err.Error())
-		}
-		return fmt.Errorf("Cannot get extents: %s", reason)
+	if res.StatusCode != http.StatusOK {
+		return readServerError(res)
 	}
 
-	// Successful response, read the json.
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return fmt.Errorf("Cannot get extents: %s", err)
 	}
 
-	// Parse the json.
 	err = json.Unmarshal(body, &b.extents)
 	if err != nil {
 		return fmt.Errorf("Cannot get extents: %s", err)
 	}
 
 	return nil
+}
+
+func readServerError(res *http.Response) error {
+	reason, err := io.ReadAll(res.Body)
+	if err != nil {
+		return fmt.Errorf("Error reading response: %s", err)
+	}
+	return fmt.Errorf("Server error: %s", reason)
 }
