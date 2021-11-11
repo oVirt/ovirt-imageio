@@ -9,6 +9,7 @@
 package nbd
 
 import (
+	"io"
 	"syscall"
 
 	"libguestfs.org/libnbd"
@@ -165,6 +166,29 @@ func (b *Backend) blockStatus(offset, length uint64) ([]uint32, error) {
 	}
 
 	return result, nil
+}
+
+// ReadAt reads len(buf) bytes from the Backend starting at byte offset off.
+func (b *Backend) ReadAt(buf []byte, off int64) (int, error) {
+	// The NBD protocol does not support partial reads, and reading after the
+	// end of the image is an error. Implement the standard io.ReaderAt
+	// interface to make it easy to integrate with 3rd party code.
+
+	if uint64(off) > b.size {
+		return 0, io.EOF
+	}
+
+	var eof error
+	if uint64(off)+uint64(len(buf)) > b.size {
+		buf = buf[:b.size-uint64(off)]
+		eof = io.EOF
+	}
+
+	if err := b.h.Pread(buf, uint64(off), nil); err != nil {
+		return 0, err
+	}
+
+	return len(buf), eof
 }
 
 // Close closes the connection the NBD server. The Backend cannot be used after

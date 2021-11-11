@@ -8,8 +8,11 @@
 
 package imageio
 
+import "io"
+
 // Backend exposes a disk image for transferring image data.
 type Backend interface {
+	io.ReaderAt
 
 	// Size return the size of the underlying disk image.
 	Size() (uint64, error)

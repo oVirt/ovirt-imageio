@@ -73,9 +73,73 @@ func (b *Backend) Extents() (imageio.ExtentsResult, error) {
 	return imageio.NewExtentsWrapper(b.extents), nil
 }
 
+// ReadAt reads len(buf) bytes from the Backend starting at byte offset off.
+func (b *Backend) ReadAt(buf []byte, off int64) (int, error) {
+	// imageio server does not support partial reads, and reading after the
+	// end of the image is an error. Implement the standard io.ReaderAt
+	// interface to make it easy to integrate with 3rd party code.
+	size, err := b.Size()
+	if err != nil {
+		return 0, err
+	}
+
+	if uint64(off) > size {
+		return 0, io.EOF
+	}
+
+	var eof error
+	if uint64(off)+uint64(len(buf)) > size {
+		buf = buf[:size-uint64(off)]
+		eof = io.EOF
+	}
+
+	res, err := b.get(off, int64(len(buf)))
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+
+	if _, err := io.ReadFull(res.Body, buf); err != nil {
+		return 0, err
+	}
+
+	return len(buf), eof
+}
+
 // Close closes the connection to imageio server.
 func (b *Backend) Close() {
 	b.client.CloseIdleConnections()
+}
+
+func (b *Backend) get(offset, length int64) (*http.Response, error) {
+	req, err := http.NewRequest("GET", b.url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add(
+		"Range",
+		fmt.Sprintf("bytes=%v-%v", offset, offset+length-1),
+	)
+
+	res, err := b.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != http.StatusPartialContent {
+		err := readServerError(res)
+		res.Body.Close()
+		return nil, err
+	}
+
+	if res.ContentLength != length {
+		res.Body.Close()
+		return nil, fmt.Errorf(
+			"Unexpected Content-Length: %v", res.ContentLength)
+	}
+
+	return res, nil
 }
 
 func (b *Backend) getExtents() error {
