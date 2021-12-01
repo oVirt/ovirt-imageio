@@ -2,9 +2,7 @@ FROM registry.fedoraproject.org/fedora:34
 
 # Runtime packages.
 RUN dnf update -y \
-    && dnf install -y \
-        http://resources.ovirt.org/pub/yum-repo/ovirt-release-master.rpm \
-        dnf-plugins-core \
+    && dnf install -y dnf-plugins-core \
     && dnf copr -y enable @virtmaint-sig/virt-preview \
     && dnf install -y \
         e2fsprogs \
