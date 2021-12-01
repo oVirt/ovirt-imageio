@@ -1,0 +1,29 @@
+name: CI
+on:
+- push
+- pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+        - centos-8
+        - centos-9
+        - fedora-34
+        - fedora-35
+    steps:
+    - uses: actions/checkout@v2
+    - name: Configure docker
+      run: sudo ./ci/configure-docker.py
+    - name: Pull container
+      run: docker pull quay.io/ovirt/imageio-test-${{matrix.distro}}
+    - name: Run tests
+      run: |
+        docker run \
+        --privileged \
+        --rm \
+        --volume `pwd`:/src:Z \
+        quay.io/ovirt/imageio-test-${{matrix.distro}} \
+        bash -c "cd /src && ci/test.sh"
