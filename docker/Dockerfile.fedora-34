@@ -1,8 +1,7 @@
 FROM registry.fedoraproject.org/fedora:34
 
 # Runtime packages.
-RUN dnf update -y \
-    && dnf install -y dnf-plugins-core \
+RUN dnf install -y dnf-plugins-core \
     && dnf copr -y enable @virtmaint-sig/virt-preview \
     && dnf install -y \
         createrepo_c \
