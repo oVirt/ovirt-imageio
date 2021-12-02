@@ -5,8 +5,10 @@ RUN dnf update -y \
     && dnf install -y dnf-plugins-core \
     && dnf copr -y enable @virtmaint-sig/virt-preview \
     && dnf install -y \
+        createrepo_c \
         e2fsprogs \
         gcc \
+        git \
         libguestfs-tools-c \
         make \
         openssl \
@@ -15,6 +17,7 @@ RUN dnf update -y \
         python3-systemd \
         qemu-img \
         qemu-kvm \
+        rpm-build \
         sudo \
         systemd-udev \
         util-linux \
