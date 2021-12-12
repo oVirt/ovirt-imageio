@@ -1,0 +1,8 @@
+# See github docs for more info on the syntax:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for all files:
+*  @nirs
+
+# Documentation owners
+# /docs/  @myname
