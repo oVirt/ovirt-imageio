@@ -169,10 +169,11 @@ class Connection(http.server.BaseHTTPRequestHandler):
     # to support long URIs, so we use small value.
     max_request_line = 4096
 
-    # Number of second to wait for recv() or send(). When the timeout expires
-    # we close the connection. This is important when working with clients that
-    # keep the connection open after upload or download (e.g browsers).
-    timeout = 60
+    # Number of second to wait for recv() or send() on unauthorized
+    # connections.  When the timeout expires we close the connection.
+    # Authorized connections get a larger timeout using the ticket
+    # inactivity timeout.
+    timeout = 15
 
     # For generating connection ids. Start from 1 to match the connection
     # thread name.
@@ -270,6 +271,10 @@ class Connection(http.server.BaseHTTPRequestHandler):
         Used in Server header.
         """
         return "imageio/" + version.string
+
+    def set_timeout(self, timeout):
+        log.debug("Setting connection timeout to %s seconds", timeout)
+        self.connection.settimeout(timeout)
 
 
 class Request:
@@ -452,6 +457,9 @@ class Request:
         Return True if the underlying socket was disconnected.
         """
         return self._con.connection_error() in _DISCONNECTED
+
+    def set_connection_timeout(self, timeout):
+        self._con.set_timeout(timeout)
 
 
 class Response:

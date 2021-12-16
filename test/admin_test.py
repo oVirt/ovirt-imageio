@@ -89,6 +89,7 @@ def test_get_ticket(srv, fake_time):
             "size": ticket["size"],
             "sparse": ticket["sparse"],
             "dirty": ticket["dirty"],
+            "inactivity_timeout": ticket["inactivity_timeout"],
             "timeout": ticket["timeout"],
             "url": ticket["url"],
             "uuid": ticket["uuid"],

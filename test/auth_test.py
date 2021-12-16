@@ -50,13 +50,18 @@ class Operation:
         self.canceled = True
 
 
-def test_transfered_nothing():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+@pytest.fixture
+def cfg():
+    return config.load(["test/conf.d/daemon.conf"])
+
+
+def test_transfered_nothing(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     assert ticket.transferred() == 0
 
 
-def test_transfered_inactive_empty_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_inactive_empty_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.run(Operation(0, 0))
     assert ticket.transferred() == 0
 
@@ -64,8 +69,8 @@ def test_transfered_inactive_empty_ops():
     assert ticket.transferred() == 0
 
 
-def test_transfered_inactive_ordered_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_inactive_ordered_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.run(Operation(0, 100))
     assert ticket.transferred() == 100
 
@@ -76,8 +81,8 @@ def test_transfered_inactive_ordered_ops():
     assert ticket.transferred() == 300
 
 
-def test_transfered_inactive_unordered_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_inactive_unordered_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.run(Operation(100, 100))
     assert ticket.transferred() == 100
 
@@ -88,8 +93,8 @@ def test_transfered_inactive_unordered_ops():
     assert ticket.transferred() == 300
 
 
-def test_transfered_inactive_overlapping_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_inactive_overlapping_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.run(Operation(0, 120))
     assert ticket.transferred() == 120
 
@@ -100,8 +105,8 @@ def test_transfered_inactive_overlapping_ops():
     assert ticket.transferred() == 300
 
 
-def test_transfered_inactive_non_continuous_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_inactive_non_continuous_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     # Run 2 non-continutes operations
     ticket.run(Operation(0, 100))
     ticket.run(Operation(200, 100))
@@ -112,8 +117,8 @@ def test_transfered_inactive_non_continuous_ops():
     assert ticket.transferred() == 300
 
 
-def test_transfered_ongoing_concurrent_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_ongoing_concurrent_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Start 2 ongoing operations:
     # ongoing: 0-0, 100-100
@@ -145,8 +150,8 @@ def test_transfered_ongoing_concurrent_ops():
     assert not ticket.active()
 
 
-def test_transfered_ongoing_overlapping_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_ongoing_overlapping_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Start 2 ongoing operations.
     # ongoing: 0-0, 80-80
@@ -175,8 +180,8 @@ def test_transfered_ongoing_overlapping_ops():
     assert not ticket.active()
 
 
-def test_transfered_ongoing_non_continues_ops():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_transfered_ongoing_non_continues_ops(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Start 2 ongoing operations.
     # ongoing: 0-0, 200-200
@@ -204,9 +209,9 @@ def test_transfered_ongoing_non_continues_ops():
 
 
 @pytest.mark.benchmark
-def test_run_operation_benchmark():
+def test_run_operation_benchmark(cfg):
     # Run 1000000 operations with 4 concurrent threads.
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     operations = 10**6
     workers = 4
     chunk = 10**9
@@ -236,9 +241,9 @@ def test_run_operation_benchmark():
 
 @pytest.mark.benchmark
 @pytest.mark.parametrize("concurrent", [1, 2, 4, 8])
-def test_transferred_benchmark(concurrent):
+def test_transferred_benchmark(concurrent, cfg):
     # Time trransferred call with multiple ongoing and completed operations.
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     calls = 10000
 
@@ -271,9 +276,9 @@ def test_transferred_benchmark(concurrent):
     False,
     None
 ])
-def test_invalid_argument(arg):
+def test_invalid_argument(arg, cfg):
     with pytest.raises(errors.InvalidTicket):
-        Ticket(arg)
+        Ticket(arg, cfg)
 
 
 @pytest.mark.parametrize("kw", [
@@ -286,45 +291,53 @@ def test_invalid_argument(arg):
     {"filename": 1},
     {"sparse": 1},
     {"dirty": 1},
+    {"inactivity_timeout": "invalid"},
 ])
-def test_invalid_parameter(kw):
+def test_invalid_parameter(kw, cfg):
     with pytest.raises(errors.InvalidTicketParameter):
-        Ticket(testutil.create_ticket(**kw))
+        Ticket(testutil.create_ticket(**kw), cfg)
 
 
-def test_sparse_unset():
-    ticket = Ticket(testutil.create_ticket())
+def test_inactivity_timeout_unset(cfg):
+    ticket = Ticket(testutil.create_ticket(inactivity_timeout=None), cfg)
+    assert ticket.inactivity_timeout == cfg.daemon.inactivity_timeout
+
+
+def test_sparse_unset(cfg):
+    ticket = Ticket(testutil.create_ticket(), cfg)
     assert not ticket.sparse
 
 
-def test_sparse():
-    ticket = Ticket(testutil.create_ticket(sparse=True))
+def test_sparse(cfg):
+    ticket = Ticket(testutil.create_ticket(sparse=True), cfg)
     assert ticket.sparse
 
 
-def test_dirty_unset():
-    ticket = Ticket(testutil.create_ticket())
+def test_dirty_unset(cfg):
+    ticket = Ticket(testutil.create_ticket(), cfg)
     assert not ticket.dirty
 
 
-def test_dirty():
-    ticket = Ticket(testutil.create_ticket(dirty=True))
+def test_dirty(cfg):
+    ticket = Ticket(testutil.create_ticket(dirty=True), cfg)
     assert ticket.dirty
 
 
-def test_transfer_id_unset():
-    ticket = Ticket(testutil.create_ticket())
+def test_transfer_id_unset(cfg):
+    ticket = Ticket(testutil.create_ticket(), cfg)
     assert ticket.transfer_id is None
 
 
-def test_transfer_id():
-    ticket = Ticket(testutil.create_ticket(transfer_id="123"))
+def test_transfer_id(cfg):
+    ticket = Ticket(testutil.create_ticket(transfer_id="123"), cfg)
     assert ticket.transfer_id == "123"
 
 
-def test_repr():
-    ticket = Ticket(testutil.create_ticket(
-        ops=["read"], filename="tmp_file"))
+def test_repr(cfg):
+    ticket = Ticket(
+        testutil.create_ticket(
+            ops=["read"], filename="tmp_file"),
+        cfg)
     ticket_repr = repr(ticket)
 
     info = ticket.info()
@@ -335,8 +348,8 @@ def test_repr():
         assert pair in ticket_repr
 
 
-def test_ticket_run():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_ticket_run(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     op = Operation(0, 100)
     assert ticket.transferred() == op.done
     assert op.done == 0
@@ -347,8 +360,8 @@ def test_ticket_run():
     assert op.done == 100
 
 
-def test_cancel_no_connection():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_no_connection(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.cancel()
 
     # Ticket is canceled and can be removed immediately.
@@ -359,8 +372,8 @@ def test_cancel_no_connection():
     assert info["connections"] == 0
 
 
-def test_cancel_idle_connection():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_idle_connection(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ctx = Context()
     ticket.add_context(1, ctx)
     ticket.cancel()
@@ -378,8 +391,8 @@ def test_cancel_idle_connection():
     assert info["connections"] == 1
 
 
-def test_cancel_timeout():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_timeout(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Add conection - having connections does not block cancelation, but we
     # cannot have ongoing operations without a connection.
@@ -405,8 +418,8 @@ def test_cancel_timeout():
     assert info["connections"] == 1
 
 
-def test_cancel_async():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_async(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ctx = Context()
     ticket.add_context(1, ctx)
     ticket._add_operation(Operation(0, 100))
@@ -422,8 +435,8 @@ def test_cancel_async():
     assert info["connections"] == 1
 
 
-def test_cancel_ongoing_operations():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_ongoing_operations(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Few connections are using this ticket. Each running an operation.
     ops = []
@@ -447,8 +460,8 @@ def test_cancel_ongoing_operations():
     assert not idle_ctx.closed
 
 
-def test_cancel_wait():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_cancel_wait(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     # Add connections using this ticket.
     users = []
@@ -496,8 +509,8 @@ def test_cancel_wait():
     assert idle_ctx.closed
 
 
-def test_canceled_fail_run_before():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_canceled_fail_run_before(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.cancel()
 
     op = Operation()
@@ -510,8 +523,8 @@ def test_canceled_fail_run_before():
     assert op.done == 0
 
 
-def test_canceled_fail_run_after():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_canceled_fail_run_after(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
     class Operation:
 
@@ -536,8 +549,8 @@ def test_canceled_fail_run_after():
     assert op.done
 
 
-def test_canceled_fail_add_context():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_canceled_fail_add_context(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.cancel()
 
     ctx = Context()
@@ -547,21 +560,21 @@ def test_canceled_fail_add_context():
         ticket.add_context(2, ctx)
 
 
-def test_get_context_missing():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_get_context_missing(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     with pytest.raises(KeyError):
         ticket.get_context(1)
 
 
-def test_get_context():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_get_context(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ctx = Context()
     ticket.add_context(1, ctx)
     assert ticket.get_context(1) is ctx
 
 
-def test_remove_context_missing():
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+def test_remove_context_missing(cfg):
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ticket.add_context(1, Context())
     assert ticket.info()["connections"] == 1
 
@@ -569,7 +582,7 @@ def test_remove_context_missing():
     assert ticket.info()["connections"] == 1
 
 
-def test_remove_context_error():
+def test_remove_context_error(cfg):
 
     class FailingContext:
 
@@ -583,7 +596,7 @@ def test_remove_context_error():
                 raise RuntimeError("Cannot close yet")
             self.closed = True
 
-    ticket = Ticket(testutil.create_ticket(ops=["read"]))
+    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
     ctx = FailingContext()
     ticket.add_context(1, ctx)
 
@@ -601,8 +614,7 @@ def test_remove_context_error():
     assert ctx.closed
 
 
-def test_authorizer_add():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_add(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["read"])
     auth.add(ticket_info)
@@ -611,8 +623,7 @@ def test_authorizer_add():
     assert ticket.uuid == ticket_info["uuid"]
 
 
-def test_authorizer_remove_unused():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_remove_unused(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["read"])
     auth.add(ticket_info)
@@ -623,8 +634,7 @@ def test_authorizer_remove_unused():
         auth.get(ticket_info["uuid"])
 
 
-def test_authorizer_remove_timeout():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_remove_timeout(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["read"])
     auth.add(ticket_info)
@@ -690,8 +700,7 @@ def test_authorizer_remove_timeout():
         auth.get(ticket.uuid)
 
 
-def test_authorizer_remove_async():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_remove_async(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["read"])
     auth.add(ticket_info)
@@ -750,15 +759,13 @@ def test_authorizer_remove_async():
         auth.get(ticket.uuid)
 
 
-def test_authorizer_remove_mising():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_remove_mising(cfg):
     auth = Authorizer(cfg)
     # Removing missing ticket does not raise.
     auth.remove("no-such-ticket")
 
 
-def test_authorize_read():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorize_read(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["read"])
     auth.add(ticket_info)
@@ -770,8 +777,7 @@ def test_authorize_read():
         auth.authorize(ticket.uuid, "write")
 
 
-def test_authorize_write():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorize_write(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["write"])
     auth.add(ticket_info)
@@ -783,8 +789,7 @@ def test_authorize_write():
     assert auth.authorize(ticket.uuid, "read") == ticket
 
 
-def test_authorizer_no_ticket():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_no_ticket(cfg):
     auth = Authorizer(cfg)
     with pytest.raises(errors.AuthorizationError):
         auth.authorize("no-such-ticket", "read")
@@ -794,8 +799,7 @@ def test_authorizer_no_ticket():
     (["read"], ["read"]),
     (["write"], ["read", "write"]),
 ])
-def test_authorizer_canceled(ops, allowed):
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_canceled(ops, allowed, cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=ops)
     auth.add(ticket_info)
@@ -809,8 +813,7 @@ def test_authorizer_canceled(ops, allowed):
             auth.authorize(ticket.uuid, op)
 
 
-def test_authorizer_expired():
-    cfg = config.load(["test/conf.d/daemon.conf"])
+def test_authorizer_expired(cfg):
     auth = Authorizer(cfg)
     ticket_info = testutil.create_ticket(ops=["write"])
     auth.add(ticket_info)

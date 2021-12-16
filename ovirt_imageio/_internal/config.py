@@ -20,6 +20,15 @@ class daemon:
     # decrease throughput.
     max_connections = 8
 
+    # Number of seconds before unauthorized connections are
+    # disconnected.
+    auth_timeout = 15
+
+    # Number of seconds before inactive connections are disconnected.
+    # Clients with special needs can request a larger timeout when
+    # creating an image transfer.
+    inactivity_timeout = 60
+
     # Daemon run directory. Runtime stuff like socket or profile information
     # will be stored in this directory.
     # This is configurable only for development purposes and is not expected to
