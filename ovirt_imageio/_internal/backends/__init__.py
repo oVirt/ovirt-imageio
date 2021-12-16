@@ -98,6 +98,9 @@ def get(req, ticket, config):
             ctx.close()
             raise
 
+        # Authorized connections get a longer timeout from the ticket.
+        req.set_connection_timeout(ticket.inactivity_timeout)
+
         # Register a closer removing the context when the connection is closed.
         req.context[ticket.uuid] = Closer(
             partial(ticket.remove_context, req.connection_id))

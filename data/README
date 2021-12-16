@@ -47,6 +47,17 @@
 # The default value:
 #   max_connections = 8
 
+# Number of seconds before unauthorized connections are
+# disconnected.
+# The default value:
+#   auth_timeout = 15
+
+# Number of seconds before inactive connections are disconnected.
+# Clients with special needs can request a larger timeout when
+# creating an image transfer.
+# The default value:
+#   inactivity_timeout = 60
+
 [tls]
 # Enable TLS. Note that without TLS transfer tickets and image data are
 # transferred in clear text. If TLS is enabled, paths to related files

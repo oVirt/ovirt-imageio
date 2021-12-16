@@ -25,6 +25,10 @@ class Request:
 
     def __init__(self):
         self.context = {}
+        self.connection_timeout = None
+
+    def set_connection_timeout(self, timeout):
+        self.connection_timeout = timeout
 
 
 @pytest.fixture
@@ -34,7 +38,7 @@ def cfg():
 
 def test_get_caching(tmpurl, cfg):
     ticket = auth.Ticket(
-        testutil.create_ticket(url=urlunparse(tmpurl)))
+        testutil.create_ticket(url=urlunparse(tmpurl)), cfg)
     req = Request()
     c1 = backends.get(req, ticket, cfg)
 
@@ -55,9 +59,24 @@ def test_get_caching(tmpurl, cfg):
     assert c3 is not c1
 
 
+def test_get_set_timeout(tmpurl, cfg):
+    ticket = auth.Ticket(
+        testutil.create_ticket(
+            url=urlunparse(tmpurl),
+            inactivity_timeout=300),
+        cfg)
+
+    req = Request()
+    assert req.connection_timeout is None
+
+    # Authorizing the ticket set connection timeout.
+    backends.get(req, ticket, cfg)
+    assert req.connection_timeout == ticket.inactivity_timeout
+
+
 def test_get_canceled_ticket(tmpurl, cfg):
     ticket = auth.Ticket(
-        testutil.create_ticket(url=urlunparse(tmpurl)))
+        testutil.create_ticket(url=urlunparse(tmpurl)), cfg)
     req = Request()
     ticket.cancel()
 
@@ -76,7 +95,7 @@ def test_get_canceled_ticket(tmpurl, cfg):
 ])
 def test_get_ops(tmpurl, cfg, ops, readable, writable):
     ticket = auth.Ticket(
-        testutil.create_ticket(url=urlunparse(tmpurl), ops=ops))
+        testutil.create_ticket(url=urlunparse(tmpurl), ops=ops), cfg)
     req = Request()
     b = backends.get(req, ticket, cfg).backend
 
@@ -89,7 +108,7 @@ def test_get_ops(tmpurl, cfg, ops, readable, writable):
 @pytest.mark.parametrize("sparse", [True, False])
 def test_get_sparse(tmpurl, cfg, sparse):
     ticket = auth.Ticket(
-        testutil.create_ticket(url=urlunparse(tmpurl), sparse=sparse))
+        testutil.create_ticket(url=urlunparse(tmpurl), sparse=sparse), cfg)
     req = Request()
     b = backends.get(req, ticket, cfg).backend
 
@@ -110,7 +129,7 @@ def test_get_nbd_backend(tmpdir, cfg, nbd_server, transport):
     nbd_server.start()
 
     ticket = auth.Ticket(
-        testutil.create_ticket(url=urlunparse(nbd_server.url)))
+        testutil.create_ticket(url=urlunparse(nbd_server.url)), cfg)
     req = Request()
     b = backends.get(req, ticket, cfg).backend
 

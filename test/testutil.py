@@ -39,7 +39,7 @@ def random_tcp_port():
 
 def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
                   url="file:///tmp/foo.img", transfer_id=None, filename=None,
-                  sparse=None, dirty=None):
+                  sparse=None, dirty=None, inactivity_timeout=120):
     d = {
         "uuid": uuid or str(uuid4()),
         "timeout": timeout,
@@ -55,6 +55,8 @@ def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
         d["sparse"] = sparse
     if dirty is not None:
         d["dirty"] = dirty
+    if inactivity_timeout is not None:
+        d["inactivity_timeout"] = inactivity_timeout
     return d
 
 

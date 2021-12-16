@@ -22,7 +22,7 @@ log = logging.getLogger("auth")
 
 class Ticket:
 
-    def __init__(self, ticket_dict):
+    def __init__(self, ticket_dict, cfg):
         if not isinstance(ticket_dict, dict):
             raise errors.InvalidTicket(
                 "Invalid ticket: %r, expecting a dict" % ticket_dict)
@@ -32,6 +32,10 @@ class Ticket:
         self._ops = _required(ticket_dict, "ops", list)
 
         self._timeout = _required(ticket_dict, "timeout", int)
+        self._inactivity_timeout = _optional(
+            ticket_dict, "inactivity_timeout", int,
+            default=cfg.daemon.inactivity_timeout)
+
         now = int(util.monotonic_time())
         self._expires = now + self._timeout
         self._access_time = now
@@ -123,6 +127,14 @@ class Ticket:
         if self.active():
             return 0
         return int(util.monotonic_time()) - self._access_time
+
+    @property
+    def inactivity_timeout(self):
+        """
+        Return the number of seconds to wait before disconnecting inactive
+        client.
+        """
+        return self._inactivity_timeout
 
     @property
     def canceled(self):
@@ -249,6 +261,7 @@ class Ticket:
             "connections": len(self._connections),
             "expires": self._expires,
             "idle_time": self.idle_time,
+            "inactivity_timeout": self._inactivity_timeout,
             "ops": list(self._ops),
             "size": self._size,
             "sparse": self._sparse,
@@ -336,6 +349,7 @@ class Ticket:
                 "canceled={self._canceled} "
                 "connections={connections} "
                 "expires={self.expires!r} "
+                "inactivity_timeout={self.inactivity_timeout} "
                 "filename={self.filename!r} "
                 "idle_time={self.idle_time} "
                 "ops={self.ops!r} "
@@ -388,7 +402,7 @@ class Authorizer:
 
         Raises errors.InvalidTicket if ticket dict is invalid.
         """
-        ticket = Ticket(ticket_dict)
+        ticket = Ticket(ticket_dict, self._config)
         self._tickets[ticket.uuid] = ticket
 
     def remove(self, ticket_id):
