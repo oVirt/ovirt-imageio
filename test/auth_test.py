@@ -338,7 +338,7 @@ def test_ticket_run():
     assert op.done == 100
 
 
-def test_cancel_unused():
+def test_cancel_no_connection():
     ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.cancel()
 
@@ -351,7 +351,13 @@ def test_cancel_unused():
 
 def test_cancel_timeout():
     ticket = Ticket(testutil.create_ticket(ops=["read"]))
+
+    # Add connection context - having connections does not block cancelation,
+    # but we cannot have ongoing operations without a connection.
     ticket.add_context(1, None)
+
+    # Ongoing operation blocks cancel.
+    ticket._add_operation(Operation(0, 100))
 
     # Canceling will time out.
     with pytest.raises(errors.TicketCancelTimeout):
@@ -360,22 +366,25 @@ def test_cancel_timeout():
     # But ticket is marked as canceled.
     assert ticket.canceled
 
-    # Caller can poll ticket status and remove the ticket when number of
-    # connections is zero.
+    # Caller can poll ticket "active" property and remove the ticket when the
+    # ticket is inactive.
     info = ticket.info()
     assert info["canceled"]
+    assert info["active"]
     assert info["connections"] == 1
 
 
 def test_cancel_async():
     ticket = Ticket(testutil.create_ticket(ops=["read"]))
     ticket.add_context(1, None)
+    ticket._add_operation(Operation(0, 100))
     ticket.cancel(timeout=0)
 
     # Ticket is canceled, but it cannot be removed.
     assert ticket.canceled
     info = ticket.info()
     assert info["canceled"]
+    assert info["active"]
     assert info["connections"] == 1
 
 
@@ -410,33 +419,42 @@ def test_cancel_wait():
     ticket = Ticket(testutil.create_ticket(ops=["read"]))
 
     # Add connections using this ticket.
-    connections = []
-    for i in range(4):
+    users = []
+    for cid in range(4):
         ctx = Context()
-        ticket.add_context(i, ctx)
-        connections.append(ctx)
+        op = Operation(cid * 1024**2, 1024**2)
+        ticket.add_context(cid, ctx)
+        ticket._add_operation(op)
+        users.append((cid, ctx, op))
 
     def close_connections():
         time.sleep(0.1)
-        for i in range(4):
-            ticket.remove_context(i)
+        for cid, ctx, op in users:
+            # Removing operation from a canceled ticket raises, send and error
+            # and close the connection.
+            try:
+                ticket._remove_operation(op)
+            except errors.AuthorizationError:
+                ticket.remove_context(cid)
 
     info = ticket.info()
     assert not info["canceled"]
     assert info["connections"] == 4
+    assert info["active"]
 
     t = util.start_thread(close_connections)
     try:
         ticket.cancel(timeout=10)
-
-        # After the ticket was canceled, number of connections must be zero.
-        info = ticket.info()
-        assert info["connections"] == 0
-
-        # And all contexts must be closed.
-        assert all(ctx.closed for ctx in connections)
     finally:
         t.join()
+
+    info = ticket.info()
+
+    # After the ticket was canceled, ticket is not active and all connections
+    # removed, and their context has closed.
+    assert not info["active"]
+    assert info["connections"] == 0
+    assert all(ctx.closed for cid, ctx, op in users)
 
 
 def test_canceled_fail_run_before():
@@ -464,7 +482,7 @@ def test_canceled_fail_run_after():
 
         def run(self):
             self.done = True
-            ticket.cancel()
+            ticket.cancel(timeout=0.001)
 
         def cancel(self):
             self.canceled = True
@@ -577,6 +595,11 @@ def test_authorizer_remove_timeout():
     ticket = auth.get(ticket_info["uuid"])
     ticket.add_context(1, Context())
     assert ticket.info()["connections"] == 1
+    assert not ticket.info()["active"]
+
+    op = Operation(0, 100)
+    ticket._add_operation(op)
+    assert ticket.info()["active"]
 
     # Use short timeout to keep the tests fast.
     cfg.control.remove_timeout = 0.001
@@ -588,10 +611,16 @@ def test_authorizer_remove_timeout():
     # Ticket was not removed.
     assert auth.get(ticket.uuid) is ticket
 
-    # The connection was closed, the ticket can be removed now.
-    ticket.remove_context(1)
-    assert ticket.info()["connections"] == 0
+    # Ticket still active.
+    assert ticket.info()["active"]
 
+    # Ending the operation make the ticket inactive.
+    with pytest.raises(errors.AuthorizationError):
+        ticket._remove_operation(op)
+
+    assert not ticket.info()["active"]
+
+    # The ticket is not active, so it can be closed now.
     auth.remove(ticket.uuid)
 
     # Ticket was removed.
@@ -608,6 +637,11 @@ def test_authorizer_remove_async():
     ticket = auth.get(ticket_info["uuid"])
     ticket.add_context(1, Context())
     assert ticket.info()["connections"] == 1
+    assert not ticket.info()["active"]
+
+    op = Operation(0, 100)
+    ticket._add_operation(op)
+    assert ticket.info()["active"]
 
     # Disable the timeout, so removing a ticket cancel the ticket without
     # waiting, and requiring polling the ticket status.
@@ -616,14 +650,17 @@ def test_authorizer_remove_async():
     # Ticket is canceled, but not removed.
     auth.remove(ticket.uuid)
     assert ticket.canceled
+    assert ticket.info()["active"]
     assert ticket.info()["connections"] == 1
 
     # Ticket was not removed.
     assert auth.get(ticket.uuid) is ticket
 
-    # The connection was closed, the ticket can be removed now.
-    ticket.remove_context(1)
-    assert ticket.info()["connections"] == 0
+    # Ending the operation make the ticket inactive.
+    with pytest.raises(errors.AuthorizationError):
+        ticket._remove_operation(op)
+
+    assert not ticket.info()["active"]
 
     auth.remove(ticket.uuid)
 
