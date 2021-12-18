@@ -137,9 +137,6 @@ class Ticket:
 
             log.debug("Adding connection %s context to ticket %s",
                       con_id, self.uuid)
-            # If this is the first connection, clear the unused event.
-            if not self._connections:
-                self._unused.clear()
             self._connections[con_id] = context
 
     def get_context(self, con_id):
@@ -158,12 +155,6 @@ class Ticket:
 
             # If context was closed, it is safe to remove it.
             del self._connections[con_id]
-
-            # If this was the last connection, wake up caller waiting on
-            # cancel().
-            if not self._connections:
-                log.debug("Removing last connection for ticket %s", self.uuid)
-                self._unused.set()
 
     def run(self, operation):
         """
@@ -193,11 +184,24 @@ class Ticket:
                 raise errors.AuthorizationError(
                     "Ticket {} was canceled".format(self.uuid))
 
+            # If this is the first ongoing operation, clear the unused event.
+            if not self._ongoing:
+                log.debug("Adding first ongoring operation for ticket %s",
+                          self.uuid)
+                self._unused.clear()
+
             self._ongoing.add(op)
 
     def _remove_operation(self, op):
         with self._lock:
             self._ongoing.remove(op)
+
+            # If this was the last ongoing operation, wake up caller waiting on
+            # cancel().
+            if not self._ongoing:
+                log.debug("Removed last ongoring operation for ticket %s",
+                          self.uuid)
+                self._unused.set()
 
             if self._canceled:
                 raise errors.AuthorizationError(
@@ -206,6 +210,7 @@ class Ticket:
             r = measure.Range(op.offset, op.offset + op.done)
             bisect.insort(self._completed, r)
             self._completed = measure.merge_ranges(self._completed)
+
         self.touch()
 
     def active(self):
@@ -267,7 +272,7 @@ class Ticket:
 
     def cancel(self, timeout=60):
         """
-        Cancel a ticket and wait until all connections are removed.
+        Cancel a ticket and wait until all ongoing operations finish.
 
         Arguments:
             timeout (float): number of seconds to wait until the ticket is
@@ -286,10 +291,11 @@ class Ticket:
 
         with self._lock:
             self._canceled = True
-            if not self._connections:
+            if not self._ongoing:
                 log.debug("Ticket %s was canceled", self.uuid)
                 return True
 
+            log.debug("Canceling ticket %s ongoing operations", self.uuid)
             # Cancel ongoing operations. This speeds up cancellation when
             # streaming lot of data. Operations will be canceled once they
             # complete the current I/O.
@@ -297,7 +303,8 @@ class Ticket:
                 op.cancel()
 
         if timeout:
-            log.info("Waiting until ticket %s is unused", self.uuid)
+            log.info("Waiting until ticket %s ongoing operations finish",
+                     self.uuid)
             if not self._unused.wait(timeout):
                 raise errors.TicketCancelTimeout(self.uuid)
 
