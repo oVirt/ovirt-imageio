@@ -290,8 +290,15 @@ class Ticket:
         log.debug("Cancelling ticket %s", self.uuid)
 
         with self._lock:
+            # No operation can start now, and new connections cannot be added
+            # to the ticket.
             self._canceled = True
+
             if not self._ongoing:
+                # There are no ongoing opearations, but we may have idle
+                # connections - release their resources.
+                for ctx in self._connections.values():
+                    ctx.close()
                 log.debug("Ticket %s was canceled", self.uuid)
                 return True
 
@@ -308,10 +315,19 @@ class Ticket:
             if not self._unused.wait(timeout):
                 raise errors.TicketCancelTimeout(self.uuid)
 
+            # Finished ongoing operations discover that the ticket was canceled
+            # and close the connection. We need to release resources used by
+            # idle connections.
+            with self._lock:
+                for ctx in self._connections.values():
+                    ctx.close()
+
             log.info("Ticket %s was canceled", self.uuid)
             return True
 
-        # The caller need to poll the number of connections.
+        # The caller need to wait until ongoing operations finish by polling
+        # the ticket "active" property. When the ticket becomes inactive,
+        # caller must call again to delete the ticket.
         return False
 
     def __repr__(self):
