@@ -1,8 +1,11 @@
 FROM quay.io/centos/centos:stream8
 
 # Runtime packages.
-RUN dnf install -y \
-        http://resources.ovirt.org/pub/yum-repo/ovirt-release-master.rpm \
+RUN dnf install -y dnf-plugins-core \
+    && dnf copr enable -y \
+        ovirt/ovirt-master-snapshot \
+        centos-stream-8 \
+    && dnf install -y ovirt-release-master \
     && dnf install -y \
         createrepo_c \
         e2fsprogs \
