@@ -1,7 +1,8 @@
 FROM quay.io/centos/centos:stream8
 
 # Runtime packages.
-RUN dnf install -y dnf-plugins-core \
+RUN echo v1 \
+    && dnf install -y dnf-plugins-core \
     && dnf copr enable -y \
         ovirt/ovirt-master-snapshot \
         centos-stream-8 \
