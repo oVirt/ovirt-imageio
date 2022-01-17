@@ -318,10 +318,14 @@ def test_detect_zeroes_enabled(tmpdir, fmt, detect_zeroes):
         c.flush()
         extents = c.extents(0, size)
 
-    assert extents == {
-        "base:allocation": [nbd.Extent(length=1048576, flags=3)],
-        "qemu:allocation-depth": [nbd.Extent(length=1048576, flags=0)],
-    }
+    assert extents["base:allocation"] == [
+        nbd.Extent(length=1048576, flags=3),
+    ]
+
+    if fmt != "raw":
+        assert extents["qemu:allocation-depth"] == [
+            nbd.Extent(length=1048576, flags=0),
+        ]
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
@@ -338,7 +342,11 @@ def test_detect_zeroes_disabled(tmpdir, fmt, detect_zeroes):
         c.flush()
         extents = c.extents(0, size)
 
-    assert extents == {
-        "base:allocation": [nbd.Extent(length=1048576, flags=0)],
-        "qemu:allocation-depth": [nbd.Extent(length=1048576, flags=0)],
-    }
+    assert extents["base:allocation"] == [
+        nbd.Extent(length=1048576, flags=0),
+    ]
+
+    if fmt != "raw":
+        assert extents["qemu:allocation-depth"] == [
+            nbd.Extent(length=1048576, flags=0),
+        ]
