@@ -653,11 +653,13 @@ class Client:
             if ctx_name == dirty_bitmap:
                 self.dirty_bitmap = dirty_bitmap
 
-        # Warn if we failed to activate some meta context. This may affect
-        # performance or reduce funcionaliity.
+        # Log if some meta context is not available. This may affect
+        # performance or reduce funcionaliity, but is expected when using old
+        # qemu-nbd (e.g. 4.2.0) or when using raw volume that does not provide
+        # interesting allocation depth, and triggers a bug in qemu 6.2.0.
         for ctx_name in queries:
             if ctx_name not in self._meta_context:
-                log.warning("Failed to activate %s", ctx_name)
+                log.info("Meta context %s is not available", ctx_name)
 
     def _format_meta_context_data(self, *queries):
         """

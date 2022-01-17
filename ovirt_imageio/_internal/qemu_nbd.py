@@ -123,7 +123,13 @@ class Server:
         # support RHEL users that have qemu-nbd 4.2.0. Add the option only on
         # qemu-nbd >= 5.2.0, and disable backing_chain=False otherwise.
         if version() >= (5, 2, 0):
-            cmd.append("--allocation-depth")
+            # qemu-nbd 6.2.0 introduced a regression, returning wrong
+            # base:allocation results on the second call when accessing raw
+            # image.  Since raw image always reports single allocation depth
+            # extent, we can safely disable it for raw images.
+            # https://lists.nongnu.org/archive/html/qemu-block/2022-01/msg00292.html
+            if self.fmt != "raw":
+                cmd.append("--allocation-depth")
         elif self.fmt == "qcow2" and not self.backing_chain:
             raise RuntimeError(
                 "backing_chain=False requires qemu-nbd >= 5.2.0")

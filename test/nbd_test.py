@@ -113,7 +113,7 @@ def test_handshake(tmpdir, export, fmt):
             assert c.maximum_block_size == 32 * 1024**2
             # Both available in in current qemu-nbd (>= 5.2.0).
             assert c.has_base_allocation
-            assert c.has_allocation_depth
+            assert c.has_allocation_depth == (fmt != "raw")
 
 
 def test_raw_read(tmpdir):
