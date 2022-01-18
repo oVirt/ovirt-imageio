@@ -1036,3 +1036,30 @@ def test_dirty_extents(tmpdir):
 
     log.debug("top image dirty extents: %s", dirty_extents)
     assert dirty_extents == expected
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_stress(srv, nbd_server, tmpdir, fmt):
+    size = 10 * 1024**2
+
+    # Create empty source and destination images.
+    src = str(tmpdir.join("src." + fmt))
+    qemu_img.create(src, fmt, size=size)
+    dst = str(tmpdir.join("dst." + fmt))
+    qemu_img.create(dst, fmt, size=size)
+
+    # Upload and download the image multiple times. This used to fail randomly
+    # when the executor closed the destination backend before it was cloned by
+    # the workers.
+
+    nbd_server.image = dst
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+
+    for i in range(20):
+        client.upload(src, url, srv.config.tls.ca_file)
+        client.download(url, src, srv.config.tls.ca_file, fmt=fmt)
+
+    nbd_server.stop()
