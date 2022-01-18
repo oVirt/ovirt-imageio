@@ -22,7 +22,7 @@ from ovirt_imageio._internal import util
 from ovirt_imageio._internal.backends import file
 from ovirt_imageio._internal.backends import image
 
-from . import storage
+from .. import storage
 
 BACKENDS = userstorage.load_config("storage.py").BACKENDS
 
