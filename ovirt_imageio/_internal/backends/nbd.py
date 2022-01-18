@@ -14,6 +14,8 @@ from .. import extent
 from .. import nbd
 from .. import nbdutil
 
+from . common import CLOSED
+
 log = logging.getLogger("backends.nbd")
 
 Error = nbd.Error
@@ -145,10 +147,10 @@ class Backend:
         return self._position
 
     def close(self):
-        if self._client is not _CLOSED:
+        if self._client is not CLOSED:
             log.info("Close backend address=%r", self._client.address)
             self._client.close()
-            self._client = _CLOSED
+            self._client = CLOSED
 
     def __enter__(self):
         return self
@@ -222,11 +224,3 @@ class Backend:
 
     def size(self):
         return self._client.export_size
-
-
-class Closed:
-    def __getattr__(self, name):
-        raise IOError("Backend was closed")
-
-
-_CLOSED = Closed()
