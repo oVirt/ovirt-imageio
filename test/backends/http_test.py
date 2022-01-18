@@ -14,13 +14,13 @@ import pytest
 
 from urllib.parse import urlparse
 
+from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import extent
 from ovirt_imageio._internal import http
 from ovirt_imageio._internal import ssl
 from ovirt_imageio._internal import uhttp
 from ovirt_imageio._internal import util
-from ovirt_imageio._internal import errors
 
-from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends.http import Backend
 
 log = logging.getLogger("test")
@@ -263,7 +263,7 @@ def test_old_daemon_open(http_server):
 
         # Client emulates extents (all non-zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), False, False)
+            extent.ZeroExtent(0, b.size(), False, False)
         ]
 
 
@@ -346,7 +346,7 @@ def test_old_proxy_open(http_server):
 
         # Client emulates extents (all non-zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), False, False)
+            extent.ZeroExtent(0, b.size(), False, False)
         ]
 
 
@@ -394,7 +394,7 @@ def test_daemon_no_unix_socket_open(http_server):
 
         # Client emulates extents (all non-zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), False, False)
+            extent.ZeroExtent(0, b.size(), False, False)
         ]
 
 
@@ -449,7 +449,7 @@ def test_daemon_bad_unix_socket_open(http_server):
 
         # Client emulates extents (all non-zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), False, False)
+            extent.ZeroExtent(0, b.size(), False, False)
         ]
 
 
@@ -464,7 +464,7 @@ def test_daemon_no_extents_open(http_server, uhttp_server):
 
         # Client emulates extents (all non-zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), False, False)
+            extent.ZeroExtent(0, b.size(), False, False)
         ]
 
 
@@ -479,7 +479,7 @@ def test_daemon_open(http_server, uhttp_server):
 
         # Client reports server extents (all zero).
         assert list(b.extents()) == [
-            image.ZeroExtent(0, b.size(), True, False)
+            extent.ZeroExtent(0, b.size(), True, False)
         ]
 
 
@@ -528,8 +528,8 @@ def test_daemon_extents_zero(http_server, uhttp_server):
     with Backend(http_server.url, http_server.cafile) as b:
         # Zero extents are available.
         assert list(b.extents()) == [
-            image.ZeroExtent(0, chunk_size, False, False),
-            image.ZeroExtent(chunk_size, chunk_size, True, False),
+            extent.ZeroExtent(0, chunk_size, False, False),
+            extent.ZeroExtent(chunk_size, chunk_size, True, False),
         ]
 
         # Dirty extents are not available.
@@ -559,11 +559,11 @@ def test_daemon_extents_dirty(http_server, uhttp_server):
     with Backend(http_server.url, http_server.cafile) as b:
         # Both "zero" and "dirty" extents are available.
         assert list(b.extents("zero")) == [
-            image.ZeroExtent(0, b.size(), True, False),
+            extent.ZeroExtent(0, b.size(), True, False),
         ]
         assert list(b.extents("dirty")) == [
-            image.DirtyExtent(0, chunk_size, True, False),
-            image.DirtyExtent(chunk_size, chunk_size, False, False),
+            extent.DirtyExtent(0, chunk_size, True, False),
+            extent.DirtyExtent(chunk_size, chunk_size, False, False),
         ]
 
 

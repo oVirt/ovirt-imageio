@@ -13,9 +13,9 @@ import pytest
 import userstorage
 
 from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import extent
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import util
-from ovirt_imageio._internal.backends import image
 from ovirt_imageio._internal.backends import nbd
 
 from .. import storage
@@ -267,10 +267,10 @@ def test_extents_zero(nbd_server, user_file, fmt):
         hole = fmt == "qcow2"
 
         assert list(b.extents()) == [
-            image.ZeroExtent(0, len(data), False, False),
-            image.ZeroExtent(len(data), 5 * 1024**3 - len(data), True, hole),
-            image.ZeroExtent(5 * 1024**3, len(data), False, False),
-            image.ZeroExtent(
+            extent.ZeroExtent(0, len(data), False, False),
+            extent.ZeroExtent(len(data), 5 * 1024**3 - len(data), True, hole),
+            extent.ZeroExtent(5 * 1024**3, len(data), False, False),
+            extent.ZeroExtent(
                 5 * 1024**3 + len(data), 1024**3 - len(data), True, hole),
         ]
 

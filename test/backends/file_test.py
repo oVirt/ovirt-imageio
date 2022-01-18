@@ -18,9 +18,9 @@ import pytest
 import userstorage
 
 from ovirt_imageio._internal import errors
+from ovirt_imageio._internal import extent
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal.backends import file
-from ovirt_imageio._internal.backends import image
 
 from .. import storage
 
@@ -620,7 +620,7 @@ def test_extents(user_file):
         # We support detecting extents now; empty file reports one data
         # extents.
         assert list(f.extents()) == [
-            image.ZeroExtent(0, size, False, False)
+            extent.ZeroExtent(0, size, False, False)
         ]
 
 

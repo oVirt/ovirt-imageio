@@ -10,7 +10,7 @@ import logging
 import os
 
 from .. import errors
-from . import image
+from .. import extent
 
 log = logging.getLogger("backends.memory")
 
@@ -152,7 +152,7 @@ class Backend:
         self._check_closed()
         # If not configured, report single data extent.
         if not self._extents and context == "zero":
-            yield image.ZeroExtent(0, self.size(), False, False)
+            yield extent.ZeroExtent(0, self.size(), False, False)
             return
 
         if context not in self._extents:
