@@ -9,18 +9,21 @@
 import logging
 import os
 
-from . import checksum
 from . import errors
-from . import extents
 from . import http
-from . import images
-from . import info
-from . import profile
 from . import ssl
 from . import stats
-from . import tickets
 from . import uhttp
 from . import util
+
+from .handlers import (
+    checksum,
+    extents,
+    images,
+    info,
+    profile,
+    tickets,
+)
 
 DEFAULT_SOCKET_MODE = 0o660
 

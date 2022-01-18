@@ -9,9 +9,9 @@
 import json
 import logging
 
-from . import errors
-from . import http
-from . import validate
+from .. import errors
+from .. import http
+from .. import validate
 
 log = logging.getLogger("tickets")
 

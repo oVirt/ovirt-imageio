@@ -9,14 +9,14 @@
 import hashlib
 import logging
 
-from . import backends
-from . import blkhash
-from . import errors
-from . import http
-from . import ioutil
-from . import ops
-from . import util
-from . import validate
+from .. import backends
+from .. import blkhash
+from .. import errors
+from .. import http
+from .. import ioutil
+from .. import ops
+from .. import util
+from .. import validate
 
 log = logging.getLogger("checksum")
 

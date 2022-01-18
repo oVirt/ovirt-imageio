@@ -26,6 +26,7 @@ setup(
         "ovirt_imageio",
         "ovirt_imageio._internal",
         "ovirt_imageio._internal.backends",
+        "ovirt_imageio._internal.handlers",
         "ovirt_imageio.client",
         "ovirt_imageio.admin",
     ],

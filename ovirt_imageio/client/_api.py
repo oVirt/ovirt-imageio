@@ -20,11 +20,11 @@ from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from .. _internal import blkhash
-from .. _internal import checksum as _checksum
 from .. _internal import io
 from .. _internal import qemu_img
 from .. _internal import qemu_nbd
 from .. _internal.backends import http, nbd
+from .. _internal.handlers import checksum as _checksum
 from .. _internal.nbd import UnixAddress
 
 log = logging.getLogger("client")
