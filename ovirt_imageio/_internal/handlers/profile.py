@@ -14,8 +14,8 @@ try:
 except ImportError:
     yappi = None
 
-from . import http
-from . import validate
+from .. import http
+from .. import validate
 
 log = logging.getLogger("profile")
 lock = threading.Lock()

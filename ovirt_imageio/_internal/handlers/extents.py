@@ -8,10 +8,10 @@
 
 import logging
 
-from . import backends
-from . import errors
-from . import http
-from . import validate
+from .. import backends
+from .. import errors
+from .. import http
+from .. import validate
 
 log = logging.getLogger("extents")
 

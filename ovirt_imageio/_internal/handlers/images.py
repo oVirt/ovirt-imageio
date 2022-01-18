@@ -9,12 +9,12 @@
 import json
 import logging
 
-from . import backends
-from . import cors
-from . import errors
-from . import http
-from . import ops
-from . import validate
+from .. import backends
+from .. import cors
+from .. import errors
+from .. import http
+from .. import ops
+from .. import validate
 
 log = logging.getLogger("images")
 
