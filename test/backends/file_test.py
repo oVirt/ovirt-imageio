@@ -91,6 +91,30 @@ def test_open_no_create(mode):
     assert e.value.errno == errno.ENOENT
 
 
+def test_close(tmpurl):
+    with file.open(tmpurl, "r+") as b:
+        pass
+
+    # Closing twice does nothing.
+    b.close()
+
+    # But other oprations should fail.
+    error = "Operation on closed backend"
+
+    with closing(util.aligned_buffer(4096)) as buf:
+        with pytest.raises(ValueError) as e:
+            b.write(buf)
+        assert str(e.value) == error
+
+        with pytest.raises(ValueError) as e:
+            b.seek(0)
+        assert str(e.value) == error
+
+        with pytest.raises(ValueError):
+            b.readinto(buf)
+        assert str(e.value) == error
+
+
 @pytest.mark.parametrize("size", [511, 4097])
 def test_block_size_sparse(user_file, size):
     with io.open(user_file.path, "wb") as f:

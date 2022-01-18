@@ -18,6 +18,8 @@ from .. import extent
 from .. import ioutil
 from .. import util
 
+from . common import CLOSED
+
 log = logging.getLogger("backends.file")
 
 
@@ -109,13 +111,13 @@ class Backend:
             log.exception("Error closing")
 
     def close(self):
-        if self._fio:
+        if self._fio is not CLOSED:
             log.info("Close backend path=%r dirty=%r",
                      self._fio.name, self._dirty)
             try:
                 self._fio.close()
             finally:
-                self._fio = None
+                self._fio = CLOSED
 
     # Backend interface.
 
