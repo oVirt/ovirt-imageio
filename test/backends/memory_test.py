@@ -11,7 +11,7 @@ import pytest
 from urllib.parse import urlparse
 
 from ovirt_imageio._internal import errors
-from ovirt_imageio._internal.backends import image
+from ovirt_imageio._internal import extent
 from ovirt_imageio._internal.backends import memory
 
 
@@ -227,7 +227,7 @@ def test_size():
 
 def test_extents():
     m = memory.Backend(data=bytearray(b"data"))
-    assert list(m.extents()) == [image.ZeroExtent(0, 4, False, False)]
+    assert list(m.extents()) == [extent.ZeroExtent(0, 4, False, False)]
 
 
 def test_extents_dirty():
@@ -239,12 +239,12 @@ def test_extents_dirty():
 def test_user_extents():
     extents = {
         "zero": [
-            image.ZeroExtent(0, 32, False, False),
-            image.ZeroExtent(0, 32, True, False),
+            extent.ZeroExtent(0, 32, False, False),
+            extent.ZeroExtent(0, 32, True, False),
         ],
         "dirty": [
-            image.DirtyExtent(0, 16, True, False),
-            image.DirtyExtent(0, 48, False, False),
+            extent.DirtyExtent(0, 16, True, False),
+            extent.DirtyExtent(0, 48, False, False),
         ]
     }
     data = b"a" * 32 + b"\0" * 32

@@ -11,10 +11,11 @@ import pytest
 
 from urllib.parse import urlparse
 
+from ovirt_imageio._internal import extent
+from ovirt_imageio._internal import io
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
-from ovirt_imageio._internal import io
-from ovirt_imageio._internal.backends import nbd, memory, image
+from ovirt_imageio._internal.backends import nbd, memory
 from ovirt_imageio._internal.nbd import UnixAddress
 
 ZERO_PARAMS = [
@@ -255,7 +256,7 @@ class FailingBackend:
         return 10 * 1024**3
 
     def extents(self, ctx="zero"):
-        return [image.ZeroExtent(0, self.size(), False, False)]
+        return [extent.ZeroExtent(0, self.size(), False, False)]
 
     def readinto(self, buf):
         time.sleep(self.delay)
@@ -324,13 +325,13 @@ def create_zero_extents(fmt):
     for c in fmt:
         if c == "0":
             extents.append(
-                image.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=False))
+                extent.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=False))
         elif c == "-":
             extents.append(
-                image.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=True))
+                extent.ZeroExtent(offset, CHUNK_SIZE, zero=True, hole=True))
         else:
             extents.append(
-                image.ZeroExtent(offset, CHUNK_SIZE, zero=False, hole=False))
+                extent.ZeroExtent(offset, CHUNK_SIZE, zero=False, hole=False))
         offset += CHUNK_SIZE
 
     return extents
@@ -350,7 +351,7 @@ def create_dirty_extents(fmt):
 
     for c in fmt:
         extents.append(
-            image.DirtyExtent(
+            extent.DirtyExtent(
                 offset, CHUNK_SIZE, dirty=c.isupper(), zero=False))
         offset += CHUNK_SIZE
 

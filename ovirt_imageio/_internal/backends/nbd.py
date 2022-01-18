@@ -10,10 +10,9 @@ import logging
 import os
 
 from .. import errors
+from .. import extent
 from .. import nbd
 from .. import nbdutil
-
-from . import image
 
 log = logging.getLogger("backends.nbd")
 
@@ -171,7 +170,7 @@ class Backend:
         # If server does not support base:allocation, we can safely report one
         # data extent like other backends.
         if context == "zero" and not self._client.has_base_allocation:
-            yield image.ZeroExtent(0, self._client.export_size, False, False)
+            yield extent.ZeroExtent(0, self._client.export_size, False, False)
             return
 
         # If dirty extents are not available, client may be able to use zero
@@ -185,9 +184,11 @@ class Backend:
         start = 0
         for ext in nbdutil.extents(self._client, dirty=dirty):
             if dirty:
-                yield image.DirtyExtent(start, ext.length, ext.dirty, ext.zero)
+                yield extent.DirtyExtent(
+                    start, ext.length, ext.dirty, ext.zero)
             else:
-                yield image.ZeroExtent(start, ext.length, ext.zero, ext.hole)
+                yield extent.ZeroExtent(
+                    start, ext.length, ext.zero, ext.hole)
             start += ext.length
 
     @property

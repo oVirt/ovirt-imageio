@@ -21,7 +21,7 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
 
-from ovirt_imageio._internal.backends.image import ZeroExtent, DirtyExtent
+from ovirt_imageio._internal.extent import ZeroExtent, DirtyExtent
 
 from . import testutil
 from . import ci

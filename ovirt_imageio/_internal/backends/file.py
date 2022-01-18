@@ -14,10 +14,9 @@ import stat
 from contextlib import closing
 
 from .. import errors
+from .. import extent
 from .. import ioutil
 from .. import util
-
-from . import image
 
 log = logging.getLogger("backends.file")
 
@@ -156,7 +155,7 @@ class Backend:
                 .format(self.name, context))
 
         # TODO: Use qemu-img map to get extents.
-        yield image.ZeroExtent(0, self.size(), False, False)
+        yield extent.ZeroExtent(0, self.size(), False, False)
 
     # Debugging interface
 

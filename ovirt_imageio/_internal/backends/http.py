@@ -17,8 +17,8 @@ import socket
 import ssl
 
 from .. import errors
+from .. import extent
 from .. import http
-from . import image
 
 log = logging.getLogger("backends.http")
 
@@ -296,7 +296,7 @@ class Backend:
 
         if not self._can_extents:
             if context == "zero":
-                yield image.ZeroExtent(0, self.size(), False, False)
+                yield extent.ZeroExtent(0, self.size(), False, False)
                 return
             else:
                 raise errors.UnsupportedOperation(
@@ -512,7 +512,7 @@ class Backend:
 
         extents = json.loads(data.decode("utf-8"))
 
-        cls = image.ZeroExtent if context == "zero" else image.DirtyExtent
+        cls = extent.ZeroExtent if context == "zero" else extent.DirtyExtent
         for ext in extents:
             yield cls.from_dict(ext)
 
