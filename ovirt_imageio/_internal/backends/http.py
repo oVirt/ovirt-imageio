@@ -20,6 +20,8 @@ from .. import errors
 from .. import extent
 from .. import http
 
+from . common import CLOSED
+
 log = logging.getLogger("backends.http")
 
 
@@ -65,7 +67,7 @@ class Backend:
 
         # Initlized during connection.
         self._context = None
-        self._con = None
+        self._con = CLOSED
         self._can_extents = False
         self._can_zero = False
         self._can_flush = False
@@ -133,6 +135,7 @@ class Backend:
             self._optimize_connection(options.get("unix_socket"))
         except Exception:
             self._con.close()
+            self._con = CLOSED
             raise
 
     @property
@@ -335,9 +338,11 @@ class Backend:
         return self._size
 
     def close(self):
-        log.info("Close backend netloc=%r path=%r",
-                 self.url.netloc, self.url.path)
-        self._con.close()
+        if self._con is not CLOSED:
+            log.info("Close backend netloc=%r path=%r",
+                     self.url.netloc, self.url.path)
+            self._con.close()
+            self._con = CLOSED
 
     def __enter__(self):
         return self

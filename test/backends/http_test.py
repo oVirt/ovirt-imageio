@@ -483,6 +483,27 @@ def test_daemon_open(http_server, uhttp_server):
         ]
 
 
+def test_daemon_close(http_server, uhttp_server):
+    Daemon(http_server, uhttp_server)
+    with Backend(http_server.url, http_server.cafile) as b:
+        pass
+
+    # Closing twice does nothing.
+    b.close()
+
+    # But other operations should fail.
+    error = "Operation on closed backend"
+
+    buf = bytearray(4096)
+    with pytest.raises(ValueError) as e:
+        b.write(buf)
+    assert str(e.value) == error
+
+    with pytest.raises(ValueError) as e:
+        b.readinto(buf)
+    assert str(e.value) == error
+
+
 def test_daemon_open_insecure(http_server, uhttp_server):
     Daemon(http_server, uhttp_server)
     with Backend(http_server.url, None, secure=False) as b:
