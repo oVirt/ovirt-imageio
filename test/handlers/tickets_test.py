@@ -17,8 +17,8 @@ from ovirt_imageio._internal import server
 from ovirt_imageio._internal import util
 from ovirt_imageio._internal.handlers import tickets
 
-from . import testutil
-from . import http
+from .. import testutil
+from .. import http
 
 
 @pytest.fixture(

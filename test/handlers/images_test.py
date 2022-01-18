@@ -16,8 +16,8 @@ import pytest
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import server
 
-from . import testutil
-from . import http
+from .. import testutil
+from .. import http
 
 # Exceptions raised when peer closed the connection and auto_open is disabled.
 # Raised in request() or in getresponse(), depends on timing.

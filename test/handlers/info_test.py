@@ -14,7 +14,7 @@ from ovirt_imageio._internal import config
 from ovirt_imageio._internal import server
 from ovirt_imageio._internal import version
 
-from . import http
+from .. import http
 
 
 @pytest.fixture(scope="module")
