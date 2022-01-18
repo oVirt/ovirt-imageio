@@ -188,20 +188,24 @@ def test_close(nbd_server):
     # Closing twice does not do anything.
     b.close()
 
-    # But other operations should fail now with:
-    #     socket.error: Bad file descriptor
-    with pytest.raises(IOError):
+    # But other operations should fail.
+    error = "Operation on closed backend"
+
+    with pytest.raises(ValueError) as e:
         b.write("more")
-    with pytest.raises(IOError):
+    assert str(e.value) == error
+
+    with pytest.raises(ValueError) as e:
         with closing(util.aligned_buffer(100)) as buf:
             b.readinto(buf)
+    assert str(e.value) == error
 
 
 def test_context_manager(nbd_server):
     nbd_server.start()
     with nbd.open(nbd_server.url, "r+") as b:
         b.write(b"data")
-    with pytest.raises(IOError):
+    with pytest.raises(ValueError):
         b.write("more")
 
 
