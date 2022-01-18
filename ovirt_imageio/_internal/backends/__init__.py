@@ -12,6 +12,7 @@ from functools import partial
 from .. import errors
 from .. import util
 
+from . common import CLOSED
 from . import file
 from . import http
 from . import nbd
@@ -50,14 +51,14 @@ class Closer:
 
 class Wrapper:
     """
-    Use to lend a backend without closing the wrapped backend.
+    Used to lend a backend without closing the wrapped backend.
     """
 
     def __init__(self, backend):
         self._backend = backend
 
     def close(self):
-        self._backend = None
+        self._backend = CLOSED
 
     def __enter__(self):
         return self
