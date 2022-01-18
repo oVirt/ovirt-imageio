@@ -19,9 +19,9 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import server
 
-from . import testutil
-from . import http
-from . import storage
+from .. import testutil
+from .. import http
+from .. import storage
 
 BACKENDS = userstorage.load_config("storage.py").BACKENDS
 ALGORITHMS = frozenset(hashlib.algorithms_available)
