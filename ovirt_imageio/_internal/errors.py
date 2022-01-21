@@ -50,11 +50,11 @@ class AuthorizationError(Error):
         self.reason = reason
 
 
-class TicketCancelTimeout(Error):
-    msg = "Timeout cancelling ticket {self.ticket_id}"
+class TransferCancelTimeout(Error):
+    msg = "Timeout cancelling transfer {self.transfer_id}"
 
-    def __init__(self, ticket_id):
-        self.ticket_id = ticket_id
+    def __init__(self, transfer_id):
+        self.transfer_id = transfer_id
 
 
 class UnsupportedOperation(Error):

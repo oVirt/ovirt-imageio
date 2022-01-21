@@ -405,7 +405,7 @@ def test_cancel_timeout(cfg):
     ticket._add_operation(Operation(0, 100))
 
     # Canceling will time out.
-    with pytest.raises(errors.TicketCancelTimeout):
+    with pytest.raises(errors.TransferCancelTimeout):
         ticket.cancel(timeout=0.001)
 
     # Ticket is marked as canceled, but the context was not closed.
@@ -660,7 +660,7 @@ def test_authorizer_remove_timeout(cfg):
     cfg.control.remove_timeout = 0.001
 
     # Ticket cannot be removed since it is used by connection 1.
-    with pytest.raises(errors.TicketCancelTimeout):
+    with pytest.raises(errors.TransferCancelTimeout):
         auth.remove(ticket.uuid)
 
     # Ticket was not removed.

@@ -36,7 +36,7 @@ class Handler:
                 http.NOT_FOUND, "No such ticket {!r}".format(ticket_id))
 
         ticket_info = ticket.info()
-        log.debug("[%s] GET ticket=%s", req.client_addr, ticket_info)
+        log.debug("[%s] GET transfer=%s", req.client_addr, ticket.transfer_id)
         resp.send_json(ticket_info)
 
     def put(self, req, resp, ticket_id):
@@ -52,7 +52,7 @@ class Handler:
                 http.BAD_REQUEST,
                 "Ticket is not in a json format: {}".format(e))
 
-        log.info("[%s] ADD ticket=%s", req.client_addr, ticket_dict)
+        log.info("[%s] ADD transfer=%s", req.client_addr, ticket_dict)
         try:
             self.auth.add(ticket_dict)
         except errors.InvalidTicket as e:
@@ -79,8 +79,8 @@ class Handler:
             raise http.Error(
                 http.NOT_FOUND, "No such ticket: {}".format(ticket_id))
 
-        log.info("[%s] EXTEND timeout=%s ticket=%s",
-                 req.client_addr, timeout, ticket_id)
+        log.info("[%s] EXTEND timeout=%s transfer=%s",
+                 req.client_addr, timeout, ticket.transfer_id)
         ticket.extend(timeout)
 
     def delete(self, req, resp, ticket_id):
@@ -91,17 +91,24 @@ class Handler:
         requests in case of network failures. See
         https://tools.ietf.org/html/rfc7231#section-4.2.2.
         """
-        log.info("[%s] REMOVE ticket=%s", req.client_addr, ticket_id)
-
         if ticket_id:
             try:
-                self.auth.remove(ticket_id)
-            except errors.TicketCancelTimeout as e:
-                # The ticket is still used by some connection so we cannot
-                # remove it. The caller can retry the call again when the
-                # number connections reach zero.
-                raise http.Error(http.CONFLICT, str(e))
+                ticket = self.auth.get(ticket_id)
+            except KeyError:
+                # Ticket was already deleted.
+                log.info("[%s] REMOVE transfer=(deleted)", req.client_addr)
+            else:
+                log.info("[%s] REMOVE transfer=%s",
+                         req.client_addr, ticket.transfer_id)
+                try:
+                    self.auth.remove(ticket_id)
+                except errors.TicketCancelTimeout as e:
+                    # The ticket is still used by some connection so we cannot
+                    # remove it. The caller can retry the call again when the
+                    # number connections reach zero.
+                    raise http.Error(http.CONFLICT, str(e))
         else:
+            log.info("[%s] REMOVE all tickets", req.client_addr)
             self.auth.clear()
 
         resp.status_code = http.NO_CONTENT

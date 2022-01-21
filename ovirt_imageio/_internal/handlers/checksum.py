@@ -69,8 +69,8 @@ class Checksum:
         except errors.AuthorizationError as e:
             raise http.Error(http.FORBIDDEN, str(e))
 
-        log.info("[%s] CHECKSUM ticket=%s algorithm=%s block_size=%s",
-                 req.client_addr, ticket_id, algorithm, block_size)
+        log.info("[%s] CHECKSUM transfer=%s algorithm=%s block_size=%s",
+                 req.client_addr, ticket.transfer_id, algorithm, block_size)
 
         # For simplicity we create a new buffer even if block_size is same as
         # ctx.buffer length.

@@ -43,8 +43,8 @@ class Handler:
             raise http.Error(
                 http.NOT_FOUND, "Ticket does not support dirty extents")
 
-        log.info("[%s] EXTENTS ticket=%s context=%s",
-                 req.client_addr, ticket_id, context)
+        log.info("[%s] EXTENTS transfer=%s context=%s",
+                 req.client_addr, ticket.transfer_id, context)
 
         with req.clock.run("extents"):
             try:

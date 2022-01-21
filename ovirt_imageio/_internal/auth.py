@@ -151,10 +151,10 @@ class Ticket:
         with self._lock:
             if self._canceled:
                 raise errors.AuthorizationError(
-                    "Ticket {} was canceled".format(self.uuid))
+                    "Transfer {} was canceled".format(self.transfer_id))
 
-            log.debug("Adding connection %s context to ticket %s",
-                      con_id, self.uuid)
+            log.debug("Adding connection %s context to transfer %s",
+                      con_id, self.transfer_id)
             self._connections[con_id] = context
 
     def get_context(self, con_id):
@@ -167,8 +167,8 @@ class Ticket:
             except KeyError:
                 return
 
-            log.debug("Removing connection %s context from ticket %s",
-                      con_id, self.uuid)
+            log.debug("Removing connection %s context from transfer %s",
+                      con_id, self.transfer_id)
             context.close()
 
             # If context was closed, it is safe to remove it.
@@ -200,12 +200,12 @@ class Ticket:
         with self._lock:
             if self._canceled:
                 raise errors.AuthorizationError(
-                    "Ticket {} was canceled".format(self.uuid))
+                    "Transfer {} was canceled".format(self.transfer_id))
 
             # If this is the first ongoing operation, clear the unused event.
             if not self._ongoing:
-                log.debug("Adding first ongoring operation for ticket %s",
-                          self.uuid)
+                log.debug("Adding first ongoring operation for transfer %s",
+                          self.transfer_id)
                 self._unused.clear()
 
             self._ongoing.add(op)
@@ -217,13 +217,13 @@ class Ticket:
             # If this was the last ongoing operation, wake up caller waiting on
             # cancel().
             if not self._ongoing:
-                log.debug("Removed last ongoring operation for ticket %s",
-                          self.uuid)
+                log.debug("Removed last ongoring operation for transfer %s",
+                          self.transfer_id)
                 self._unused.set()
 
             if self._canceled:
                 raise errors.AuthorizationError(
-                    "Ticket {} was canceled".format(self.uuid))
+                    "Transfer {} was canceled".format(self.transfer_id))
 
             r = measure.Range(op.offset, op.offset + op.done)
             bisect.insort(self._completed, r)
@@ -306,7 +306,7 @@ class Ticket:
             errors.TicketCancelTimeout if timeout is non-zero and the ticket is
             still used when the timeout expires.
         """
-        log.debug("Cancelling ticket %s", self.uuid)
+        log.debug("Cancelling transfer %s", self.transfer_id)
 
         with self._lock:
             # No operation can start now, and new connections cannot be added
@@ -318,10 +318,11 @@ class Ticket:
                 # connections - release their resources.
                 for ctx in self._connections.values():
                     ctx.close()
-                log.debug("Ticket %s was canceled", self.uuid)
+                log.debug("Transfer %s was canceled", self.transfer_id)
                 return True
 
-            log.debug("Canceling ticket %s ongoing operations", self.uuid)
+            log.debug("Canceling transfer %s ongoing operations",
+                      self.transfer_id)
             # Cancel ongoing operations. This speeds up cancellation when
             # streaming lot of data. Operations will be canceled once they
             # complete the current I/O.
@@ -329,10 +330,10 @@ class Ticket:
                 op.cancel()
 
         if timeout:
-            log.info("Waiting until ticket %s ongoing operations finish",
-                     self.uuid)
+            log.info("Waiting until transfer %s ongoing operations finish",
+                     self.transfer_id)
             if not self._unused.wait(timeout):
-                raise errors.TicketCancelTimeout(self.uuid)
+                raise errors.TransferCancelTimeout(self.transfer_id)
 
             # Finished ongoing operations discover that the ticket was canceled
             # and close the connection. We need to release resources used by
@@ -341,7 +342,7 @@ class Ticket:
                 for ctx in self._connections.values():
                     ctx.close()
 
-            log.info("Ticket %s was canceled", self.uuid)
+            log.info("Transfer %s was canceled", self.transfer_id)
             return True
 
         # The caller need to wait until ongoing operations finish by polling
@@ -419,8 +420,8 @@ class Authorizer:
             return
 
         # Cancel the ticket and wait until the ticket is unused. Will raise
-        # errors.TicketCancelTimeout if the ticket could not be canceled within
-        # the timeout.
+        # errors.TransferCancelTimeout if the ticket could not be canceled
+        # within the timeout.
         if ticket.cancel(self._config.control.remove_timeout):
             # Ticket is unused now, so it is safe to remove it.
             del self._tickets[ticket_id]
@@ -439,23 +440,24 @@ class Authorizer:
         """
         Authorizing a ticket operation
         """
-        log.debug("AUTH op=%s ticket=%s", op, ticket_id)
         try:
             ticket = self._tickets[ticket_id]
         except KeyError:
             raise errors.AuthorizationError(
                 "No such ticket {}".format(ticket_id))
 
+        log.debug("AUTH op=%s transfer=%s", op, ticket.transfer_id)
+
         if ticket.canceled:
             raise errors.AuthorizationError(
-                "Ticket {} was canceled".format(ticket_id))
+                "Transfer={} was canceled".format(ticket.transfer_id))
 
         if ticket.expires <= util.monotonic_time():
             raise errors.AuthorizationError(
-                "Ticket {} expired".format(ticket_id))
+                "Transfer={} expired".format(ticket.transfer_id))
 
         if not ticket.may(op):
             raise errors.AuthorizationError(
-                "Ticket {} forbids {}".format(ticket_id, op))
+                "Transfer={} forbids {}".format(ticket.transfer_id, op))
 
         return ticket
