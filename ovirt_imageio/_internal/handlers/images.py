@@ -62,8 +62,8 @@ class Handler:
         validate.allowed_range(offset, size, ticket)
 
         log.debug(
-            "[%s] WRITE size=%d offset=%d flush=%s close=%s ticket=%s",
-            req.client_addr, size, offset, flush, close, ticket_id)
+            "[%s] WRITE size=%d offset=%d flush=%s close=%s transfer=%s",
+            req.client_addr, size, offset, flush, close, ticket.transfer_id)
 
         op = ops.Write(
             ctx.backend,
@@ -121,8 +121,8 @@ class Handler:
             size = min(ticket.size, ctx.backend.size()) - offset
 
         log.debug(
-            "[%s] READ size=%d offset=%d close=%s ticket=%s",
-            req.client_addr, size, offset, close, ticket_id)
+            "[%s] READ size=%d offset=%d close=%s transfer=%s",
+            req.client_addr, size, offset, close, ticket.transfer_id)
 
         content_disposition = "attachment"
         if ticket.filename:
@@ -187,8 +187,8 @@ class Handler:
         validate.allowed_range(offset, size, ticket)
 
         log.debug(
-            "[%s] ZERO size=%d offset=%d flush=%s ticket=%s",
-            req.client_addr, size, offset, flush, ticket_id)
+            "[%s] ZERO size=%d offset=%d flush=%s transfer=%s",
+            req.client_addr, size, offset, flush, ticket.transfer_id)
 
         op = ops.Zero(
             ctx.backend,
@@ -213,7 +213,8 @@ class Handler:
             resp.close_connection()
             raise http.Error(http.FORBIDDEN, str(e))
 
-        log.info("[%s] FLUSH ticket=%s", req.client_addr, ticket_id)
+        log.info("[%s] FLUSH transfer=%s",
+                 req.client_addr, ticket.transfer_id)
 
         op = ops.Flush(ctx.backend, clock=req.clock)
 
@@ -228,14 +229,13 @@ class Handler:
         if not ticket_id:
             raise http.Error(http.BAD_REQUEST, "Ticket id is required")
 
-        log.info("[%s] OPTIONS ticket=%s", req.client_addr, ticket_id)
-
         options = {}
 
         if self.config.local.enable:
             options["unix_socket"] = self.config.local.socket
 
         if ticket_id == "*":
+            log.info("[%s] OPTIONS transfer=*", req.client_addr)
             # Reporting the meta-capabilities for all images.
             allow = ["OPTIONS", "GET", "PUT", "PATCH"]
             options["features"] = ALL_FEATURES
@@ -247,6 +247,9 @@ class Handler:
             except errors.AuthorizationError as e:
                 resp.close_connection()
                 raise http.Error(http.FORBIDDEN, str(e))
+
+            log.info("[%s] OPTIONS transfer=%s",
+                     req.client_addr, ticket.transfer_id)
 
             # Accessing ticket options considered as client activity.
             ticket.touch()
