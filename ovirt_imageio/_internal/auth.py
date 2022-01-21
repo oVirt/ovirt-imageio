@@ -51,6 +51,12 @@ class Ticket:
                 "Unsupported url scheme: %s" % self._url.scheme)
 
         self._transfer_id = _optional(ticket_dict, "transfer_id", str)
+
+        # Engine before 4.2.7 did not pass the transfer id. Generate a likey
+        # unique value from the first half of the uuid.
+        if self._transfer_id is None:
+            self._transfer_id = f"(ticket/{self._uuid[:18]})"
+
         self._filename = _optional(ticket_dict, "filename", str)
         self._sparse = _optional(ticket_dict, "sparse", bool, default=False)
         self._dirty = _optional(ticket_dict, "dirty", bool, default=False)

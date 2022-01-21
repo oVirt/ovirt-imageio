@@ -54,7 +54,7 @@ def test_no_method(srv):
 
 def test_get(srv, fake_time):
     ticket = testutil.create_ticket(
-        ops=["read"], sparse=False, dirty=False, transfer_id="123")
+        ops=["read"], sparse=False, dirty=False)
     srv.auth.add(ticket)
     fake_time.now += 200
     with http.ControlClient(srv.config) as c:

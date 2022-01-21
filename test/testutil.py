@@ -46,9 +46,8 @@ def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
         "ops": ["read", "write"] if ops is None else ops,
         "size": size,
         "url": url,
+        "transfer_id": transfer_id or str(uuid4()),
     }
-    if transfer_id is not None:
-        d["transfer_id"] = transfer_id
     if filename is not None:
         d["filename"] = filename
     if sparse is not None:
