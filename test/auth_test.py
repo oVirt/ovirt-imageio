@@ -324,8 +324,10 @@ def test_dirty(cfg):
 
 
 def test_transfer_id_unset(cfg):
-    ticket = Ticket(testutil.create_ticket(), cfg)
-    assert ticket.transfer_id is None
+    d = testutil.create_ticket()
+    del d["transfer_id"]
+    ticket = Ticket(d, cfg)
+    assert ticket.transfer_id == f"(ticket/{ticket.uuid[:18]})"
 
 
 def test_transfer_id(cfg):
