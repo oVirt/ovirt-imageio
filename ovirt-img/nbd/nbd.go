@@ -144,10 +144,8 @@ func (b *Backend) blockStatus(offset, length uint64) ([]uint32, error) {
 	var result []uint32
 
 	cb := func(metacontext string, offset uint64, e []uint32, error *int) int {
-		if *error != 0 {
-			panic("expected *error == 0")
-		}
-		if metacontext == "base:allocation" {
+		// blockStatus() will fail on non zero *error.
+		if metacontext == "base:allocation" && *error == 0 {
 			result = e
 		}
 		return 0
