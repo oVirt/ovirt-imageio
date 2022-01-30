@@ -151,8 +151,9 @@ func (b *Backend) blockStatus(offset, length uint64) ([]uint32, error) {
 		return 0
 	}
 
-	// BlockStatus may fail randomly, looks like bug in libnbd.
-	// https://listman.redhat.com/archives/libguestfs/2021-October/msg00113.html
+	// BlockStatus may fail randomly with EINTR. Fixed in libnbd 1.10.2
+	// https://gitlab.com/nbdkit/libnbd/-/commit/48136328150bc587178091b5766bda382158cb6c
+	// TODO remove when we require libnbd >= 1.10.2.
 	for {
 		err := b.h.BlockStatus(length, offset, cb, nil)
 		if err == nil {
