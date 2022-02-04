@@ -340,31 +340,31 @@ def test_run_benchmark(cfg, workers, client_class):
 
 
 @pytest.mark.benchmark
-@pytest.mark.parametrize("concurrent", [1, 2, 4, 8])
-def test_transferred_benchmark(concurrent, cfg):
+@pytest.mark.parametrize("workers", [1, 2, 4, 8])
+def test_transferred_benchmark(cfg, workers):
     # Time trransferred call with multiple ongoing and completed operations.
     ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
 
-    calls = 10000
+    ops = 10000
 
     # Add some completed ranges - assume worst case when ranges are not
     # continues.
-    for i in range(concurrent):
+    for i in range(workers):
         ticket.run(Operation(i * 1000, 100))
 
     # Add some ongoing operations - assume worst case when ranges are not
     # continues.
-    for i in range(concurrent):
+    for i in range(workers):
         ticket._add_operation(Operation(i * 1000 + 200, 100))
 
     # Time transferred call - merging ongoing and completed ranges.
     start = time.monotonic()
-    for i in range(calls):
+    for i in range(ops):
         ticket.transferred()
     elapsed = time.monotonic() - start
 
-    print("%d concurrent operations, %d calls in %.3f seconds (%d nsec/op)"
-          % (concurrent, calls, elapsed, elapsed * 10**9 // calls))
+    print("%d workers, %d ops, %.3f s, %.2f ops/s"
+          % (workers, ops, elapsed, ops / elapsed))
 
 
 @pytest.mark.parametrize("arg", [
