@@ -6,6 +6,8 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import itertools
+import logging
 import time
 
 import pytest
@@ -19,6 +21,8 @@ from ovirt_imageio._internal.auth import Ticket, Authorizer
 from test import testutil
 
 CHUNK_SIZE = 8 * 1024**2
+
+log = logging.getLogger("test")
 
 
 class Context:
@@ -208,35 +212,131 @@ def test_transfered_ongoing_non_continues_ops(cfg):
     assert ticket.transferred() == 200
 
 
+class Client:
+
+    name = "client"
+    workers = 1
+    io_size = 2 * 1024**2
+
+    def run(self):
+        start = time.monotonic()
+        threads = []
+        try:
+            for i in range(self.workers):
+                t = util.start_thread(self._worker, name=f"{self.name}/{i}")
+                threads.append(t)
+        finally:
+            for t in threads:
+                t.join()
+        return time.monotonic() - start
+
+    def _worker(self):
+        raise NotImplementedError
+
+
+class Nbdcopy(Client):
+    """
+    Simulate nbdcopy client calls.
+
+    The image is split to 128 MiB segments, and each worker sends one segment
+    at a time to the server.
+
+    Because very worker is sending to a different area, completed ranges are
+    always non-continuous, until the segment is completed.
+
+    worker 1:  [=====-      ]
+    worker 2:               [=====-      ]
+    worker 3:                            [=====-      ]
+    worker 4:                                         [=====-      ]
+
+    completed: [=====        =====        =====        =====       ]
+    ongoing:   [     -            -            -            -      ]
+    """
+
+    name = "nbdcopy"
+    segment_size = 128 * 1024**2
+
+    def __init__(self, ticket, workers):
+        assert (ticket.size % self.segment_size) == 0
+        self.ticket = ticket
+        self.image_size = ticket.size
+        self.segment_count = self.image_size // self.segment_size
+        self.workers = min(workers, self.segment_count)
+        self.segment_counter = itertools.count()
+
+    def _worker(self):
+        for segment in iter(self._next_segment, None):
+            offset = segment * self.segment_size
+            log.info("Transferring segment %d offset %d", segment, offset)
+            end = offset + self.segment_size
+            while offset < end:
+                self.ticket.run(Operation(offset, self.io_size))
+                offset += self.io_size
+
+    def _next_segment(self):
+        n = next(self.segment_counter)
+        if n < self.segment_count:
+            return n
+
+
+class Imageio(Client):
+    """
+    Simulate imageio client calls.
+
+    Workers read extents from a queue and send requests to the server.
+
+    Because all threads are sending to same area, operations are more likely to
+    be consecutive, and merged immediately with the previous requests.
+
+    worker 1:  [==      ==      --                                    ]
+    worker 2:  [  ==      ==      --                                  ]
+    worker 3:  [    ==      ==      --                                ]
+    worker 4:  [      ==      ==      --                              ]
+
+    completed: [================                                      ]
+    ongoing:   [                --------                              ]
+    """
+
+    name = "imageio"
+
+    def __init__(self, ticket, workers):
+        assert (ticket.size % self.io_size) == 0
+        self.ticket = ticket
+        self.image_size = ticket.size
+        self.workers = workers
+        self.request_count = self.image_size // self.io_size
+        self.request_counter = itertools.count()
+
+    def _worker(self):
+        for request in iter(self._next_request, None):
+            offset = request * self.io_size
+            self.ticket.run(Operation(offset, self.io_size))
+
+    def _next_request(self):
+        n = next(self.request_counter)
+        if n < self.request_count:
+            return n
+
+
 @pytest.mark.benchmark
-def test_run_operation_benchmark(cfg):
-    # Run 1000000 operations with 4 concurrent threads.
-    ticket = Ticket(testutil.create_ticket(ops=["read"]), cfg)
-    operations = 10**6
-    workers = 4
-    chunk = 10**9
-    step = chunk * workers // operations
+@pytest.mark.parametrize("workers", [1, 2, 4, 8])
+@pytest.mark.parametrize("client_class", [Nbdcopy, Imageio],
+                         ids=lambda x: x.name)
+def test_run_benchmark(cfg, workers, client_class):
+    ticket = Ticket(
+        testutil.create_ticket(
+            size=50 * 1024**3,
+            ops=["read"]),
+        cfg)
 
-    def worker(offset, size):
-        while offset < size:
-            ticket.run(Operation(offset, step))
-            offset += step
+    client = client_class(ticket, workers)
 
-    start = time.monotonic()
+    elapsed = client.run()
+    assert ticket.transferred() == ticket.size
 
-    threads = []
-    try:
-        for i in range(workers):
-            t = util.start_thread(worker, args=(i * chunk, chunk))
-            threads.append(t)
-    finally:
-        for t in threads:
-            t.join()
-
-    elapsed = time.monotonic() - start
-
-    print("%d operations, %d concurrent threads in %.3f seconds (%d nsec/op)"
-          % (operations, workers, elapsed, elapsed * 10**9 // operations))
+    ops = ticket.size // client.io_size
+    print("%d workers, %d ops, %.3f s, %.2f ops/s"
+          % (client.workers, ops, elapsed, ops / elapsed))
 
 
 @pytest.mark.benchmark
