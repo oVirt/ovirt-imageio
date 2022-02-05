@@ -6,7 +6,6 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
-import bisect
 import logging
 import threading
 import urllib.parse as urllib_parse
@@ -68,7 +67,7 @@ class Ticket:
         self._ongoing = set()
 
         # Ranges transferred by completed operations.
-        self._completed = []
+        self._completed = measure.RangeList()
 
         # Set to true when a ticket is canceled. Once canceled, all operations
         # on this ticket will raise errors.AuthorizationError.
@@ -226,8 +225,7 @@ class Ticket:
                     "Transfer {} was canceled".format(self.transfer_id))
 
             r = measure.Range(op.offset, op.offset + op.done)
-            bisect.insort(self._completed, r)
-            self._completed = measure.merge_ranges(self._completed)
+            self._completed.add(r)
 
         self.touch()
 
@@ -244,14 +242,12 @@ class Ticket:
 
         with self._lock:
             # NOTE: this must not modify the ticket state.
-            completed = [measure.Range(r.start, r.end)
-                         for r in self._completed]
+            completed = measure.RangeList(self._completed)
             ongoing = [measure.Range(op.offset, op.offset + op.done)
                        for op in self._ongoing]
 
-        ranges = sorted(completed + ongoing)
-        ranges = measure.merge_ranges(ranges)
-        return sum(len(r) for r in ranges)
+        completed.update(ongoing)
+        return completed.sum()
 
     def may(self, op):
         if op == "read":
