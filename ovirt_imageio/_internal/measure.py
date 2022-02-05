@@ -9,6 +9,8 @@
 
 class Range:
 
+    __slots__ = ("start", "end")
+
     def __init__(self, start, end):
         self.start = start
         self.end = end
@@ -24,8 +26,8 @@ class Range:
                 self.start == other.start and
                 self.end == other.end)
 
-    def __ne__(self, other):
-        return not self == other
+    def __repr__(self):
+        return f"Range(start={self.start}, end={self.end})"
 
 
 def merge_ranges(ranges):
