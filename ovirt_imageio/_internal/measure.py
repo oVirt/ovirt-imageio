@@ -16,7 +16,11 @@ class Range:
         self.end = end
 
     def __lt__(self, other):
-        return (self.start, self.end) < (other.start, other.end)
+        if self.start < other.start:
+            return True
+        if self.start == other.start:
+            return self.end < other.end
+        return False
 
     def __len__(self):
         return self.end - self.start
