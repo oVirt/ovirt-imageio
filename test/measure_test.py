@@ -11,83 +11,25 @@ import pytest
 from ovirt_imageio._internal import measure
 from ovirt_imageio._internal.measure import Range
 
+# Compare ranges.
 
-class TestRange:
 
-    """
-    To make the cases visual, each test case is described using two ranges:
-    - The range that change in each test case is drawn as follows: "*****".
-    - The range that we compare the others to is drawn as follows: "-----".
-    """
-    @pytest.mark.parametrize("start,end,expected", [
-        #          *****
-        #     -----
-        (15, 20, True),
+def test_range_lt_start_smaller():
+    assert Range(5, 10) < Range(6, 10)
+    assert not Range(6, 10) < Range(5, 10)
 
-        #         *****
-        #     -----
-        (10, 20, True),
 
-        #         *
-        #     -----
-        (10, 10, True),
+def test_range_lt_start_same():
+    assert Range(5, 10) < Range(5, 11)
+    assert not Range(5, 11) < Range(5, 10)
 
-        #       *****
-        #     -----
-        (7, 20, True),
 
-        #       ***
-        #     -----
-        (7, 10, True),
+def test_range_eq():
+    assert Range(5, 10) == Range(5, 10)
 
-        #      ***
-        #     -----
-        (7, 8, True),
 
-        #     *******
-        #     -----
-        (5, 15, True),
-
-        #     *****
-        #     -----
-        (5, 10, False),
-
-        #     ***
-        #     -----
-        (5, 8, False),
-
-        #     *
-        #     -----
-        (5, 5, False),
-
-        #   *********
-        #     -----
-        (3, 15, False),
-
-        #   *******
-        #     -----
-        (3, 10, False),
-
-        # *****
-        #     -----
-        (3, 5, False),
-
-        #   *****
-        #     -----
-        (3, 8, False),
-
-        # ***
-        #     -----
-        (3, 4, False),
-    ])
-    def test_lt(self, start, end, expected):
-        assert (Range(5, 10) < Range(start, end)) == expected
-
-    def test_eq(self):
-        assert Range(5, 10) == Range(5, 10)
-
-    def test_ne(self):
-        assert Range(5, 10) != Range(15, 20)
+def test_ragne_ne():
+    assert Range(5, 10) != Range(15, 20)
 
 
 @pytest.mark.parametrize("orig_ranges,merged_ranges", [
