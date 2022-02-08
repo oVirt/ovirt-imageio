@@ -224,8 +224,10 @@ class Ticket:
                 raise errors.AuthorizationError(
                     "Transfer {} was canceled".format(self.transfer_id))
 
-            r = measure.Range(op.offset, op.offset + op.done)
-            self._completed.add(r)
+            # We don't report transfered bytes for read-write ticket.
+            if len(self.ops) == 1:
+                r = measure.Range(op.offset, op.offset + op.done)
+                self._completed.add(r)
 
         self.touch()
 
