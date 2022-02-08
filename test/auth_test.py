@@ -322,17 +322,23 @@ class Imageio(Client):
 @pytest.mark.parametrize("workers", [1, 2, 4, 8])
 @pytest.mark.parametrize("client_class", [Nbdcopy, Imageio],
                          ids=lambda x: x.name)
-def test_run_benchmark(cfg, workers, client_class):
+@pytest.mark.parametrize("mode", [
+    pytest.param(["read"], id="ro"),
+    pytest.param(["read", "write"], id="rw"),
+])
+def test_run_benchmark(cfg, workers, client_class, mode):
     ticket = Ticket(
         testutil.create_ticket(
             size=50 * 1024**3,
-            ops=["read"]),
+            ops=mode),
         cfg)
 
     client = client_class(ticket, workers)
 
     elapsed = client.run()
-    assert ticket.transferred() == ticket.size
+
+    if mode != ["read", "write"]:
+        assert ticket.transferred() == ticket.size
 
     ops = ticket.size // client.io_size
     print("%d workers, %d ops, %.3f s, %.2f ops/s"
