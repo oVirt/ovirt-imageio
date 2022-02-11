@@ -64,48 +64,7 @@ def tmp_dirs(tmpdir):
     tmpdir.mkdir("conf").mkdir("conf.d")
 
 
-def test_find_configs_same_dir(tmpdir):
-    # Config files are sorted by filename in alphabetical increasing order.
-    # In this scenario we use install config installed by application and admin
-    # config, which will overwrite some settings.
-    # Admin configuration typically use higher prefix to override installation
-    # config.
-
-    conf_d = tmpdir.mkdir("conf.d")
-    install_cfg = conf_d.join("50-install.conf")
-    admin_cfg = conf_d.join("90-admin.conf")
-    install_cfg.write("install config")
-    admin_cfg.write("admin config")
-
-    files = server.find_configs((str(tmpdir),))
-    assert files == [str(install_cfg), str(admin_cfg)]
-
-
-def test_find_configs_multiple_dirs(tmpdir):
-    # Same scenario as in test_find_configs_same_dir, but configs are stored
-    # in multiple directories. The list of configs provided by find_configs()
-    # has to be sorted according to file name. Name of the directories or the
-    # order in which the dirs are passed to find_configs() function doesn't
-    # matter.
-
-    etc_dir = tmpdir.mkdir("etc")
-    etc_conf_d = etc_dir.mkdir("conf.d")
-    install_cfg = etc_conf_d.join("50-install.conf")
-    install_cfg.write("install config")
-    admin_cfg = etc_conf_d.join("90-admin.conf")
-    admin_cfg.write("admin config")
-
-    vendor_dir = tmpdir.mkdir("vendor")
-    vendor_cfg = vendor_dir.mkdir("conf.d").join("60-vendor.conf")
-    vendor_cfg.write("vendor config")
-
-    expected = [str(install_cfg), str(vendor_cfg), str(admin_cfg)]
-
-    assert server.find_configs((str(etc_dir), str(vendor_dir))) == expected
-    assert server.find_configs((str(vendor_dir), str(etc_dir))) == expected
-
-
-def test_config_overwrite(monkeypatch, tmpdir):
+def test_load_config(monkeypatch, tmpdir):
     # Here we test full scenario, when config is loaded from multiple sources
     # and test, that specified options were overwritten as expected.
     # Install config overwrites the default settings, then vendor config should
@@ -153,6 +112,32 @@ port = 10000
     assert cfg.control.port == 10000
     assert cfg.handler_logfile.level == "ERROR"
     assert cfg.handler_logfile.keyword__class == "logging.StreamHandler"
+
+
+def test_load_config_missing():
+    # Fail fast if conf_dir does not exist.
+    with pytest.raises(ValueError):
+        server.load_config("/no/such/dir")
+
+
+def test_load_config_no_conf_d(tmpdir):
+    # Fail fast if conf_dir does not contain a cond.d sub directory.
+    conf_dir = tmpdir.mkdir("user")
+    with pytest.raises(ValueError):
+        server.load_config(str(conf_dir))
+
+
+def test_load_config_no_conf_files(tmpdir):
+    # Fail fast if conf_dir/cond.d/ does not contain any configurtion file.
+    conf_dir = tmpdir.mkdir("user")
+    conf_d = conf_dir.mkdir("cond.d")
+
+    # Create a disabled configuration file, it will be ignored.
+    disabled_cfg = conf_d.join("99-user.conf.disabled")
+    disabled_cfg.write("[control]\ntransport = tcp\n")
+
+    with pytest.raises(ValueError):
+        server.load_config(str(conf_dir))
 
 
 def test_show_config():
