@@ -82,17 +82,27 @@ def show_config(cfg):
     print(json.dumps(config.to_dict(cfg), indent=4))
 
 
-def find_configs(cfg_dirs):
-    files = []
-    for path in cfg_dirs:
-        pattern = os.path.join(path, "conf.d", "*.conf")
-        files.extend(glob.glob(pattern))
-    files.sort(key=os.path.basename)
-    return files
-
-
 def load_config(conf_dir):
-    files = find_configs([VENDOR_CONF_DIR, conf_dir])
+    pattern = os.path.join(conf_dir, "conf.d", "*.conf")
+    files = glob.glob(pattern)
+
+    # Trying to use invalid configuration directory is a user error or
+    # broken installation. Failing fast will help to fix the issue.
+    # https://github.com/oVirt/ovirt-imageio/issues/33
+    if not files:
+        raise ValueError(f"Could not find {pattern}")
+
+    # Vendor may override application defaults if needed.
+    pattern = os.path.join(VENDOR_CONF_DIR, "conf.d", "*.conf")
+    files.extend(glob.glob(pattern))
+
+    # Override files based on file name sort order:
+    # - /var/lib/ovirt-imageio/conf.d/75-vendor.conf overrides
+    #   /etc/ovirt-imageio/conf.d/50-vdsm.conf.
+    # - /etc/ovirt-imageio/conf.d/99-user.conf overrides
+    #   /var/lib/ovirt-imageio/conf.d/75-vendor.conf.
+    files.sort(key=os.path.basename)
+
     return config.load(files)
 
 
