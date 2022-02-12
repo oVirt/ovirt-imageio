@@ -68,6 +68,18 @@ def main():
         "ticket_id",
         help="Ticket id.")
 
+    add_command(
+        commands,
+        name="start-profile",
+        help="Start server profiling",
+        command=start_profile)
+
+    add_command(
+        commands,
+        name="stop-profile",
+        help="Stop server profiling",
+        command=stop_profile)
+
     args = parser.parse_args()
     try:
         args.command(args)
@@ -113,3 +125,15 @@ def del_ticket(args):
     cfg = admin.load_config(args.conf_dir)
     with admin.Client(cfg) as c:
         c.del_ticket(args.ticket_id)
+
+
+def start_profile(args):
+    cfg = admin.load_config(args.conf_dir)
+    with admin.Client(cfg) as c:
+        c.start_profile()
+
+
+def stop_profile(args):
+    cfg = admin.load_config(args.conf_dir)
+    with admin.Client(cfg) as c:
+        c.stop_profile()
