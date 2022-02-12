@@ -201,26 +201,21 @@ class Ticket:
                 raise errors.AuthorizationError(
                     "Transfer {} was canceled".format(self.transfer_id))
 
-            # If this is the first ongoing operation, clear the unused event.
-            if not self._ongoing:
-                log.debug("Adding first ongoring operation for transfer %s",
-                          self.transfer_id)
-                self._unused.clear()
-
             self._ongoing.add(op)
 
     def _remove_operation(self, op):
         with self._lock:
             self._ongoing.remove(op)
 
-            # If this was the last ongoing operation, wake up caller waiting on
-            # cancel().
-            if not self._ongoing:
-                log.debug("Removed last ongoring operation for transfer %s",
-                          self.transfer_id)
-                self._unused.set()
-
             if self._canceled:
+                # If this was the last ongoing operation, wake up caller
+                # waiting on cancel().
+                if not self._ongoing:
+                    log.debug(
+                        "Removed last ongoring operation for transfer %s",
+                        self.transfer_id)
+                    self._unused.set()
+
                 raise errors.AuthorizationError(
                     "Transfer {} was canceled".format(self.transfer_id))
 
