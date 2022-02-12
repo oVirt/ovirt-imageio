@@ -119,6 +119,16 @@ class Client:
         if status != http.client.NO_CONTENT:
             raise ServerError(status, body)
 
+    def start_profile(self):
+        status, body = self._request("POST", "/profile/?run=y")
+        if status != http.client.OK:
+            raise ServerError(status, body)
+
+    def stop_profile(self):
+        status, body = self._request("POST", "/profile/?run=n")
+        if status != http.client.OK:
+            raise ServerError(status, body)
+
     def close(self):
         """
         Close the conection to imageio daemon.
