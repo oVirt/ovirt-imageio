@@ -216,7 +216,7 @@ class Client:
 
     name = "client"
     workers = 1
-    io_size = 2 * 1024**2
+    io_size = 1024**2
 
     def run(self):
         start = time.monotonic()
@@ -329,7 +329,7 @@ class Imageio(Client):
 def test_run_benchmark(cfg, workers, client_class, mode):
     ticket = Ticket(
         testutil.create_ticket(
-            size=50 * 1024**3,
+            size=100 * 1024**3,
             ops=mode),
         cfg)
 
