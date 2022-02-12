@@ -191,7 +191,7 @@ class Server:
 
 
 @contextmanager
-def run(image, fmt, sock, export_name="", read_only=False, shared=1,
+def run(image, fmt, sock, export_name="", read_only=False, shared=8,
         cache="none", aio="native", discard="unmap", detect_zeroes="unmap",
         bitmap=None, backing_chain=True, offset=None, size=None, timeout=10.0):
     server = Server(
