@@ -207,6 +207,7 @@ def upload(args):
             buffer_size=args.buffer_size,
             max_workers=args.max_workers,
             secure=args.secure,
+            detect_zeroes=args.detect_zeroes,
             progress=pb)
 
 
@@ -279,6 +280,11 @@ upload_parser.add_argument(
 upload_parser.add_argument(
     "url",
     help="transfer URL")
+upload_parser.add_argument(
+    "-z", "--detect-zeroes",
+    action="store_true",
+    help="Try to sparsify the image. May slow down upload of a sparse "
+         "image but speed up upload of fully allocated image.")
 
 download_parser = commands.add_parser(
     "download",

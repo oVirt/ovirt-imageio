@@ -32,7 +32,7 @@ log = logging.getLogger("client")
 
 def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
            progress=None, proxy_url=None, max_workers=io.MAX_WORKERS,
-           member=None, backing_chain=True):
+           member=None, backing_chain=True, detect_zeroes=False):
     """
     Upload filename to url
 
@@ -62,6 +62,8 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
             image data, leaving unallocated areas as holes, exposing data from
             the target disk backing chain. Valid only when uploding to an empty
             snapshot.
+        detect_zeroes (bool): Try to sparsify the image. May slow down upload
+            of sparse image, but speed up upload of fully allocated images.
     """
     if callable(progress):
         progress = ProgressWrapper(progress)
@@ -104,6 +106,7 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
                 # has a backing chain. We must keep holes unallocated on the so
                 # they expose data from the backing chain.
                 hole=backing_chain,
+                detect_zeroes=detect_zeroes,
                 progress=progress,
                 name="upload")
 

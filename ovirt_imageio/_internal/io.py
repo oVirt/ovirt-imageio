@@ -16,6 +16,7 @@ from collections import deque, namedtuple
 from contextlib import closing
 from functools import partial
 
+from . import ioutil
 from . import util
 from . backends import Wrapper
 
@@ -35,8 +36,8 @@ log = logging.getLogger("io")
 
 
 def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
-         buffer_size=BUFFER_SIZE, zero=True, hole=True, progress=None,
-         name="copy"):
+         buffer_size=BUFFER_SIZE, zero=True, hole=True, detect_zeroes=False,
+         progress=None, name="copy"):
 
     buffer_size = min(buffer_size, MAX_BUFFER_SIZE)
 
@@ -49,12 +50,13 @@ def copy(src, dst, dirty=False, max_workers=MAX_WORKERS,
         # The first worker clones src and use a wrapped dst.
         executor.add_worker(
             partial(Handler, src.clone, lambda: Wrapper(dst), buffer_size,
-                    progress))
+                    detect_zeroes=detect_zeroes, progress=progress))
 
         # The rest of the workers clone both src and dst.
         for _ in range(max_workers - 1):
             executor.add_worker(
-                partial(Handler, src.clone, dst.clone, buffer_size, progress))
+                partial(Handler, src.clone, dst.clone, buffer_size,
+                        detect_zeroes=detect_zeroes, progress=progress))
 
         if progress:
             progress.size = src.size()
@@ -258,7 +260,7 @@ class Worker:
 class Handler:
 
     def __init__(self, src_factory, dst_factory, buffer_size=BUFFER_SIZE,
-                 progress=None):
+                 detect_zeroes=False, progress=None):
         # Connecting to backend server may fail. Don't leave open connections
         # after failures.
         self._src = src_factory()
@@ -269,6 +271,7 @@ class Handler:
             raise
 
         self._buf = bytearray(buffer_size)
+        self._detect_zeroes = detect_zeroes
         self._progress = progress
 
     def zero(self, req):
@@ -282,7 +285,13 @@ class Handler:
         self._src.seek(req.start)
         self._dst.seek(req.start)
 
-        if hasattr(self._dst, "read_from"):
+        # If we need to detect zeroes, we cannot optimize the copy using
+        # read_from() or write_to(). Testing show that with large buffer size
+        # the difference is very small.
+
+        if self._detect_zeroes:
+            self._generic_copy(req)
+        elif hasattr(self._dst, "read_from"):
             self._dst.read_from(self._src, req.length, self._buf)
         elif hasattr(self._src, "write_to"):
             self._src.write_to(self._dst, req.length, self._buf)
@@ -315,12 +324,18 @@ class Handler:
 
         while todo > step:
             self._src.readinto(self._buf)
-            self._dst.write(self._buf)
+            if self._detect_zeroes and ioutil.is_zero(self._buf):
+                self._dst.zero(step)
+            else:
+                self._dst.write(self._buf)
             todo -= step
 
         with memoryview(self._buf)[:todo] as view:
             self._src.readinto(view)
-            self._dst.write(view)
+            if self._detect_zeroes and ioutil.is_zero(view):
+                self._dst.zero(len(view))
+            else:
+                self._dst.write(view)
 
 
 class Closed(Exception):
