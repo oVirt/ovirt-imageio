@@ -1,0 +1,9 @@
+{
+    "uuid": "upload",
+    "size": 6442450944,
+    "url": "nbd:unix:/tmp/nbd.sock",
+    "timeout": 3000,
+    "inactivity_timeout": 300,
+    "sparse": true,
+    "ops": ["write"]
+}
