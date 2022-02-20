@@ -192,11 +192,14 @@ Finally shutdown qmeu-nbd in the other shell.
 import argparse
 import logging
 
+from contextlib import contextmanager
+
 from ovirt_imageio import client
 
 
 def upload(args):
-    with client.ProgressBar() as pb:
+    progress = quiet if args.quiet else client.ProgressBar
+    with progress() as pb:
         client.upload(
             args.filename,
             args.url,
@@ -208,7 +211,8 @@ def upload(args):
 
 
 def download(args):
-    with client.ProgressBar() as pb:
+    progress = quiet if args.quiet else client.ProgressBar
+    with progress() as pb:
         client.download(
             args.url,
             args.filename,
@@ -219,6 +223,11 @@ def download(args):
             max_workers=args.max_workers,
             secure=args.secure,
             progress=pb)
+
+
+@contextmanager
+def quiet():
+    yield None
 
 
 parser = argparse.ArgumentParser(description="imageio client")
@@ -252,6 +261,11 @@ parser.add_argument(
     "-v", "--verbose",
     action="store_true",
     help="Be more verbose")
+
+parser.add_argument(
+    "-q", "--quiet",
+    action="store_true",
+    help="Be quiet, do not show progress bar")
 
 commands = parser.add_subparsers(title="commands")
 
