@@ -1,4 +1,4 @@
-libguestfs.org/libnbd v1.11.3-4-g3226ff802 h1:7ZNhVreHSeHS+aK1PXPZvcHY43ikvAnoFDE9blNSQ3E=
-libguestfs.org/libnbd v1.11.3-4-g3226ff802/go.mod h1:Qd8vaULc6nlNgj9+6qDNm1vSD/J7/wgoIlwmCh8uxAc=
 libguestfs.org/libnbd v1.11.5 h1:jRCRxzbeZksdj6e3sp+5/vfDfWx1s/uYyJB0qjgb8MI=
 libguestfs.org/libnbd v1.11.5/go.mod h1:Qd8vaULc6nlNgj9+6qDNm1vSD/J7/wgoIlwmCh8uxAc=
+libguestfs.org/libnbd v1.12.0 h1:nf5JC6NKdBPhpksHZjUrvsxZf6C7bcMUyHc4z8+i4co=
+libguestfs.org/libnbd v1.12.0/go.mod h1:Qd8vaULc6nlNgj9+6qDNm1vSD/J7/wgoIlwmCh8uxAc=
