@@ -2,8 +2,8 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Default owners for all files:
-*               @nirs @vjuranek
+*               @nirs
 
 # Documentation owners
-docs/           @nirs @vjuranek @oVirt/ovirt-documentation
-README.md       @nirs @vjuranek @oVirt/ovirt-documentation
+docs/           @nirs @oVirt/ovirt-documentation
+README.md       @nirs @oVirt/ovirt-documentation
