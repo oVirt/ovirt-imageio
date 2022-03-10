@@ -54,8 +54,8 @@ class Backend:
 
     def __init__(self, url, cafile=None, secure=True, connect_timeout=10,
                  read_timeout=60, connect=True):
-        log.info("Open backend netloc=%r path=%r cafile=%r secure=%r",
-                 url.netloc, url.path, cafile, secure)
+        log.debug("Open netloc=%r path=%r cafile=%r secure=%r",
+                  url.netloc, url.path, cafile, secure)
         self.url = url
         self._cafile = cafile
         self._secure = secure
@@ -339,8 +339,8 @@ class Backend:
 
     def close(self):
         if self._con is not CLOSED:
-            log.info("Close backend netloc=%r path=%r",
-                     self.url.netloc, self.url.path)
+            log.debug("Close netloc=%r path=%r",
+                      self.url.netloc, self.url.path)
             self._con.close()
             self._con = CLOSED
 

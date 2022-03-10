@@ -41,8 +41,8 @@ class Backend:
     def __init__(self, mode="r", data=None, max_connections=8, extents=None):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
-        log.info("Open backend mode=%r max_connections=%r",
-                 mode, max_connections)
+        log.debug("Open mode=%r max_connections=%r",
+                  mode, max_connections)
         self._mode = mode
         self._buf = data or bytearray()
         # TODO: Make size constant so we can build the default extents here.
@@ -121,7 +121,7 @@ class Backend:
         self._dirty = False
 
     def close(self):
-        log.info("Close backend")
+        log.debug("Close")
         self._closed = True
 
     def __enter__(self):

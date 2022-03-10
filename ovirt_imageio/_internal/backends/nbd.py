@@ -60,9 +60,9 @@ class Backend:
     def __init__(self, client, mode="r", sparse=False, max_connections=8):
         if mode not in ("r", "w", "r+"):
             raise ValueError("Unsupported mode %r" % mode)
-        log.info("Open backend address=%r export_name=%r sparse=%r "
-                 "max_connections=%r",
-                 client.address, client.export_name, sparse, max_connections)
+        log.debug("Open address=%r export_name=%r sparse=%r "
+                  "max_connections=%r",
+                  client.address, client.export_name, sparse, max_connections)
         self._client = client
         self._mode = mode
         self._sparse = sparse
@@ -148,7 +148,7 @@ class Backend:
 
     def close(self):
         if self._client is not CLOSED:
-            log.info("Close backend address=%r", self._client.address)
+            log.debug("Close address=%r", self._client.address)
             self._client.close()
             self._client = CLOSED
 
