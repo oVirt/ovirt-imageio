@@ -62,8 +62,8 @@ class Backend:
             fio (io.FileIO): underlying file object.
             sparse (bool): deallocate space when zeroing if possible.
         """
-        log.info("Open backend path=%r mode=%r sparse=%r max_connections=%r",
-                 fio.name, fio.mode, sparse, max_connections)
+        log.debug("Open path=%r mode=%r sparse=%r max_connections=%r",
+                  fio.name, fio.mode, sparse, max_connections)
         self._fio = fio
         self._sparse = sparse
         self._dirty = False
@@ -112,8 +112,8 @@ class Backend:
 
     def close(self):
         if self._fio is not CLOSED:
-            log.info("Close backend path=%r dirty=%r",
-                     self._fio.name, self._dirty)
+            log.debug("Close path=%r dirty=%r",
+                      self._fio.name, self._dirty)
             try:
                 self._fio.close()
             finally:
