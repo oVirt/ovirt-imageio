@@ -28,7 +28,7 @@ class Server:
 
     def __init__(
             self, image, fmt, sock, export_name="", read_only=False, shared=8,
-            cache="none", aio="native", discard="unmap", detect_zeroes="unmap",
+            cache=None, aio=None, discard="unmap", detect_zeroes="unmap",
             bitmap=None, backing_chain=True, offset=None, size=None,
             timeout=10.0):
         """
@@ -41,8 +41,11 @@ class Server:
             export_name (str): expose export by name
             read_only (bool): export is read-only
             shared (int): export can be shared by specified number of clients
-            cache (str): cache mode (none, writeback, ...)
-            aio (str): AIO mode (native or threads)
+            cache (str): cache mode (none, writeback, ...). If not specified,
+                probe image and use "none" if direct I/O is supported, and
+                "writeback" if not.
+            aio (str): AIO mode (native or threads). If not specified, use
+                "native" if cache is "none" and "threads" otherwise.
             discard (str): discard mode (ignore, unmap)
             detect_zeroes (str): Control the automatic conversion of plain zero
                 writes by the OS to driver-specific optimized zero write
@@ -86,6 +89,15 @@ class Server:
         return urllib.parse.urlparse(url)
 
     def start(self):
+        # Implement "auto" cache mode, planned for qemu 7.
+        if self.cache is None:
+            self.cache = "none" if self._can_use_direct_io() else "writeback"
+            log.debug("Using cache=%r", self.cache)
+
+        if self.aio is None:
+            self.aio = "native" if self.cache == "none" else "threads"
+            log.debug("Using aio=%r", self.aio)
+
         cmd = [
             QEMU_NBD,
             "--export-name={}".format(self.export_name),
@@ -189,10 +201,21 @@ class Server:
 
             self.proc = None
 
+    def _can_use_direct_io(self):
+        flags = os.O_RDONLY if self.read_only else os.O_RDWR
+        flags |= os.O_DIRECT
+        try:
+            fd = os.open(self.image, flags)
+        except OSError:
+            return False
+        else:
+            os.close(fd)
+            return True
+
 
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=8,
-        cache="none", aio="native", discard="unmap", detect_zeroes="unmap",
+        cache=None, aio=None, discard="unmap", detect_zeroes="unmap",
         bitmap=None, backing_chain=True, offset=None, size=None, timeout=10.0):
     server = Server(
         image, fmt, sock,

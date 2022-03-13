@@ -8,8 +8,10 @@
 
 import io
 import os
+import shutil
 import struct
 import tarfile
+import tempfile
 import urllib.parse
 
 import pytest
@@ -22,6 +24,13 @@ from ovirt_imageio._internal import sockutil
 
 from . import testutil
 from . marks import flaky_in_ovirt_ci
+
+
+@pytest.fixture
+def tmpfs_dir():
+    path = tempfile.mkdtemp(dir="/dev/shm")
+    yield path
+    shutil.rmtree(path)
 
 
 @pytest.mark.parametrize("addr,export,url", [
@@ -51,6 +60,91 @@ def test_open(tmpdir, fmt):
 
     with qemu_nbd.open(disk, fmt, read_only=True) as d:
         assert d.read(offset, len(data)) == data
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_server_can_use_direct_io(tmpdir, nbd_server, fmt):
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=1024**2)
+
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.cache = None
+    nbd_server.aio = None
+
+    # Starting probes the image and select cache="none" and aio="native"
+    # if direct I/O can be used.
+    nbd_server.start()
+    assert nbd_server.cache == "none"
+    assert nbd_server.aio == "native"
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_server_cannot_use_direct_io(tmpfs_dir, nbd_server, fmt):
+    disk = os.path.join(tmpfs_dir, "disk." + fmt)
+    qemu_img.create(disk, fmt, size=1024**2)
+
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.cache = None
+    nbd_server.aio = None
+
+    # Starting probes the image and selects cache="writeback" and
+    # aio="threads" since direct I/O cannot be used with tmpfs file
+    # system.
+    nbd_server.start()
+    assert nbd_server.cache == "writeback"
+    assert nbd_server.aio == "threads"
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_server_keep_cache(tmpdir, nbd_server, fmt):
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=1024**2)
+
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.cache = "writeback"
+    nbd_server.aio = None
+
+    # Staring the server selects aio="threads" since cache is not
+    # "none".
+    nbd_server.start()
+    assert nbd_server.cache == "writeback"
+    assert nbd_server.aio == "threads"
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_server_keep_aio(tmpdir, nbd_server, fmt):
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=1024**2)
+
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.cache = None
+    nbd_server.aio = "threads"
+
+    # Staring the server probes the image and selects cache="none", but
+    # keeps the requested aio option.
+    nbd_server.start()
+    assert nbd_server.cache == "none"
+    assert nbd_server.aio == "threads"
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_server_keep_cache_and_aio(tmpdir, nbd_server, fmt):
+    disk = str(tmpdir.join("disk." + fmt))
+    qemu_img.create(disk, fmt, size=1024**2)
+
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.cache = "writeback"
+    nbd_server.aio = "threads"
+
+    # Staring the server keeps the requested options.
+    nbd_server.start()
+    assert nbd_server.cache == "writeback"
+    assert nbd_server.aio == "threads"
 
 
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
