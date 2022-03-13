@@ -480,13 +480,6 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
               offset=None, size=None, backing_chain=True):
     """
     Open nbd backend.
-
-    Caching modes
-    -------------
-    qemu-nbd uses "writethrough" cache mode by default. This is
-    painfully slow and pointless, waiting until every write it flushed
-    to underlying storage. We use "writeback", waiting until data is
-    copied to the host page cache.
     """
     with _tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
@@ -495,8 +488,6 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
                 fmt,
                 sock,
                 read_only=read_only,
-                cache="writeback",
-                aio=None,
                 shared=shared,
                 bitmap=bitmap,
                 offset=offset,
