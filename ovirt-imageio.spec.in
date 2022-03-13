@@ -147,6 +147,17 @@ fi
 
 %changelog
 
+* Sun Mar 13 2022 Nir Soffer <nsoffer@redhat.com> 2.4.1-1
+- Select cache and aio automatically #42
+- Add profiling support #36
+- Fail fast with invalid config directory #33
+- Don't track ranges for read-write ticket #32
+- Inefficient measuring of transferred size #29
+- Replace ticket id with transfer id in logs #26
+- "Backend was closed" error during backup image transfer #23
+- Disable allocation depth for raw format #21
+- Make client socket timeout configurable #14
+
 * Wed Oct 6 2021 Nir Soffer <nsoffer@redhat.com> 2.3.0-1
 - Downloading images much slower than uploading #BZ1990656
 - Downloading prellocated disk created preallocated image #BZ2010067
