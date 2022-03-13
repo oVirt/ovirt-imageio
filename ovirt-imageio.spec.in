@@ -5,7 +5,7 @@ Summary:   oVirt imageio
 
 License:   GPLv2+
 Url:       https://github.com/oVirt/%{name}
-Source0:   http://resources.ovirt.org/pub/ovirt-master-snapshot/src/%{name}/%{name}-%{version}.tar.gz
+Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name}-%{version}.tar.gz
 
 %global ovirtimg_user ovirtimg
 %global srcname ovirt_imageio
