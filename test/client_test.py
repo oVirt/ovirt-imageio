@@ -10,12 +10,15 @@ import os
 import tarfile
 import logging
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import pytest
 
 from ovirt_imageio import client
 from ovirt_imageio._internal import blkhash
 from ovirt_imageio._internal import config
 from ovirt_imageio._internal import ipv6
+from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import nbdutil
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
@@ -1063,3 +1066,40 @@ def test_stress(srv, nbd_server, tmpdir, fmt):
         client.download(url, src, srv.config.tls.ca_file, fmt=fmt)
 
     nbd_server.stop()
+
+
+def test_concurrent_downloads(srv, tmpdir):
+    # Testing that we can serve 10 conccurent transfers, assuming 4
+    # connections per client.
+    # https://bugzilla.redhat.com/2066113
+
+    size = 10 * 1024**2
+
+    def download(url, dst):
+        client.download(url, dst, srv.config.tls.ca_file)
+
+    downloads = []
+    try:
+        for i in range(10):
+            src = str(tmpdir.join(f"{i:02d}.src.qcow2"))
+            qemu_img.create(src, "qcow2", size=size)
+
+            dst = str(tmpdir.join(f"{i:02d}.dst.qcow2"))
+            qemu_img.create(dst, "qcow2", size=size)
+
+            sock = str(tmpdir.join(f"{i:02d}.sock"))
+
+            nbd_server = qemu_nbd.Server(src, "qcow2", nbd.UnixAddress(sock))
+            url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+            nbd_server.start()
+
+            downloads.append((nbd_server, url, dst))
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            tasks = [executor.submit(download, url, dst)
+                     for _, url, dst in downloads]
+            for t in as_completed(tasks):
+                t.result()
+    finally:
+        for nbd_server, _, _ in downloads:
+            nbd_server.stop()
