@@ -72,6 +72,12 @@ class Server(socketserver.ThreadingMixIn,
     """
     daemon_threads = True
 
+    # Override socketserver.TCPServer default (5) to allow 10 concurrent
+    # transfers, assuming 4 connections per transfers. If a larger
+    # number of connections are made, some connections may fail with
+    # EAGAIN, hinting the clients they are abusing this server.
+    request_queue_size = 40
+
     # A callable called for every request.
     app = None
 
