@@ -37,7 +37,7 @@ setup(
         "Documentation":
             "http://ovirt.github.io/ovirt-imageio/",
         "Bug Tracker":
-            "https://bugzilla.redhat.com/enter_bug.cgi?product=ovirt-imageio",
+            "https://github.com/oVirt/ovirt-imageio/issues",
     },
     version=version.string,
     python_requires=">=3.6",
