@@ -147,6 +147,11 @@ fi
 
 %changelog
 
+* Sun Mar 27 2022 Nir Soffer <nsoffer@redhat.com> 2.4.2-1
+- http: Increase listen backlog to 40 BZ2066113
+- setup: Fix bug tracker url #45
+- Update RELEASE.md #46
+
 * Sun Mar 13 2022 Nir Soffer <nsoffer@redhat.com> 2.4.1-1
 - Select cache and aio automatically #42
 - Add profiling support #36
