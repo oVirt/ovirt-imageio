@@ -23,9 +23,24 @@ sholdn't be any):
 
 ## Setting up development environment
 
-Install the runtime requirements using automation packages files:
+Install the runtime requirements:
 
-    sudo dnf install $(cat automation/check-patch.packages)
+    sudo dnf install \
+        e2fsprogs \
+        gcc \
+        git \
+        libguestfs-tools-c \
+        make \
+        openssl \
+        python3-devel \
+        python3-pip \
+        python3-systemd \
+        qemu-img \
+        qemu-kvm \
+        sudo \
+        systemd-udev \
+        util-linux \
+        xfsprogs
 
 Create a virtual environment for running the tests:
 
