@@ -3,35 +3,29 @@
 
 ## Getting the source
 
-Clone from gerrit:
+Fork the repository: Navigate to [imageio repository](https://github.com/oVirt/ovirt-imageio)
+and click "Fork" button in right upper corner of the page.
 
-    git clone git://gerrit.ovirt.org/ovirt-imageio
+Clone the repo from GitHub:
 
-Install the commit message hook:
+    git clone git@github.com:<your-username>/ovirt-imageio.git
 
-    wget -P .git/hooks https://gerrit.ovirt.org/tools/hooks/commit-msg
+Add [imageio repository](https://github.com/oVirt/ovirt-imageio) as an
+upstream repository:
 
-Edit the commit-msg hook to add Signed-off-by header. Add this at the
-end of the commit-msg hook:
+    git remote add upstream git@github.com:oVirt/ovirt-imageio.git
 
-    # Add Signed-off-by trailer.
-    sob=$(git var GIT_AUTHOR_IDENT | sed -n 's/^\(.*>\).*$/Signed-off-by: \1/p')
-    git interpret-trailers --in-place --trailer "$sob" "$1"
+Fetch upstream changes (if you clone right after forking the repo, there
+sholdn't be any):
 
-Make the commit-msg hook executable:
-
-    chmod +x .git/hooks/commit-msg
+    git pull upstream master
 
 
 ## Setting up development environment
 
 Install the runtime requirements using automation packages files:
 
-    sudo yum install $(cat automation/check-patch.packages)
-
-Install development tools:
-
-    yum install git-review
+    sudo dnf install $(cat automation/check-patch.packages)
 
 Create a virtual environment for running the tests:
 
@@ -115,18 +109,24 @@ Once imageio is installed, it is easier to upgrade the installed rpms:
 
 ## Submitting patches
 
-To send patches for master branch:
+Create dedicated branch for the issue you are going to work on:
 
-    git review
+    git checkout -b my_issue
 
-To send a backport to older branch:
+Do the changes and commit them.
+Push changes into you github fork
 
-    git review ovit-4.3
+    git push origin my_issue
 
-To checkout patch from gerrit (e.g. https://gerrit.ovirt.org/c/101904/):
+In the GitHub UI click on the "Compare & pull request" button on the
+main repo page, or visit "Pull requests" tab and click on the "New
+pull request" button.
+Subsequently you can choose against which branch you want to submit pull
+request. This is needed when you want to backport some change branch
+other than `master` branch.
 
-    git review -d 101904
 
+If you preffer command line, you can check [GitHub CLI](https://cli.github.com/).
 
 ## CI
 
@@ -134,27 +134,13 @@ Running tests locally is convenient but before your changes can be
 merged, we need to test them on all supported distributions and
 architectures.
 
-When you submit patches to gerrit, oVirt CI will run all the tests on:
+When you submit a pull request, GitHub actions will run all the tests
+on:
 
 - Centos Stream 8, x86_64
-
-Note that tests using 4k storage cannot run in oVirt CI, but they can
-run in Travis CI. This is not integrated yet with gerrit, but easy to
-run manually.
-
-On Travis CI all tests run on:
-
-- Centos Stream 8, x86_64
-- Fedora 32, x86_64
-- Fedora 33, x86_64
+- Centos Stream 9, x86_64
 - Fedora 34, x86_64
-
-To test your changes on Travis:
-
-- Fork the project on github
-- Visit https://travis-ci.com, register using your github account, and
-  enable builds for your ovirt-imageio fork
-- Push your changes to your github fork to trigger a build
+- Fedora 35, x86_64
 
 
 ## Creating storage for tests

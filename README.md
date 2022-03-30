@@ -45,9 +45,7 @@ Patches are welcome!
 
 - Refer to [Development Section](http://ovirt.github.io/ovirt-imageio/development.html) for build and commit instructions.
 
-- Push patches to [gerrit.ovirt.org:ovirt-imageio](https://gerrit.ovirt.org/#/admin/projects/ovirt-imageio)
-
-    - See [Working with oVirt Gerrit](https://www.ovirt.org/develop/dev-process/working-with-gerrit/) for details.
+- Send a pull request on [GitHub](https://github.com/oVirt/ovirt-imageio/pulls)
 
 ## Getting Help
 
