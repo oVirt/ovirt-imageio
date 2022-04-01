@@ -71,11 +71,12 @@ def test_full_backup(tmpdir, fmt, transport):
             assert d.read(i, 512) == b.read(512)
 
 
-# This can take more than 30 seoconds when running on Travis without hardware
-# acceleration:
-# 41.77s setup    test/backup_test.py::test_full_backup_guest
-# 17.59s call     test/backup_test.py::test_full_backup_guest
-@pytest.mark.timeout(120)
+# This times out randomly on gitub with 120 seconds timoeut. In this example
+# the test took about 60 seconds (setup + call) but in other runs the tests
+# timed out after 120 seconds.
+#   44.29s setup    test/backup_test.py::test_full_backup_guest
+#   15.94s call     test/backup_test.py::test_full_backup_guest
+@pytest.mark.timeout(180)
 @pytest.mark.xfail(
     ci.is_ovirt() or distro.is_centos("9"),
     reason="Always times out", run=False)
@@ -112,7 +113,7 @@ def test_full_backup_guest(tmpdir, base_image):
     verify_backup(backup_disk, ["before-backup"])
 
 
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(180)
 @pytest.mark.xfail(
     ci.is_ovirt() or distro.is_centos("9"),
     reason="Always times out", run=False)
