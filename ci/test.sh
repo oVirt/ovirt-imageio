@@ -14,6 +14,5 @@ create_loop_devices() {
 
 create_loop_devices 16
 
-make
 make storage
 make check
