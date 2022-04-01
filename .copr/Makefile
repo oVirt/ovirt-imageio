@@ -7,5 +7,6 @@
 
 srpm:
 	# Git is required to create release suffix.
-	dnf -y install git
+	# python3-setuptools required for building srpm.
+	dnf -y install git python3-setuptools
 	$(MAKE) srpm OUTDIR=$(outdir)
