@@ -16,8 +16,6 @@ from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 
 from . import backup
-from . import ci
-from . import distro
 from . import qemu
 from . import qmp
 from . import testutil
@@ -71,15 +69,8 @@ def test_full_backup(tmpdir, fmt, transport):
             assert d.read(i, 512) == b.read(512)
 
 
-# This times out randomly on gitub with 120 seconds timoeut. In this example
-# the test took about 60 seconds (setup + call) but in other runs the tests
-# timed out after 120 seconds.
-#   44.29s setup    test/backup_test.py::test_full_backup_guest
-#   15.94s call     test/backup_test.py::test_full_backup_guest
-@pytest.mark.timeout(180)
-@pytest.mark.xfail(
-    ci.is_ovirt() or distro.is_centos("9"),
-    reason="Always times out", run=False)
+# Test can take 23 seconds on github.
+@pytest.mark.timeout(60)
 def test_full_backup_guest(tmpdir, base_image):
     base = qemu_img.info(base_image)
     disk_size = base["virtual-size"]
@@ -113,10 +104,8 @@ def test_full_backup_guest(tmpdir, base_image):
     verify_backup(backup_disk, ["before-backup"])
 
 
-@pytest.mark.timeout(180)
-@pytest.mark.xfail(
-    ci.is_ovirt() or distro.is_centos("9"),
-    reason="Always times out", run=False)
+# Test can take 20 seconds on github.
+@pytest.mark.timeout(60)
 def test_incremental_backup_guest(tmpdir, base_image):
     base = qemu_img.info(base_image)
     disk_size = base["virtual-size"]
