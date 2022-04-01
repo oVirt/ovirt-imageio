@@ -18,10 +18,13 @@ RUN echo v1 \
         python3-devel \
         python3-pip \
         python3-systemd \
+        python38-devel \
+        python38-pip \
         qemu-img \
         qemu-kvm \
         rpm-build \
         sudo \
+        systemd-devel \
         systemd-udev \
         util-linux \
         xfsprogs \
