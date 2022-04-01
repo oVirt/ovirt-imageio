@@ -92,6 +92,18 @@ To list all test envs use:
     tox -l
 
 
+## The test images
+
+The test images are created automatically when running "make check". If
+you want to create them without running "make check", run:
+
+    make images
+
+To delete the test images run:
+
+    make clean-images
+
+
 ## Using local qemu builds
 
 Some tests run qemu-kvm or qemu-nbd. To run qemu or qemu-nbd built from

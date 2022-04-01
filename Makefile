@@ -12,12 +12,12 @@ GENERATED = \
 
 METADATA = ovirt_imageio/_internal/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean storage clean-storage $(SPEC_NAME)
+.PHONY: build check dist srpm rpm clean images clean-images storage clean-storage $(SPEC_NAME)
 
 build:
 	python3 setup.py build_ext --build-lib .
 
-check:
+check: images
 	tox
 
 dist: $(GENERATED)
@@ -40,6 +40,18 @@ clean:
 	rm -f ovirt_imageio/_internal/*.so
 	rm -rf build
 	rm -rf dist
+
+images: /var/tmp/imageio-images/cirros-0.3.5.img
+
+clean-images:
+	rm -rf /var/tmp/imageio-images/
+
+/var/tmp/imageio-images/cirros-0.3.5.img:
+	mkdir -p $(dir $@)
+	LIBGUESTFS_BACKEND=direct virt-builder cirros-0.3.5 \
+		--write /etc/cirros-init/config:DATASOURCE_LIST="nocloud" \
+		--root-password password: \
+		-o $@
 
 storage:
 	userstorage create storage.py
