@@ -13,6 +13,16 @@ Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name
 %global admin_confdir %{_sysconfdir}/%{name}
 %global vendor_confdir %{_prefix}/lib/%{name}
 
+# We need to have Python 3.8 support of imageio client for oVirt Ansible
+# Collection running with ansible-core-2.12, which uses non-standard Python 3.8
+# on EL8 platform
+%if "%{?rhel}" == "8"
+%global with_python38 1
+%undefine __brp_mangle_shebangs
+%else
+%global with_python38 0
+%endif
+
 %description
 Transfer disk images on oVirt system.
 
@@ -20,10 +30,27 @@ Transfer disk images on oVirt system.
 %setup -q
 
 %build
+%if %{with_python38}
+%define python3_pkgversion 38
+%define __python3 /usr/bin/python3.8
+%py3_build
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
+%endif
+
 %py3_build
 
 %install
+%if %{with_python38}
+%define python3_pkgversion 38
+%define __python3 /usr/bin/python3.8
 %py3_install
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
+%endif
+
+%py3_install
+
 install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
 touch %{buildroot}%{logdir}/daemon.log
@@ -39,7 +66,6 @@ rm -rf $RPM_BUILD_ROOT
 %package common
 Summary:   oVirt imageio common resources
 
-# NOTE: keep in sync with docs/development.md
 BuildRequires: gcc
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
@@ -81,9 +107,9 @@ Python client library for accessing imageio server on oVirt hosts.
 %package daemon
 Summary:   oVirt imageio daemon
 
-# NOTE: keep in sync with docs/development.md
 BuildRequires: systemd
 
+Requires:  %{name}-common = %{version}-%{release}
 Requires:  python3-systemd
 Requires:  %{name}-common = %{version}-%{release}
 
@@ -142,6 +168,51 @@ if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
     echo "Stopping ovirt-imageio-daemon.service";
     systemctl stop ovirt-imageio-daemon.service
 fi
+
+%if %{with_python38}
+%define python3_pkgversion 38
+%define __python3 /usr/bin/python3.8
+
+%package -n python38-%{name}-common
+Summary:   oVirt imageio common resources
+
+BuildRequires: gcc
+BuildRequires: python38-devel
+
+Requires:  python38
+
+%description -n python38-%{name}-common
+Common resources used by oVirt imageio server and client
+
+%files -n python38-%{name}-common
+%license COPYING
+%{python3_sitearch}/%{srcname}
+%{python3_sitearch}/%{srcname}-*.egg-info
+%exclude %{python3_sitearch}/%{srcname}/client
+%exclude %{python3_sitearch}/%{srcname}/admin
+
+
+%package -n python38-%{name}-client
+Summary:   oVirt imageio client library
+
+Requires:  python38-%{name}-common = %{version}-%{release}
+
+%if 0%{?rhel}
+# RHEL 8.4 version. Some features require qemu-nbd 5.2.0 and are disabled when
+# using older qemu-nbd.
+Requires:  qemu-img >= 15:4.2.0
+%else
+# Fedora.
+Requires:  qemu-img
+%endif
+
+%description -n python38-%{name}-client
+Python client library for accessing imageio server on oVirt hosts.
+
+%files -n python38-%{name}-client
+%{python3_sitearch}/%{srcname}/client
+
+%endif
 
 %changelog
 
