@@ -15,7 +15,7 @@ METADATA = ovirt_imageio/_internal/version.py Makefile
 .PHONY: build check dist srpm rpm clean storage clean-storage $(SPEC_NAME)
 
 build:
-	python3 setup.py build_ext --inplace
+	python3 setup.py build_ext --build-lib .
 
 check:
 	tox
