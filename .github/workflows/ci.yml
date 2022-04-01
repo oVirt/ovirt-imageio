@@ -48,7 +48,6 @@ jobs:
     - name: Build rpms
       run: ./ci/rpm.sh
     - name: Upload artidacts
-      uses: actions/upload-artifact@v2
+      uses: ovirt/upload-rpms-action@v2
       with:
-        name: rpm-${{matrix.distro}}
-        path: ${{env.EXPORT_DIR}}
+        directory: ${{env.EXPORT_DIR}}
