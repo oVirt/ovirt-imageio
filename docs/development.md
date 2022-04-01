@@ -68,10 +68,6 @@ Create storage for the tests:
 
 See "Creating storage for tests" for more info.
 
-Before running the tests, make the project:
-
-    make
-
 To run all the tests:
 
     make check
@@ -106,6 +102,21 @@ source, you can change these environment variables:
 
 When you run the tests, they will use QEMU and QEMU_NBD from the
 environment variables.
+
+
+## Running the daemon from source
+
+To run the ovirt-imageio daemon directly from source, you need to run
+make:
+
+    make
+
+This builds the C extension if needed. Then you can start the daemon:
+
+    ./ovirt-imageio -c test
+
+To daemon is configured to log using DEBUG log level to standard error.
+To stop the daemon press Control-C.
 
 
 ## Testing rpms
