@@ -39,12 +39,11 @@ rm -rf $RPM_BUILD_ROOT
 %package common
 Summary:   oVirt imageio common resources
 
-# NOTE: keep in sync with automation/build-artifacts.packages
+# NOTE: keep in sync with docs/development.md
 BuildRequires: gcc
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
 
-# NOTE: keep in sync with automation/check.packages
 Requires:  python3
 
 %description common
@@ -61,7 +60,6 @@ Common resources used by oVirt imageio server and client
 %package client
 Summary:   oVirt imageio client library
 
-# NOTE: keep in sync with automation/check.packages
 Requires:  %{name}-common = %{version}-%{release}
 
 %if 0%{?rhel}
@@ -83,12 +81,11 @@ Python client library for accessing imageio server on oVirt hosts.
 %package daemon
 Summary:   oVirt imageio daemon
 
-# NOTE: keep in sync with automation/build-artifacts.packages
+# NOTE: keep in sync with docs/development.md
 BuildRequires: systemd
 
-# NOTE: keep in sync with automation/check.packages
-Requires:  %{name}-common = %{version}-%{release}
 Requires:  python3-systemd
+Requires:  %{name}-common = %{version}-%{release}
 
 %description daemon
 Daemon providing image transfer service on oVirt hosts.
