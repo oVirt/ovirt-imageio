@@ -42,6 +42,7 @@ Summary:   oVirt imageio common resources
 # NOTE: keep in sync with automation/build-artifacts.packages
 BuildRequires: gcc
 BuildRequires: python3-devel
+BuildRequires: python3-setuptools
 
 # NOTE: keep in sync with automation/check.packages
 Requires:  python3
