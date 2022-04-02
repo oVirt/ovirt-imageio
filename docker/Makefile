@@ -9,5 +9,5 @@ $(targets):
 
 push:
 	for name in $(targets); do \
-		podman push imageio-test-$$name ovirtorg/imageio-test-$$name; \
+		podman push imageio-test-$$name quay.io/ovirt/imageio-test-$$name; \
 	done
