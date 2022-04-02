@@ -34,6 +34,7 @@ Install the runtime requirements:
         openssl \
         python3-devel \
         python3-pip \
+        python3-setuptools \
         python3-systemd \
         qemu-img \
         qemu-kvm \
