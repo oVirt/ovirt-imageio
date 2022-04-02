@@ -17,9 +17,11 @@ RUN echo v1 \
         openssl \
         python3-devel \
         python3-pip \
+        python3-setuptools \
         python3-systemd \
         python38-devel \
         python38-pip \
+        python38-setuptools \
         qemu-img \
         qemu-kvm \
         rpm-build \
