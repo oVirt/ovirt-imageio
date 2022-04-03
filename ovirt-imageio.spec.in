@@ -66,6 +66,7 @@ rm -rf $RPM_BUILD_ROOT
 %package common
 Summary:   oVirt imageio common resources
 
+# NOTE: keep in sync with docs/development.md
 BuildRequires: gcc
 BuildRequires: python3-devel
 BuildRequires: python3-setuptools
@@ -107,9 +108,9 @@ Python client library for accessing imageio server on oVirt hosts.
 %package daemon
 Summary:   oVirt imageio daemon
 
+# NOTE: keep in sync with docs/development.md
 BuildRequires: systemd
 
-Requires:  %{name}-common = %{version}-%{release}
 Requires:  python3-systemd
 Requires:  %{name}-common = %{version}-%{release}
 
