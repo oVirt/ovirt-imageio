@@ -217,6 +217,9 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Sun Apr 3 2022 Nir Soffer <nsoffer@redhat.com> 2.4.3-1
+- Build client and common for python 3.8 BZ2071365
+
 * Sun Mar 27 2022 Nir Soffer <nsoffer@redhat.com> 2.4.2-1
 - http: Increase listen backlog to 40 BZ2066113
 - setup: Fix bug tracker url #45
