@@ -179,7 +179,9 @@ class Connection(http.server.BaseHTTPRequestHandler):
     # connections.  When the timeout expires we close the connection.
     # Authorized connections get a larger timeout using the ticket
     # inactivity timeout.
-    timeout = 15
+    # Note: Must not be less than the time to get image extents
+    # https://github.com/oVirt/ovirt-imageio/issues/71
+    timeout = 60
 
     # For generating connection ids. Start from 1 to match the connection
     # thread name.
