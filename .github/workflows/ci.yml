@@ -13,8 +13,8 @@ jobs:
         distro:
         - centos-8
         - centos-9
-        - fedora-34
         - fedora-35
+        - fedora-36
     steps:
     - uses: actions/checkout@v2
     - name: Configure docker
@@ -37,8 +37,8 @@ jobs:
         distro:
         - centos-8
         - centos-9
-        - fedora-34
         - fedora-35
+        - fedora-36
     container: quay.io/ovirt/imageio-test-${{matrix.distro}}
     steps:
     - uses: actions/checkout@v2
