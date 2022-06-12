@@ -14,7 +14,7 @@ GENERATED = \
 
 METADATA = ovirt_imageio/_internal/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean images clean-images storage clean-storage $(SPEC_NAME) venv
+.PHONY: build check dist container srpm rpm clean images clean-images storage clean-storage $(SPEC_NAME) venv
 
 build:
 	python3 setup.py build_ext --build-lib .
@@ -24,6 +24,11 @@ check: images
 
 dist: $(GENERATED)
 	python3 setup.py sdist --dist-dir "$(OUTDIR)"
+
+container: dist
+	cp $(OUTDIR)/ovirt-imageio-*.tar.gz container/ovirt-imageio.tar.gz
+	podman build -t ovirt-imageio container
+	rm -f container/ovirt-imageio.tar.gz
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
