@@ -54,6 +54,10 @@ class daemon:
     # configuration.
     group_name = "ovirtimg"
 
+    # Enable systemd integration. Must be enabled when running via the systemd
+    # daemon and disabled otherwise.
+    systemd_enable = True
+
 
 class tls:
 
