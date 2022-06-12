@@ -19,8 +19,6 @@ import signal
 import socket
 import sys
 
-import systemd.daemon
-
 from . import auth
 from . import config
 from . import errors
@@ -51,7 +49,7 @@ def main():
 
         server.start()
         try:
-            systemd.daemon.notify("READY=1")
+            notify_systemd(cfg)
             log.info("Ready for requests")
             while server.running:
                 signal.pause()
@@ -114,6 +112,13 @@ def configure_logger(cfg):
     parser = configparser.RawConfigParser()
     parser.read_dict(config.to_dict(cfg))
     logging.config.fileConfig(parser, disable_existing_loggers=False)
+
+
+def notify_systemd(cfg):
+    if cfg.daemon.systemd_enable:
+        log.debug("Notifying systemd")
+        import systemd.daemon
+        systemd.daemon.notify("READY=1")
 
 
 class Server:
