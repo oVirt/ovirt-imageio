@@ -1,0 +1,18 @@
+# Build stage
+
+FROM alpine AS build
+RUN apk add --no-cache --update build-base linux-headers python3 python3-dev py3-pip
+WORKDIR /build
+COPY ovirt-imageio.tar.gz .
+RUN python3 -m venv /venv
+RUN /venv/bin/pip install ovirt-imageio.tar.gz
+
+# Final stage
+
+FROM alpine
+RUN apk add python3
+RUN mkdir /etc/ovirt-imageio
+COPY --from=build /venv /venv
+COPY conf.d /etc/ovirt-imageio/conf.d
+EXPOSE 80/tcp
+CMD /venv/bin/ovirt-imageio
