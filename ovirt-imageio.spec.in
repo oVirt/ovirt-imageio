@@ -217,6 +217,9 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Tue Jun 14 2022 Nir Soffer <nsoffer@redhat.com> 2.4.5-1
+- http: Revert the default timeout to 60 seconds #71
+
 * Sun Apr 3 2022 Nir Soffer <nsoffer@redhat.com> 2.4.3-1
 - Build client and common for python 3.8 BZ2071365
 
