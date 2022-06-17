@@ -20,10 +20,6 @@ class daemon:
     # decrease throughput.
     max_connections = 8
 
-    # Number of seconds before unauthorized connections are
-    # disconnected.
-    auth_timeout = 15
-
     # Number of seconds before inactive connections are disconnected.
     # Clients with special needs can request a larger timeout when
     # creating an image transfer.
