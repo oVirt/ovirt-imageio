@@ -1,18 +1,28 @@
-#!/bin/sh
+#!/usr/bin/python3
 
-# Is this a release - build from tag?
-if git describe --tags --match "v[0-9]*" | grep -q '-'; then
-    # This is a master build, we want to make every build
-    # newer than all the previous builds using a timestamp,
-    # and make it easy to locate the commit from the build
-    # with the git commit hash.
-    release="0.$(date -u +%Y%m%d%H%M)"
-    commithash=$(git rev-parse --short HEAD)
-    release+=.git$commithash
-else
-    # We want to make tagged build newer than any other build from same
-    # version-release.
-    release="1"
-fi
+import datetime
+import subprocess
 
-echo $release
+
+def run(*args):
+    return subprocess.check_output(args).decode().strip()
+
+
+# Get a human readable name of this commit:
+# - build from tag: v2.4.5
+# - build without a tag: v2.4.5-3-gc238eff
+commit_name = run("git", "describe",  "--tags", "--match", "v[0-9]*")
+
+if "-" in commit_name:
+    # Build without a tag - make this build newer than previous build
+    # with a UTC timestamp, and add commit hash to make it easy to
+    # locate the commit.
+    utc_timestamp = datetime.datetime.utcnow().strftime("%Y%m%d%H%M")
+    commit_hash = run("git", "rev-parse", "--short", "HEAD")
+    release = f"0.{utc_timestamp}.git{commit_hash}"
+else:
+    # Build from tag - make this build newer than previous builds
+    # without a tag.
+    release = "1"
+
+print(release)
