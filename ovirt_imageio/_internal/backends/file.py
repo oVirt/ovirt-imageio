@@ -17,6 +17,7 @@ from .. import errors
 from .. import extent
 from .. import ioutil
 from .. import util
+from ..units import MiB
 
 from . common import CLOSED
 
@@ -504,7 +505,7 @@ class FileBackend(Backend):
         """
         Write zeros manually.
         """
-        buf_size = min(count, 1024**2)
+        buf_size = min(count, MiB)
         with util.aligned_buffer(buf_size) as buf, memoryview(buf) as view:
             while count:
                 count -= self.write(view[:count])

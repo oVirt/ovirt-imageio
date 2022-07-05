@@ -19,6 +19,7 @@ import ssl
 from .. import errors
 from .. import extent
 from .. import http
+from ..units import KiB
 
 from . common import CLOSED
 
@@ -548,7 +549,7 @@ class Backend:
         """
         self._put_header(length)
 
-        buf = bytearray(128 * 1024)
+        buf = bytearray(128 * KiB)
         todo = length
         while todo > len(buf):
             self._con.send(buf)

@@ -11,6 +11,7 @@ import logging
 from . import errors
 from . import stats
 from . import util
+from .units import MiB
 
 log = logging.getLogger("ops")
 
@@ -218,7 +219,7 @@ class Zero(Operation):
     # Limiting request size seems to avoid these timeouts. The disadvantage is
     # slower zeroing with file storage, but in this case the zeroing is
     # extremely fast so the difference is tiny.
-    MAX_STEP = 128 * 1024**2
+    MAX_STEP = 128 * MiB
 
     def __init__(self, dst, size, offset=0, flush=False, clock=None):
         super().__init__(size=size, offset=offset, clock=clock)

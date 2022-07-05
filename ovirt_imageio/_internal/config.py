@@ -7,6 +7,7 @@
 # (at your option) any later version.
 
 from . import configloader
+from .units import MiB
 
 
 class daemon:
@@ -84,7 +85,7 @@ class backend_file:
     # end storage, using iSCSI and FC. Larger values may increase throughput
     # slightly, but may also decrease it significantly.
     # TODO: Tested with single writer, needs testing with multiple readers.
-    buffer_size = 8 * 1024**2
+    buffer_size = 8 * MiB
 
 
 class backend_http:
@@ -100,7 +101,7 @@ class backend_http:
     # Buffer size in bytes for handling proxy requests. The default value was
     # copied form the file backend.
     # TODO: Needs testing with multiple readers and writers.
-    buffer_size = 8 * 1024**2
+    buffer_size = 8 * MiB
 
 
 class backend_nbd:
@@ -108,7 +109,7 @@ class backend_nbd:
     # Buffer size in bytes when reading and writing to the nbd backend. The
     # default value was copied form the file backend.
     # TODO: Needs testing with multiple readers and writers.
-    buffer_size = 8 * 1024**2
+    buffer_size = 8 * MiB
 
 
 class remote:

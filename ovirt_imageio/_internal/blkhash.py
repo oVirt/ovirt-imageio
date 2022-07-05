@@ -11,10 +11,11 @@ import os
 from functools import partial
 
 from . import ioutil
+from .units import MiB
 
 # These settings give best result for Fedora 32 image when using the nbd
 # backend. More testing is needed to determine if this is the best default.
-BLOCK_SIZE = 4 * 1024**2
+BLOCK_SIZE = 4 * MiB
 ALGORITHM = "blake2b"
 DIGEST_SIZE = 32
 

@@ -21,6 +21,7 @@ from . import ops
 from . import stats
 from . import util
 from . backends import file
+from .units import MiB
 
 
 class Receive(ops.Write):
@@ -31,7 +32,7 @@ class Receive(ops.Write):
     """
 
     def __init__(self, path, src, size=None, offset=0, flush=True,
-                 buffersize=1024**2, clock=stats.NullClock()):
+                 buffersize=MiB, clock=stats.NullClock()):
         url = urllib_parse.urlparse("file:" + path)
         self._dst = file.open(url, "r+")
         buf = util.aligned_buffer(buffersize)

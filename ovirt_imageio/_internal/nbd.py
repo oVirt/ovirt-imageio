@@ -19,6 +19,7 @@ import struct
 
 from . import ipv6
 from . import sockutil
+from .units import MiB
 
 # Matcher for NBD Unix URL path.
 # nbd:unix:path[:exportname=name]
@@ -391,7 +392,7 @@ class Client:
 
         self.minimum_block_size = 1
         self.preferred_block_size = 4096
-        self.maximum_block_size = 32 * 1024**2
+        self.maximum_block_size = 32 * MiB
 
         # Set to "qemu:dirty-bitmap:bitmap-name" if dirty is True, server
         # supports structued replies, and exports a dirty bitmap. Use this name
