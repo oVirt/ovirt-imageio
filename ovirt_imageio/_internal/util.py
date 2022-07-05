@@ -12,6 +12,8 @@ import mmap
 import os
 import threading
 
+from .units import KiB
+
 
 def start_thread(func, args=(), kwargs=None, name=None, daemon=True):
     if kwargs is None:
@@ -28,9 +30,9 @@ def monotonic_time():
 
 def humansize(n):
     for unit in ("bytes", "KiB", "MiB", "GiB", "TiB", "PiB"):
-        if n < 1024:
+        if n < KiB:
             break
-        n /= 1024
+        n /= KiB
     return "{:.{precision}f} {}".format(
         n, unit, precision=0 if unit == "bytes" else 2)
 

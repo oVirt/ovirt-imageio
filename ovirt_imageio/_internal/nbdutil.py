@@ -91,11 +91,12 @@ from collections import namedtuple
 
 from . import nbd
 from . import util
+from .units import MiB, GiB
 
 # NBD spec allows zeroing up to 2**32 - 1 bytes, buf some nbd servers like
 # qemu-nbd limit seems to be 2**31 - 512. Large zeros can delay more important
 # I/O so we like to zero is smaller steps.
-MAX_ZERO = 1024**3
+MAX_ZERO = GiB
 
 log = logging.getLogger("nbdutil")
 
@@ -118,7 +119,7 @@ def extents(client, offset=0, length=None, dirty=False):
 
     # NBD limit extents request to 4 GiB - 1. We use smaller step to limit the
     # number of extents kept in memory when accessing very fragmented images.
-    max_step = 2 * 1024**3
+    max_step = 2 * GiB
 
     # Keep the current extent, until we find a new extent with different flags.
     cur = None
@@ -204,7 +205,7 @@ def merged(extents_a, extents_b):
             a = None
 
 
-def copy(src_client, dst_client, block_size=4 * 1024**2, queue_depth=4,
+def copy(src_client, dst_client, block_size=4 * MiB, queue_depth=4,
          progress=None):
     """
     Copy export from src_client to dst_client.

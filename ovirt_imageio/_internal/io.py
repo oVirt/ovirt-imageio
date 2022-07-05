@@ -18,17 +18,18 @@ from functools import partial
 
 from . import util
 from . backends import Wrapper
+from .units import MiB
 
 # Limit maximum zero and copy size to spread the workload better to multiple
 # workers and ensure frequent progress updates when handling large extents.
-MAX_ZERO_SIZE = 128 * 1024**2
-MAX_COPY_SIZE = 128 * 1024**2
+MAX_ZERO_SIZE = 128 * MiB
+MAX_COPY_SIZE = 128 * MiB
 
 # NBD hard limit.
-MAX_BUFFER_SIZE = 32 * 1024**2
+MAX_BUFFER_SIZE = 32 * MiB
 
 # TODO: Needs more testing.
-BUFFER_SIZE = 4 * 1024**2
+BUFFER_SIZE = 4 * MiB
 MAX_WORKERS = 4
 
 log = logging.getLogger("io")
