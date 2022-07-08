@@ -5,7 +5,7 @@ targets := centos-8 centos-9 fedora-35 fedora-36
 all: $(targets)
 
 $(targets):
-	podman build -t imageio-test-$@ -f Dockerfile.$@ .
+	podman build -t imageio-test-$@ -f $@.containerfile .
 
 push:
 	for name in $(targets); do \

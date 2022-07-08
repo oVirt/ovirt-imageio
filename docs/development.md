@@ -48,7 +48,7 @@ Create a virtual environment for running the tests:
     python3 -m venv ~/venv/ovirt-imageio
     source ~/venv/ovirt-imageio/bin/activate
     pip install --upgrade pip
-    pip install --upgrade -r docker/requirements.txt
+    pip install --upgrade -r containers/requirements.txt
     deactivate
 
 
