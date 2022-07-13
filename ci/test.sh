@@ -18,5 +18,8 @@ create_loop_devices 16
 #   fatal: unsafe repository ('/src' is owned by someone else)
 git config --global --add safe.directory "$(pwd)"
 
+# Enable IPv6
+echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+
 make storage
 make check

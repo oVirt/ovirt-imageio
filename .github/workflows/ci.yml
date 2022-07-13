@@ -15,20 +15,14 @@ jobs:
         - centos-9
         - fedora-35
         - fedora-36
+    container:
+      image: quay.io/ovirt/imageio-test-${{matrix.distro}}
+      # Required to create loop devices.
+      options: --privileged
     steps:
     - uses: actions/checkout@v2
-    - name: Configure docker
-      run: sudo ./ci/configure-docker.py
-    - name: Pull container
-      run: docker pull quay.io/ovirt/imageio-test-${{matrix.distro}}
     - name: Run tests
-      run: |
-        docker run \
-        --privileged \
-        --rm \
-        --volume `pwd`:/src:Z \
-        quay.io/ovirt/imageio-test-${{matrix.distro}} \
-        bash -c "cd /src && ci/test.sh"
+      run: ci/test.sh
   rpm:
     runs-on: ubuntu-latest
     strategy:
