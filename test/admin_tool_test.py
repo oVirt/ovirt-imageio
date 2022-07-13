@@ -78,6 +78,7 @@ def srv(request, tmpdir_factory):
     finally:
         log.info("Terminating daemon")
         proc.terminate()
+        proc.wait()
 
 
 def test_ticket_life_cycle(srv):
