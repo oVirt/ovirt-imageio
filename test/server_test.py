@@ -231,6 +231,7 @@ def started_imageio(tmpdir, drop_privileges="true"):
         yield proc
     finally:
         proc.terminate()
+        proc.wait()
 
 
 def user_groups(user):
