@@ -14,10 +14,8 @@ import userstorage
 import pytest
 
 from ovirt_imageio._internal import blkhash
-from ovirt_imageio._internal import config
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
-from ovirt_imageio._internal import server
 
 from .. import testutil
 from .. import http
@@ -40,9 +38,8 @@ def user_file(request):
 
 
 @pytest.fixture(scope="module")
-def srv():
-    cfg = config.load(["test/conf/daemon.conf"])
-    s = server.Server(cfg)
+def srv(srv_factory):
+    s = srv_factory("test/conf/daemon.conf")
     s.start()
     yield s
     s.stop()

@@ -14,17 +14,13 @@ import stat
 
 import pytest
 
-from ovirt_imageio._internal import config
-from ovirt_imageio._internal import server
-
 from . import http
 from . import testutil
 
 
 @pytest.fixture(scope="module")
-def srv():
-    cfg = config.load(["test/conf/daemon.conf"])
-    s = server.Server(cfg)
+def srv(srv_factory):
+    s = srv_factory("test/conf/daemon.conf")
     s.start()
     try:
         yield s

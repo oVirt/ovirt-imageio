@@ -17,16 +17,16 @@ from . import testutil
 
 
 @pytest.fixture(scope="module")
-def daemon():
-    daemon = server.Server(config.load(["test/conf/daemon.conf"]))
+def daemon(srv_factory):
+    daemon = srv_factory("test/conf/daemon.conf")
     daemon.start()
     yield daemon
     daemon.stop()
 
 
 @pytest.fixture(scope="module")
-def proxy():
-    proxy = server.Server(config.load(["test/conf/proxy.conf"]))
+def proxy(srv_factory):
+    proxy = srv_factory("test/conf/proxy.conf")
     proxy.start()
     yield proxy
     proxy.stop()

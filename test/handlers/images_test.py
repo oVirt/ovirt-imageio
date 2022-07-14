@@ -13,9 +13,6 @@ import time
 
 import pytest
 
-from ovirt_imageio._internal import config
-from ovirt_imageio._internal import server
-
 from .. import testutil
 from .. import http
 
@@ -32,9 +29,8 @@ ALL_FEATURES = BASE_FEATURES | {"zero", "flush"}
 
 
 @pytest.fixture(scope="module")
-def srv():
-    cfg = config.load(["test/conf/daemon.conf"])
-    s = server.Server(cfg)
+def srv(srv_factory):
+    s = srv_factory("test/conf/daemon.conf")
     s.start()
     yield s
     s.stop()

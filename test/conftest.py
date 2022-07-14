@@ -11,14 +11,17 @@ import logging
 import os
 import subprocess
 import urllib.parse
+import uuid
 
 from collections import namedtuple
 
 import pytest
 
+from ovirt_imageio._internal import config
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import util
+from ovirt_imageio._internal import server
 
 log = logging.getLogger("test")
 
@@ -121,3 +124,13 @@ def fake_time(monkeypatch):
     time = FakeTime()
     monkeypatch.setattr(util, "monotonic_time", time.monotonic_time)
     return time
+
+
+@pytest.fixture(scope="module")
+def srv_factory():
+    def _factory(path):
+        cfg = config.load(path)
+        cfg.local.socket = f"\0/org/ovirt/imageio/{uuid.uuid4()}"
+        return server.Server(cfg)
+
+    return _factory

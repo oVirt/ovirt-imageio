@@ -12,8 +12,6 @@ import uuid
 import pytest
 
 from ovirt_imageio import admin
-from ovirt_imageio._internal import config
-from ovirt_imageio._internal import server
 
 from . import testutil
 
@@ -21,10 +19,9 @@ log = logging.getLogger("test")
 
 
 @pytest.fixture(scope="module", params=["daemon", "proxy"])
-def srv(request):
+def srv(srv_factory, request):
     path = "test/conf/{}.conf".format(request.param)
-    cfg = config.load(path)
-    s = server.Server(cfg)
+    s = srv_factory(path)
     s.start()
     yield s
     s.stop()
