@@ -10,6 +10,7 @@ import json
 import os
 import pwd
 import subprocess
+import uuid
 
 import pytest
 
@@ -39,7 +40,7 @@ ca_file = test/pki/system/ca.pem
 port = 0
 
 [local]
-socket =
+socket = {local_socket}
 
 [control]
 transport = unix
@@ -202,6 +203,7 @@ def prepare_config(tmpdir, drop_privileges="true"):
         drop_priv=drop_privileges,
         user_name="nobody",
         group_name="nobody",
+        local_socket=f"\0/org/ovirt/imageio/{uuid.uuid4()}",
     )
     tmpdir.join("conf", "conf.d", "daemon.conf").write(daemon_conf)
 

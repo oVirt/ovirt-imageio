@@ -9,6 +9,7 @@ import json
 import logging
 import subprocess
 import time
+import uuid
 
 import pytest
 
@@ -31,7 +32,7 @@ ca_file = test/pki/system/ca.pem
 port = 0
 
 [local]
-socket =
+socket = {local_socket}
 
 [control]
 transport = {control_transport}
@@ -58,6 +59,7 @@ def srv(request, tmpdir_factory):
 
     conf = DAEMON_CONF.format(
         run_dir=str(tmp_dir),
+        local_socket=f"\0/org/ovirt/imageio/{uuid.uuid4()}",
         control_transport=request.param,
         control_port=random_port)
     conf_file.write(conf)
