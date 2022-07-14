@@ -11,6 +11,7 @@ import http.client as http_client
 import logging
 import os
 import socket
+import uuid
 
 from . import http
 from . import util
@@ -61,7 +62,13 @@ class Server(http.Server):
 
         if self.server_address == "":
             # User wants to bind to a random abstract socket.
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_PASSCRED, 1)
+            # A recent change in cpython broke autobind of abstract
+            # unix socket in linux, causing bind calls with an
+            # empty string to be bound to '\0' instead of a
+            # random address.
+            # Until it is fixed, we need to generate random address ourselves.
+            # See https://github.com/python/cpython/issues/94821
+            self.server_address = f"\0{uuid.uuid4()}"
 
     def server_bind(self):
         """
