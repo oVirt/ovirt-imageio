@@ -21,5 +21,13 @@ git config --global --add safe.directory "$(pwd)"
 # Enable IPv6
 echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 
+if [ -z $1 ]; then
+    echo "Missing argument 'ENV' (tox environment)."
+    echo "Usage: $0 ENV"
+    exit 1
+fi
+
+env="$1"
+
 make storage
-make check
+tox -e flake8,test-$env,bench-$env
