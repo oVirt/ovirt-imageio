@@ -10,11 +10,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro:
-        - centos-8
-        - centos-9
-        - fedora-35
-        - fedora-36
+        include:
+          - distro: centos-8
+            env: py36
+          - distro: centos-8
+            env: py38
+          - distro: centos-9
+            env: py39
+          - distro: fedora-35
+            env: py310
+          - distro: fedora-36
+            env: py310
     container:
       image: quay.io/ovirt/imageio-test-${{matrix.distro}}
       # Required to create loop devices.
@@ -22,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run tests
-      run: ci/test.sh
+      run: ci/test.sh ${{matrix.env}}
   rpm:
     runs-on: ubuntu-latest
     strategy:
