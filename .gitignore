@@ -18,7 +18,7 @@ htmlcov
 MANIFEST
 build
 dist
-ovirt-img/ovirt-img
+go/ovirt-img/ovirt-img
 
 # PyCharm, IntelliJ IDEA-specific files
 *.idea

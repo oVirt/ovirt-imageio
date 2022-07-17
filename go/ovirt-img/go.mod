@@ -1,7 +1,7 @@
 module ovirt.org/ovirt-img
 
 // imageio-go is part of this repository.
-replace ovirt.org/imageio => ../go
+replace ovirt.org/imageio => ../imageio
 
 go 1.16
 
