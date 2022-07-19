@@ -16,10 +16,12 @@ RUN echo v1 \
         make \
         openssl \
         python3-devel \
+        python3-ovirt-engine-sdk4 \
         python3-pip \
         python3-setuptools \
         python3-systemd \
         python38-devel \
+        python38-ovirt-engine-sdk4 \
         python38-pip \
         python38-setuptools \
         qemu-img \

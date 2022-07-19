@@ -14,6 +14,7 @@ RUN echo v1 \
         make \
         openssl \
         python3-devel \
+        python3-ovirt-engine-sdk4 \
         python3-pip \
         python3-setuptools \
         python3-systemd \
