@@ -10,6 +10,8 @@
 Tool options.
 """
 
+from .. _internal.units import KiB, MiB, GiB, TiB
+
 import argparse
 
 
@@ -48,3 +50,46 @@ class Parser:
         args = self._parser.parse_args()
         # XXX Read config file and merge into args.
         return args
+
+
+class SizeValue(int):
+
+    SUFFIXES = {"": 1, "k": KiB, "m": MiB, "g": GiB, "t": TiB}
+
+    def __str__(self):
+        n = int(self)
+        for unit in self.SUFFIXES:
+            if n < KiB:
+                break
+            n //= KiB
+        return f"{n}{unit}"
+
+
+class Size:
+    """
+    Convert and validate size string.
+    """
+
+    def __init__(self, minimum=0, default=None, maximum=None):
+        # Minimum value is required since negative size does not make sense.
+        self.minimum = SizeValue(minimum)
+        self.default = None if default is None else SizeValue(default)
+        self.maximum = None if maximum is None else SizeValue(maximum)
+
+    def __call__(self, s):
+        if s == "":
+            raise ValueError(f"Invalid size: {s!r}")
+
+        unit = SizeValue.SUFFIXES.get(s[-1].lower())
+        if unit:
+            value = int(s[:-1]) * unit
+        else:
+            value = int(s)
+
+        if value < self.minimum:
+            raise ValueError(f"Size {s!r} < {self.minimum}")
+
+        if self.maximum is not None and value > self.maximum:
+            raise ValueError(f"Size {s!r} > {self.maximum}")
+
+        return value
