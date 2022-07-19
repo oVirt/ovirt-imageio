@@ -9,9 +9,12 @@ RUN echo v1 \
         e2fsprogs \
         gcc \
         git \
+        libcurl-devel \
         libguestfs-tools-c \
+        libxml2-devel \
         make \
         openssl \
+        openssl-devel \
         python3-devel \
         python3-pip \
         python3-setuptools \
@@ -29,4 +32,5 @@ RUN echo v1 \
 # Developemnt tools.
 COPY requirements.txt requirements.txt
 RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install --requirement requirements.txt
+    && python3 -m pip install --requirement requirements.txt \
+    && python3 -m pip install ovirt-engine-sdk-python
