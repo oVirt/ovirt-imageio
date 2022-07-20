@@ -219,6 +219,10 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Wed Aug 3 2022 Albert Esteve <aesteve@redhat.com> 2.4.6-1
+- ovirt-img command line tool #72
+- Speed up upload to new disk #76
+
 * Tue Jun 14 2022 Nir Soffer <nsoffer@redhat.com> 2.4.5-1
 - http: Revert the default timeout to 60 seconds #71
 
