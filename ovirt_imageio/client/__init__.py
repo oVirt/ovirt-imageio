@@ -14,13 +14,12 @@ and should not be used.
 
 # flake8: noqa
 
-# Use for default buffer size.
-from .. _internal.io import BUFFER_SIZE
-
 from .. _internal import version
 
 # The public APIs
 from . _api import (
+    BUFFER_SIZE,
+    MAX_WORKERS,
     upload,
     download,
     info,
@@ -35,6 +34,7 @@ from . _ui import ProgressBar
 
 __all__ = (
     "BUFFER_SIZE",
+    "MAX_WORKERS",
     "ImageioClient",
     "ProgressBar",
     "checksum",
