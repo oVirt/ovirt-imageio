@@ -27,11 +27,15 @@ from .. _internal.backends import http, nbd
 from .. _internal.handlers import checksum as _checksum
 from .. _internal.nbd import UnixAddress
 
+# API constants.
+BUFFER_SIZE = io.BUFFER_SIZE
+MAX_WORKERS = io.MAX_WORKERS
+
 log = logging.getLogger("client")
 
 
-def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
-           progress=None, proxy_url=None, max_workers=io.MAX_WORKERS,
+def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
+           progress=None, proxy_url=None, max_workers=MAX_WORKERS,
            member=None, backing_chain=True):
     """
     Upload filename to url
@@ -109,8 +113,8 @@ def upload(filename, url, cafile, buffer_size=io.BUFFER_SIZE, secure=True,
 
 
 def download(url, filename, cafile, fmt="qcow2", incremental=False,
-             buffer_size=io.BUFFER_SIZE, secure=True, progress=None,
-             proxy_url=None, max_workers=io.MAX_WORKERS,
+             buffer_size=BUFFER_SIZE, secure=True, progress=None,
+             proxy_url=None, max_workers=MAX_WORKERS,
              backing_file=None, backing_format=None):
     """
     Download url to filename.
@@ -288,7 +292,7 @@ class ImageioClient:
     """
 
     def __init__(self, transfer_url, cafile=None, secure=True, proxy_url=None,
-                 buffer_size=io.BUFFER_SIZE):
+                 buffer_size=BUFFER_SIZE):
         """
         Arguments:
             transfer_url (str): Transfer url on the host running imageio server
