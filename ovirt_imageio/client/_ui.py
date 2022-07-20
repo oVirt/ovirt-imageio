@@ -15,7 +15,7 @@ from .. _internal import util
 
 class ProgressBar:
 
-    def __init__(self, size=0, output=sys.stdout, step=0.1, width=79,
+    def __init__(self, size=0, output=sys.stdout, step=None, width=79,
                  now=time.monotonic):
         """
         Argumnets:
@@ -23,33 +23,33 @@ class ProgressBar:
                 creating, progress value is not displayed. The size can be set
                 later to enable progress display.
             output (fileobj): file to write progress to (default sys.stdout).
-            step (float): mininum progress update interval in seconds (default
-                0.1 seconds).
+            step (float): unused, kept for backward compatibility. The progress
+                is updated in 1 percent steps.
             width (int): width of progress bar in characters (default 79)
             now (callable): callable returning current time for testing.
         """
         self.size = size
         self.output = output
-        self.step = step
         # TODO: use current terminal width instead.
         self.width = width
         self.now = now
         self.lock = threading.Lock()
         self.start = self.now()
-        self.next = 0
+        # Number of bytes transferred.
         self.done = 0
+        # Value in percent. We start with -1 so the first update will show 0%.
+        self.value = -1
 
         # The first update can take some time.
-        self.update(0)
+        self._draw()
 
     def update(self, n):
         """
         Increment the progress by n bytes.
 
         Should be called for every successful transfer, with the number of
-        bytes transfer. The number of bytes transfered is updated on every
-        call, but the progress is updated only if step seconds have passed
-        since the last update.
+        bytes transferred. The number of bytes transferred is updated on every
+        call, but the progress is drawn only when the value changes.
 
         Note: this interface is compatible with tqdm[1], to allow user to use
         different progress implementations.
@@ -58,26 +58,25 @@ class ProgressBar:
         """
         with self.lock:
             self.done += n
-            now = self.now()
-            if now < self.next:
-                return
-
-            self.next = now + self.step
-            self._draw(now)
+            if self.size:
+                new_value = int(self.done / self.size * 100)
+                if new_value > self.value:
+                    self.value = new_value
+                    self._draw()
 
     def close(self):
         with self.lock:
             # If we wrote progress, we need to draw the last progress line.
             if self.done > 0:
-                self._draw(self.now(), last=True)
+                self._draw(last=True)
 
-    def _draw(self, now, last=False):
-        elapsed = now - self.start
+    def _draw(self, last=False):
+        elapsed = self.now() - self.start
 
         if self.size:
-            progress = "%6.2f%%" % (self.done / self.size * 100)
+            progress = "%3d%%" % max(0, self.value)
         else:
-            progress = "-------"
+            progress = "----"
 
         line = "[ %s ] %s, %.2f seconds, %s/s" % (
             progress,
