@@ -66,9 +66,7 @@ class ProgressBar:
 
     def close(self):
         with self._lock:
-            # If we wrote progress, we need to draw the last progress line.
-            if self._done > 0:
-                self._draw(last=True)
+            self._draw(last=True)
 
     def _draw(self, last=False):
         elapsed = self._now() - self._start
