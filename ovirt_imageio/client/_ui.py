@@ -15,7 +15,7 @@ from .. _internal import util
 
 class ProgressBar:
 
-    def __init__(self, size=0, output=sys.stdout, step=None, width=79,
+    def __init__(self, size=None, output=sys.stdout, step=None, width=79,
                  now=time.monotonic):
         """
         Arguments:
@@ -29,16 +29,16 @@ class ProgressBar:
             now (callable): callable returning current time for testing.
         """
         self.size = size
-        self.output = output
+        self._output = output
         # TODO: use current terminal width instead.
-        self.width = width
-        self.now = now
-        self.lock = threading.Lock()
-        self.start = self.now()
+        self._width = width
+        self._now = now
+        self._lock = threading.Lock()
+        self._start = self._now()
         # Number of bytes transferred.
-        self.done = 0
+        self._done = 0
         # Value in percent. We start with -1 so the first update will show 0%.
-        self.value = -1
+        self._value = -1
 
         # The first update can take some time.
         self._draw()
@@ -56,36 +56,36 @@ class ProgressBar:
 
         [1] https://github.com/tqdm/tqdm#manual
         """
-        with self.lock:
-            self.done += n
+        with self._lock:
+            self._done += n
             if self.size:
-                new_value = int(self.done / self.size * 100)
-                if new_value > self.value:
-                    self.value = new_value
+                new_value = int(self._done / self.size * 100)
+                if new_value > self._value:
+                    self._value = new_value
                     self._draw()
 
     def close(self):
-        with self.lock:
+        with self._lock:
             # If we wrote progress, we need to draw the last progress line.
-            if self.done > 0:
+            if self._done > 0:
                 self._draw(last=True)
 
     def _draw(self, last=False):
-        elapsed = self.now() - self.start
+        elapsed = self._now() - self._start
 
         if self.size:
-            progress = "%3d%%" % max(0, self.value)
+            progress = "%3d%%" % max(0, self._value)
         else:
             progress = "----"
 
         line = "[ %s ] %s, %.2f seconds, %s/s" % (
             progress,
-            util.humansize(self.done),
+            util.humansize(self._done),
             elapsed,
-            util.humansize(self.done / elapsed if elapsed else 0),
+            util.humansize(self._done / elapsed if elapsed else 0),
         )
 
-        line = line.ljust(self.width, " ")
+        line = line.ljust(self._width, " ")
 
         # Using "\r" moves the cursor to the first column, so the next progress
         # will overwrite this one. If this is the last progress, we use "\n" to
@@ -93,8 +93,8 @@ class ProgressBar:
         # part of the old progress.
         end = "\n" if last else "\r"
 
-        self.output.write(line + end)
-        self.output.flush()
+        self._output.write(line + end)
+        self._output.flush()
 
     def __enter__(self):
         return self
