@@ -18,7 +18,7 @@ class ProgressBar:
     def __init__(self, size=0, output=sys.stdout, step=None, width=79,
                  now=time.monotonic):
         """
-        Argumnets:
+        Arguments:
             size (int): total number of bytes. If size is unknown when
                 creating, progress value is not displayed. The size can be set
                 later to enable progress display.
@@ -88,7 +88,7 @@ class ProgressBar:
         line = line.ljust(self.width, " ")
 
         # Using "\r" moves the cursor to the first column, so the next progress
-        # will overwite this one. If this is the last progress, we use "\n" to
+        # will overwrite this one. If this is the last progress, we use "\n" to
         # move to the next line. Otherwise, the next shell prompt will include
         # part of the old progress.
         end = "\n" if last else "\r"
