@@ -75,19 +75,11 @@ class ProgressBar:
 
     def _draw(self, last=False):
         elapsed = self._now() - self._start
+        progress = f"{max(0, self._value):3d}%" if self.size else "----"
+        done = util.humansize(self._done)
+        rate = util.humansize(self._done / elapsed if elapsed else 0)
 
-        if self.size:
-            progress = "%3d%%" % max(0, self._value)
-        else:
-            progress = "----"
-
-        line = "[ %s ] %s, %.2f seconds, %s/s" % (
-            progress,
-            util.humansize(self._done),
-            elapsed,
-            util.humansize(self._done / elapsed if elapsed else 0),
-        )
-
+        line = f"[ {progress} ] {done}, {elapsed:.2f} seconds, {rate}/s"
         line = line.ljust(self._width, " ")
 
         # Using "\r" moves the cursor to the first column, so the next progress
