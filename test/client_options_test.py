@@ -6,6 +6,8 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import os
+
 import pytest
 
 from ovirt_imageio._internal.units import KiB, MiB, GiB, TiB
@@ -91,3 +93,140 @@ def test_size_values():
     assert str(validate.default) == "2m"
     assert validate.maximum == 1 * GiB
     assert str(validate.maximum) == "1g"
+
+
+@pytest.fixture
+def config(tmpdir, monkeypatch):
+    monkeypatch.setitem(os.environ, "XDG_CONFIG_HOME", str(tmpdir))
+    config = tmpdir.join("ovirt-img.conf")
+    config.write("""
+[all]
+engine_url = https://engine.com
+username = username
+password = password
+cafile = /engine.pem
+
+[required]
+engine_url = https://engine.com
+username = username
+
+[missing1]
+engine_url = https://engine.com
+#username is not set
+
+[missing2]
+#engine_url is not set
+username = username
+
+[missing3]
+#engine_url is not set
+#username is not set
+""")
+
+
+def test_config_all(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    args = parser.parse(["test", "-c", "all"])
+    assert args.engine_url == "https://engine.com"
+    assert args.username == "username"
+    assert args.cafile == "/engine.pem"
+
+    # Use password from config.
+    assert args.password_file is None
+    assert args.password == "password"
+
+
+def test_config_all_override(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    args = parser.parse([
+        "test",
+        "-c", "all",
+        "--engine-url", "https://engine2.com",
+        "--username", "username2",
+        "--password-file", "/password_file",
+        "--cafile", "/engine2.pem",
+    ])
+    assert args.engine_url == "https://engine2.com"
+    assert args.username == "username2"
+    assert args.cafile == "/engine2.pem"
+
+    # --password-file overrides password from config.
+    assert args.password_file == "/password_file"
+    assert args.password == "password"
+
+
+def test_config_required(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    args = parser.parse(["test", "-c", "required"])
+    assert args.engine_url == "https://engine.com"
+    assert args.username == "username"
+    assert args.cafile is None
+
+    # No --password-file or config password: get password from stdin.
+    assert args.password_file is None
+    assert args.password is None
+
+
+def test_config_required_override(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    args = parser.parse([
+        "test",
+        "-c", "required",
+        "--password-file", "/password_file",
+        "--cafile", "/engine2.pem",
+    ])
+    assert args.engine_url == "https://engine.com"
+    assert args.username == "username"
+    assert args.cafile == "/engine2.pem"
+
+    # Read password from --password-file.
+    assert args.password_file == "/password_file"
+    assert args.password is None
+
+
+@pytest.mark.parametrize("name,missing", [
+    ("missing1", "username"),
+    ("missing2", "engine_url"),
+])
+def test_config_missing(config, capsys, name, missing):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    with pytest.raises(SystemExit):
+        parser.parse(["test", "-c", name])
+    captured = capsys.readouterr()
+    assert repr(missing) in captured.err
+
+
+def test_config_missing_override(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+    args = parser.parse([
+        "test",
+        "-c", "missing3",
+        "--engine-url", "https://engine.com",
+        "--username", "username",
+    ])
+    assert args.engine_url == "https://engine.com"
+    assert args.username == "username"
+
+
+def test_config_no_section(config, capsys):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", None)
+
+    # Required paremeters are available via the command line, but the specified
+    # configuration does not exist. This is likely a user error so fail loudly.
+    with pytest.raises(SystemExit):
+        parser.parse([
+            "test",
+            "-c", "nosection",
+            "--engine-url", "https://engine.com",
+            "--username", "username",
+        ])
+
+    captured = capsys.readouterr()
+    assert repr("nosection") in captured.err

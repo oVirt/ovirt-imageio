@@ -45,6 +45,8 @@ def connect(args):
     if args.password_file:
         with open(args.password_file) as f:
             password = f.read().rstrip("\n")
+    elif args.password is not None:
+        password = args.password
     else:
         password = getpass.getpass()
 
