@@ -39,6 +39,7 @@ class ProgressBar:
         self._done = 0
         # Value in percent. We start with -1 so the first update will show 0%.
         self._value = -1
+        self._closed = False
 
         # The first update can take some time.
         self._draw()
@@ -57,6 +58,8 @@ class ProgressBar:
         [1] https://github.com/tqdm/tqdm#manual
         """
         with self._lock:
+            if self._closed:
+                return
             self._done += n
             if self.size:
                 new_value = int(self._done / self.size * 100)
@@ -66,7 +69,9 @@ class ProgressBar:
 
     def close(self):
         with self._lock:
-            self._draw(last=True)
+            if not self._closed:
+                self._closed = True
+                self._draw(last=True)
 
     def _draw(self, last=False):
         elapsed = self._now() - self._start
