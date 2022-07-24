@@ -13,6 +13,8 @@ Tool options.
 from .. _internal.units import KiB, MiB, GiB, TiB
 
 import argparse
+import configparser
+import os
 
 
 class Parser:
@@ -21,7 +23,8 @@ class Parser:
         self._parser = argparse.ArgumentParser(
             description="Transfer disk images")
         self._parser.set_defaults(
-            command=lambda _: self._parser.print_help())
+            command=lambda _: self._parser.print_help(),
+            password=None)
         self._commands = self._parser.add_subparsers(title="commands")
 
     def add_sub_command(self, name, help, func):
@@ -29,27 +32,65 @@ class Parser:
         cmd.set_defaults(command=func)
 
         cmd.add_argument(
+            "-c", "--config",
+            help="If set, read specified section from the configuration "
+                 f"file ({self.config_file}).")
+
+        cmd.add_argument(
             "--engine-url",
-            help="ovirt-engine URL.")
+            help="ovirt-engine URL. If not set, read from the specified "
+                 "config section (required).")
 
         cmd.add_argument(
             "--username",
-            help="ovirt-engine username.")
+            help="ovirt-engine username. If not set, read from the specified "
+                 "config section (required).")
 
         cmd.add_argument(
             "--password-file",
-            help="Read ovirt-engine password from file.")
+            help="Read ovirt-engine password from file. If not set, read "
+                 "password from the specified config section.")
 
         cmd.add_argument(
             "--cafile",
-            help="Path to ovirt-engine CA certificate")
+            help="Path to ovirt-engine CA certificate. If not set, read from "
+                 "the specified config section")
 
         return cmd
 
-    def parse(self):
-        args = self._parser.parse_args()
-        # XXX Read config file and merge into args.
+    def parse(self, args=None):
+        args = self._parser.parse_args(args=args)
+        if args.config:
+            self._merge_config(args)
+
+        for name in ("engine_url", "username"):
+            if getattr(args, name, None) is None:
+                self._parser.error(f"Option '{name}' is required")
+
         return args
+
+    @property
+    def config_file(self):
+        # https://specifications.freedesktop.org/basedir-spec
+        base_dir = os.environ.get("XDG_CONFIG_HOME")
+        if not base_dir:
+            base_dir = os.path.expanduser("~/.config")
+        return os.path.join(base_dir, "ovirt-img.conf")
+
+    def _merge_config(self, args):
+        config = configparser.ConfigParser(interpolation=None)
+        config.read([self.config_file])
+
+        if not config.has_section(args.config):
+            self._parser.error(
+                f"No section: '{args.config}' in '{self.config_file}'")
+
+        for name in ("engine_url", "username", "password", "cafile"):
+            if getattr(args, name) is not None:
+                continue
+
+            if config.has_option(args.config, name):
+                setattr(args, name, config.get(args.config, name))
 
 
 class SizeValue(int):
