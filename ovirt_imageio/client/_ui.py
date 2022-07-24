@@ -77,7 +77,7 @@ class ProgressBar:
         elapsed = self._now() - self._start
         progress = f"{max(0, self._value):3d}%" if self.size else "----"
         done = util.humansize(self._done)
-        rate = util.humansize(self._done / elapsed if elapsed else 0)
+        rate = util.humansize((self._done / elapsed) if elapsed else 0)
 
         line = f"[ {progress} ] {done}, {elapsed:.2f} seconds, {rate}/s"
         line = line.ljust(self._width, " ")
