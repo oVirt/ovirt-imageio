@@ -87,6 +87,23 @@ def test_with_size():
     )
 
 
+def test_close():
+    f = FakeFile()
+    pb = client.ProgressBar(output=f)
+    pb.size = 1 * 1024**3
+    pb.update(512 * 1024**2)
+    pb.close()
+
+    # Once closed, update does not redraw.
+    f.last = None
+    pb.update(512 * 1024**2)
+    assert f.last is None
+
+    # Closing twice does not redraw.
+    pb.close()
+    assert f.last is None
+
+
 def test_contextmanager():
     f = FakeFile()
     with client.ProgressBar(1024**3, output=f) as pb:
