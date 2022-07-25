@@ -189,8 +189,9 @@ def test_config_required_override(config):
 
 
 @pytest.mark.parametrize("name,missing", [
-    ("missing1", "username"),
-    ("missing2", "engine_url"),
+    ("missing1", ["username"]),
+    ("missing2", ["engine_url"]),
+    ("missing3", ["engine_url", "username"]),
 ])
 def test_config_missing(config, capsys, name, missing):
     parser = _options.Parser()
@@ -198,7 +199,8 @@ def test_config_missing(config, capsys, name, missing):
     with pytest.raises(SystemExit):
         parser.parse(["test", "-c", name])
     captured = capsys.readouterr()
-    assert repr(missing) in captured.err
+    for name in missing:
+        assert name in captured.err
 
 
 def test_config_missing_override(config):
