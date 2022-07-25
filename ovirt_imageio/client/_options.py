@@ -10,6 +10,8 @@
 Tool options.
 """
 
+from collections import namedtuple
+
 from .. _internal.units import KiB, MiB, GiB, TiB
 
 import argparse
@@ -18,43 +20,97 @@ import os
 import sys
 
 
+class Option(
+        namedtuple("Option", "name,args,config,required,type,default,help")):
+
+    __slots__ = ()
+
+    def __new__(cls, name=None, args=(), config=False, required=False,
+                type=str, default=None, help=None):
+        """
+        Arguments:
+            name (str): Option name use in config file or parsed arguments.
+            args (List[str]): If set, add command line arguments for this
+                option.
+            config (bool): If True this option can be set in the config file.
+            required (bool): If True this option is required and parsing
+                arguments will fail if it is not specified in the command line
+                or config file.
+            type (callable): Callable converting the command line argument or
+                config value to the wanted type. Must raise ValueError if the
+                value is invalid and cannot be converted.
+            default (Any): The default value if the option was not set in the
+                command line arguments or config file.
+            help (str): Help message to show in the online help.
+        """
+        return tuple.__new__(
+            cls, (name, args, config, required, type, default, help))
+
+
 class Parser:
+
+    _OPTIONS = [
+        Option(
+            name="config",
+            args=["-c", "--config"],
+            help="If set, read specified section from the configuration file.",
+        ),
+        Option(
+            name="engine_url",
+            args=["--engine-url"],
+            config=True,
+            required=True,
+            help=("ovirt-engine URL. If not set, read from the specified "
+                  "config section (required)."),
+        ),
+        Option(
+            name="username",
+            args=["--username"],
+            config=True,
+            required=True,
+            help=("ovirt-engine username. If not set, read from the "
+                  "specified config section (required)."),
+        ),
+        Option(
+            name="password",
+            config=True,
+        ),
+        Option(
+            name="password_file",
+            args=["--password-file"],
+            help=("Read ovirt-engine password from file. If not set, read "
+                  "password from the specified config section, or prompt "
+                  "the user for the password."),
+        ),
+        Option(
+            name="cafile",
+            args=["--cafile"],
+            config=True,
+            help=("Path to ovirt-engine CA certificate. If not set, read "
+                  "from the specified config section"),
+        ),
+    ]
 
     def __init__(self):
         self._parser = argparse.ArgumentParser(
             description="Transfer disk images")
-        # XXX password should not be here.
-        self._parser.set_defaults(command=None, password=None)
+        self._parser.set_defaults(command=None)
         self._commands = self._parser.add_subparsers(title="commands")
 
     def add_sub_command(self, name, help, func):
         cmd = self._commands.add_parser(name, help=help)
         cmd.set_defaults(command=func)
 
-        cmd.add_argument(
-            "-c", "--config",
-            help="If set, read specified section from the configuration "
-                 f"file ({self.config_file}).")
+        for option in self._OPTIONS:
+            # Skip config only options.
+            if not option.args:
+                continue
 
-        cmd.add_argument(
-            "--engine-url",
-            help="ovirt-engine URL. If not set, read from the specified "
-                 "config section (required).")
-
-        cmd.add_argument(
-            "--username",
-            help="ovirt-engine username. If not set, read from the specified "
-                 "config section (required).")
-
-        cmd.add_argument(
-            "--password-file",
-            help="Read ovirt-engine password from file. If not set, read "
-                 "password from the specified config section.")
-
-        cmd.add_argument(
-            "--cafile",
-            help="Path to ovirt-engine CA certificate. If not set, read from "
-                 "the specified config section")
+            cmd.add_argument(
+                *option.args,
+                dest=option.name,
+                type=option.type,
+                help=option.help)
 
         return cmd
 
@@ -67,9 +123,8 @@ class Parser:
         if args.config:
             self._merge_config(args)
 
-        for name in ("engine_url", "username"):
-            if getattr(args, name, None) is None:
-                self._parser.error(f"Option '{name}' is required")
+        self._set_defaults(args)
+        self._check_required_options(args)
 
         return args
 
@@ -82,6 +137,11 @@ class Parser:
         return os.path.join(base_dir, "ovirt-img.conf")
 
     def _merge_config(self, args):
+        """
+        Read options from specified config section and set the value for unused
+        command line options. This must be done after parsing command line
+        options since we depend on --config.
+        """
         config = configparser.ConfigParser(interpolation=None)
         config.read([self.config_file])
 
@@ -89,12 +149,44 @@ class Parser:
             self._parser.error(
                 f"No section: '{args.config}' in '{self.config_file}'")
 
-        for name in ("engine_url", "username", "password", "cafile"):
-            if getattr(args, name) is not None:
+        for option in self._OPTIONS:
+            # Skip command line only options.
+            if not option.config:
                 continue
 
-            if config.has_option(args.config, name):
-                setattr(args, name, config.get(args.config, name))
+            # Skip options set by the command line.
+            if getattr(args, option.name, None) is not None:
+                continue
+
+            # Read and validate value from config file.
+            if config.has_option(args.config, option.name):
+                raw_value = config.get(args.config, option.name)
+                try:
+                    value = option.type(raw_value)
+                except ValueError as e:
+                    self._parser.error(e)
+                setattr(args, option.name, value)
+
+    def _set_defaults(self, args):
+        """
+        Add default value for unused command line argument (None by default),
+        and unset config only values (attribute missing). This must be done
+        after reading config values.
+        """
+        for option in self._OPTIONS:
+            if getattr(args, option.name, None) is None:
+                setattr(args, option.name, option.default)
+
+    def _check_required_options(self, args):
+        """
+        Check that all required options have some value. This must be done
+        after setting the defaults.
+        """
+        missing = [opt.name for opt in self._OPTIONS
+                   if opt.required and getattr(args, opt.name) is None]
+        if missing:
+            self._parser.error(
+                f"Missing required options: {', '.join(missing)}")
 
 
 class SizeValue(int):
