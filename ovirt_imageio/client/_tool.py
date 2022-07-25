@@ -10,6 +10,8 @@
 Tool for transferring disk images.
 """
 
+import logging
+
 from . import _options
 from . import _download
 
@@ -19,7 +21,12 @@ def main():
     _download.register(parser)
     args = parser.parse()
 
-    # XXX Configure logging.
+    logging.basicConfig(
+        filename=args.log_file,
+        level=args.log_level.upper(),
+        format="%(asctime)s %(levelname)-7s (%(threadName)s) [%(name)s] "
+               "%(message)s")
+
     # XXX Setup signal handlers.
     # XXX Handle commands errors.
 
