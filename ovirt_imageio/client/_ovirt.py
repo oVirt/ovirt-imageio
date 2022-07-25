@@ -54,7 +54,9 @@ def connect(args):
         url=f"{args.engine_url}/ovirt-engine/api",
         username=args.username,
         password=password,
-        ca_file=args.cafile)
+        ca_file=args.cafile,
+        log=log if args.log_file else None,
+        debug=args.log_level == "debug")
 
 
 def find_disk(con, disk_id):

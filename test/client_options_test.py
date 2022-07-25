@@ -105,6 +105,8 @@ engine_url = https://engine.com
 username = username
 password = password
 cafile = /engine.pem
+log_file = /var/log/ovirt-img/engine.log
+log_level = info
 
 [required]
 engine_url = https://engine.com
@@ -121,6 +123,11 @@ username = username
 [missing3]
 #engine_url is not set
 #username is not set
+
+[invalid]
+engine_url = https://engine.com
+username = username
+log_level = invalid log level
 """)
 
 
@@ -131,6 +138,8 @@ def test_config_all(config):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine.pem"
+    assert args.log_file == "/var/log/ovirt-img/engine.log"
+    assert args.log_level == "info"
 
     # Use password from config.
     assert args.password_file is None
@@ -147,10 +156,14 @@ def test_config_all_override(config):
         "--username", "username2",
         "--password-file", "/password_file",
         "--cafile", "/engine2.pem",
+        "--log-file", "test.log",
+        "--log-level", "debug",
     ])
     assert args.engine_url == "https://engine2.com"
     assert args.username == "username2"
     assert args.cafile == "/engine2.pem"
+    assert args.log_file == "test.log"
+    assert args.log_level == "debug"
 
     # --password-file overrides password from config.
     assert args.password_file == "/password_file"
@@ -164,6 +177,8 @@ def test_config_required(config):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile is None
+    assert args.log_file == "/dev/stderr"
+    assert args.log_level == "warning"
 
     # No --password-file or config password: get password from stdin.
     assert args.password_file is None
@@ -178,10 +193,14 @@ def test_config_required_override(config):
         "-c", "required",
         "--password-file", "/password_file",
         "--cafile", "/engine2.pem",
+        "--log-file", "test.log",
+        "--log-level", "debug",
     ])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine2.pem"
+    assert args.log_file == "test.log"
+    assert args.log_level == "debug"
 
     # Read password from --password-file.
     assert args.password_file == "/password_file"
@@ -214,6 +233,15 @@ def test_config_missing_override(config):
     ])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
+
+
+def test_config_invalid(config, capsys):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+    with pytest.raises(SystemExit):
+        parser.parse(["test", "-c", "invalid"])
+    captured = capsys.readouterr()
+    assert repr("invalid log level") in captured.err
 
 
 def test_config_no_section(config, capsys):

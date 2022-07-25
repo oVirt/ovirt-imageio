@@ -20,6 +20,29 @@ import os
 import sys
 
 
+class Choices:
+
+    def __init__(self, name, values):
+        self.name = name
+        self.values = values
+
+    def __call__(self, s):
+        if s not in self.values:
+            raise ValueError(
+                f"Invalid '{self.name}' value: '{s}', choices: {self}")
+        return s
+
+    def __str__(self):
+        s = ", ".join(self.values)
+        return f"{{{s}}}"
+
+    def __repr__(self):
+        return repr(self.name)
+
+
+log_level = Choices("log_level", ("debug", "info", "warning", "error"))
+
+
 class Option(
         namedtuple("Option", "name,args,config,required,type,default,help")):
 
@@ -88,6 +111,21 @@ class Parser:
             config=True,
             help=("Path to ovirt-engine CA certificate. If not set, read "
                   "from the specified config section"),
+        ),
+        Option(
+            name="log_file",
+            args=["--log-file"],
+            config=True,
+            default="/dev/stderr",
+            help="Log file name (default: /dev/stderr).",
+        ),
+        Option(
+            name="log_level",
+            args=["--log-level"],
+            config=True,
+            type=log_level,
+            default="warning",
+            help=(f"Log level (choices: {log_level}, default: warning)."),
         ),
     ]
 
