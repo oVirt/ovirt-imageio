@@ -15,6 +15,7 @@ from .. _internal.units import KiB, MiB, GiB, TiB
 import argparse
 import configparser
 import os
+import sys
 
 
 class Parser:
@@ -22,9 +23,8 @@ class Parser:
     def __init__(self):
         self._parser = argparse.ArgumentParser(
             description="Transfer disk images")
-        self._parser.set_defaults(
-            command=lambda _: self._parser.print_help(),
-            password=None)
+        # XXX password should not be here.
+        self._parser.set_defaults(command=None, password=None)
         self._commands = self._parser.add_subparsers(title="commands")
 
     def add_sub_command(self, name, help, func):
@@ -60,6 +60,10 @@ class Parser:
 
     def parse(self, args=None):
         args = self._parser.parse_args(args=args)
+        if not args.command:
+            self._parser.print_help()
+            sys.exit(2)
+
         if args.config:
             self._merge_config(args)
 
