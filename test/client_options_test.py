@@ -126,7 +126,7 @@ username = username
 
 def test_config_all(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse(["test", "-c", "all"])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
@@ -139,7 +139,7 @@ def test_config_all(config):
 
 def test_config_all_override(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse([
         "test",
         "-c", "all",
@@ -159,7 +159,7 @@ def test_config_all_override(config):
 
 def test_config_required(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse(["test", "-c", "required"])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
@@ -172,7 +172,7 @@ def test_config_required(config):
 
 def test_config_required_override(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse([
         "test",
         "-c", "required",
@@ -194,7 +194,7 @@ def test_config_required_override(config):
 ])
 def test_config_missing(config, capsys, name, missing):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     with pytest.raises(SystemExit):
         parser.parse(["test", "-c", name])
     captured = capsys.readouterr()
@@ -203,7 +203,7 @@ def test_config_missing(config, capsys, name, missing):
 
 def test_config_missing_override(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse([
         "test",
         "-c", "missing3",
@@ -216,7 +216,7 @@ def test_config_missing_override(config):
 
 def test_config_no_section(config, capsys):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", None)
+    parser.add_sub_command("test", "help", lambda x: None)
 
     # Required paremeters are available via the command line, but the specified
     # configuration does not exist. This is likely a user error so fail loudly.
