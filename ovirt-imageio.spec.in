@@ -93,6 +93,7 @@ Requires:  %{name}-common = %{version}-%{release}
 # RHEL 8.4 version. Some features require qemu-nbd 5.2.0 and are disabled when
 # using older qemu-nbd.
 Requires:  qemu-img >= 15:4.2.0
+Requires:  python3-ovirt-engine-sdk4
 %else
 # Fedora.
 Requires:  qemu-img
@@ -103,6 +104,7 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %files client
 %{python3_sitearch}/%{srcname}/client
+%{_bindir}/ovirt-img
 
 
 %package daemon

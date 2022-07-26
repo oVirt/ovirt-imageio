@@ -31,7 +31,7 @@ setup(
         "ovirt_imageio.admin",
     ],
     platforms=["Linux"],
-    scripts=["ovirt-imageio", "ovirt-imageioctl"],
+    scripts=["ovirt-imageio", "ovirt-imageioctl", "ovirt-img"],
     url="https://github.com/oVirt/ovirt-imageio",
     project_urls={
         "Documentation":
