@@ -17,6 +17,7 @@ import sys
 from . import _app
 from . import _download
 from . import _options
+from . import _upload
 
 log = logging.getLogger("tool")
 
@@ -24,6 +25,7 @@ log = logging.getLogger("tool")
 def main():
     parser = _options.Parser()
     _download.register(parser)
+    _upload.register(parser)
     args = parser.parse()
 
     logging.basicConfig(
