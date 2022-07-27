@@ -28,7 +28,7 @@ class ProgressBar:
             width (int): width of progress bar in characters (default 79)
             now (callable): callable returning current time for testing.
         """
-        self.size = size
+        self._size = size
         self._output = output
         # TODO: use current terminal width instead.
         self._width = width
@@ -43,6 +43,19 @@ class ProgressBar:
 
         # The first update can take some time.
         self._draw()
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, n):
+        with self._lock:
+            if self._closed:
+                return
+            if self._size != n:
+                self._size = n
+                self._draw()
 
     def update(self, n):
         """
@@ -61,8 +74,8 @@ class ProgressBar:
             if self._closed:
                 return
             self._done += n
-            if self.size:
-                new_value = int(self._done / self.size * 100)
+            if self._size:
+                new_value = int(self._done / self._size * 100)
                 if new_value > self._value:
                     self._value = new_value
                     self._draw()
@@ -75,7 +88,7 @@ class ProgressBar:
 
     def _draw(self, last=False):
         elapsed = self._now() - self._start
-        progress = f"{max(0, self._value):3d}%" if self.size else "----"
+        progress = f"{max(0, self._value):3d}%" if self._size else "----"
         done = util.humansize(self._done)
         rate = util.humansize((self._done / elapsed) if elapsed else 0)
 

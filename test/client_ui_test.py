@@ -43,7 +43,6 @@ def test_draw():
     # Size was updated, but no bytes were transferred yet.
     fake_time.now += 0.1
     pb.size = 3 * GiB
-    pb.update(0)
     line = "[   0% ] 0 bytes, 0.10 seconds, 0 bytes/s"
     assert f.last == line.ljust(79) + "\r"
 
@@ -87,11 +86,16 @@ def test_close():
     pb.size = 1 * GiB
     pb.update(512 * MiB)
     pb.close()
+    f.last = None
 
     # Once closed, update does not redraw.
-    f.last = None
     pb.update(512 * MiB)
     assert f.last is None
+
+    # Changing size does nothing.
+    pb.size = 2 * GiB
+    assert f.last is None
+    assert pb.size == 1 * GiB
 
     # Closing twice does not redraw.
     pb.close()
