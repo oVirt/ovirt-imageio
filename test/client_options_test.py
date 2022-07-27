@@ -185,7 +185,7 @@ def test_config_required(config, monkeypatch):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile is None
-    assert args.log_file == "/dev/stderr"
+    assert args.log_file is None
     assert args.log_level == "warning"
 
     # No --password-file or config password: use getpass.getpass().
