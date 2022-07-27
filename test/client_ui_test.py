@@ -36,38 +36,54 @@ def test_draw():
     f = FakeFile()
 
     # Size is unknown at this point.
-    pb = client.ProgressBar(output=f, now=fake_time)
-    line = "[ ---- ] 0 bytes, 0.00 seconds, 0 bytes/s"
+    pb = client.ProgressBar(phase="setting up", output=f, now=fake_time)
+    line = "[ ---- ] 0 bytes, 0.00 s, 0 bytes/s | setting up"
     assert f.last == line.ljust(79) + "\r"
 
     # Size was updated, but no bytes were transferred yet.
     fake_time.now += 0.1
     pb.size = 3 * GiB
-    line = "[   0% ] 0 bytes, 0.10 seconds, 0 bytes/s"
+    line = "[   0% ] 0 bytes, 0.10 s, 0 bytes/s | setting up"
+    assert f.last == line.ljust(79) + "\r"
+
+    # Phase was updated.
+    fake_time.now += 0.2
+    pb.phase = "downloading image"
+    line = "[   0% ] 0 bytes, 0.30 s, 0 bytes/s | downloading image"
     assert f.last == line.ljust(79) + "\r"
 
     # Write some data...
-    fake_time.now += 1.0
+    fake_time.now += 0.8
     pb.update(512 * MiB)
-    line = "[  16% ] 512.00 MiB, 1.10 seconds, 465.45 MiB/s"
+    line = "[  16% ] 512.00 MiB, 1.10 s, 465.45 MiB/s | downloading image"
     assert f.last == line.ljust(79) + "\r"
 
     # Write zeros (much faster)...
     fake_time.now += 0.2
     pb.update(2 * GiB)
-    line = "[  83% ] 2.50 GiB, 1.30 seconds, 1.92 GiB/s"
+    line = "[  83% ] 2.50 GiB, 1.30 s, 1.92 GiB/s | downloading image"
     assert f.last == line.ljust(79) + "\r"
 
     # More data, slow down again...
     fake_time.now += 1.0
     pb.update(512 * MiB)
-    line = "[ 100% ] 3.00 GiB, 2.30 seconds, 1.30 GiB/s"
+    line = "[ 100% ] 3.00 GiB, 2.30 s, 1.30 GiB/s | downloading image"
     assert f.last == line.ljust(79) + "\r"
 
-    # Flush takes some time, lowering final rate.
-    fake_time.now += 0.1
+    # Cleaning up after download.
+    pb.phase = "cleaning up"
+    line = "[ 100% ] 3.00 GiB, 2.30 s, 1.30 GiB/s | cleaning up"
+    assert f.last == line.ljust(79) + "\r"
+
+    # Cleaning can take few seconds, lowwing the the rate.
+    fake_time.now += 3.0
+    pb.phase = "download completed"
+    line = "[ 100% ] 3.00 GiB, 5.30 s, 579.62 MiB/s | download completed"
+    assert f.last == line.ljust(79) + "\r"
+
+    # Closing prints the final line with a newline terminator.
     pb.close()
-    line = "[ 100% ] 3.00 GiB, 2.40 seconds, 1.25 GiB/s"
+    line = "[ 100% ] 3.00 GiB, 5.30 s, 579.62 MiB/s | download completed"
     assert f.last == line.ljust(79) + "\n"
 
 
@@ -75,8 +91,17 @@ def test_with_size():
     fake_time = FakeTime()
     f = FakeFile()
 
-    client.ProgressBar(size=3 * GiB, output=f, now=fake_time)
-    line = "[   0% ] 0 bytes, 0.00 seconds, 0 bytes/s"
+    client.ProgressBar(phase="starting", size=3 * GiB, output=f, now=fake_time)
+    line = "[   0% ] 0 bytes, 0.00 s, 0 bytes/s | starting"
+    assert f.last == line.ljust(79) + "\r"
+
+
+def test_without_phase():
+    fake_time = FakeTime()
+    f = FakeFile()
+
+    client.ProgressBar(output=f, now=fake_time)
+    line = "[ ---- ] 0 bytes, 0.00 s, 0 bytes/s"
     assert f.last == line.ljust(79) + "\r"
 
 
@@ -97,6 +122,11 @@ def test_close():
     assert f.last is None
     assert pb.size == 1 * GiB
 
+    # Changing phase does nothing.
+    pb.phase = "new phase"
+    assert f.last is None
+    assert pb.phase is None
+
     # Closing twice does not redraw.
     pb.close()
     assert f.last is None
@@ -104,7 +134,7 @@ def test_close():
 
 def test_contextmanager():
     f = FakeFile()
-    with client.ProgressBar(GiB, output=f) as pb:
+    with client.ProgressBar(size=GiB, output=f) as pb:
         pb.update(GiB)
         assert f.last.endswith("\r")
 

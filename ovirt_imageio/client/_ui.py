@@ -15,10 +15,11 @@ from .. _internal import util
 
 class ProgressBar:
 
-    def __init__(self, size=None, output=sys.stdout, step=None, width=79,
-                 now=time.monotonic):
+    def __init__(self, phase=None, size=None, output=sys.stdout, step=None,
+                 width=79, now=time.monotonic):
         """
         Arguments:
+            phase (str): short description of the current phase.
             size (int): total number of bytes. If size is unknown when
                 creating, progress value is not displayed. The size can be set
                 later to enable progress display.
@@ -28,6 +29,7 @@ class ProgressBar:
             width (int): width of progress bar in characters (default 79)
             now (callable): callable returning current time for testing.
         """
+        self._phase = phase
         self._size = size
         self._output = output
         # TODO: use current terminal width instead.
@@ -43,6 +45,19 @@ class ProgressBar:
 
         # The first update can take some time.
         self._draw()
+
+    @property
+    def phase(self):
+        return self._phase
+
+    @phase.setter
+    def phase(self, s):
+        with self._lock:
+            if self._closed:
+                return
+            if self._phase != s:
+                self._phase = s
+                self._draw()
 
     @property
     def size(self):
@@ -91,8 +106,8 @@ class ProgressBar:
         progress = f"{max(0, self._value):3d}%" if self._size else "----"
         done = util.humansize(self._done)
         rate = util.humansize((self._done / elapsed) if elapsed else 0)
-
-        line = f"[ {progress} ] {done}, {elapsed:.2f} seconds, {rate}/s"
+        phase = f" | {self._phase}" if self._phase else ""
+        line = f"[ {progress} ] {done}, {elapsed:.2f} s, {rate}/s{phase}"
         line = line.ljust(self._width, " ")
 
         # Using "\r" moves the cursor to the first column, so the next progress
