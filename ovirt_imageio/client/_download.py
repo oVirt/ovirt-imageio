@@ -59,16 +59,17 @@ def register(parser):
 
 
 def download_disk(args):
-    con = _ovirt.connect(args)
-    with closing(con):
-        disk = _ovirt.find_disk(con, args.disk_id)
-        storage_domain = _ovirt.find_storage_domain(con, disk)
-        host = _ovirt.find_host(con, storage_domain.name)
+    with _ui.ProgressBar(phase="creating transfer") as pb:
+        con = _ovirt.connect(args)
+        with closing(con):
+            disk = _ovirt.find_disk(con, args.disk_id)
+            storage_domain = _ovirt.find_storage_domain(con, disk)
+            host = _ovirt.find_host(con, storage_domain.name)
 
-        transfer = _ovirt.create_transfer(
-            con, disk, direction=_ovirt.DOWNLOAD, host=host)
-        try:
-            with _ui.ProgressBar() as pb:
+            transfer = _ovirt.create_transfer(
+                con, disk, direction=_ovirt.DOWNLOAD, host=host)
+            try:
+                pb.phase = "downloading image"
                 _api.download(
                     transfer.transfer_url,
                     args.filename,
@@ -78,5 +79,7 @@ def download_disk(args):
                     max_workers=args.max_workers,
                     buffer_size=args.buffer_size,
                     progress=pb)
-        finally:
-            _ovirt.finalize_transfer(con, transfer, disk)
+            finally:
+                pb.phase = "finalizing transfer"
+                _ovirt.finalize_transfer(con, transfer, disk)
+        pb.phase = "download completed"
