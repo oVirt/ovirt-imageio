@@ -251,7 +251,7 @@ class Worker:
         except Exception as e:
             self._errors.append(e)
             self._queue.close()
-            log.exception("Worker %s failed", self._name)
+            log.debug("Worker %s failed: %s", self._name, e)
         else:
             log.debug("Worker %s finished", self._name)
 
