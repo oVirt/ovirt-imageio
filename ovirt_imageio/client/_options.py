@@ -326,4 +326,22 @@ def _validate_uuid(id):
     return str(uuid.UUID(id))
 
 
+def _validate_file(filename):
+    """
+    Validate that the file exists.
+
+    Raises:
+        ValueError
+
+    Returns:
+        str: filename
+    """
+    if not os.path.exists(filename):
+        raise ValueError(f"{filename} does not exist")
+    if not os.path.isfile(filename):
+        raise ValueError(f"{filename} is not a file")
+    return filename
+
+
 UUID = Type("UUID", _validate_uuid)
+File = Type("File", _validate_file)

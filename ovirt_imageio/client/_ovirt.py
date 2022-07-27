@@ -20,6 +20,10 @@ log = logging.getLogger("ovirt")
 
 # Image transfer constants.
 DOWNLOAD = types.ImageTransferDirection.DOWNLOAD
+RAW = types.DiskFormat.RAW
+COW = types.DiskFormat.COW
+ISO = types.DiskContentType.ISO
+DATA = types.DiskContentType.DATA
 
 
 class Repr:
@@ -57,8 +61,7 @@ def find_disk(con, disk_id):
 
 def add_disk(con, name, provisioned_size, sd_name, id=None,
              initial_size=None, sparse=True, enable_backup=True,
-             content_type=types.DiskContentType.DATA,
-             format=types.DiskFormat.COW):
+             content_type=DATA, format=COW):
     """
     Add a new disk to the storage domain, based on the source image
     information provided.
@@ -255,7 +258,7 @@ def create_transfer(
         backup=backup,
         inactivity_timeout=inactivity_timeout,
         timeout_policy=timeout_policy,
-        format=types.DiskFormat.RAW,
+        format=RAW,
         shallow=shallow)
 
     if isinstance(image, types.Disk):
