@@ -10,6 +10,7 @@
 Tool options.
 """
 
+import getpass
 from collections import namedtuple
 
 from .. _internal.units import KiB, MiB, GiB, TiB
@@ -163,6 +164,7 @@ class Parser:
 
         self._set_defaults(args)
         self._check_required_options(args)
+        self._read_password(args)
 
         return args
 
@@ -225,6 +227,17 @@ class Parser:
         if missing:
             self._parser.error(
                 f"Missing required options: {', '.join(missing)}")
+
+    def _read_password(self, args):
+        """
+        Try to read the password from the args.password_file, args.password, or
+        prompt the user for the password.
+        """
+        if args.password_file:
+            with open(args.password_file) as f:
+                args.password = f.read().rstrip("\n")
+        elif args.password is None:
+            args.password = getpass.getpass()
 
 
 class SizeValue(int):
