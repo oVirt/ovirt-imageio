@@ -117,8 +117,7 @@ class Parser:
             name="log_file",
             args=["--log-file"],
             config=True,
-            default="/dev/stderr",
-            help="Log file name (default: /dev/stderr).",
+            help="Log to file instead of stderr.",
         ),
         Option(
             name="log_level",

@@ -46,7 +46,7 @@ def connect(args):
         username=args.username,
         password=args.password,
         ca_file=args.cafile,
-        log=log if args.log_file else None,
+        log=log,
         debug=args.log_level == "debug")
 
 
