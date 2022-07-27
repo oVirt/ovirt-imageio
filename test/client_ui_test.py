@@ -6,6 +6,8 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import pytest
+
 from ovirt_imageio import client
 from ovirt_imageio._internal.units import MiB, GiB
 
@@ -139,3 +141,29 @@ def test_contextmanager():
         assert f.last.endswith("\r")
 
     assert f.last.endswith("\n")
+
+
+def test_error_phase_default():
+    f = FakeFile()
+    pb = client.ProgressBar(phase="running command", size=GiB, output=f)
+    with pytest.raises(RuntimeError):
+        with pb:
+            raise RuntimeError
+
+    assert f.last.endswith("\n")
+    assert pb.phase == "command failed"
+
+
+def test_error_phase_custom():
+    f = FakeFile()
+    pb = client.ProgressBar(
+        phase="starting operation",
+        error_phase="operation failed",
+        size=GiB,
+        output=f)
+    with pytest.raises(RuntimeError):
+        with pb:
+            raise RuntimeError
+
+    assert f.last.endswith("\n")
+    assert pb.phase == "operation failed"

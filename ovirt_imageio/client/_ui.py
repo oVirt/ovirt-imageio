@@ -15,11 +15,13 @@ from .. _internal import util
 
 class ProgressBar:
 
-    def __init__(self, phase=None, size=None, output=sys.stdout, step=None,
-                 width=79, now=time.monotonic):
+    def __init__(self, phase=None, error_phase="command failed", size=None,
+                 output=sys.stdout, step=None, width=79, now=time.monotonic):
         """
         Arguments:
             phase (str): short description of the current phase.
+            error_phase (str): phase to set when code run under the context
+                manager has failed.
             size (int): total number of bytes. If size is unknown when
                 creating, progress value is not displayed. The size can be set
                 later to enable progress display.
@@ -30,6 +32,7 @@ class ProgressBar:
             now (callable): callable returning current time for testing.
         """
         self._phase = phase
+        self._error_phase = error_phase
         self._size = size
         self._output = output
         # TODO: use current terminal width instead.
@@ -123,4 +126,7 @@ class ProgressBar:
         return self
 
     def __exit__(self, t, v, tb):
+        # If an exception was raised in the caller code, show a failure.
+        if t is not None:
+            self.phase = self._error_phase
         self.close()
