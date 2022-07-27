@@ -40,7 +40,7 @@ def test_draw():
     line = "[ ---- ] 0 bytes, 0.00 seconds, 0 bytes/s"
     assert f.last == line.ljust(79) + "\r"
 
-    # Size was updated, but no bytes were transfered yet.
+    # Size was updated, but no bytes were transferred yet.
     fake_time.now += 0.1
     pb.size = 3 * GiB
     pb.update(0)
