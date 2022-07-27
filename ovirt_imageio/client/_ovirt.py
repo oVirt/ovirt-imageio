@@ -10,7 +10,6 @@
 Helpers for working with oVirt python SDK.
 """
 
-import getpass
 import logging
 import time
 
@@ -42,18 +41,10 @@ class Repr:
 
 
 def connect(args):
-    if args.password_file:
-        with open(args.password_file) as f:
-            password = f.read().rstrip("\n")
-    elif args.password is not None:
-        password = args.password
-    else:
-        password = getpass.getpass()
-
     return sdk.Connection(
         url=f"{args.engine_url}/ovirt-engine/api",
         username=args.username,
-        password=password,
+        password=args.password,
         ca_file=args.cafile,
         log=log if args.log_file else None,
         debug=args.log_level == "debug")

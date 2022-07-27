@@ -6,6 +6,7 @@
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 
+import getpass
 import os
 
 import pytest
@@ -123,10 +124,12 @@ username = username
 [missing3]
 #engine_url is not set
 #username is not set
+password = password
 
 [invalid]
 engine_url = https://engine.com
 username = username
+password = password
 log_level = invalid log level
 """)
 
@@ -146,7 +149,10 @@ def test_config_all(config):
     assert args.password == "password"
 
 
-def test_config_all_override(config):
+def test_config_all_override(config, tmpdir):
+    password_file = tmpdir.join("password")
+    password_file.write("password")
+
     parser = _options.Parser()
     parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse([
@@ -154,7 +160,7 @@ def test_config_all_override(config):
         "-c", "all",
         "--engine-url", "https://engine2.com",
         "--username", "username2",
-        "--password-file", "/password_file",
+        "--password-file", str(password_file),
         "--cafile", "/engine2.pem",
         "--log-file", "test.log",
         "--log-level", "debug",
@@ -166,11 +172,13 @@ def test_config_all_override(config):
     assert args.log_level == "debug"
 
     # --password-file overrides password from config.
-    assert args.password_file == "/password_file"
+    assert args.password_file == str(password_file)
     assert args.password == "password"
 
 
-def test_config_required(config):
+def test_config_required(config, monkeypatch):
+    monkeypatch.setattr(getpass, "getpass", lambda: "password")
+
     parser = _options.Parser()
     parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse(["test", "-c", "required"])
@@ -180,18 +188,21 @@ def test_config_required(config):
     assert args.log_file == "/dev/stderr"
     assert args.log_level == "warning"
 
-    # No --password-file or config password: get password from stdin.
+    # No --password-file or config password: use getpass.getpass().
     assert args.password_file is None
-    assert args.password is None
+    assert args.password == "password"
 
 
-def test_config_required_override(config):
+def test_config_required_override(config, tmpdir):
+    password_file = tmpdir.join("password")
+    password_file.write("password")
+
     parser = _options.Parser()
     parser.add_sub_command("test", "help", lambda x: None)
     args = parser.parse([
         "test",
         "-c", "required",
-        "--password-file", "/password_file",
+        "--password-file", str(password_file),
         "--cafile", "/engine2.pem",
         "--log-file", "test.log",
         "--log-level", "debug",
@@ -203,8 +214,8 @@ def test_config_required_override(config):
     assert args.log_level == "debug"
 
     # Read password from --password-file.
-    assert args.password_file == "/password_file"
-    assert args.password is None
+    assert args.password_file == password_file
+    assert args.password == "password"
 
 
 @pytest.mark.parametrize("name,missing", [
