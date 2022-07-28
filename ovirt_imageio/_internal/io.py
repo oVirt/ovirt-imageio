@@ -16,9 +16,9 @@ from collections import deque, namedtuple
 from contextlib import closing
 from functools import partial
 
-from .. _internal import util
-from .. _internal.backends import Wrapper
-from .. _internal.units import MiB
+from . import util
+from . backends import Wrapper
+from .units import MiB
 
 # Limit maximum zero and copy size to spread the workload better to multiple
 # workers and ensure frequent progress updates when handling large extents.
