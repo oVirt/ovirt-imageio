@@ -19,6 +19,7 @@ import argparse
 import configparser
 import os
 import sys
+import uuid
 
 
 class Choices:
@@ -280,3 +281,30 @@ class Size:
             raise ValueError(f"Size {s!r} > {self.maximum}")
 
         return value
+
+
+class Type:
+    """
+    Wrapper to expose function validators as types.
+    """
+
+    def __init__(self, name, func):
+        self.name = name
+        self.func = func
+
+    def __call__(self, value):
+        try:
+            return self.func(value)
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid '{self.name}' value: '{value}': {e}") from e
+
+    def __repr__(self):
+        return self.name
+
+
+def _validate_uuid(id):
+    return str(uuid.UUID(id))
+
+
+UUID = Type("UUID", _validate_uuid)

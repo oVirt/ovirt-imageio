@@ -8,6 +8,7 @@
 
 import getpass
 import os
+import uuid
 
 import pytest
 
@@ -94,6 +95,21 @@ def test_size_values():
     assert str(validate.default) == "2m"
     assert validate.maximum == 1 * GiB
     assert str(validate.maximum) == "1g"
+
+
+def test_uuid_valid():
+    validate = _options.UUID
+    id = str(uuid.uuid4())
+    assert validate(id) == id
+
+
+def test_uuid_invalid():
+    validate = _options.UUID
+    id = "invalid uuid"
+    with pytest.raises(ValueError) as e:
+        validate(id)
+    assert id in str(e.value)
+    assert "UUID" in str(e.value)
 
 
 @pytest.fixture

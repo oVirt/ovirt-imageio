@@ -51,6 +51,7 @@ def register(parser):
 
     cmd.add_argument(
         "disk_id",
+        type=_options.UUID,
         help="Disk ID to download.")
 
     cmd.add_argument(
