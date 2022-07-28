@@ -12,8 +12,6 @@ Download commands.
 
 from contextlib import closing
 
-from .. _internal.units import KiB, MiB
-
 from . import _api
 from . import _options
 from . import _ovirt
@@ -31,23 +29,6 @@ def register(parser):
         choices=("raw", "qcow2"),
         default="qcow2",
         help="Download image format (default qcow2).")
-
-    size = _options.Size(minimum=1, default=_api.MAX_WORKERS, maximum=8)
-    cmd.add_argument(
-        "--max-workers",
-        type=size,
-        default=size.default,
-        help=f"Maximum number of workers (range: {size.minimum}-"
-             f"{size.maximum}, default: {size.default}).")
-
-    size = _options.Size(
-        minimum=64 * KiB, default=_api.BUFFER_SIZE, maximum=16 * MiB)
-    cmd.add_argument(
-        "--buffer-size",
-        type=size,
-        default=size.default,
-        help=f"Buffer size per worker (range: {size.minimum}-"
-             f"{size.maximum}, default: {size.default}).")
 
     cmd.add_argument(
         "disk_id",
