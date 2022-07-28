@@ -13,6 +13,7 @@ Client application global state.
 import signal
 
 _termination_signal = None
+_registered_signals = False
 
 
 class TerminatedBySignal(Exception):
@@ -33,8 +34,17 @@ def check_terminated():
 
 
 def setup_signals():
+    global _registered_signals
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
+    _registered_signals = True
+
+
+def is_handling_signals():
+    """
+    Return True if the application registered signals handlers.
+    """
+    return _registered_signals
 
 
 def _handle_signal(signo, frame):
