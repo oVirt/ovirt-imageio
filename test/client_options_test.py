@@ -159,6 +159,8 @@ def test_config_all(config):
     assert args.cafile == "/engine.pem"
     assert args.log_file == "/var/log/ovirt-img/engine.log"
     assert args.log_level == "info"
+    assert args.max_workers == 4
+    assert args.buffer_size == 4 * MiB
 
     # Use password from config.
     assert args.password_file is None
@@ -186,6 +188,8 @@ def test_config_all_override(config, tmpdir):
     assert args.cafile == "/engine2.pem"
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
+    assert args.max_workers == 4
+    assert args.buffer_size == 4 * MiB
 
     # --password-file overrides password from config.
     assert args.password_file == str(password_file)
@@ -203,6 +207,8 @@ def test_config_required(config, monkeypatch):
     assert args.cafile is None
     assert args.log_file is None
     assert args.log_level == "warning"
+    assert args.max_workers == 4
+    assert args.buffer_size == 4 * MiB
 
     # No --password-file or config password: use getpass.getpass().
     assert args.password_file is None
@@ -228,6 +234,8 @@ def test_config_required_override(config, tmpdir):
     assert args.cafile == "/engine2.pem"
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
+    assert args.max_workers == 4
+    assert args.buffer_size == 4 * MiB
 
     # Read password from --password-file.
     assert args.password_file == password_file
@@ -287,6 +295,32 @@ def test_config_no_section(config, capsys):
 
     captured = capsys.readouterr()
     assert repr("nosection") in captured.err
+
+
+def test_transfer_options(config):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+
+    args = parser.parse([
+        "test",
+        "-c", "all",
+        "--max-workers", "8",
+        "--buffer-size", "16m"
+    ])
+    assert args.max_workers == 8
+    assert args.buffer_size == 16 * MiB
+
+
+def test_transfer_options_disabled(config):
+    parser = _options.Parser()
+    parser.add_sub_command(
+        "test", "help", lambda x: None, transfer_options=False)
+    args = parser.parse([
+        "test",
+        "-c", "all",
+    ])
+    assert not hasattr(args, 'max_workers')
+    assert not hasattr(args, 'buffer_size')
 
 
 def test_auto_help(capsys):

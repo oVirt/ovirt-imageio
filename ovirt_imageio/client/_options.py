@@ -14,6 +14,7 @@ import getpass
 from collections import namedtuple
 
 from .. _internal.units import KiB, MiB, GiB, TiB
+from . _api import MAX_WORKERS, BUFFER_SIZE
 
 import argparse
 import configparser
@@ -136,7 +137,7 @@ class Parser:
         self._parser.set_defaults(command=None)
         self._commands = self._parser.add_subparsers(title="commands")
 
-    def add_sub_command(self, name, help, func):
+    def add_sub_command(self, name, help, func, transfer_options=True):
         cmd = self._commands.add_parser(name, help=help)
         cmd.set_defaults(command=func)
 
@@ -150,6 +151,24 @@ class Parser:
                 dest=option.name,
                 type=option.type,
                 help=option.help)
+
+        if transfer_options:
+            size = Size(minimum=1, default=MAX_WORKERS, maximum=8)
+            cmd.add_argument(
+                "--max-workers",
+                type=size,
+                default=size.default,
+                help=f"Maximum number of workers (range: {size.minimum}-"
+                f"{size.maximum}, default: {size.default}).")
+
+            size = Size(
+                minimum=64 * KiB, default=BUFFER_SIZE, maximum=16 * MiB)
+            cmd.add_argument(
+                "--buffer-size",
+                type=size,
+                default=size.default,
+                help=f"Buffer size per worker (range: {size.minimum}-"
+                f"{size.maximum}, default: {size.default}).")
 
         return cmd
 
