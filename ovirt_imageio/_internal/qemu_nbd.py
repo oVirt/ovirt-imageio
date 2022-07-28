@@ -10,6 +10,7 @@ import functools
 import json
 import logging
 import os
+import signal
 import subprocess
 import urllib.parse
 
@@ -30,7 +31,7 @@ class Server:
             self, image, fmt, sock, export_name="", read_only=False, shared=8,
             cache=None, aio=None, discard="unmap", detect_zeroes="unmap",
             bitmap=None, backing_chain=True, offset=None, size=None,
-            timeout=10.0):
+            timeout=10.0, block_signals=None):
         """
         Initialize qemu-nbd Server.
 
@@ -63,6 +64,7 @@ class Server:
                 See BlockdevOptionsRaw type in qemu source.
             size (int): Expose a range of size bytes in a raw image.
                 See BlockdevOptionsRaw type in qemu source.
+            block_signals (Set[int]): Signals to block in the child process.
 
         See qemu-nbd(8) for more info on these options.
         """
@@ -81,6 +83,7 @@ class Server:
         self.offset = offset
         self.size = size
         self.timeout = timeout
+        self.block_signals = block_signals
         self.proc = None
 
     @property
@@ -173,7 +176,10 @@ class Server:
         cmd.append("json:" + json.dumps(image))
 
         log.debug("Starting qemu-nbd %s", cmd)
-        self.proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+        self.proc = subprocess.Popen(
+            cmd,
+            stderr=subprocess.PIPE,
+            preexec_fn=self._preexec_fn if self.block_signals else None)
 
         if not sockutil.wait_for_socket(self.sock, self.timeout):
             self.stop()
@@ -201,6 +207,31 @@ class Server:
 
             self.proc = None
 
+    def send_signal(self, signo):
+        """
+        Send signal to qemu-nbd.
+
+        Must be called only when the server is running.
+        """
+        if self.proc is None:
+            raise RuntimeError("Server not running")
+        self.proc.send_signal(signo)
+
+    def wait(self, timeout=None):
+        """
+        Wait timeout seconds for qemu-nbd termination and return the exit code
+        or None if qemu-nbd is still running when the timeout expires.
+
+        Must be called only when the server is running.
+        """
+        if self.proc is None:
+            raise RuntimeError("Server not running")
+
+        try:
+            return self.proc.wait(timeout)
+        except subprocess.TimeoutExpired:
+            return None
+
     def _can_use_direct_io(self):
         flags = os.O_RDONLY if self.read_only else os.O_RDWR
         flags |= os.O_DIRECT
@@ -212,11 +243,19 @@ class Server:
             os.close(fd)
             return True
 
+    def _preexec_fn(self):
+        """
+        Called in the child process just before the child is executed.
+        """
+        if self.block_signals:
+            signal.pthread_sigmask(signal.SIG_BLOCK, self.block_signals)
+
 
 @contextmanager
 def run(image, fmt, sock, export_name="", read_only=False, shared=8,
         cache=None, aio=None, discard="unmap", detect_zeroes="unmap",
-        bitmap=None, backing_chain=True, offset=None, size=None, timeout=10.0):
+        bitmap=None, backing_chain=True, offset=None, size=None, timeout=10.0,
+        block_signals=None):
     server = Server(
         image, fmt, sock,
         export_name=export_name,
@@ -230,10 +269,11 @@ def run(image, fmt, sock, export_name="", read_only=False, shared=8,
         backing_chain=backing_chain,
         offset=offset,
         size=size,
-        timeout=timeout)
+        timeout=timeout,
+        block_signals=block_signals)
     server.start()
     try:
-        yield
+        yield server
     finally:
         server.stop()
 

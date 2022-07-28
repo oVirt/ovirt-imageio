@@ -9,6 +9,7 @@
 import io
 import os
 import shutil
+import signal
 import struct
 import tarfile
 import tempfile
@@ -444,3 +445,27 @@ def test_detect_zeroes_disabled(tmpdir, fmt, detect_zeroes):
         assert extents["qemu:allocation-depth"] == [
             nbd.Extent(length=1048576, flags=0),
         ]
+
+
+def test_block_signals(tmpdir):
+    # Test that qemu-nbd run with blocked signals.
+    image = str(tmpdir.join("image"))
+    sock = str(tmpdir.join("sock"))
+
+    with io.open(image, "wb") as f:
+        f.truncate(1024**2)
+
+    addr = nbd.UnixAddress(sock)
+
+    with qemu_nbd.run(
+            image, "raw", addr,
+            block_signals={signal.SIGINT, signal.SIGHUP}) as s:
+        # qemu-nbd ignores blocked signals.
+        s.send_signal(signal.SIGINT)
+        assert s.wait(0.2) is None
+        s.send_signal(signal.SIGHUP)
+        assert s.wait(0.2) is None
+
+        # qemu-nbd terminates when receving other signals.
+        s.send_signal(signal.SIGTERM)
+        assert s.wait(0.2) is not None
