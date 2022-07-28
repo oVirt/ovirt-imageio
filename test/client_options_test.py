@@ -271,3 +271,19 @@ def test_config_no_section(config, capsys):
 
     captured = capsys.readouterr()
     assert repr("nosection") in captured.err
+
+
+def test_auto_help(capsys):
+    # Running without arguments is same as running with --help.
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+
+    with pytest.raises(SystemExit):
+        parser.parse([])
+    err1 = capsys.readouterr().err
+
+    with pytest.raises(SystemExit):
+        parser.parse(["--help"])
+    err2 = capsys.readouterr().err
+
+    assert err1 == err2
