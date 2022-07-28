@@ -55,6 +55,60 @@ def find_disk(con, disk_id):
     return service.get()
 
 
+def add_disk(con, name, provisioned_size, sd_name, id=None,
+             initial_size=None, sparse=True, enable_backup=True,
+             content_type=types.DiskContentType.DATA,
+             format=types.DiskFormat.COW):
+    """
+    Add a new disk to the storage domain, based on the source image
+    information provided.
+
+    Arguments:
+        con (ovirtsdk4.Connection): connection to oVirt engine
+        name (str): New disk alias.
+        provisioned_size (int): Provisioned size of the new disk.
+        sd_name (str): Storage Domain name that will contain the new disk.
+        id (str): ID of the new disk to be added. By default oVirt creates
+            a new UUID when not specified.
+        initial_size (int): Initial size of the new disk.
+        sparse (bool): New disk is sparse.
+        enable_backup (bool): Disk can be used for incremental backups.
+        content_type (ovirtsdk4.types.DiskContentType): Content type for the
+            new disk.
+        format (ovirtsdk4.types.DiskFormat): Format of the new disk.
+
+    Returns:
+        ovirtsdk4.types.Disk
+    """
+    log.info(
+        "Adding disk name=%s provisioned_size=%s sd_name=%s id=%s "
+        "initial_size=%s sparse=%s enable_backup=%s, content_type=%s "
+        "format=%s", name, provisioned_size, sd_name, id, initial_size,
+        sparse, enable_backup, content_type, format)
+
+    disks_service = con.system_service().disks_service()
+    disk = disks_service.add(
+        disk=types.Disk(
+            id=id,
+            name=name,
+            content_type=content_type,
+            description='Uploaded by ovirt-img',
+            format=format,
+            initial_size=initial_size,
+            provisioned_size=provisioned_size,
+            sparse=sparse,
+            backup=types.DiskBackup.INCREMENTAL if enable_backup else None,
+            storage_domains=[
+                types.StorageDomain(
+                    name=sd_name
+                )
+            ]
+        )
+    )
+    _wait_for_disk(con, disk.id)
+    return disk
+
+
 def find_storage_domain(con, disk):
     service = _storage_domain_service(con, disk.storage_domains[0].id)
     return service.get()
@@ -355,6 +409,21 @@ def finalize_transfer(con, transfer, disk, timeout=300):
 
     log.info("Transfer %r finalized in %.1f seconds",
              transfer.id, time.monotonic() - start)
+
+
+def _wait_for_disk(con, disk_id):
+    log.info("Waiting for disk %s", disk_id)
+    timeout = 120
+    start = time.monotonic()
+    deadline = start + timeout
+    disk_service = _disk_service(con, disk_id)
+    while True:
+        time.sleep(1)
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"Timeout reached waiting for disk {disk_id}")
+
+        if disk_service.get().status == types.DiskStatus.OK:
+            break
 
 
 def _disk_service(con, disk_id):
