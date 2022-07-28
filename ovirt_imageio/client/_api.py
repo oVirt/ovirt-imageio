@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import tarfile
 import tempfile
 
@@ -26,6 +27,7 @@ from .. _internal.backends import http, nbd
 from .. _internal.handlers import checksum as _checksum
 from .. _internal.nbd import UnixAddress
 
+from . import _app
 from . import _io
 
 # API constants.
@@ -488,6 +490,11 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
     """
     with _tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
+
+        # If the applicatiion is handling signals, block SIGINT in qemu-nbd for
+        # clean termination when receiving SIGINT.
+        signals = {signal.SIGINT} if _app.is_handling_signals() else None
+
         with qemu_nbd.run(
                 filename,
                 fmt,
@@ -497,7 +504,8 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
                 bitmap=bitmap,
                 offset=offset,
                 size=size,
-                backing_chain=backing_chain):
+                backing_chain=backing_chain,
+                block_signals=signals):
             url = urlparse(sock.url())
             mode = "r" if read_only else "r+"
             yield nbd.open(url, mode=mode, dirty=bitmap is not None)
