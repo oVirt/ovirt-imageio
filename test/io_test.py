@@ -12,12 +12,11 @@ import pytest
 from urllib.parse import urlparse
 
 from ovirt_imageio._internal import extent
+from ovirt_imageio._internal import io
 from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal.backends import nbd, memory
 from ovirt_imageio._internal.nbd import UnixAddress
-
-from ovirt_imageio.client import _io
 
 ZERO_PARAMS = [
     # Copying to image with unknown content.
@@ -56,8 +55,8 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero, hole):
         ("data", cluster_size),
         ("zero", cluster_size),
         ("data", cluster_size),
-        ("hole", cluster_size + _io.MAX_ZERO_SIZE),
-        ("data", cluster_size + _io.BUFFER_SIZE),
+        ("hole", cluster_size + io.MAX_ZERO_SIZE),
+        ("data", cluster_size + io.BUFFER_SIZE),
         ("hole", cluster_size),
         ("data", cluster_size),
     ]
@@ -89,7 +88,7 @@ def test_copy_nbd_to_nbd(tmpdir, src_fmt, dst_fmt, zero, hole):
 
         # Because we copy to new image, we can always use zero=False, but we
         # test both to verify that the result is the same.
-        _io.copy(
+        io.copy(
             src_backend,
             dst_backend,
             max_workers=max_workers,
@@ -120,7 +119,7 @@ def test_copy_generic(buffer_size, zero, hole, progress):
 
     dst = memory.Backend("r+", data=dst_backing)
 
-    _io.copy(
+    io.copy(
         src, dst,
         max_workers=1,
         buffer_size=buffer_size,
@@ -146,7 +145,7 @@ def test_copy_read_from(buffer_size, zero, hole, progress):
 
     dst = memory.ReaderFrom("r+", data=dst_backing)
 
-    _io.copy(
+    io.copy(
         src, dst,
         max_workers=1,
         buffer_size=buffer_size,
@@ -172,7 +171,7 @@ def test_copy_write_to(buffer_size, zero, hole, progress):
 
     dst = memory.Backend("r+", data=dst_backing)
 
-    _io.copy(
+    io.copy(
         src, dst,
         max_workers=1,
         buffer_size=buffer_size,
@@ -193,7 +192,7 @@ def test_copy_dirty(progress):
     dst_backing = create_backing("0000")
     dst = memory.Backend("r+", data=dst_backing)
 
-    _io.copy(src, dst, dirty=True, max_workers=1, progress=progress)
+    io.copy(src, dst, dirty=True, max_workers=1, progress=progress)
 
     # Copy dirty extents, skip clean extents.
     assert dst_backing == create_backing("A0C0")
@@ -210,7 +209,7 @@ def test_copy_data_progress(zero, hole):
     dst = memory.Backend("r+", data=dst_backing)
 
     p = FakeProgress()
-    _io.copy(src, dst, max_workers=1, zero=zero, hole=hole, progress=p)
+    io.copy(src, dst, max_workers=1, zero=zero, hole=hole, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4
@@ -229,7 +228,7 @@ def test_copy_dirty_progress():
     dst = memory.Backend("r+", data=dst_backing)
 
     p = FakeProgress()
-    _io.copy(src, dst, dirty=True, max_workers=1, progress=p)
+    io.copy(src, dst, dirty=True, max_workers=1, progress=p)
 
     # Report at least every extent.
     assert len(p.updates) >= 4
@@ -282,7 +281,7 @@ def test_reraise_dst_error():
     src = FailingBackend()
     dst = FailingBackend(fail_write=True)
     with pytest.raises(BackendError) as e:
-        _io.copy(src, dst)
+        io.copy(src, dst)
     assert str(e.value) == "write error"
 
 
@@ -290,7 +289,7 @@ def test_reraise_src_error():
     src = FailingBackend(fail_read=True)
     dst = FailingBackend()
     with pytest.raises(BackendError) as e:
-        _io.copy(src, dst)
+        io.copy(src, dst)
     assert str(e.value) == "read error"
 
 

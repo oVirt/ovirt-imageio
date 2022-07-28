@@ -20,17 +20,16 @@ from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from .. _internal import blkhash
+from .. _internal import io
 from .. _internal import qemu_img
 from .. _internal import qemu_nbd
 from .. _internal.backends import http, nbd
 from .. _internal.handlers import checksum as _checksum
 from .. _internal.nbd import UnixAddress
 
-from . import _io
-
 # API constants.
-BUFFER_SIZE = _io.BUFFER_SIZE
-MAX_WORKERS = _io.MAX_WORKERS
+BUFFER_SIZE = io.BUFFER_SIZE
+MAX_WORKERS = io.MAX_WORKERS
 
 log = logging.getLogger("client")
 
@@ -96,7 +95,7 @@ def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
                 backing_chain=backing_chain) as src:
 
             # Upload the image to the server.
-            _io.copy(
+            io.copy(
                 src,
                 dst,
                 max_workers=max_workers,
@@ -174,7 +173,7 @@ def download(url, filename, cafile, fmt="qcow2", incremental=False,
         with _open_nbd(filename, fmt, shared=max_workers) as dst:
 
             # Download the image from the server to the local image.
-            _io.copy(
+            io.copy(
                 src,
                 dst,
                 dirty=incremental,
