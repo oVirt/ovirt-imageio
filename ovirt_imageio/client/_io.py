@@ -20,6 +20,8 @@ from .. _internal import util
 from .. _internal.backends import Wrapper
 from .. _internal.units import MiB
 
+from . import _app
+
 # Limit maximum zero and copy size to spread the workload better to multiple
 # workers and ensure frequent progress updates when handling large extents.
 MAX_ZERO_SIZE = 128 * MiB
@@ -239,6 +241,7 @@ class Worker:
             with closing(handler):
                 while True:
                     req = self._queue.get()
+                    _app.check_terminated()
                     if req.op is ZERO:
                         handler.zero(req)
                     elif req.op is COPY:
