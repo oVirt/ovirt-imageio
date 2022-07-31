@@ -92,9 +92,8 @@ def test_upload_empty_sparse(tmpdir, srv, fmt):
 
     client.upload(src, url, srv.config.tls.ca_file)
 
-    # TODO: Check why allocation differ when src is qcow2. Target image
-    # allocation is 0 bytes as expected, but comparing with strict=True fail at
-    # offset 0.
+    # We cannot compare allocation of raw and qcow2 images since qemu-img
+    # reports holes only in qcow2 images.
     qemu_img.compare(src, dst, format1=fmt, format2="raw", strict=fmt == "raw")
 
 
