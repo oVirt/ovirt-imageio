@@ -22,7 +22,7 @@ from . import _ui
 
 DiskInfo = namedtuple(
     "DiskInfo",
-    "name,initial_size,provisioned_size,content_type,format,sparse")
+    "name,initial_size,provisioned_size,content_type,format,sparse,is_zero")
 
 FORMAT_RAW = "raw"
 FORMAT_QCOW2 = "qcow2"
@@ -102,7 +102,8 @@ def upload_disk(args):
                     buffer_size=args.buffer_size,
                     progress=progress,
                     proxy_url=transfer.proxy_url,
-                    max_workers=args.max_workers)
+                    max_workers=args.max_workers,
+                    disk_is_zero=disk_info.is_zero)
             except Exception:
                 progress.phase = "cancelling transfer"
                 _ovirt.cancel_transfer(con, transfer)
@@ -138,13 +139,19 @@ def _prepare(args):
     if name is None:
         name = os.path.splitext(os.path.basename(img_info["filename"]))[0]
 
+    # On file based storage new disk is always zero. On block based storage
+    # only when using sparse qcow2 format. Since we don't know the type of the
+    # storage domain, we cannot optimize all cases.
+    is_zero = (disk_format == FORMAT_QCOW2) or sparse
+
     return DiskInfo(
         name=name,
         initial_size=initial_size,
         provisioned_size=img_info["virtual-size"],
         content_type=content_type,
         format=_ovirt.COW if disk_format == FORMAT_QCOW2 else _ovirt.RAW,
-        sparse=sparse)
+        sparse=sparse,
+        is_zero=is_zero)
 
 
 def _is_iso(filename, image_format):

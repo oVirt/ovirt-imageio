@@ -251,8 +251,58 @@ def test_upload_from_ova(tmpdir, srv, fmt, compressed):
     qemu_img.compare(src, dst)
 
 
+@pytest.mark.parametrize("disk_is_zero", [True, False])
+@pytest.mark.parametrize("src_fmt", ["raw", "qcow2"])
+@pytest.mark.parametrize("dst_fmt", ["raw", "qcow2"])
+def test_upload_nbd(srv, nbd_server, tmpdir, src_fmt, dst_fmt, disk_is_zero):
+    size = 5 * CLUSTER_SIZE
+
+    # Create qcow2 src image with all kinds of extents.
+    src = str(tmpdir.join("src." + src_fmt))
+    qemu_img.create(src, src_fmt, size=size)
+    with qemu_nbd.open(src, src_fmt) as c:
+        # Cluster 0: data.
+        c.write(0 * CLUSTER_SIZE, b"A" * CLUSTER_SIZE)
+        # Cluster 1: data, zero.
+        c.write(1 * CLUSTER_SIZE, b"\0" * CLUSTER_SIZE)
+        # Cluster 2: qcow2: zero cluster, raw: hole.
+        c.zero(2 * CLUSTER_SIZE, CLUSTER_SIZE, punch_hole=True)
+        # Cluster 3: qcow2: zero cluster, raw: allocated.
+        c.zero(3 * CLUSTER_SIZE, CLUSTER_SIZE, punch_hole=False)
+        # Cluster 4: unallocated.
+        c.flush()
+        log.debug("src extents: %s", list(nbdutil.extents(c)))
+
+    # Create empty target image.
+    dst = str(tmpdir.join("dst." + dst_fmt))
+    qemu_img.create(dst, dst_fmt, size=size)
+
+    # Upload image.
+
+    nbd_server.image = dst
+    nbd_server.fmt = dst_fmt
+    nbd_server.start()
+
+    url = prepare_transfer(srv, nbd_server.sock.url(), size=size)
+    client.upload(
+        src,
+        url,
+        srv.config.tls.ca_file,
+        disk_is_zero=disk_is_zero)
+
+    nbd_server.stop()
+
+    with qemu_nbd.open(dst, dst_fmt, read_only=True) as c:
+        log.debug("dst extents: %s", list(nbdutil.extents(c)))
+
+    # Compare image content. We cannot compare allocation since we skip zeroes
+    # and sparsify the destination image.
+    qemu_img.compare(src, dst, format1=src_fmt, format2=dst_fmt, strict=False)
+
+
+@pytest.mark.parametrize("disk_is_zero", [True, False])
 @pytest.mark.parametrize("base_fmt", ["raw", "qcow2"])
-def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
+def test_upload_nbd_shallow(srv, nbd_server, tmpdir, base_fmt, disk_is_zero):
     size = 10 * 1024**2
 
     # Create base image with some data in first 3 clusters.
@@ -299,6 +349,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         src_base,
         url,
         srv.config.tls.ca_file,
+        disk_is_zero=disk_is_zero,
         backing_chain=False)
 
     nbd_server.stop()
@@ -329,6 +380,7 @@ def test_upload_shallow(srv, nbd_server, tmpdir, base_fmt):
         src_top,
         url,
         srv.config.tls.ca_file,
+        disk_is_zero=disk_is_zero,
         backing_chain=False)
 
     nbd_server.stop()

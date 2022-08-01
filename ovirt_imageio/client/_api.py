@@ -39,7 +39,7 @@ log = logging.getLogger("client")
 
 def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
            progress=None, proxy_url=None, max_workers=MAX_WORKERS,
-           member=None, backing_chain=True):
+           member=None, backing_chain=True, disk_is_zero=False):
     """
     Upload filename to url
 
@@ -69,6 +69,10 @@ def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
             image data, leaving unallocated areas as holes, exposing data from
             the target disk backing chain. Valid only when uploding to an empty
             snapshot.
+        disk_is_zero (bool): If set, skip zero extents in the source image
+            instead of zeroing the extent in the destination disk. Should be
+            used only when uploading to new disk on file based storage or new
+            qcow2 disk on block based storage.
     """
     if callable(progress):
         progress = ProgressWrapper(progress)
@@ -103,10 +107,11 @@ def upload(filename, url, cafile, buffer_size=BUFFER_SIZE, secure=True,
                 dst,
                 max_workers=max_workers,
                 buffer_size=buffer_size,
-                # Since we don't know if the destination image is empty, we
-                # always want to zero. This can be optimized if the caller
-                # knows that the image is empty.
-                zero=True,
+                # If the disk is zero and we upload the entire chain, we can
+                # skip zero extents instead of zeroing the area on the
+                # destination.  When uploading without a backing chain we must
+                # zero extents which are zero but not holes.
+                zero=not (disk_is_zero and backing_chain),
                 # When uploading without a backing chain, the destination image
                 # has a backing chain. We must keep holes unallocated on the so
                 # they expose data from the backing chain.
