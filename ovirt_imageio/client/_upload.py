@@ -133,6 +133,7 @@ def _prepare(args):
     initial_size = None
     if disk_format == FORMAT_QCOW2:
         initial_size = _api.measure(args.filename, disk_format)["required"]
+
     name = args.name
     if name is None:
         name = os.path.splitext(os.path.basename(img_info["filename"]))[0]
