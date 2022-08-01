@@ -124,9 +124,11 @@ def _prepare(args):
         content_type = _ovirt.ISO
         # ISO images require raw format to work with cdrom device
         disk_format = FORMAT_RAW
+        sparse = False
     else:
         content_type = _ovirt.DATA
         disk_format = args.format
+        sparse = args.sparse
 
     initial_size = None
     if disk_format == FORMAT_QCOW2:
@@ -141,7 +143,7 @@ def _prepare(args):
         provisioned_size=img_info["virtual-size"],
         content_type=content_type,
         format=_ovirt.COW if disk_format == FORMAT_QCOW2 else _ovirt.RAW,
-        sparse=False if content_type == _ovirt.ISO else args.sparse)
+        sparse=sparse)
 
 
 def _is_iso(filename, image_format):
