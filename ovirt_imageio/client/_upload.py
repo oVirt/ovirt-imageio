@@ -58,8 +58,13 @@ def register(parser):
     cmd.add_argument(
         "--disk-id",
         type=_options.UUID,
-        help="A UUID for the new disk. If not specified oVirt will "
+        help="A UUID for the new disk. If not specified, oVirt will "
              "create a new UUID.")
+
+    cmd.add_argument(
+        "--name",
+        help="Alias name for the new disk. If not specified, name will "
+             "correspond with the image filename.")
 
     cmd.add_argument(
         "filename",
@@ -126,7 +131,9 @@ def _prepare(args):
     initial_size = None
     if disk_format == FORMAT_QCOW2:
         initial_size = _api.measure(args.filename, disk_format)["required"]
-    name = os.path.splitext(os.path.basename(img_info["filename"]))[0]
+    name = args.name
+    if name is None:
+        name = os.path.splitext(os.path.basename(img_info["filename"]))[0]
 
     return DiskInfo(
         name=name,
