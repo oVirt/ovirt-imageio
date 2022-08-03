@@ -132,7 +132,7 @@ def _prepare(args):
         sparse = args.sparse
 
     initial_size = None
-    if disk_format == FORMAT_QCOW2:
+    if disk_format == FORMAT_QCOW2 and sparse:
         initial_size = _api.measure(args.filename, disk_format)["required"]
 
     name = args.name
