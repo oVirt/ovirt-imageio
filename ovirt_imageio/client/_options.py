@@ -13,6 +13,7 @@ Tool options.
 import getpass
 from collections import namedtuple
 
+from .. _internal import version
 from .. _internal.units import KiB, MiB, GiB, TiB
 from . _api import MAX_WORKERS, BUFFER_SIZE
 
@@ -135,6 +136,10 @@ class Parser:
         self._parser = argparse.ArgumentParser(
             description="Transfer disk images")
         self._parser.set_defaults(command=None)
+        self._parser.add_argument(
+            '--version',
+            action='version',
+            version=f'%(prog)s {version.string}')
         self._commands = self._parser.add_subparsers(title="commands")
 
     def add_sub_command(self, name, help, func, transfer_options=True):

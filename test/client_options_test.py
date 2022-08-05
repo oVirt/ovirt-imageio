@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 from ovirt_imageio._internal.units import KiB, MiB, GiB, TiB
+from ovirt_imageio._internal import version
 from ovirt_imageio.client import _options
 
 
@@ -337,3 +338,13 @@ def test_auto_help(capsys):
     err2 = capsys.readouterr().err
 
     assert err1 == err2
+
+
+def test_version(capsys):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+    with pytest.raises(SystemExit):
+        parser.parse(["--version"])
+    out = capsys.readouterr().out
+
+    assert version.string in out
