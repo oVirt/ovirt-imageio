@@ -17,13 +17,9 @@
 4. Create a new release in github form the new tag:
    https://github.com/oVirt/ovirt-imageio/releases
 
-5. Download the rpms built by github, and upload them to the new
-   release:
-   https://github.com/oVirt/ovirt-imageio/releases/tag/vX.Y.Z
+5. Publish the release.
 
-6. Publish the release.
-
-7. Send a patch to releng-tools project, adding the new version:
+6. Send a patch to releng-tools project, adding the new version:
    https://github.com/oVirt/releng-tools/commit/97b353b1107ba4bd06776ed4c2e31b309909a357
 
 ### Where to get the packages
@@ -72,7 +68,13 @@ https://pypi.org/project/ovirt-imageio/
 
 ## RHEL
 
-This parts works only inside the Red Hat network.
+This part works only inside the Red Hat network.
+
+This part also requires having rhpkg installed. To do so, make sure you have
+installed the Fedora `.repo` file:
+https://docs.engineering.redhat.com/display/RCMDOC/RCM+Tools+Release+Guide
+
+    $ sudo dnf install rhpkg
 
 1. Create source rpm form the release tag
 
@@ -116,6 +118,10 @@ This parts works only inside the Red Hat network.
 
        $ rhpkg push
        $ rhpkg build
+
+   If the push command fails due to the host key type, enable insecure
+   algorithms used by the old server. See `~/.ssh/config` in:
+   https://docs.engineering.redhat.com/display/exdinframa/Installing+dependencies
 
    Brew will send you an official build repository that can be used for
    testing by other developers or testers. Consider telling people about
