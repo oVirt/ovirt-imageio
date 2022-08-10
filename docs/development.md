@@ -45,18 +45,14 @@ Install the runtime requirements:
 
 Create a virtual environment for running the tests:
 
-    python3 -m venv ~/venv/ovirt-imageio
-    source ~/venv/ovirt-imageio/bin/activate
-    pip install --upgrade pip
-    pip install --upgrade -r containers/requirements.txt
-    deactivate
+    make venv
 
 
 ## Running the tests
 
 Before running the tests, enter the virtual environment:
 
-    source ~/venv/ovirt-imageio/bin/activate
+    source ~/.venv/ovirt-imageio/bin/activate
 
 When you are done, you can deactivate the environment using:
 

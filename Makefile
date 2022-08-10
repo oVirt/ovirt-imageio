@@ -3,6 +3,8 @@ PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell python3 ovirt_imageio/_internal/version.py)
 OUTDIR=dist
 
+VENV_DIR = $(HOME)/.venv/ovirt-imageio
+
 RPM_TOPDIR?=$(PWD)/build/rpm
 TAR_NAME=$(PACKAGE_NAME)-$(PACKAGE_VERSION).tar.gz
 SPEC_NAME=$(PACKAGE_NAME).spec
@@ -12,7 +14,7 @@ GENERATED = \
 
 METADATA = ovirt_imageio/_internal/version.py Makefile
 
-.PHONY: build check dist srpm rpm clean images clean-images storage clean-storage $(SPEC_NAME)
+.PHONY: build check dist srpm rpm clean images clean-images storage clean-storage $(SPEC_NAME) venv
 
 build:
 	python3 setup.py build_ext --build-lib .
@@ -58,6 +60,11 @@ storage:
 
 clean-storage:
 	userstorage delete storage.py
+
+venv:
+	python3 -m venv $(VENV_DIR) && \
+	$(VENV_DIR)/bin/python3 -m pip install --upgrade pip && \
+	$(VENV_DIR)/bin/python3 -m pip install -r containers/requirements.txt
 
 $(GENERATED) : % : %.in $(METADATA)
 	@sed \
