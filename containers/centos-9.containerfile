@@ -3,7 +3,7 @@ FROM quay.io/centos/centos:stream9
 # Runtime packages.
 RUN echo v1 \
     && dnf install -y dnf-plugins-core \
-    && dnf copr enable -y ovirt/ovirt-master-snapshot \
+    && dnf copr enable -y ovirt/ovirt-master-snapshot centos-stream-9 \
     && dnf install -y ovirt-release-master \
     && dnf install -y \
         createrepo_c \
