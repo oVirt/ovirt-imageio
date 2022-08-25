@@ -38,7 +38,7 @@ def http_server(tmp_pki):
     server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
     server.url = urlparse(
-        "https://localhost:{}/".format(server.server_port))
+        "https://localhost:{}/images/ticket-id".format(server.server_port))
     server.cafile = tmp_pki.cafile
     server.app = http.Router([])
 
@@ -79,7 +79,7 @@ class Handler:
         self.dirty = False
         self.requests = 0
 
-        router = http.Router([("/(.*)", self)])
+        router = http.Router([(r"/images/(.*)", self)])
         http_server.app = router
         if uhttp_server:
             uhttp_server.app = router
@@ -197,7 +197,7 @@ class Daemon(Handler):
         """
         Override to dispatch "GET /extents" resource.
         """
-        if path == "/extents":
+        if path == "ticket-id/extents":
             self.requests += 1
             context = req.query.get("context", "zero")
             self._extents(resp, context)
