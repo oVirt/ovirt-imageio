@@ -123,6 +123,7 @@ engine_url = https://engine.com
 username = username
 password = password
 cafile = /engine.pem
+disk_timeout = 200
 log_file = /var/log/ovirt-img/engine.log
 log_level = info
 
@@ -158,6 +159,7 @@ def test_config_all(config):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine.pem"
+    assert args.disk_timeout == 200
     assert args.log_file == "/var/log/ovirt-img/engine.log"
     assert args.log_level == "info"
     assert args.max_workers == 4
@@ -187,6 +189,7 @@ def test_config_all_override(config, tmpdir):
     assert args.engine_url == "https://engine2.com"
     assert args.username == "username2"
     assert args.cafile == "/engine2.pem"
+    assert args.disk_timeout == 200
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
     assert args.max_workers == 4
@@ -206,6 +209,7 @@ def test_config_required(config, monkeypatch):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile is None
+    assert args.disk_timeout == 120
     assert args.log_file is None
     assert args.log_level == "warning"
     assert args.max_workers == 4
@@ -233,6 +237,7 @@ def test_config_required_override(config, tmpdir):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine2.pem"
+    assert args.disk_timeout == 120
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
     assert args.max_workers == 4

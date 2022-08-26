@@ -24,6 +24,9 @@ import sys
 import uuid
 
 
+ADD_DISK_TIMEOUT = 120
+
+
 class Choices:
 
     def __init__(self, name, values):
@@ -115,6 +118,12 @@ class Parser:
             config=True,
             help=("Path to ovirt-engine CA certificate. If not set, read "
                   "from the specified config section"),
+        ),
+        Option(
+            name="disk_timeout",
+            config=True,
+            type=int,
+            default=ADD_DISK_TIMEOUT,
         ),
         Option(
             name="log_file",
