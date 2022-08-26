@@ -425,7 +425,11 @@ def _wait_for_disk(con, disk_id):
         if time.monotonic() > deadline:
             raise RuntimeError(f"Timeout reached waiting for disk {disk_id}")
 
-        if disk_service.get().status == types.DiskStatus.OK:
+        disk = disk_service.get()
+        if disk.status == types.DiskStatus.ILLEGAL:
+            raise RuntimeError(f"Disk {disk_id} became ILLEGAL")
+
+        if disk.status == types.DiskStatus.OK:
             break
 
 
