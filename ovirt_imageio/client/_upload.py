@@ -88,7 +88,8 @@ def upload_disk(args):
                 sparse=disk_info.sparse,
                 enable_backup=disk_info.format == _ovirt.COW,
                 content_type=disk_info.content_type,
-                format=disk_info.format)
+                format=disk_info.format,
+                timeout=args.disk_timeout)
 
             progress.phase = "creating transfer"
             host = _ovirt.find_host(con, args.storage_domain)

@@ -16,6 +16,8 @@ import time
 import ovirtsdk4 as sdk
 from ovirtsdk4 import types
 
+from . _options import ADD_DISK_TIMEOUT
+
 log = logging.getLogger("ovirt")
 
 # Image transfer constants.
@@ -61,7 +63,7 @@ def find_disk(con, disk_id):
 
 def add_disk(con, name, provisioned_size, sd_name, id=None,
              initial_size=None, sparse=True, enable_backup=True,
-             content_type=DATA, format=COW):
+             content_type=DATA, format=COW, timeout=ADD_DISK_TIMEOUT):
     """
     Add a new disk to the storage domain, based on the source image
     information provided.
@@ -79,6 +81,8 @@ def add_disk(con, name, provisioned_size, sd_name, id=None,
         content_type (ovirtsdk4.types.DiskContentType): Content type for the
             new disk.
         format (ovirtsdk4.types.DiskFormat): Format of the new disk.
+        timeout (int, optional): number of seconds to wait for
+            disk to be created.
 
     Returns:
         ovirtsdk4.types.Disk
@@ -108,7 +112,7 @@ def add_disk(con, name, provisioned_size, sd_name, id=None,
             ]
         )
     )
-    _wait_for_disk(con, disk.id)
+    _wait_for_disk(con, disk.id, timeout)
     return disk
 
 
@@ -414,9 +418,8 @@ def finalize_transfer(con, transfer, disk, timeout=300):
              transfer.id, time.monotonic() - start)
 
 
-def _wait_for_disk(con, disk_id):
+def _wait_for_disk(con, disk_id, timeout):
     log.info("Waiting for disk %s", disk_id)
-    timeout = 120
     start = time.monotonic()
     deadline = start + timeout
     disk_service = _disk_service(con, disk_id)
