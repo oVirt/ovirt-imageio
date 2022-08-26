@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 prefix := ovirt-imageio-test
-targets := centos-8 centos-9 fedora-35 fedora-36
+targets := centos-8 centos-9 fedora-35 fedora-36 fedora-37
 
 .PHONY: $(targets) push
 
