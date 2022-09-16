@@ -1,2 +1,2 @@
 tox>=3.24
-userstorage>=0.4
+userstorage>=0.5.1
