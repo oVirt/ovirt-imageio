@@ -15,10 +15,14 @@ import urllib.parse
 from collections import namedtuple
 
 import pytest
+import userstorage
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import qemu_nbd
 from ovirt_imageio._internal import util
+
+# Mark tests with xfail if userstorage is missing
+userstorage.missing_handler = pytest.xfail
 
 log = logging.getLogger("test")
 
