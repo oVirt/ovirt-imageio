@@ -21,7 +21,6 @@ from ovirt_imageio._internal import server
 
 from .. import testutil
 from .. import http
-from .. import storage
 
 BACKENDS = userstorage.load_config("storage.py").BACKENDS
 ALGORITHMS = frozenset(hashlib.algorithms_available)
@@ -35,7 +34,8 @@ ALGORITHMS = frozenset(hashlib.algorithms_available)
     ids=str
 )
 def user_file(request):
-    with storage.Backend(request.param) as backend:
+    backend = request.param
+    with backend:
         yield backend
 
 
