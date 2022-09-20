@@ -32,8 +32,9 @@ BACKENDS = userstorage.load_config("storage.py").BACKENDS
     ids=str
 )
 def user_file(request):
-    with storage.Backend(request.param) as backend:
-        yield backend
+    backend = request.param
+    with backend:
+        yield storage.Backend(backend)
 
 
 # Common offset and size parameters.

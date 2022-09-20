@@ -24,7 +24,6 @@ from ovirt_imageio._internal import qemu_nbd
 from . import backup
 from . import ci
 from . import distro
-from . import storage
 from . import testutil
 
 from . marks import (
@@ -47,7 +46,8 @@ log = logging.getLogger("test")
     ids=str
 )
 def user_file(request):
-    with storage.Backend(request.param) as backend:
+    backend = request.param
+    with backend:
         yield backend
 
 

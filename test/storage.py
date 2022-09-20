@@ -27,10 +27,3 @@ class Backend:
     @property
     def sector_size(self):
         return self._storage.sector_size
-
-    def __enter__(self):
-        self._storage.__enter__()
-        return self
-
-    def __exit__(self, *args):
-        self._storage.__exit__(*args)

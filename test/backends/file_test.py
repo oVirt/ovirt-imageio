@@ -44,8 +44,9 @@ KERNEL_VERSION = tuple(map(int, os.uname()[2].split(".")[:2]))
     ids=lambda x: str(x[0]),
 )
 def user_file(request):
-    with storage.Backend(*request.param) as backend:
-        yield backend
+    backend, can_detect_sector_size = request.param
+    with backend:
+        yield storage.Backend(backend, can_detect_sector_size)
 
 
 def test_debugging_interface(user_file):
