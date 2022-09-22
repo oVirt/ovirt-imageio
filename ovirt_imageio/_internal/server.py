@@ -23,6 +23,7 @@ import systemd.daemon
 
 from . import auth
 from . import config
+from . import errors
 from . import services
 from . import version
 
@@ -44,7 +45,7 @@ def main():
         log.info("Starting (hostname=%s pid=%s, version=%s)",
                  socket.gethostname(), os.getpid(), version.string)
 
-        server = Server(cfg)
+        server = Server(cfg, ticket=args.ticket)
         signal.signal(signal.SIGINT, server.terminate)
         signal.signal(signal.SIGTERM, server.terminate)
 
@@ -75,6 +76,9 @@ def parse_args():
         help="print actual configuration in json format and exit. This is "
              "useful for debugging configuration issues, or reading imageio "
              "configuration by other programs.")
+    parser.add_argument(
+        "-t", "--ticket",
+        help="path to a ticket to load during server startup.")
     return parser.parse_args()
 
 
@@ -114,7 +118,7 @@ def configure_logger(cfg):
 
 class Server:
 
-    def __init__(self, config):
+    def __init__(self, config, ticket=None):
         self.config = config
         self.running = False
         self.auth = auth.Authorizer(config)
@@ -126,6 +130,9 @@ class Server:
 
         if os.geteuid() == 0 and self.config.daemon.drop_privileges:
             self._drop_privileges()
+
+        if ticket:
+            self._add_ticket(ticket)
 
     def start(self):
         assert not self.running
@@ -177,3 +184,17 @@ class Server:
         os.initgroups(self.config.daemon.user_name, gid)
         os.setgid(gid)
         os.setuid(uid)
+
+    def _add_ticket(self, ticket):
+        log.info("Initial ticket: %s", ticket)
+        self.auth.add(self._read_ticket(ticket))
+
+    def _read_ticket(self, ticket):
+        try:
+            with open(ticket, 'r') as f:
+                return json.loads(f.read())
+        except ValueError as e:
+            raise errors.InvalidTicket(
+                f"Cannot parse ticket {ticket}: {e}") from e
+        except FileNotFoundError as e:
+            raise errors.InvalidTicket(f"Cannot read ticket: {e}") from e
