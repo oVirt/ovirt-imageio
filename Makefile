@@ -27,8 +27,9 @@ dist: $(GENERATED)
 
 container: dist
 	cp $(OUTDIR)/ovirt-imageio-*.tar.gz container/ovirt-imageio.tar.gz
+	virt-builder fedora-36 --output container/disk.img --format qcow2
 	podman build -t ovirt-imageio container
-	rm -f container/ovirt-imageio.tar.gz
+	rm -f container/ovirt-imageio.tar.gz container/disk.img
 
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \

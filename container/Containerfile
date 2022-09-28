@@ -13,8 +13,11 @@ FROM alpine
 RUN apk add python3
 RUN addgroup --system ovirtimg
 RUN adduser --system --ingroup ovirtimg ovirtimg
-RUN mkdir /run/ovirt-imageio /etc/ovirt-imageio
+RUN mkdir /run/ovirt-imageio /etc/ovirt-imageio /images
 COPY --from=build /venv /venv
 COPY conf.d /etc/ovirt-imageio/conf.d
+COPY file.json file.json
+COPY disk.img /images
+RUN chown ovirtimg:ovirtimg /images/disk.img
 EXPOSE 80/tcp
-CMD /venv/bin/ovirt-imageio
+CMD /venv/bin/ovirt-imageio -t file.json

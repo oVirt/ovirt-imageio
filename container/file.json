@@ -1,0 +1,8 @@
+{
+    "uuid": "ticket-id",
+    "size": 6442450944,
+    "url": "file:///images/disk.img",
+    "timeout": 3000,
+    "sparse": true,
+    "ops": ["read", "write"]
+}
