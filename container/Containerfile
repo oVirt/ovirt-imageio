@@ -19,5 +19,6 @@ COPY conf.d /etc/ovirt-imageio/conf.d
 COPY file.json file.json
 COPY disk.img /images
 RUN chown ovirtimg:ovirtimg /images/disk.img
+VOLUME [ "/pki/system" ]
 EXPOSE 80/tcp
 CMD /venv/bin/ovirt-imageio -t file.json
