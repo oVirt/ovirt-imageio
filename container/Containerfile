@@ -15,4 +15,4 @@ RUN mkdir /etc/ovirt-imageio
 COPY --from=build /venv /venv
 COPY conf.d /etc/ovirt-imageio/conf.d
 EXPOSE 80/tcp
-CMD /venv/bin/ovirt-imageio
+CMD /venv/bin/ovirt-imageio -t ${TICKET_PATH}
