@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 RELEASE := $(shell ./build-aux/release)
 PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell python3 ovirt_imageio/_internal/version.py)
