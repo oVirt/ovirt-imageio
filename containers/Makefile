@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 targets := centos-8 centos-9 fedora-35 fedora-36
 
 .PHONY: $(targets) push
