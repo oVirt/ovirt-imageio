@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Red Hat, Inc.
+SPDX-License-Identifier: LGPL-2.1-or-later
+-->
+
 # oVirt imageio Go client
 
 This library provides client for the ovirt-imageio server for the Go
