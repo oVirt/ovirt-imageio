@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # Usage: genpki [TARGET]
 # Generates PKI files for imageio tests into pki/$TARGET directory.
 # $TARGET is also used as common name (CN) in CA certificate.
