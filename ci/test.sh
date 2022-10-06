@@ -32,5 +32,6 @@ fi
 
 env="$1"
 
+make container
 make storage
 tox -e reuse,flake8,test-$env,bench-$env
