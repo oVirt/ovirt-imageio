@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 create_loop_devices() {
     local last=$(($1-1))
     local min
