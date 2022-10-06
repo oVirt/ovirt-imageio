@@ -33,4 +33,4 @@ fi
 env="$1"
 
 make storage
-tox -e flake8,test-$env,bench-$env
+tox -e reuse,flake8,test-$env,bench-$env
