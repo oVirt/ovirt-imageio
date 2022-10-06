@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Red Hat, Inc.
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+
 # ovirt-imageio
 
 [![CI status](https://github.com/oVirt/ovirt-imageio/actions/workflows/ci.yml/badge.svg)](https://github.com/oVirt/ovirt-imageio/actions)
