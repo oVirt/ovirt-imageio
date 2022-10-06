@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # An example for an ovirt-imageio configuration file.
 #
 # Below is a list of available options which can be configured.
