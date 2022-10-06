@@ -18,6 +18,7 @@ RUN echo v1 \
         libguestfs-tools-c \
         make \
         openssl \
+        podman \
         python3-devel \
         python3-ovirt-engine-sdk4 \
         python3-pip \

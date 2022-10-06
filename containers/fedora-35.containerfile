@@ -18,6 +18,7 @@ RUN echo v1 \
         make \
         openssl \
         openssl-devel \
+        podman \
         python3-devel \
         python3-pip \
         python3-setuptools \
