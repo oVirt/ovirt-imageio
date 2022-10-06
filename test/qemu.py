@@ -1,10 +1,5 @@
-# ovirt-imageio
-# Copyright (C) 2018 Red Hat, Inc.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# SPDX-FileCopyrightText: Red Hat, Inc.
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 import functools
 import logging
@@ -140,7 +135,6 @@ class Guest:
 def version():
     # Typical output:
     # QEMU emulator version 6.0.0 (qemu-6.0.0-1.fc32)
-    # Copyright (c) 2003-2021 Fabrice Bellard and the QEMU Project developers
     out = subprocess.check_output([QEMU, "--version"], env=env())
     first_line = out.decode("utf-8").splitlines()[0]
     _, _, _, version_string, pkg = first_line.split(None, 4)
