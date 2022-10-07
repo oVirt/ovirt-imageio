@@ -58,4 +58,5 @@ Usage example:
 ## LICENSE
 
 The is free software licensed under the GNU Lesser General Public
-License version 2 or above (LGPLv2+). See the file LICENSE for details.
+License version 2 or above (LGPL-2.1-or-later). See the file
+`LICENSES/LGPL-2.1-or-later.txt` file in the project root for details.
