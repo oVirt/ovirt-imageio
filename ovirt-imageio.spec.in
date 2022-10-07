@@ -80,7 +80,7 @@ Requires:  python3
 Common resources used by oVirt imageio server and client
 
 %files common
-%license COPYING
+%license LICENSES/GPL-2.0-or-later.txt
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
@@ -191,7 +191,7 @@ Requires:  python38
 Common resources used by oVirt imageio server and client
 
 %files -n python38-%{name}-common
-%license COPYING
+%license LICENSES/GPL-2.0-or-later.txt
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
