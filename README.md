@@ -64,9 +64,6 @@ Please send mail to one of the following lists for help.
 
 ## Licensing
 
-The project is provided under the terms of the GPLv2 License.
-The ovirt-imageio-proxy-setup plugin is provided under the terms of the
-Apache License, Version 2.0.
+The project is provided under the terms of the GPL-2.0-or-later License.
 
-Please see the COPYING files in the proxy and proxy/setup directories
-for complete license terms.
+Please see the `LICENSES/GPL-2.0-or-later.txt` file for complete license terms.
