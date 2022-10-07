@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Red Hat, Inc.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include README.md COPYING MANIFEST
+include README.md LICENSES/GPL-2.0-or-later.txt MANIFEST
 include Makefile
 include *.spec
 include *.in
