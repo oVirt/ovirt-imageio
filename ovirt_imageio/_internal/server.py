@@ -128,10 +128,15 @@ class Server:
         self.running = False
         self.auth = auth.Authorizer(config)
         self.remote_service = services.RemoteService(self.config, self.auth)
+
         self.local_service = None
         if config.local.enable:
             self.local_service = services.LocalService(self.config, self.auth)
-        self.control_service = services.ControlService(self.config, self.auth)
+
+        self.control_service = None
+        if config.control.enable:
+            self.control_service = services.ControlService(
+                self.config, self.auth)
 
         if os.geteuid() == 0 and self.config.daemon.drop_privileges:
             self._drop_privileges()
@@ -146,14 +151,16 @@ class Server:
         self.remote_service.start()
         if self.local_service is not None:
             self.local_service.start()
-        self.control_service.start()
+        if self.control_service is not None:
+            self.control_service.start()
 
     def stop(self):
         log.debug("Stopping services")
         self.remote_service.stop()
         if self.local_service is not None:
             self.local_service.stop()
-        self.control_service.stop()
+        if self.control_service is not None:
+            self.control_service.stop()
 
     def terminate(self, signo, frame):
         log.info("Received signal %d, shutting down", signo)
@@ -179,10 +186,11 @@ class Server:
                     "Changing ownership of %s to %i:%i" % (filename, uid, gid))
                 os.chown(filename, uid, gid)
 
-        # Restore ownership of control socket is used.
-        transport = self.config.control.transport.lower()
-        if transport == "unix":
-            os.chown(self.config.control.socket, uid, gid)
+        # Restore ownership of control socket if used.
+        if self.control_service is not None:
+            transport = self.config.control.transport.lower()
+            if transport == "unix":
+                os.chown(self.config.control.socket, uid, gid)
 
         # Set new uid and gid for the process.
         log.debug("Dropping root privileges, running as %i:%i" % (uid, gid))

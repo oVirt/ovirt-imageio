@@ -139,6 +139,9 @@ class local:
 
 class control:
 
+    # Enable control service.
+    enable = True
+
     # Transport be used to communicate with control service socket.
     # Can be either "tcp" or "unix". If "unix" is used, communication will
     # be done over UNIX socket which path is specified in "socket" option.
