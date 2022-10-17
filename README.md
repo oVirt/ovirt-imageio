@@ -5,6 +5,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 # ovirt-imageio
 
+[![Package version](https://img.shields.io/pypi/v/ovirt-imageio)](https://pypi.org/project/ovirt-imageio/)
+[![Python versions](https://img.shields.io/pypi/pyversions/ovirt-imageio)](https://pypi.org/project/ovirt-imageio/)
+[![Downloads per month](https://img.shields.io/pypi/dm/ovirt-imageio)](https://pypi.org/project/ovirt-imageio/)
+[![License](https://img.shields.io/github/license/oVirt/ovirt-imageio)](https://pypi.org/project/ovirt-imageio/)
 [![CI status](https://github.com/oVirt/ovirt-imageio/actions/workflows/ci.yml/badge.svg)](https://github.com/oVirt/ovirt-imageio/actions)
 [![Copr build status](https://copr.fedorainfracloud.org/coprs/nsoffer/ovirt-imageio-preview/package/ovirt-imageio/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/nsoffer/ovirt-imageio-preview/package/ovirt-imageio/)
 
