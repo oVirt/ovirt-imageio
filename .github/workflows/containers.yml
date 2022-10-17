@@ -39,3 +39,25 @@ jobs:
       - name: Print image url
         if: ${{ env.can_push == 'true' }}
         run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install podman
+      - name: Build container images
+        run: make container
+      - name: Push to Quay.io
+        if: ${{ env.can_push == 'true' }}
+        id: push-to-quay
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ovirt/ovirt-imageio
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.QUAY_USERNAME  }}
+          password: ${{ secrets.QUAY_TOKEN }}
+      - name: Print image url
+        if: ${{ env.can_push == 'true' }}
+        run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
