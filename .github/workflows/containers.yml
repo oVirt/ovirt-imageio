@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: [ centos-8 centos-9 fedora-35 fedora-36 ]
+        container: [ centos-8, centos-9, fedora-35, fedora-36 ]
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
