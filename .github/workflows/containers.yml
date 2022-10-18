@@ -10,7 +10,7 @@ on:
   schedule:
     - cron:  '0 0 * * 1'
 env:
-  IMAGE_REGISTRY: quay.io
+  IMAGE_REGISTRY: quay.io/ovirt
   can_push: ${{ github.repository_owner == 'oVirt' }}
 jobs:
   test-containers:
@@ -32,7 +32,7 @@ jobs:
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ovirt/imageio-test-${{ matrix.distro }}
+          image: imageio-test-${{ matrix.distro }}
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.QUAY_USERNAME  }}
           password: ${{ secrets.QUAY_TOKEN }}
@@ -54,7 +54,7 @@ jobs:
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ovirt/ovirt-imageio
+          image: ovirt-imageio
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.QUAY_USERNAME  }}
           password: ${{ secrets.QUAY_TOKEN }}
