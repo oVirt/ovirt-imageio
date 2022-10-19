@@ -43,7 +43,7 @@ def open(url, mode="r+", sparse=True, dirty=False, max_connections=8,
             connect_timeout: Time to wait for connection to server.
             read_timeout: Time to wait when reading from server.
     """
-    assert url.scheme == "https"
+    assert url.scheme in ("http", "https")
     return Backend(url, **options)
 
 
@@ -112,7 +112,8 @@ class Backend:
             raise
 
     def _connect(self):
-        self._context = self._create_ssl_context()
+        if self.url.scheme == "https":
+            self._context = self._create_ssl_context()
         self._con = self._create_tcp_connection()
         try:
             options = self._options()
@@ -373,10 +374,15 @@ class Backend:
 
     def _create_tcp_connection(self):
         log.debug("Connecting to tcp socket %r", self.url.netloc)
-        con = HTTPSConnection(
-            self.url.netloc,
-            timeout=self._connect_timeout,
-            context=self._context)
+        if self._context is not None:
+            con = HTTPSConnection(
+                self.url.netloc,
+                timeout=self._connect_timeout,
+                context=self._context)
+        else:
+            con = HTTPConnection(
+                self.url.netloc,
+                timeout=self._connect_timeout)
         try:
             con.connect()
             con.sock.settimeout(self._read_timeout)
@@ -416,10 +422,10 @@ class Backend:
             self._con = con
 
     def _clone_connection(self):
-        if isinstance(self._con, HTTPSConnection):
-            return self._create_tcp_connection()
-        else:
+        if isinstance(self._con, UnixHTTPConnection):
             return self._create_unix_connection(self.server_address)
+        else:
+            return self._create_tcp_connection()
 
     def _get(self, length):
         headers = {}
@@ -587,9 +593,9 @@ class Backend:
         raise http.Error(status, msg)
 
 
-class HTTPSConnection(http_client.HTTPSConnection):
+class ConnectionMixin:
     """
-    Enhanced HTTPS connection.
+    Mix-in class for enhanced connections.
     """
 
     def is_local(self):
@@ -611,6 +617,18 @@ class HTTPSConnection(http_client.HTTPSConnection):
         # address uniform, ensure it's always a tuple of two values -
         # hostname/IP address and port number.
         return self.sock.getpeername()[:2]
+
+
+class HTTPConnection(ConnectionMixin, http_client.HTTPConnection):
+    """
+    Enhanced HTTP connection.
+    """
+
+
+class HTTPSConnection(ConnectionMixin, http_client.HTTPSConnection):
+    """
+    Enhanced HTTPS connection.
+    """
 
 
 class UnixHTTPConnection(http_client.HTTPConnection):
