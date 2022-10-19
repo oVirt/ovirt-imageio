@@ -21,20 +21,23 @@ from ovirt_imageio._internal.backends.http import Backend
 log = logging.getLogger("test")
 
 
-@pytest.fixture(scope="module")
-def http_server(tmp_pki):
+@pytest.fixture(scope="module", params=[True, False])
+def http_server(request, tmp_pki):
+    secure = request.param
     server = http.Server(("localhost", 0), http.Connection)
     log.info("Server listening on %r", server.server_address)
 
-    ctx = ssl.server_context(
-        tmp_pki.certfile,
-        tmp_pki.keyfile,
-        cafile=tmp_pki.cafile)
-    server.socket = ctx.wrap_socket(server.socket, server_side=True)
+    if secure:
+        ctx = ssl.server_context(
+            tmp_pki.certfile,
+            tmp_pki.keyfile,
+            cafile=tmp_pki.cafile)
+        server.socket = ctx.wrap_socket(server.socket, server_side=True)
 
+    scheme = "https" if secure else "http"
     server.url = urlparse(
-        "https://localhost:{}/images/ticket-id".format(server.server_port))
-    server.cafile = tmp_pki.cafile
+        f"{scheme}://localhost:{server.server_port}/images/ticket-id")
+    server.cafile = tmp_pki.cafile if secure else None
     server.app = http.Router([])
 
     t = util.start_thread(
