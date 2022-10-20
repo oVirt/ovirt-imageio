@@ -13,9 +13,10 @@ RUN /venv/bin/pip install ovirt-imageio.tar.gz
 # Final stage
 
 FROM alpine
-RUN apk add python3
+RUN apk add python3 qemu-img
 RUN mkdir /etc/ovirt-imageio
 COPY --from=build /venv /venv
 COPY conf.d /etc/ovirt-imageio/conf.d
+COPY app /app
 EXPOSE 80/tcp
-CMD /venv/bin/ovirt-imageio -t ${TICKET_PATH}
+ENTRYPOINT [ "/app/entrypoint.py" ]
