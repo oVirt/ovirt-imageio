@@ -14,8 +14,8 @@ from . import nbd
 
 _modules = {
     "file": file,
-    "nbd": nbd,
     "https": http,
+    "nbd": nbd,
 }
 
 
