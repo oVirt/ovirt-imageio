@@ -32,17 +32,20 @@ def random_tcp_port():
         return port
 
 
-def create_ticket(uuid=None, ops=None, timeout=300, size=2**64,
+def create_ticket(uuid=None, name=None, ops=None, timeout=300, size=2**64,
                   url="file:///tmp/foo.img", transfer_id=None, filename=None,
                   sparse=None, dirty=None, inactivity_timeout=120):
     d = {
-        "uuid": uuid or str(uuid4()),
         "timeout": timeout,
         "ops": ["read", "write"] if ops is None else ops,
         "size": size,
         "url": url,
         "transfer_id": transfer_id or str(uuid4()),
     }
+    if name is not None:
+        d["name"] = name
+    else:
+        d["uuid"] = uuid or str(uuid4())
     if filename is not None:
         d["filename"] = filename
     if sparse is not None:

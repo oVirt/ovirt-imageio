@@ -384,6 +384,7 @@ def test_invalid_argument(arg, cfg):
 
 @pytest.mark.parametrize("kw", [
     {"uuid": 1},
+    {"name": 1},
     {"size": "not an int"},
     {"ops": "not a list"},
     {"timeout": "not an int"},
@@ -407,6 +408,18 @@ def test_inactivity_timeout_unset(cfg):
 def test_sparse_unset(cfg):
     ticket = Ticket(testutil.create_ticket(), cfg)
     assert not ticket.sparse
+
+
+def test_uuid(cfg):
+    ticket_uuid = "uuid"
+    ticket = Ticket(testutil.create_ticket(uuid=ticket_uuid), cfg)
+    assert ticket.uuid == ticket_uuid
+
+
+def test_name(cfg):
+    ticket_name = "name"
+    ticket = Ticket(testutil.create_ticket(name=ticket_name), cfg)
+    assert ticket.uuid == ticket_name
 
 
 def test_sparse(cfg):
@@ -724,6 +737,15 @@ def test_authorizer_add(cfg):
 
     ticket = auth.get(ticket_info["uuid"])
     assert ticket.uuid == ticket_info["uuid"]
+
+
+def test_authorizer_add_name(cfg):
+    auth = Authorizer(cfg)
+    ticket_info = testutil.create_ticket(name="name", ops=["read"])
+    auth.add(ticket_info)
+
+    ticket = auth.get(ticket_info["name"])
+    assert ticket.uuid == ticket_info["name"]
 
 
 def test_authorizer_remove_unused(cfg):
