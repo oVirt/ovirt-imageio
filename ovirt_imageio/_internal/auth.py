@@ -21,7 +21,10 @@ class Ticket:
             raise errors.InvalidTicket(
                 "Invalid ticket: %r, expecting a dict" % ticket_dict)
 
-        self._uuid = _required(ticket_dict, "uuid", str)
+        self._uuid = _optional(ticket_dict, "uuid", str)
+        if self._uuid is None:
+            # Require 'name' and leave 'uuid' as a legacy key.
+            self._uuid = _required(ticket_dict, "name", str)
         self._size = _required(ticket_dict, "size", int)
         self._ops = _required(ticket_dict, "ops", list)
 
