@@ -5,7 +5,11 @@ import collections
 import io
 import mmap
 import os
+import shutil
+import tempfile
 import threading
+
+from contextlib import contextmanager
 
 from .units import KiB
 
@@ -106,6 +110,15 @@ def ensure_text(s, encoding='utf-8', errors='strict'):
         return s
     else:
         raise TypeError("not expecting type '%s'" % type(s))
+
+
+@contextmanager
+def tmp_dir(prefix):
+    path = tempfile.mkdtemp(prefix=prefix)
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path)
 
 
 class UnbufferedStream:
