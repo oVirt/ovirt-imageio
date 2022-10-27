@@ -8,10 +8,8 @@ api - imageio public client API.
 import json
 import logging
 import os
-import shutil
 import signal
 import tarfile
-import tempfile
 
 from contextlib import contextmanager
 from urllib.parse import urlparse
@@ -19,6 +17,7 @@ from urllib.parse import urlparse
 from .. _internal import blkhash
 from .. _internal import qemu_img
 from .. _internal import qemu_nbd
+from .. _internal import util
 from .. _internal.backends import http, nbd
 from .. _internal.handlers import checksum as _checksum
 from .. _internal.nbd import UnixAddress
@@ -489,7 +488,7 @@ def _open_nbd(filename, fmt, read_only=False, shared=1, bitmap=None,
     """
     Open nbd backend.
     """
-    with _tmp_dir("imageio-") as base:
+    with util.tmp_dir("imageio-") as base:
         sock = UnixAddress(os.path.join(base, "sock"))
 
         # If the applicatiion is handling signals, block SIGINT in qemu-nbd for
@@ -525,12 +524,3 @@ def _open_http(transfer_url, mode, cafile=None, secure=True, proxy_url=None):
                   transfer_url, e, proxy_url)
         url = urlparse(proxy_url)
         return http.open(url, mode, cafile=cafile, secure=secure)
-
-
-@contextmanager
-def _tmp_dir(prefix):
-    path = tempfile.mkdtemp(prefix=prefix)
-    try:
-        yield path
-    finally:
-        shutil.rmtree(path)
