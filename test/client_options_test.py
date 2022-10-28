@@ -154,6 +154,7 @@ def test_config_all(config):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine.pem"
+    assert args.secure is True
     assert args.disk_timeout == 200
     assert args.log_file == "/var/log/ovirt-img/engine.log"
     assert args.log_level == "info"
@@ -184,6 +185,7 @@ def test_config_all_override(config, tmpdir):
     assert args.engine_url == "https://engine2.com"
     assert args.username == "username2"
     assert args.cafile == "/engine2.pem"
+    assert args.secure is True
     assert args.disk_timeout == 200
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
@@ -204,6 +206,7 @@ def test_config_required(config, monkeypatch):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile is None
+    assert args.secure is True
     assert args.disk_timeout == 120
     assert args.log_file is None
     assert args.log_level == "warning"
@@ -226,12 +229,14 @@ def test_config_required_override(config, tmpdir):
         "-c", "required",
         "--password-file", str(password_file),
         "--cafile", "/engine2.pem",
+        "--insecure",
         "--log-file", "test.log",
         "--log-level", "debug",
     ])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine2.pem"
+    assert args.secure is False
     assert args.disk_timeout == 120
     assert args.log_file == "test.log"
     assert args.log_level == "debug"

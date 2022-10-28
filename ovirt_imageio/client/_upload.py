@@ -97,6 +97,7 @@ def upload_disk(args):
                     args.cafile,
                     buffer_size=args.buffer_size,
                     progress=progress,
+                    secure=args.secure,
                     proxy_url=transfer.proxy_url,
                     max_workers=args.max_workers,
                     disk_is_zero=disk_info.is_zero)
