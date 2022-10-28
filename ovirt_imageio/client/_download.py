@@ -52,6 +52,7 @@ def download_disk(args):
                     args.filename,
                     args.cafile,
                     fmt=args.format,
+                    secure=args.secure,
                     proxy_url=transfer.proxy_url,
                     max_workers=args.max_workers,
                     buffer_size=args.buffer_size,
