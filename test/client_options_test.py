@@ -118,6 +118,7 @@ engine_url = https://engine.com
 username = username
 password = password
 cafile = /engine.pem
+secure = False
 disk_timeout = 200
 log_file = /var/log/ovirt-img/engine.log
 log_level = info
@@ -139,11 +140,17 @@ username = username
 #username is not set
 password = password
 
-[invalid]
+[invalid_log_level]
 engine_url = https://engine.com
 username = username
 password = password
-log_level = invalid log level
+log_level = invalid value
+
+[invalid_secure]
+engine_url = https://engine.com
+username = username
+password = password
+secure = invalid value
 """)
 
 
@@ -154,7 +161,7 @@ def test_config_all(config):
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
     assert args.cafile == "/engine.pem"
-    assert args.secure is True
+    assert args.secure is False
     assert args.disk_timeout == 200
     assert args.log_file == "/var/log/ovirt-img/engine.log"
     assert args.log_level == "info"
@@ -185,7 +192,7 @@ def test_config_all_override(config, tmpdir):
     assert args.engine_url == "https://engine2.com"
     assert args.username == "username2"
     assert args.cafile == "/engine2.pem"
-    assert args.secure is True
+    assert args.secure is False
     assert args.disk_timeout == 200
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
@@ -276,13 +283,17 @@ def test_config_missing_override(config):
     assert args.username == "username"
 
 
-def test_config_invalid(config, capsys):
+@pytest.mark.parametrize("name", [
+    "invalid_log_level",
+    "invalid_secure",
+])
+def test_config_invalid(config, capsys, name):
     parser = _options.Parser()
     parser.add_sub_command("test", "help", lambda x: None)
     with pytest.raises(SystemExit):
-        parser.parse(["test", "-c", "invalid"])
+        parser.parse(["test", "-c", name])
     captured = capsys.readouterr()
-    assert repr("invalid log level") in captured.err
+    assert repr("invalid value") in captured.err
 
 
 def test_config_no_section(config, capsys):
