@@ -25,7 +25,7 @@ jobs:
           - distro: fedora-36
             env: py310
     container:
-      image: quay.io/ovirt/imageio-test-${{matrix.distro}}
+      image: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
       # Required to create loop devices.
       options: --privileged
     steps:
@@ -42,7 +42,7 @@ jobs:
         - centos-9
         - fedora-35
         - fedora-36
-    container: quay.io/ovirt/imageio-test-${{matrix.distro}}
+    container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
     - uses: actions/checkout@v2
       with:
