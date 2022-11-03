@@ -32,7 +32,8 @@ jobs:
         id: push-to-quay
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: imageio-test-${{ matrix.distro }}
+          image: ovirt-imageio-test
+          tags: ${{ matrix.distro }}
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.QUAY_USERNAME  }}
           password: ${{ secrets.QUAY_TOKEN }}
