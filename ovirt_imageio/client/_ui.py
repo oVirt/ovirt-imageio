@@ -8,10 +8,55 @@ import time
 from .. _internal import util
 
 
+DEFAULT_WIDTH = 79
+
+
+class OutputFormat:
+
+    def __init__(self, output, width=DEFAULT_WIDTH):
+        """
+        Arguments:
+            output (fileobj): file to write progress to (default sys.stdout).
+            width (int): width of progress bar in characters (default 79)
+        """
+        self._output = output
+        # TODO: use current terminal width instead.
+        self._width = width
+
+    def _write_line(self, line, end="\n"):
+        self._output.write(line + end)
+        self._output.flush()
+
+    def draw(self, elapsed, value, transferred, size=None,
+             phase=None, last=False):
+        raise NotImplementedError
+
+
+class TextFormat(OutputFormat):
+
+    def draw(self, elapsed, value, transferred, size=None,
+             phase=None, last=False):
+        progress = f"{max(0, value):3d}%" if size else "----"
+        done = util.humansize(transferred)
+        rate = util.humansize((transferred / elapsed) if elapsed else 0)
+        phase = f" | {phase}" if phase else ""
+        line = f"[ {progress} ] {done}, {elapsed:.2f} s, {rate}/s{phase}"
+
+        # Using "\r" moves the cursor to the first column, so the next progress
+        # will overwrite this one. If this is the last progress, we use "\n" to
+        # move to the next line. Otherwise, the next shell prompt will include
+        # part of the old progress.
+        end = "\n" if last else "\r"
+
+        line = line.ljust(self._width, " ")
+        self._write_line(line, end)
+
+
 class ProgressBar:
 
     def __init__(self, phase=None, error_phase="command failed", size=None,
-                 output=sys.stdout, step=None, width=79, now=time.monotonic):
+                 output=sys.stdout, step=None, width=DEFAULT_WIDTH,
+                 now=time.monotonic):
         """
         Arguments:
             phase (str): short description of the current phase.
@@ -30,8 +75,7 @@ class ProgressBar:
         self._error_phase = error_phase
         self._size = size
         self._output = output
-        # TODO: use current terminal width instead.
-        self._width = width
+        self._format = TextFormat(output=output, width=width)
         self._now = now
         self._lock = threading.Lock()
         self._start = self._now()
@@ -100,22 +144,14 @@ class ProgressBar:
                 self._draw(last=True)
 
     def _draw(self, last=False):
-        elapsed = self._now() - self._start
-        progress = f"{max(0, self._value):3d}%" if self._size else "----"
-        done = util.humansize(self._done)
-        rate = util.humansize((self._done / elapsed) if elapsed else 0)
-        phase = f" | {self._phase}" if self._phase else ""
-        line = f"[ {progress} ] {done}, {elapsed:.2f} s, {rate}/s{phase}"
-        line = line.ljust(self._width, " ")
-
-        # Using "\r" moves the cursor to the first column, so the next progress
-        # will overwrite this one. If this is the last progress, we use "\n" to
-        # move to the next line. Otherwise, the next shell prompt will include
-        # part of the old progress.
-        end = "\n" if last else "\r"
-
-        self._output.write(line + end)
-        self._output.flush()
+        self._format.draw(
+            elapsed=self._now() - self._start,
+            value=self._value,
+            transferred=self._done,
+            size=self._size,
+            phase=self._phase,
+            last=last
+        )
 
     def __enter__(self):
         return self
