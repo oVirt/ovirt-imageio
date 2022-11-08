@@ -20,8 +20,6 @@ jobs:
             env: py38
           - distro: centos-9
             env: py39
-          - distro: fedora-35
-            env: py310
           - distro: fedora-36
             env: py310
     container:
@@ -40,7 +38,6 @@ jobs:
         distro:
         - centos-8
         - centos-9
-        - fedora-35
         - fedora-36
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
