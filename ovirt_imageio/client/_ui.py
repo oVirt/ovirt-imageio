@@ -8,6 +8,8 @@ import time
 from .. _internal import util
 
 
+FORMAT_TEXT = "text"
+
 DEFAULT_WIDTH = 79
 
 
@@ -52,11 +54,16 @@ class TextFormat(OutputFormat):
         self._write_line(line, end)
 
 
+OUTPUT_FORMAT = {
+    FORMAT_TEXT: TextFormat,
+}
+
+
 class ProgressBar:
 
     def __init__(self, phase=None, error_phase="command failed", size=None,
-                 output=sys.stdout, step=None, width=DEFAULT_WIDTH,
-                 now=time.monotonic):
+                 output=sys.stdout, format=FORMAT_TEXT, step=None,
+                 width=DEFAULT_WIDTH, now=time.monotonic):
         """
         Arguments:
             phase (str): short description of the current phase.
@@ -66,6 +73,7 @@ class ProgressBar:
                 creating, progress value is not displayed. The size can be set
                 later to enable progress display.
             output (fileobj): file to write progress to (default sys.stdout).
+            format (str): format in which the progress is printed.
             step (float): unused, kept for backward compatibility. The progress
                 is updated in 1 percent steps.
             width (int): width of progress bar in characters (default 79)
@@ -75,7 +83,7 @@ class ProgressBar:
         self._error_phase = error_phase
         self._size = size
         self._output = output
-        self._format = TextFormat(output=output, width=width)
+        self._format = OUTPUT_FORMAT[format](output=output, width=width)
         self._now = now
         self._lock = threading.Lock()
         self._start = self._now()
