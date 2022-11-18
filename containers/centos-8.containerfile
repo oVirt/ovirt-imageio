@@ -23,10 +23,6 @@ RUN echo v1 \
         python3-pip \
         python3-setuptools \
         python3-systemd \
-        python38-devel \
-        python38-ovirt-engine-sdk4 \
-        python38-pip \
-        python38-setuptools \
         python39-devel \
         python39-ovirt-engine-sdk4 \
         python39-pip \
