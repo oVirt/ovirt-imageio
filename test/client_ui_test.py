@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import pytest
+import json
 
 from ovirt_imageio import client
 from ovirt_imageio._internal.units import MiB, GiB
@@ -28,7 +29,7 @@ class FakeFile:
         pass
 
 
-def test_draw():
+def test_draw_text():
     fake_time = FakeTime()
     f = FakeFile()
 
@@ -82,6 +83,68 @@ def test_draw():
     pb.close()
     line = "[ 100% ] 3.00 GiB, 5.30 s, 579.62 MiB/s | download completed"
     assert f.last == line.ljust(79) + "\n"
+
+
+def test_draw_json():
+    fake_time = FakeTime()
+    f = FakeFile()
+
+    # Size is unknown at this point.
+    pb = client.ProgressBar(
+        phase="setting up", output=f, format="json", now=fake_time)
+    assert json.loads(f.last) == {
+        "transferred": 0,
+        "elapsed": 0.0,
+        "description": "setting up",
+    }
+
+    # Size was updated, but no bytes were transferred yet.
+    fake_time.now += 0.1
+    pb.size = 3 * GiB
+    assert json.loads(f.last) == {
+        "transferred": 0,
+        "elapsed": fake_time.now,
+        "description": "setting up",
+        "size": 3 * GiB,
+    }
+
+    # Phase was updated.
+    fake_time.now += 0.2
+    pb.phase = "downloading image"
+    assert json.loads(f.last) == {
+        "transferred": 0,
+        "elapsed": fake_time.now,
+        "description": "downloading image",
+        "size": 3 * GiB,
+    }
+
+    # All data transferred.
+    fake_time.now += 2.0
+    pb.update(3 * GiB)
+    assert json.loads(f.last) == {
+        "transferred": 3 * GiB,
+        "elapsed": fake_time.now,
+        "description": "downloading image",
+        "size": 3 * GiB,
+    }
+
+    # Cleaning up after download.
+    pb.phase = "cleaning up"
+    assert json.loads(f.last) == {
+        "transferred": 3 * GiB,
+        "elapsed": fake_time.now,
+        "description": "cleaning up",
+        "size": 3 * GiB,
+    }
+
+    # Closing prints the final line.
+    pb.close()
+    assert json.loads(f.last) == {
+        "transferred": 3 * GiB,
+        "elapsed": fake_time.now,
+        "description": "cleaning up",
+        "size": 3 * GiB,
+    }
 
 
 def test_with_size():
