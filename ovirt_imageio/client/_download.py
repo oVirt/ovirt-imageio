@@ -36,7 +36,7 @@ def register(parser):
 
 
 def download_disk(args):
-    with _ui.ProgressBar(phase="creating transfer") as pb:
+    with _ui.ProgressBar(phase="creating transfer", format=args.output) as pb:
         con = _ovirt.connect(args)
         with closing(con):
             disk = _ovirt.find_disk(con, args.disk_id)
