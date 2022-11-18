@@ -68,7 +68,8 @@ def register(parser):
 
 
 def upload_disk(args):
-    with _ui.ProgressBar(phase="inspecting image") as progress:
+    with _ui.ProgressBar(
+            phase="inspecting image", format=args.output) as progress:
         disk_info = _prepare(args)
         con = _ovirt.connect(args)
         with closing(con):

@@ -46,6 +46,7 @@ class Choices:
 
 
 log_level = Choices("log_level", ("debug", "info", "warning", "error"))
+output_format = Choices("output_format", ("text",))
 
 
 def bool_string(value):
@@ -148,6 +149,14 @@ class Parser:
             type=bool_string,
             help=("Do not verify server certificates and host name (not "
                   "recommened).")
+        ),
+        Option(
+            name="output",
+            args=["-o", "--output"],
+            type=output_format,
+            default="text",
+            help="Set the format in which the output must be done "
+                 f"(choices: {output_format}), default: text).",
         ),
         Option(
             name="disk_timeout",

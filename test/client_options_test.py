@@ -162,6 +162,7 @@ def test_config_all(config):
     assert args.username == "username"
     assert args.cafile == "/engine.pem"
     assert args.secure is False
+    assert args.output == "text"
     assert args.disk_timeout == 200
     assert args.log_file == "/var/log/ovirt-img/engine.log"
     assert args.log_level == "info"
@@ -193,6 +194,7 @@ def test_config_all_override(config, tmpdir):
     assert args.username == "username2"
     assert args.cafile == "/engine2.pem"
     assert args.secure is False
+    assert args.output == "text"
     assert args.disk_timeout == 200
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
@@ -214,6 +216,7 @@ def test_config_required(config, monkeypatch):
     assert args.username == "username"
     assert args.cafile is None
     assert args.secure is True
+    assert args.output == "text"
     assert args.disk_timeout == 120
     assert args.log_file is None
     assert args.log_level == "warning"
@@ -244,6 +247,7 @@ def test_config_required_override(config, tmpdir):
     assert args.username == "username"
     assert args.cafile == "/engine2.pem"
     assert args.secure is False
+    assert args.output == "text"
     assert args.disk_timeout == 120
     assert args.log_file == "test.log"
     assert args.log_level == "debug"
@@ -338,6 +342,35 @@ def test_transfer_options_disabled(config):
     ])
     assert not hasattr(args, 'max_workers')
     assert not hasattr(args, 'buffer_size')
+
+
+@pytest.mark.parametrize("output", [
+    "text",
+])
+def test_output_option(config, output):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+
+    args = parser.parse([
+        "test",
+        "-c", "all",
+        "--output", output
+    ])
+    assert args.output == output
+
+
+def test_invalid_output_option(config, capsys):
+    parser = _options.Parser()
+    parser.add_sub_command("test", "help", lambda x: None)
+
+    with pytest.raises(SystemExit):
+        parser.parse([
+            "test",
+            "-c", "all",
+            "--output", "invalid value"
+        ])
+    captured = capsys.readouterr()
+    assert repr("invalid value") in captured.err
 
 
 def test_auto_help(capsys):
