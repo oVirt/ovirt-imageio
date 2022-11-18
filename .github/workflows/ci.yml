@@ -17,7 +17,7 @@ jobs:
           - distro: centos-8
             env: py36
           - distro: centos-8
-            env: py38
+            env: py39
           - distro: centos-9
             env: py39
           - distro: fedora-36
