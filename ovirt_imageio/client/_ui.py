@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Red Hat, Inc.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import json
 import sys
 import threading
 import time
@@ -9,6 +10,7 @@ from .. _internal import util
 
 
 FORMAT_TEXT = "text"
+FORMAT_JSON = "json"
 
 DEFAULT_WIDTH = 79
 
@@ -54,8 +56,25 @@ class TextFormat(OutputFormat):
         self._write_line(line, end)
 
 
+class JsonFormat(OutputFormat):
+
+    def draw(self, elapsed, value, transferred, size=None,
+             phase=None, last=False):
+        progress = {
+            'transferred': transferred,
+            'elapsed': elapsed,
+            'description': phase or "",
+        }
+        if size is not None:
+            progress["size"] = size
+
+        line = json.dumps(progress)
+        self._write_line(line)
+
+
 OUTPUT_FORMAT = {
     FORMAT_TEXT: TextFormat,
+    FORMAT_JSON: JsonFormat,
 }
 
 
