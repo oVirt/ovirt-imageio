@@ -482,7 +482,6 @@ def test_block_signals(tmpdir):
         assert s.wait(0.2) is not None
 
 
-@pytest.mark.xfail(reason="block devices not supported yet")
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_block_device(tmpdir, user_block, fmt):
     qemu_img.create(user_block.path, fmt, size=1024**3)

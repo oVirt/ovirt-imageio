@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import signal
+import stat
 import subprocess
 import urllib.parse
 
@@ -147,7 +148,8 @@ class Server:
         # Build a 'json:{...}' filename allowing control all aspects of the
         # image.
 
-        file = {"driver": "file", "filename": self.image}
+        driver = "host_device" if self._is_block_device() else "file"
+        file = {"driver": driver, "filename": self.image}
 
         if self.offset is not None or self.size is not None:
             # Exposing a range in a raw file.
@@ -237,6 +239,9 @@ class Server:
         else:
             os.close(fd)
             return True
+
+    def _is_block_device(self):
+        return stat.S_ISBLK(os.stat(self.image).st_mode)
 
     def _preexec_fn(self):
         """
