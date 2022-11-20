@@ -11,6 +11,7 @@ import tempfile
 import urllib.parse
 
 import pytest
+import userstorage
 
 from ovirt_imageio._internal import nbd
 from ovirt_imageio._internal import nbdutil
@@ -20,6 +21,21 @@ from ovirt_imageio._internal import sockutil
 
 from . import testutil
 from . marks import flaky_in_ovirt_ci
+
+BACKENDS = userstorage.load_config("storage.py").BACKENDS
+
+
+@pytest.fixture(
+    params=[
+        BACKENDS["block-512"],
+        BACKENDS["block-4k"],
+    ],
+    ids=str,
+)
+def user_block(request):
+    backend = request.param
+    with backend:
+        yield backend
 
 
 @pytest.fixture
@@ -464,3 +480,22 @@ def test_block_signals(tmpdir):
         # qemu-nbd terminates when receving other signals.
         s.send_signal(signal.SIGTERM)
         assert s.wait(0.2) is not None
+
+
+@pytest.mark.xfail(reason="block devices not supported yet")
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_block_device(tmpdir, user_block, fmt):
+    qemu_img.create(user_block.path, fmt, size=1024**3)
+
+    offset = 123456
+    data = b"unaligned io works"
+    addr = nbd.UnixAddress(tmpdir.join("sock"))
+
+    with qemu_nbd.run(user_block.path, fmt, addr):
+        with nbd.Client(addr) as c:
+            c.write(offset, data)
+            c.flush()
+
+    with qemu_nbd.run(user_block.path, fmt, addr, read_only=True):
+        with nbd.Client(addr) as c:
+            assert c.read(offset, len(data)) == data
