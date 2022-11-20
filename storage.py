@@ -94,4 +94,20 @@ BACKENDS = {
         )
     ),
 
+    "block-512": LoopDevice(
+        base_dir=BASE_DIR,
+        name="block-512",
+        size=GiB,
+        sector_size=512,
+        required=False,
+    ),
+
+    "block-4k": LoopDevice(
+        base_dir=BASE_DIR,
+        name="block-4k",
+        size=GiB,
+        sector_size=4096,
+        required=False,
+    ),
+
 }
