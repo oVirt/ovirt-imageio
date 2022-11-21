@@ -27,6 +27,10 @@ RUN echo v1 \
         python38-ovirt-engine-sdk4 \
         python38-pip \
         python38-setuptools \
+        python39-devel \
+        python39-ovirt-engine-sdk4 \
+        python39-pip \
+        python39-setuptools \
         qemu-img \
         qemu-kvm \
         rpm-build \
