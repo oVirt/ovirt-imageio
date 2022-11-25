@@ -222,6 +222,13 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Fri Nov 25 2022 Albert Esteve <aesteve@redhat.com> 2.4.7-1
+- Handle disk status errors while waiting for disk creation #117
+- Add option for custom disk alias for uploaded disk #121
+- Add --insecure argument to ovirt-img #153
+- ovirt-img: Machine readable progress #154
+- Support downloading block devices via ovirt-imageio container #168
+
 * Wed Aug 3 2022 Albert Esteve <aesteve@redhat.com> 2.4.6-1
 - ovirt-img command line tool #72
 - Speed up upload to new disk #76
