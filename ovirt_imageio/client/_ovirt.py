@@ -47,6 +47,7 @@ def connect(args):
         username=args.username,
         password=args.password,
         ca_file=args.cafile,
+        insecure=not args.secure,
         log=log,
         debug=args.log_level == "debug")
 
