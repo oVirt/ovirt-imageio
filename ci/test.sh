@@ -32,5 +32,8 @@ fi
 
 env="$1"
 
+# Activate the tests venv
+source /venv/bin/activate
+
 make storage
 tox -e reuse,flake8,test-$env,bench-$env
