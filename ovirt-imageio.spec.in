@@ -21,9 +21,17 @@ Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name
 # on EL8 platform
 %if "%{?rhel}" == "8"
 %global with_python39 1
+%global python3_name python39
 %undefine __brp_mangle_shebangs
 %else
 %global with_python39 0
+%endif
+%if "%{?rhel}" == "9"
+%global with_python311 1
+%global python3_name python3.11
+%undefine __brp_mangle_shebangs
+%else
+%global with_python311 0
 %endif
 
 %description
@@ -40,6 +48,13 @@ Transfer disk images on oVirt system.
 %define python3_pkgversion 3
 %define __python3 /usr/bin/python3
 %endif
+%if %{with_python311}
+%define python3_pkgversion 3.11
+%define __python3 /usr/bin/python3.11
+%py3_build
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
+%endif
 
 %py3_build
 
@@ -47,6 +62,13 @@ Transfer disk images on oVirt system.
 %if %{with_python39}
 %define python3_pkgversion 39
 %define __python3 /usr/bin/python3.9
+%py3_install
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
+%endif
+%if %{with_python311}
+%define python3_pkgversion 3.11
+%define __python3 /usr/bin/python3.11
 %py3_install
 %define python3_pkgversion 3
 %define __python3 /usr/bin/python3
@@ -175,33 +197,46 @@ if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
     systemctl stop ovirt-imageio-daemon.service
 fi
 
-%if %{with_python39}
-%define python3_pkgversion 39
-%define __python3 /usr/bin/python3.9
+%if %{with_python39} || %{with_python311}
 
-%package -n python39-%{name}-common
+%package -n %{python3_name}-%{name}-common
 Summary:   oVirt imageio common resources
 
 BuildRequires: gcc
-BuildRequires: python39-devel
+BuildRequires: %{python3_name}-devel
 
-Requires:  python39
+Requires:  %{python3_name}
 
-%description -n python39-%{name}-common
+%description -n %{python3_name}-%{name}-common
 Common resources used by oVirt imageio server and client
 
-%files -n python39-%{name}-common
+%if %{with_python39}
+%define python3_pkgversion 39
+%define __python3 /usr/bin/python3.9
+%files -n %{python3_name}-%{name}-common
 %license LICENSES/GPL-2.0-or-later.txt
 %{python3_sitearch}/%{srcname}
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
 %exclude %{python3_sitearch}/%{srcname}/admin
+%endif
+
+%if %{with_python311}
+%define python3_pkgversion 3.11
+%define __python3 /usr/bin/python3.11
+%files -n %{python3_name}-%{name}-common
+%license LICENSES/GPL-2.0-or-later.txt
+%{python3_sitearch}/%{srcname}
+%{python3_sitearch}/%{srcname}-*.egg-info
+%exclude %{python3_sitearch}/%{srcname}/client
+%exclude %{python3_sitearch}/%{srcname}/admin
+%endif
 
 
-%package -n python39-%{name}-client
+%package -n %{python3_name}-%{name}-client
 Summary:   oVirt imageio client library
 
-Requires:  python39-%{name}-common = %{version}-%{release}
+Requires:  %{python3_name}-%{name}-common = %{version}-%{release}
 
 %if 0%{?rhel}
 # RHEL 8.4 version. Some features require qemu-nbd 5.2.0 and are disabled when
@@ -212,11 +247,22 @@ Requires:  qemu-img >= 15:4.2.0
 Requires:  qemu-img
 %endif
 
-%description -n python39-%{name}-client
+%description -n %{python3_name}-%{name}-client
 Python client library for accessing imageio server on oVirt hosts.
 
-%files -n python39-%{name}-client
+%if %{with_python39}
+%define python3_pkgversion 39
+%define __python3 /usr/bin/python3.9
+%files -n %{python3_name}-%{name}-client
 %{python3_sitearch}/%{srcname}/client
+%endif
+
+%if %{with_python311}
+%define python3_pkgversion 3.11
+%define __python3 /usr/bin/python3.11
+%files -n %{python3_name}-%{name}-client
+%{python3_sitearch}/%{srcname}/client
+%endif
 
 %endif
 
