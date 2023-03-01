@@ -20,6 +20,8 @@ jobs:
             env: py39
           - distro: centos-9
             env: py39
+          - distro: centos-9
+            env: py311
           - distro: fedora-36
             env: py310
           - distro: fedora-37
