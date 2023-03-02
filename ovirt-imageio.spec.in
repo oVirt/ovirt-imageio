@@ -268,6 +268,10 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Thu Mar 2 2023 Albert Esteve <aesteve@redhat.com> 2.4.8-1
+- Add Python 3.11 subpackage to be usable in ansible-core 2.14
+- Fix ovirt-img --insecure connection
+
 * Fri Nov 25 2022 Albert Esteve <aesteve@redhat.com> 2.4.7-1
 - Handle disk status errors while waiting for disk creation #117
 - Add option for custom disk alias for uploaded disk #121
