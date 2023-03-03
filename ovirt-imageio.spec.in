@@ -204,6 +204,7 @@ Summary:   oVirt imageio common resources
 
 BuildRequires: gcc
 BuildRequires: %{python3_name}-devel
+BuildRequires: %{python3_name}-setuptools
 
 Requires:  %{python3_name}
 
