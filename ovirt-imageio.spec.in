@@ -57,6 +57,9 @@ Transfer disk images on oVirt system.
 %py3_build
 %endif
 
+define python3_pkgversion 3
+%define __python3 /usr/bin/python3
+
 %install
 
 %define python3_pkgversion 3
@@ -73,6 +76,9 @@ Transfer disk images on oVirt system.
 %define __python3 /usr/bin/python3.11
 %py3_install
 %endif
+
+define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 
 install -D -m 0755 --directory %{buildroot}%{logdir}
 # Create a dummy log file to make rpm happy during build
