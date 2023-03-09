@@ -56,7 +56,7 @@ Transfer disk images on oVirt system.
 %define __python3 /usr/bin/python3
 %endif
 
-%py3_build
+%py3_build "--executable=%{quote:/usr/bin/python3 -s}"
 
 %install
 %if %{with_python39}
