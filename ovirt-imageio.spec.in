@@ -224,6 +224,8 @@ Common resources used by oVirt imageio server and client
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
 %exclude %{python3_sitearch}/%{srcname}/admin
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %if %{with_python311}
@@ -235,6 +237,8 @@ Common resources used by oVirt imageio server and client
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
 %exclude %{python3_sitearch}/%{srcname}/admin
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 
@@ -260,6 +264,8 @@ Python client library for accessing imageio server on oVirt hosts.
 %define __python3 /usr/bin/python3.9
 %files -n %{python3_name}-%{name}-client
 %{python3_sitearch}/%{srcname}/client
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %if %{with_python311}
@@ -267,6 +273,8 @@ Python client library for accessing imageio server on oVirt hosts.
 %define __python3 /usr/bin/python3.11
 %files -n %{python3_name}-%{name}-client
 %{python3_sitearch}/%{srcname}/client
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %endif
