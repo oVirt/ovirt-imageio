@@ -49,12 +49,15 @@ Transfer disk images on oVirt system.
 %if %{with_python39}
 %define python3_pkgversion 39
 %define __python3 /usr/bin/python3.9
-%py3_build
+# We execute py3_build twice since we are building with two python versions within single spec,
+# that overwrites the executables too, but we want to use platform-python for them, the versioned
+# python build is only for use by ansible.
+%py3_build "--executable=%{quote:/usr/bin/python3 -s}"
 %endif
 %if %{with_python311}
 %define python3_pkgversion 3.11
 %define __python3 /usr/bin/python3.11
-%py3_build
+%py3_build "--executable=%{quote:/usr/bin/python3 -s}"
 %endif
 
 %define python3_pkgversion 3
