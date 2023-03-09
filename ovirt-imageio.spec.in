@@ -19,6 +19,25 @@ Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name
 # We need to have Python 3.9 support of imageio client for oVirt Ansible
 # Collection running with ansible-core-2.13, which uses non-standard Python 3.9
 # on EL8 platform
+%define python_sitelib %(RPM_BUILD_ROOT= %{__python} -Esc "import sysconfig; print(sysconfig.get_path('purelib', vars={'platbase': '%{_prefix}', 'base': '%{_prefix}'}))")
+%define python_sitearch %(RPM_BUILD_ROOT= %{__python} -Esc "import sysconfig; print(sysconfig.get_path('platlib', vars={'platbase': '%{_prefix}', 'base': '%{_prefix}'}))")
+%define python_version %(RPM_BUILD_ROOT= %{__python} -Esc "import sys; sys.stdout.write('{0.major}.{0.minor}'.format(sys.version_info))")
+%define python_version_nodots %(RPM_BUILD_ROOT= %{__python} -Esc "import sys; sys.stdout.write('{0.major}{0.minor}'.format(sys.version_info))")
+%define python_platform %(RPM_BUILD_ROOT= %{__python} -Esc "import sysconfig; print(sysconfig.get_platform())")
+%define python_platform_triplet %(RPM_BUILD_ROOT= %{__python} -Esc "import sysconfig; print(sysconfig.get_config_var('MULTIARCH'))")
+%define python_ext_suffix %(RPM_BUILD_ROOT= %{__python} -Esc "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+%define python_cache_tag %(RPM_BUILD_ROOT= %{__python} -Esc "import sys; print(sys.implementation.cache_tag)")
+%define python3_sitelib %(RPM_BUILD_ROOT= %{__python3} -Ic "import sysconfig; print(sysconfig.get_path('purelib', vars={'platbase': '%{_prefix}', 'base': '%{_prefix}'}))")
+%define python3_sitearch %(RPM_BUILD_ROOT= %{__python3} -Ic "import sysconfig; print(sysconfig.get_path('platlib', vars={'platbase': '%{_prefix}', 'base': '%{_prefix}'}))")
+%define python3_version %(RPM_BUILD_ROOT= %{__python3} -Ic "import sys; sys.stdout.write('{0.major}.{0.minor}'.format(sys.version_info))")
+%define python3_version_nodots %(RPM_BUILD_ROOT= %{__python3} -Ic "import sys; sys.stdout.write('{0.major}{0.minor}'.format(sys.version_info))")
+%define python3_platform %(RPM_BUILD_ROOT= %{__python3} -Ic "import sysconfig; print(sysconfig.get_platform())")
+%define python3_platform_triplet %(RPM_BUILD_ROOT= %{__python3} -Ic "import sysconfig; print(sysconfig.get_config_var('MULTIARCH'))")
+%define python3_ext_suffix %(RPM_BUILD_ROOT= %{__python3} -Ic "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))")
+%define python3_cache_tag %(RPM_BUILD_ROOT= %{__python3} -Ic "import sys; print(sys.implementation.cache_tag)")
+%define _py3_shebang_P %(RPM_BUILD_ROOT= %{__python3} -Ic "import sys; print('P' if hasattr(sys.flags, 'safe_path') else '')")
+%define _py_shebang_P %(RPM_BUILD_ROOT= %{__python} -Esc "import sys; print('P' if hasattr(sys.flags, 'safe_path') else '')")
+
 %if "%{?rhel}" == "8"
 %global with_python39 1
 %global python3_name python39
@@ -224,6 +243,8 @@ Common resources used by oVirt imageio server and client
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
 %exclude %{python3_sitearch}/%{srcname}/admin
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %if %{with_python311}
@@ -235,6 +256,8 @@ Common resources used by oVirt imageio server and client
 %{python3_sitearch}/%{srcname}-*.egg-info
 %exclude %{python3_sitearch}/%{srcname}/client
 %exclude %{python3_sitearch}/%{srcname}/admin
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 
@@ -260,6 +283,8 @@ Python client library for accessing imageio server on oVirt hosts.
 %define __python3 /usr/bin/python3.9
 %files -n %{python3_name}-%{name}-client
 %{python3_sitearch}/%{srcname}/client
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %if %{with_python311}
@@ -267,6 +292,8 @@ Python client library for accessing imageio server on oVirt hosts.
 %define __python3 /usr/bin/python3.11
 %files -n %{python3_name}-%{name}-client
 %{python3_sitearch}/%{srcname}/client
+%define python3_pkgversion 3
+%define __python3 /usr/bin/python3
 %endif
 
 %endif
