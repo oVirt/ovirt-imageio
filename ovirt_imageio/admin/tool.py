@@ -16,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Control the ovirt-imageio service")
 
+    parser.set_defaults(command=None)
     commands = parser.add_subparsers(title="commands")
 
     add_cmd = add_command(
@@ -76,6 +77,10 @@ def main():
         command=stop_profile)
 
     args = parser.parse_args()
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+
     try:
         args.command(args)
     except admin.Error as e:
