@@ -16,17 +16,11 @@ Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name
 %global admin_confdir %{_sysconfdir}/%{name}
 %global vendor_confdir %{_prefix}/lib/%{name}
 
-# We need to have Python 3.9 support of imageio client for oVirt Ansible
-# Collection running with ansible-core-2.13, which uses non-standard Python 3.9
+# We need to have Python 3.11 support of imageio client for oVirt Ansible
+# Collection running with ansible-core-2.14, which uses non-standard Python 3.11
 # on EL8 platform
-%if "%{?rhel}" == "8"
-%global with_python39 1
-%global python3_name python39
-%undefine __brp_mangle_shebangs
-%else
-%global with_python39 0
-%endif
-%if "%{?rhel}" == "9"
+
+%if "%{?rhel}" == "9" || "%{?rhel}" == "8"
 %global with_python311 1
 %global python3_name python3.11
 %undefine __brp_mangle_shebangs
@@ -46,14 +40,6 @@ Transfer disk images on oVirt system.
 %define __python3 /usr/bin/python3
 %py3_build
 
-%if %{with_python39}
-%define python3_pkgversion 39
-%define __python3 /usr/bin/python3.9
-# We execute py3_build twice since we are building with two python versions within single spec,
-# that overwrites the executables too, but we want to use platform-python for them, the versioned
-# python build is only for use by ansible.
-%py3_build "--executable=%{quote:/usr/bin/python3 -s}"
-%endif
 %if %{with_python311}
 %define python3_pkgversion 3.11
 %define __python3 /usr/bin/python3.11
@@ -69,11 +55,6 @@ Transfer disk images on oVirt system.
 %define __python3 /usr/bin/python3
 %py3_install
 
-%if %{with_python39}
-%define python3_pkgversion 39
-%define __python3 /usr/bin/python3.9
-%py3_install
-%endif
 %if %{with_python311}
 %define python3_pkgversion 3.11
 %define __python3 /usr/bin/python3.11
@@ -204,7 +185,7 @@ if systemctl is-active ovirt-imageio-daemon.service >/dev/null; then
     systemctl stop ovirt-imageio-daemon.service
 fi
 
-%if %{with_python39} || %{with_python311}
+%if %{with_python311}
 
 %package -n %{python3_name}-%{name}-common
 Summary:   oVirt imageio common resources
@@ -218,16 +199,6 @@ Requires:  %{python3_name}
 %description -n %{python3_name}-%{name}-common
 Common resources used by oVirt imageio server and client
 
-%if %{with_python39}
-%define python3_pkgversion 39
-%define __python3 /usr/bin/python3.9
-%files -n %{python3_name}-%{name}-common
-%license LICENSES/GPL-2.0-or-later.txt
-%{python3_sitearch}/%{srcname}
-%{python3_sitearch}/%{srcname}-*.egg-info
-%exclude %{python3_sitearch}/%{srcname}/client
-%exclude %{python3_sitearch}/%{srcname}/admin
-%endif
 
 %if %{with_python311}
 %define python3_pkgversion 3.11
@@ -258,13 +229,6 @@ Requires:  qemu-img
 
 %description -n %{python3_name}-%{name}-client
 Python client library for accessing imageio server on oVirt hosts.
-
-%if %{with_python39}
-%define python3_pkgversion 39
-%define __python3 /usr/bin/python3.9
-%files -n %{python3_name}-%{name}-client
-%{python3_sitearch}/%{srcname}/client
-%endif
 
 %if %{with_python311}
 %define python3_pkgversion 3.11
