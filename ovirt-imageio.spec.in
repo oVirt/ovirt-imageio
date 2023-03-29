@@ -241,6 +241,10 @@ Python client library for accessing imageio server on oVirt hosts.
 
 %changelog
 
+* Wed Mar 29 2023 Albert Esteve <aesteve@redhat.com> 2.5.0-1
+- Add Python 3.11 subpackage to be usable in ansible-core 2.14 for el8
+- Fix ovirt-imageioctl without arguments
+
 * Thu Mar 2 2023 Albert Esteve <aesteve@redhat.com> 2.4.8-1
 - Add Python 3.11 subpackage to be usable in ansible-core 2.14
 - Fix ovirt-img --insecure connection
