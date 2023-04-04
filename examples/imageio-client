@@ -19,7 +19,7 @@ In another shell, start the ovirt-imageio daemon running as current user and
 group:
 
     $ cd ../daemon
-    $ ./ovit-imageio -c test
+    $ ./ovirt-imageio -c test
 
 We can control the daemon now using ../daemon/test/daemon.sock.
 
