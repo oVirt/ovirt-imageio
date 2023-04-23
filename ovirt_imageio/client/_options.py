@@ -178,6 +178,14 @@ class Parser:
             default="warning",
             help=(f"Log level (choices: {log_level}, default: warning)."),
         ),
+        Option(
+            name="description",
+            args=["-d", "--description"],
+            config=True,
+            required=False,
+            type=str,
+            default="Uploaded by ovirt-img",
+        ),
     ]
 
     def __init__(self):
