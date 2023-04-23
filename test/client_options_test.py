@@ -156,7 +156,7 @@ secure = invalid value
 
 def test_config_all(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     args = parser.parse(["test", "-c", "all"])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
@@ -179,7 +179,7 @@ def test_config_all_override(config, tmpdir):
     password_file.write("password")
 
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     args = parser.parse([
         "test",
         "-c", "all",
@@ -210,7 +210,7 @@ def test_config_required(config, monkeypatch):
     monkeypatch.setattr(getpass, "getpass", lambda: "password")
 
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     args = parser.parse(["test", "-c", "required"])
     assert args.engine_url == "https://engine.com"
     assert args.username == "username"
@@ -233,7 +233,7 @@ def test_config_required_override(config, tmpdir):
     password_file.write("password")
 
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     args = parser.parse([
         "test",
         "-c", "required",
@@ -266,7 +266,7 @@ def test_config_required_override(config, tmpdir):
 ])
 def test_config_missing(config, capsys, name, missing):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     with pytest.raises(SystemExit):
         parser.parse(["test", "-c", name])
     captured = capsys.readouterr()
@@ -276,7 +276,7 @@ def test_config_missing(config, capsys, name, missing):
 
 def test_config_missing_override(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     args = parser.parse([
         "test",
         "-c", "missing3",
@@ -293,7 +293,7 @@ def test_config_missing_override(config):
 ])
 def test_config_invalid(config, capsys, name):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     with pytest.raises(SystemExit):
         parser.parse(["test", "-c", name])
     captured = capsys.readouterr()
@@ -302,7 +302,7 @@ def test_config_invalid(config, capsys, name):
 
 def test_config_no_section(config, capsys):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
 
     # Required paremeters are available via the command line, but the specified
     # configuration does not exist. This is likely a user error so fail loudly.
@@ -320,7 +320,7 @@ def test_config_no_section(config, capsys):
 
 def test_transfer_options(config):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
 
     args = parser.parse([
         "test",
@@ -335,7 +335,7 @@ def test_transfer_options(config):
 def test_transfer_options_disabled(config):
     parser = _options.Parser()
     parser.add_sub_command(
-        "test", "help", lambda x: None, transfer_options=False)
+        "test", transfer_options=False)
     args = parser.parse([
         "test",
         "-c", "all",
@@ -350,7 +350,7 @@ def test_transfer_options_disabled(config):
 ])
 def test_output_option(config, output):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
 
     args = parser.parse([
         "test",
@@ -362,7 +362,7 @@ def test_output_option(config, output):
 
 def test_invalid_output_option(config, capsys):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
 
     with pytest.raises(SystemExit):
         parser.parse([
@@ -377,7 +377,7 @@ def test_invalid_output_option(config, capsys):
 def test_auto_help(capsys):
     # Running without arguments is same as running with --help.
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
 
     with pytest.raises(SystemExit):
         parser.parse([])
@@ -392,7 +392,7 @@ def test_auto_help(capsys):
 
 def test_version(capsys):
     parser = _options.Parser()
-    parser.add_sub_command("test", "help", lambda x: None)
+    parser.add_sub_command("test")
     with pytest.raises(SystemExit):
         parser.parse(["--version"])
     out = capsys.readouterr().out
