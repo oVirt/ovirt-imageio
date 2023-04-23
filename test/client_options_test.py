@@ -122,6 +122,7 @@ secure = False
 disk_timeout = 200
 log_file = /var/log/ovirt-img/engine.log
 log_level = info
+description = Uploaded by ovirt-img config
 
 [required]
 engine_url = https://engine.com
@@ -168,6 +169,7 @@ def test_config_all(config):
     assert args.log_level == "info"
     assert args.max_workers == 4
     assert args.buffer_size == 4 * MiB
+    assert args.description == "Uploaded by ovirt-img config"
 
     # Use password from config.
     assert args.password_file is None
@@ -189,6 +191,7 @@ def test_config_all_override(config, tmpdir):
         "--cafile", "/engine2.pem",
         "--log-file", "test.log",
         "--log-level", "debug",
+        "--description", "Uploaded by ovirt-img command line"
     ])
     assert args.engine_url == "https://engine2.com"
     assert args.username == "username2"
@@ -200,6 +203,7 @@ def test_config_all_override(config, tmpdir):
     assert args.log_level == "debug"
     assert args.max_workers == 4
     assert args.buffer_size == 4 * MiB
+    assert args.description == "Uploaded by ovirt-img command line"
 
     # --password-file overrides password from config.
     assert args.password_file == str(password_file)
@@ -222,6 +226,7 @@ def test_config_required(config, monkeypatch):
     assert args.log_level == "warning"
     assert args.max_workers == 4
     assert args.buffer_size == 4 * MiB
+    assert args.description == "Uploaded by ovirt-img"
 
     # No --password-file or config password: use getpass.getpass().
     assert args.password_file is None
@@ -253,6 +258,7 @@ def test_config_required_override(config, tmpdir):
     assert args.log_level == "debug"
     assert args.max_workers == 4
     assert args.buffer_size == 4 * MiB
+    assert args.description == "Uploaded by ovirt-img"
 
     # Read password from --password-file.
     assert args.password_file == password_file

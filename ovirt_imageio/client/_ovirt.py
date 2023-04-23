@@ -59,7 +59,8 @@ def find_disk(con, disk_id):
 
 def add_disk(con, name, provisioned_size, sd_name, id=None,
              initial_size=None, sparse=True, enable_backup=True,
-             content_type=DATA, format=COW, timeout=ADD_DISK_TIMEOUT):
+             content_type=DATA, description="Uploaded by ovirt-img",
+             format=COW, timeout=ADD_DISK_TIMEOUT):
     """
     Add a new disk to the storage domain, based on the source image
     information provided.
@@ -76,6 +77,7 @@ def add_disk(con, name, provisioned_size, sd_name, id=None,
         enable_backup (bool): Disk can be used for incremental backups.
         content_type (ovirtsdk4.types.DiskContentType): Content type for the
             new disk.
+        description (str, optional): description for the new disk.
         format (ovirtsdk4.types.DiskFormat): Format of the new disk.
         timeout (int, optional): number of seconds to wait for
             disk to be created.
@@ -95,7 +97,7 @@ def add_disk(con, name, provisioned_size, sd_name, id=None,
             id=id,
             name=name,
             content_type=content_type,
-            description='Uploaded by ovirt-img',
+            description=description,
             format=format,
             initial_size=initial_size,
             provisioned_size=provisioned_size,
