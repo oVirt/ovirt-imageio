@@ -190,7 +190,8 @@ class Parser:
             version=f'%(prog)s {version.string}')
         self._commands = self._parser.add_subparsers(title="commands")
 
-    def add_sub_command(self, name, help = "help", func = lambda x: None, transfer_options=True):
+    def add_sub_command(self, name, help="help", func=lambda x: None,
+                        transfer_options=True):
         cmd = self._commands.add_parser(name, help=help)
         cmd.set_defaults(command=func)
 
