@@ -97,7 +97,7 @@ class Handler:
                          req.client_addr, ticket.transfer_id)
                 try:
                     self.auth.remove(ticket_id)
-                except errors.TicketCancelTimeout as e:
+                except errors.TransferCancelTimeout as e:
                     # The ticket is still used by some connection so we cannot
                     # remove it. The caller can retry the call again when the
                     # number connections reach zero.

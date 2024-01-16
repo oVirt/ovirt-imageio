@@ -3,6 +3,7 @@
 
 import http.client as http_client
 import json
+import time
 import uuid
 
 import pytest
@@ -397,3 +398,24 @@ def test_delete_all(srv):
         # Note: incorrect according to RFC, but required for vdsm.
         assert res.getheader("content-length") == "0"
         pytest.raises(KeyError, srv.auth.get, ticket["uuid"])
+
+
+def test_delete_conflict(srv, tmpdir, monkeypatch):
+    image = testutil.create_tempfile(tmpdir, "image", size=8 * 1024**2)
+    ticket = testutil.create_ticket(url="file://" + str(image))
+    srv.auth.add(ticket)
+
+    # Use very short timeout to make the test fast.
+    monkeypatch.setattr(srv.config.control, "remove_timeout", 0.001)
+
+    with http.RemoteClient(srv.config) as remote_client:
+        remote_client.get("/images/" + ticket["uuid"])
+
+        # Wait enough time to get the server connnection thread block on the
+        # client socket trying to write more data.
+        time.sleep(0.1)
+
+        with http.ControlClient(srv.config) as control_client:
+            res = control_client.delete("/tickets/" + ticket["uuid"])
+            res.read()
+            assert res.status == 409
