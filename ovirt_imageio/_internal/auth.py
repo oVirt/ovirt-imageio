@@ -291,8 +291,8 @@ class Ticket:
             True if ticket can be removed.
 
         Raises:
-            errors.TicketCancelTimeout if timeout is non-zero and the ticket is
-            still used when the timeout expires.
+            errors.TransferCancelTimeout if timeout is non-zero and the ticket
+            is still used when the timeout expires.
         """
         log.debug("Cancelling transfer %s", self.transfer_id)
 
