@@ -273,7 +273,7 @@ Since 2.0
 
 Request zero extents:
 
-    GET /images/{ticket-id}/extent
+    GET /images/{ticket-id}/extents
 
 Response:
 
@@ -285,7 +285,7 @@ Response:
 
 Request dirty extents:
 
-    GET /images/{ticket-id}/extent?context=dirty
+    GET /images/{ticket-id}/extents?context=dirty
 
 Response:
 
