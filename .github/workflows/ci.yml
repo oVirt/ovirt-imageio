@@ -14,20 +14,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: centos-8
-            env: py36
-          - distro: centos-8
-            env: py39
           - distro: centos-9
             env: py39
           - distro: centos-9
             env: py311
-          - distro: fedora-36
-            env: py310
-          - distro: fedora-37
-            env: py311
-          - distro: fedora-38
-            env: py311
+          - distro: centos-9
+            env: py312
+          - distro: fedora-40
+            env: py312
+          - distro: fedora-41
+            env: py313
     container:
       image: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
       # Required to create loop devices.
@@ -42,11 +38,9 @@ jobs:
       fail-fast: false
       matrix:
         distro:
-        - centos-8
         - centos-9
-        - fedora-36
-        - fedora-37
-        - fedora-38
+        - fedora-40
+        - fedora-41
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
     - uses: actions/checkout@v2
