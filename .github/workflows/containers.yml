@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        distro: [ centos-8, centos-9, fedora-36, fedora-37, fedora-38 ]
+        distro: [ centos-9, fedora-40, fedora-41 ]
     steps:
       - uses: actions/checkout@v2
       - name: Install dependencies
