@@ -29,7 +29,7 @@ jobs:
       # Required to create loop devices.
       options: --privileged
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Run tests
       run: ci/test.sh ${{matrix.env}}
   rpm:
@@ -43,13 +43,13 @@ jobs:
         - fedora-41
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         # We need the latest tag for creating rpms.
         fetch-depth: 0
     - name: Build rpms
       run: ./ci/rpm.sh
     - name: Upload artidacts
-      uses: ovirt/upload-rpms-action@v2
+      uses: ovirt/upload-rpms-action@main
       with:
         directory: ${{env.EXPORT_DIR}}
