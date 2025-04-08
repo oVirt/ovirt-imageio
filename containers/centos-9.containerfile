@@ -14,6 +14,7 @@ RUN echo v1 \
         gcc \
         git \
         libguestfs-tools-c \
+        libxml2-devel \
         make \
         openssl \
         python3-devel \
@@ -25,6 +26,9 @@ RUN echo v1 \
         python3.11-setuptools \
         python3.11-ovirt-engine-sdk4 \
         python3.11-pip \
+        python3.12-devel \
+        python3.12-setuptools \
+        python3.12-pip \
         qemu-img \
         qemu-kvm \
         rpm-build \
@@ -39,3 +43,4 @@ COPY requirements.txt requirements.txt
 RUN python3 -m pip install --upgrade --ignore-installed pip \
     && python3 -m venv /venv \
     && /venv/bin/python3 -m pip install --requirement requirements.txt
+RUN pip3.12 install ovirt-engine-sdk-python
