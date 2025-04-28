@@ -14,7 +14,7 @@ def run(*args):
 # Get a human readable name of this commit:
 # - build from tag: v2.4.5
 # - build without a tag: v2.4.5-3-gc238eff
-commit_name = run("git", "describe",  "--tags", "--match", "v[0-9]*")
+commit_name = run("git", "describe",  "--tags", "--always", "--match", "v[0-9]*")
 
 if "-" in commit_name:
     # Build without a tag - make this build newer than previous build
