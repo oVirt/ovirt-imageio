@@ -30,6 +30,10 @@ jobs:
       options: --privileged
     steps:
     - uses: actions/checkout@v4
+    # We need to run this in order to fix sudo execution.
+    # See https://github.com/rocky-linux/sig-cloud-instance-images/issues/56
+    - name: Fix sudo
+      run: chmod 0400 /etc/shadow
     - name: Run tests
       run: ci/test.sh ${{matrix.env}}
   rpm:
