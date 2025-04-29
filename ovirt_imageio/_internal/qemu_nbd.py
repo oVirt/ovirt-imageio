@@ -190,11 +190,11 @@ class Server:
             self.proc.terminate()
 
             try:
-                _, err = self.proc.communicate(self.timeout)
+                _, err = self.proc.communicate(timeout=self.timeout)
             except subprocess.TimeoutExpired:
                 log.warning("Timeout terminating qemu-nbd - killing it")
                 self.proc.kill()
-                _, err = self.proc.communicate(self.timeout)
+                _, err = self.proc.communicate(timeout=self.timeout)
 
             if self.proc.returncode == 0:
                 log.debug("qemu-nbd terminated normally err=%r", err)
