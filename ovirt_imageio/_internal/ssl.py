@@ -9,9 +9,9 @@ def server_context(certfile, keyfile, cafile=None, enable_tls1_1=False):
     # TODO: Verify client certs
     ctx = ssl.create_default_context(
         purpose=ssl.Purpose.CLIENT_AUTH, cafile=cafile)
-    ctx.options |= ssl.OP_NO_TLSv1
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_1
     if not enable_tls1_1:
-        ctx.options |= ssl.OP_NO_TLSv1_1
+        ctx.minimum_version = ssl.TLSVersion.TLSv1
     ctx.load_cert_chain(certfile, keyfile=keyfile)
     return ctx
 
@@ -19,9 +19,9 @@ def server_context(certfile, keyfile, cafile=None, enable_tls1_1=False):
 def client_context(cafile=None, enable_tls1_1=False):
     ctx = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH, cafile=cafile)
-    ctx.options |= ssl.OP_NO_TLSv1
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_1
     if not enable_tls1_1:
-        ctx.options |= ssl.OP_NO_TLSv1_1
+        ctx.minimum_version = ssl.TLSVersion.TLSv1
     return ctx
 
 

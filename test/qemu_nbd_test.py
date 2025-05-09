@@ -98,7 +98,7 @@ def test_server_cannot_use_direct_io(tmpfs_dir, nbd_server, fmt):
 
     nbd_server.image = disk
     nbd_server.fmt = fmt
-    nbd_server.cache = None
+    nbd_server.cache = "writeback"
     nbd_server.aio = None
 
     # Starting probes the image and selects cache="writeback" and
