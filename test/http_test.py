@@ -155,8 +155,8 @@ class RequestInfo:
         # using json response, since json accepts both text and bytes and
         # generate a bytestream that decodes to unicode on the other side.
         for k, v in req.query.items():
-            assert type(k) == str
-            assert type(v) == str
+            assert type(k) is str
+            assert type(v) is str
 
         # Simple values
         info = {
