@@ -177,10 +177,10 @@ architectures.
 When you submit a pull request, GitHub actions will run all the tests
 on:
 
-- Centos Stream 8, x86_64
 - Centos Stream 9, x86_64
-- Fedora 34, x86_64
-- Fedora 35, x86_64
+- Centos Stream 10, x86_64
+- Fedora 40, x86_64
+- Fedora 41, x86_64
 
 
 ## Creating storage for tests
