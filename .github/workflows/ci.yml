@@ -14,26 +14,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: centos-8
-            env: py36
-          - distro: centos-8
-            env: py39
           - distro: centos-9
             env: py39
           - distro: centos-9
             env: py311
-          - distro: fedora-36
-            env: py310
-          - distro: fedora-37
-            env: py311
-          - distro: fedora-38
-            env: py311
+          - distro: centos-9
+            env: py312
+          - distro: centos-10
+            env: py312
+          - distro: fedora-40
+            env: py312
+          - distro: fedora-41
+            env: py313
     container:
       image: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
       # Required to create loop devices.
       options: --privileged
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    # We need to run this in order to fix sudo execution.
+    # See https://github.com/rocky-linux/sig-cloud-instance-images/issues/56
+    - name: Fix sudo
+      run: chmod 0400 /etc/shadow
     - name: Run tests
       run: ci/test.sh ${{matrix.env}}
   rpm:
@@ -42,20 +44,19 @@ jobs:
       fail-fast: false
       matrix:
         distro:
-        - centos-8
         - centos-9
-        - fedora-36
-        - fedora-37
-        - fedora-38
+        - centos-10
+        - fedora-40
+        - fedora-41
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         # We need the latest tag for creating rpms.
         fetch-depth: 0
     - name: Build rpms
       run: ./ci/rpm.sh
     - name: Upload artidacts
-      uses: ovirt/upload-rpms-action@v2
+      uses: ovirt/upload-rpms-action@main
       with:
         directory: ${{env.EXPORT_DIR}}

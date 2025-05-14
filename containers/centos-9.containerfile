@@ -23,8 +23,10 @@ RUN echo v1 \
         python3-systemd \
         python3.11-devel \
         python3.11-setuptools \
-        python3.11-ovirt-engine-sdk4 \
         python3.11-pip \
+        python3.12-devel \
+        python3.12-setuptools \
+        python3.12-pip \
         qemu-img \
         qemu-kvm \
         rpm-build \
