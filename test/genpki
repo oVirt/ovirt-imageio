@@ -24,6 +24,7 @@ openssl req \
     -sha256 \
     -days 3650 \
     -subj "/CN=${TARGET}" \
+    -addext "keyUsage=critical,digitalSignature,keyCertSign" \
     -out "$tmpdir/ca.pem"
 
 # Create host private key.
