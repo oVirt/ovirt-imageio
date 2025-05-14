@@ -20,6 +20,8 @@ jobs:
             env: py311
           - distro: centos-9
             env: py312
+          - distro: centos-10
+            env: py312
           - distro: fedora-40
             env: py312
           - distro: fedora-41
@@ -43,6 +45,7 @@ jobs:
       matrix:
         distro:
         - centos-9
+        - centos-10
         - fedora-40
         - fedora-41
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
