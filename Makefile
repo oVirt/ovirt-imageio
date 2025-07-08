@@ -27,6 +27,7 @@ check: images
 
 dist: $(GENERATED)
 	python3 setup.py sdist --dist-dir "$(OUTDIR)"
+	mv "$(OUTDIR)/ovirt_imageio-$(PACKAGE_VERSION).tar.gz" "$(OUTDIR)/$(TAR_NAME)"
 
 container: dist
 	cp $(OUTDIR)/ovirt-imageio-*.tar.gz container/ovirt-imageio.tar.gz

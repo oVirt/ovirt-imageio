@@ -16,7 +16,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="GNU GPLv2+",
-    name="ovirt-imageio",
+    name="ovirt_imageio",
     packages=[
         "ovirt_imageio",
         "ovirt_imageio._internal",

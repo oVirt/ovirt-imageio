@@ -20,7 +20,7 @@ Source0:   https://github.com/oVirt/%{name}/releases/download/v%{version}/%{name
 Transfer disk images on oVirt system.
 
 %prep
-%setup -q
+%setup -q -n %{srcname}-%{version}
 
 
 %build
