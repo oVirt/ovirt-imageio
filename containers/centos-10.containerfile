@@ -8,6 +8,7 @@ RUN echo v1 \
     && dnf install -y dnf-plugins-core \
     && dnf copr enable -y ovirt/ovirt-master-snapshot centos-stream-10 \
     && dnf install -y ovirt-release-master \
+    && dnf install -y epel-release \
     && dnf install -y \
         createrepo_c \
         e2fsprogs \
