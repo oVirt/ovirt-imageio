@@ -90,6 +90,10 @@ class Backend:
     def max_writers(self):
         return self._max_connections
 
+    @property
+    def format(self):
+        return "raw"
+
     # Backend interface
 
     def readinto(self, buf):

@@ -9,7 +9,9 @@ import time
 import pytest
 
 from ovirt_imageio._internal import config
+from ovirt_imageio._internal import qemu_img
 from ovirt_imageio._internal import server
+from ovirt_imageio._internal.units import KiB, MiB, GiB
 
 from .. import testutil
 from .. import http
@@ -231,7 +233,7 @@ def test_upload_invalid_range(tmpdir, srv, client, content_range):
 
 
 def test_upload_close_connection(tmpdir, srv, client):
-    image_size = 4096
+    image_size = 4 * KiB
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
@@ -291,24 +293,24 @@ def test_download(tmpdir, srv, client, rng, start, end):
 
 def test_download_image_size_gt_ticket_size(tmpdir, srv, client):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
-    ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=4 * KiB)
     srv.auth.add(ticket)
     res = client.get("/images/" + ticket["uuid"])
     assert res.status == 200
-    assert len(res.read()) == 4096
+    assert len(res.read()) == 4 * KiB
 
 
 def test_download_ticket_size_gt_image_size(tmpdir, srv, client):
-    image = testutil.create_tempfile(tmpdir, "image", size=4096)
+    image = testutil.create_tempfile(tmpdir, "image", size=4 * KiB)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     srv.auth.add(ticket)
     res = client.get("/images/" + ticket["uuid"])
     assert res.status == 200
-    assert len(res.read()) == 4096
+    assert len(res.read()) == 4 * KiB
 
 
 def test_download_range_forbidden(tmpdir, srv, client):
-    image = testutil.create_tempfile(tmpdir, "image", size=4096)
+    image = testutil.create_tempfile(tmpdir, "image", size=4 * KiB)
     ticket = testutil.create_ticket(url="file://" + str(image), size=8192)
     srv.auth.add(ticket)
     res = client.get("/images/" + ticket["uuid"],
@@ -319,7 +321,7 @@ def test_download_range_forbidden(tmpdir, srv, client):
 
 def test_download_range_unavailable(tmpdir, srv, client):
     image = testutil.create_tempfile(tmpdir, "image", size=8192)
-    ticket = testutil.create_ticket(url="file://" + str(image), size=4096)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=4 * KiB)
     srv.auth.add(ticket)
     res = client.get("/images/" + ticket["uuid"],
                      headers={"Range": "bytes=0-4096"})
@@ -328,7 +330,7 @@ def test_download_range_unavailable(tmpdir, srv, client):
 
 
 def test_download_no_range(tmpdir, srv, client):
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -339,7 +341,7 @@ def test_download_no_range(tmpdir, srv, client):
 
 
 def test_download_extends_ticket(tmpdir, srv, client, fake_time):
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -376,7 +378,7 @@ def test_download_partial_not_satistieble(tmpdir, srv, client):
     # actual image size reported by vdsm - one byte difference is enough to
     # cause a failure.
     # See https://bugzilla.redhat.com/1512315.
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
     srv.auth.add(ticket)
@@ -392,7 +394,7 @@ def test_download_partial_no_range(tmpdir, srv, client):
     # is only an upper limit. Or maybe we should treat the ticket size as the
     # expected size?
     # This is another variant of https://bugzilla.redhat.com/1512315.
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size + 1)
     srv.auth.add(ticket)
@@ -400,7 +402,7 @@ def test_download_partial_no_range(tmpdir, srv, client):
     assert res.status == http_client.OK
     # Should return the available image data, not the ticket size. Reading
     # this response will fail with IncompleteRead.
-    assert res.length == 1024
+    assert res.length == KiB
 
 
 def test_download_partial_no_range_empty(tmpdir, srv, client):
@@ -408,7 +410,7 @@ def test_download_partial_no_range_empty(tmpdir, srv, client):
     # http response that fail on the client side with BadStatusLine: ''.
     # See https://bugzilla.redhat.com/1512312
     image = testutil.create_tempfile(tmpdir, "image")  # Empty image
-    ticket = testutil.create_ticket(url="file://" + str(image), size=1024)
+    ticket = testutil.create_ticket(url="file://" + str(image), size=KiB)
     srv.auth.add(ticket)
     res = client.get("/images/" + ticket["uuid"])
     assert res.status == http_client.OK
@@ -416,7 +418,7 @@ def test_download_partial_no_range_empty(tmpdir, srv, client):
 
 
 def test_download_no_range_end(tmpdir, srv, client):
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -428,7 +430,7 @@ def test_download_no_range_end(tmpdir, srv, client):
 
 
 def test_download_holes(tmpdir, srv, client):
-    size = 1024
+    size = KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -440,7 +442,7 @@ def test_download_holes(tmpdir, srv, client):
 
 
 def test_download_filename_in_ticket(tmpdir, srv, client):
-    size = 1024
+    size = KiB
     filename = "\u05d0.raw"  # hebrew aleph
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size,
@@ -467,7 +469,7 @@ def test_download_out_of_range(tmpdir, srv, client, rng, end):
 
 def test_download_progress(tmpdir, srv, client, monkeypatch):
     # We need to read at least one buffer to update the transfered value.
-    monkeypatch.setattr(srv.config.backend_file, "buffer_size", 1024**2)
+    monkeypatch.setattr(srv.config.backend_file, "buffer_size", MiB)
 
     # And we need to request enough data so the server does not complete before
     # the client read all the data.
@@ -506,7 +508,7 @@ def test_download_progress(tmpdir, srv, client, monkeypatch):
 
 
 def test_download_close_connection(tmpdir, srv, client):
-    image_size = 4096
+    image_size = 4 * KiB
     image = testutil.create_tempfile(tmpdir, "image", b"a" * image_size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=image_size)
@@ -699,8 +701,8 @@ def test_options_all(srv, client):
     assert "max_writers" not in options
 
 
-def test_options_read_write(srv, client, tmpdir):
-    size = 128 * 1024
+def test_options_file_read_write(srv, client, tmpdir):
+    size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=size, ops=["read", "write"])
@@ -711,12 +713,16 @@ def test_options_read_write(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == ALL_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
 
 
-def test_options_read(srv, client, tmpdir):
-    size = 128 * 1024
+def test_options_file_read(srv, client, tmpdir):
+    size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=size, ops=["read"])
@@ -727,12 +733,16 @@ def test_options_read(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == BASE_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
 
 
-def test_options_write(srv, client, tmpdir):
-    size = 128 * 1024
+def test_options_file_write(srv, client, tmpdir):
+    size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=size, ops=["write"])
@@ -744,12 +754,81 @@ def test_options_write(srv, client, tmpdir):
     assert set(res.getheader("allow").split(',')) == allows
     options = json.loads(res.read())
     assert set(options["features"]) == ALL_FEATURES
+
+    # File backend specific options.
     assert options["max_readers"] == srv.config.daemon.max_connections
-    assert options["max_writers"] == 1  # Using file backend.
+    assert options["max_writers"] == 1
+    assert "transfer_format" not in options
+    assert "virtual_size" not in options
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_options_nbd_read(srv, client, tmpdir, nbd_server, fmt):
+    # Create disk.
+    size = GiB
+    disk = str(tmpdir.join(f"disk.{fmt}"))
+    qemu_img.create(disk, fmt, size=size)
+
+    # Start nbd server exporting the disk.
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.read_only = True
+    nbd_server.start()
+
+    # Add ticket using nbd server url.
+    ticket = testutil.create_ticket(
+        url=nbd_server.sock.url(), size=size, ops=["read"])
+    srv.auth.add(ticket)
+
+    # Get OPTIONS.
+    res = client.options("/images/" + ticket["uuid"])
+    allows = {"OPTIONS", "GET"}
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    options = json.loads(res.read())
+    assert set(options["features"]) == BASE_FEATURES
+
+    # NBD backend specific options.
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == srv.config.daemon.max_connections
+    assert options["transfer_format"] == "raw"
+    assert options["virtual_size"] == size
+
+
+@pytest.mark.parametrize("fmt", ["raw", "qcow2"])
+def test_options_nbd_write(srv, client, tmpdir, nbd_server, fmt):
+    # Create disk.
+    size = GiB
+    disk = str(tmpdir.join(f"disk.{fmt}"))
+    qemu_img.create(disk, fmt, size=size)
+
+    # Start nbd server exporting the disk.
+    nbd_server.image = disk
+    nbd_server.fmt = fmt
+    nbd_server.start()
+
+    # Add ticket using nbd server url.
+    ticket = testutil.create_ticket(
+        url=nbd_server.sock.url(), size=size, ops=["write"])
+    srv.auth.add(ticket)
+
+    # Get OPTIONS.
+    res = client.options("/images/" + ticket["uuid"])
+    allows = {"OPTIONS", "GET", "PUT", "PATCH"}
+    assert res.status == 200
+    assert set(res.getheader("allow").split(',')) == allows
+    options = json.loads(res.read())
+    assert set(options["features"]) == ALL_FEATURES
+
+    # NBD backend specific options.
+    assert options["max_readers"] == srv.config.daemon.max_connections
+    assert options["max_writers"] == srv.config.daemon.max_connections
+    assert options["transfer_format"] == "raw"
+    assert options["virtual_size"] == size
 
 
 def test_options_extends_ticket(srv, client, tmpdir, fake_time):
-    size = 128 * 1024
+    size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -781,7 +860,7 @@ def test_options_for_nonexistent_ticket(srv, client):
 
 
 def test_options_ticket_expired(srv, client, tmpdir, fake_time):
-    size = 128 * 1024
+    size = 128 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(
         url="file://" + str(image), size=size, timeout=300)
@@ -823,9 +902,9 @@ def test_response_version_error(tmpdir, srv, client):
 ])
 def test_keep_alive_connection_on_success(tmpdir, srv, client, method, body):
     # After successful request the connection should remain open.
-    image = testutil.create_tempfile(tmpdir, "image", size=1024)
+    image = testutil.create_tempfile(tmpdir, "image", size=KiB)
     ticket = testutil.create_ticket(url="file://" + str(image),
-                                    size=1024)
+                                    size=KiB)
     srv.auth.add(ticket)
     uri = "/images/%(uuid)s" % ticket
     # Disabling auto_open so we can test if a connection was closed.
@@ -910,7 +989,7 @@ def test_cors_options_all(srv, client):
 
 
 def test_cors_get_ok(tmpdir, srv, client):
-    size = 8192
+    size = 8 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)
@@ -939,7 +1018,7 @@ def test_cors_get_error(srv, client):
 
 
 def test_cors_put_ok(tmpdir, srv, client):
-    size = 8192
+    size = 8 * KiB
     image = testutil.create_tempfile(tmpdir, "image", size=size)
     ticket = testutil.create_ticket(url="file://" + str(image), size=size)
     srv.auth.add(ticket)

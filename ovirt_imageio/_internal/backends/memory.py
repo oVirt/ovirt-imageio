@@ -67,6 +67,10 @@ class Backend:
         # support more than one writer concurrently.
         return 1
 
+    @property
+    def format(self):
+        return "raw"
+
     # io.BaseIO interface
 
     def readinto(self, buf):
