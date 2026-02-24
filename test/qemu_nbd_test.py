@@ -482,6 +482,13 @@ def test_block_signals(tmpdir):
         assert s.wait(0.2) is not None
 
 
+@pytest.mark.skipif(
+    testutil.is_centos_9_or_10,
+    reason="Blocked until patch for qemu-img regarding"
+    "using pwrite_zeroes_alignment"
+    "when writing first sector is added to CentOS."
+    "see https://gitlab.com/qemu-project/qemu/-/commit/d704a13d",
+)
 @pytest.mark.parametrize("fmt", ["raw", "qcow2"])
 def test_block_device(tmpdir, user_block, fmt):
     qemu_img.create(user_block.path, fmt, size=1024**3)
