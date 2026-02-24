@@ -68,3 +68,12 @@ def ipv6_enabled():
     out = subprocess.check_output(["ip", "-6", "-j", "addr"])
     addresses = json.loads(out)
     return len(addresses) > 0
+
+
+def is_centos_9_or_10():
+    try:
+        with open("/etc/os-release") as f:
+            content = f.read()
+            return ("ID=\"centos\"" in content or "ID=centos" in content)
+    except OSError:
+        return False
