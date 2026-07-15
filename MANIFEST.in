@@ -9,7 +9,6 @@ include *.ini
 
 global-include *.py
 
-graft build-aux
 graft data
 graft docs
 graft examples

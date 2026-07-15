@@ -5,6 +5,7 @@ name: CI
 on:
   push:
     branches: [master]
+    tags: ['*']
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -34,7 +35,7 @@ jobs:
       # Required to create loop devices.
       options: --privileged
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     # We need to run this in order to fix sudo execution.
     # See https://github.com/rocky-linux/sig-cloud-instance-images/issues/56
     - name: Fix sudo
@@ -46,20 +47,46 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro:
-        - centos-9
-        - centos-10
-        - fedora-41
-        - fedora-42
+        include:
+          - distro: centos-9
+            shortcut: el9s
+          - distro: centos-10
+            shortcut: el10s
+          - distro: almalinux-9
+            shortcut: el9
+          - distro: almalinux-10
+            shortcut: el10
     container: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         # We need the latest tag for creating rpms.
         fetch-depth: 0
+    - name: Mark repository as safe
+      run: git config --global --add safe.directory "$(pwd)"
+    - name: Set build environment
+      run: |
+        TAG=$(git tag --points-at HEAD | head -1)
+        if [[ -n "$TAG" ]]; then
+          if [[ "$TAG" =~ -([0-9]+)$ ]]; then
+            echo "PACKAGE_RPM_RELEASE=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "PACKAGE_RPM_RELEASE=1" >> $GITHUB_ENV
+          fi
+        else
+          echo "RELEASE_SUFFIX=.$(date --utc +%Y%m%d%H%M%S).git$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        fi
     - name: Build rpms
       run: ./ci/rpm.sh
-    - name: Upload artidacts
-      uses: ovirt/upload-rpms-action@main
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
       with:
-        directory: ${{env.EXPORT_DIR}}
+        name: rpm-${{matrix.shortcut}}
+        path: ${{env.EXPORT_DIR}}
+  publish-rpms:
+    permissions:
+      artifact-metadata: read
+    needs: rpm
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    uses: ovirt/ovirt-workflows/.github/workflows/publish-rpms.yml@main
+    secrets: inherit

@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: Red Hat, Inc.
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-RELEASE := $(shell ./build-aux/release)
+PACKAGE_RPM_RELEASE ?= 0.master
+RELEASE_SUFFIX ?=
 PACKAGE_NAME=ovirt-imageio
 PACKAGE_VERSION=$(shell python3 ovirt_imageio/_internal/version.py)
 OUTDIR=dist
@@ -37,10 +38,12 @@ container: dist
 srpm: dist
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
 		--define="_srcrpmdir $(OUTDIR)" \
+		--define="release_suffix $(RELEASE_SUFFIX)" \
 		-ts "$(OUTDIR)/$(TAR_NAME)"
 
 rpm: srpm
 	rpmbuild --define="_topdir $(RPM_TOPDIR)" \
+		--define="release_suffix $(RELEASE_SUFFIX)" \
 		-rb "$(OUTDIR)/$(PACKAGE_NAME)-$(PACKAGE_VERSION)"*.src.rpm
 	mv $(RPM_TOPDIR)/RPMS/*/* "$(OUTDIR)"
 
@@ -79,6 +82,6 @@ $(GENERATED) : % : %.in $(METADATA)
 	@sed \
 		-e 's|@PACKAGE_NAME@|$(PACKAGE_NAME)|g' \
 		-e 's|@PACKAGE_VERSION@|$(PACKAGE_VERSION)|g' \
-		-e 's|@RELEASE@|$(RELEASE)|g' \
+		-e 's|@PACKAGE_RPM_RELEASE@|$(PACKAGE_RPM_RELEASE)|g' \
 		$< > $@
 	@echo "generated $@"
