@@ -74,13 +74,12 @@ def test_round_down(size, rounded):
 
 
 @pytest.mark.parametrize("value,expected", [
-    ("value", "value"),
-    ("value", "value"),
-    (b"value", "value"),
+    pytest.param("value", "value", id="str-value"),
+    pytest.param(b"value", "value", id="bytes-value"),
     ("\u05d0", "\u05d0"),
     (b"\xd7\x90", "\u05d0"),
-    ("\u0000", "\u0000"),
-    (b"\0", "\u0000"),
+    pytest.param("\u0000", "\u0000", id="str-null"),
+    pytest.param(b"\0", "\u0000", id="bytes-null"),
 ])
 def test_ensure_text(value, expected):
     result = util.ensure_text(value)
