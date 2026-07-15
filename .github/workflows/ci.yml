@@ -26,10 +26,10 @@ jobs:
             env: py312
           - distro: centos-10
             env: py312
-          - distro: fedora-41
-            env: py313
-          - distro: fedora-42
-            env: py313
+          - distro: fedora-43
+            env: py314
+          - distro: fedora-44
+            env: py314
     container:
       image: quay.io/ovirt/ovirt-imageio-test:${{matrix.distro}}
       # Required to create loop devices.
