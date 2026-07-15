@@ -10,8 +10,6 @@ from ovirt_imageio._internal import directio
 from ovirt_imageio._internal import errors
 from ovirt_imageio._internal import util
 
-from . import testutil
-
 # Legacy code supports only 512 bytes.
 BLOCKSIZE = 512
 
@@ -34,7 +32,12 @@ BYTES = fill(b"0123456789", 42)
     BLOCK * 2,
     BLOCK + BYTES,
     BYTES,
-], ids=testutil.head)
+], ids=["buffer-x2",
+        "buffer-block-x2",
+        "buffer-block-bytes",
+        "block-x2",
+        "block-bytes",
+        "bytes"])
 def test_receive(tmpfile, data, offset):
     assert receive(tmpfile, data, len(data), offset=offset) == data
 
@@ -59,7 +62,12 @@ def test_receive_partial(tmpfile, size, offset):
     BLOCK * 2,
     BLOCK + BYTES,
     BYTES,
-], ids=testutil.head)
+], ids=["buffer-x2",
+        "buffer-block-x2",
+        "buffer-block-bytes",
+        "block-x2",
+        "block-bytes",
+        "bytes"])
 def test_receive_partial_content(tmpfile, data, offset):
     with pytest.raises(errors.PartialContent) as e:
         receive(tmpfile, data[:-1], len(data), offset=offset)
@@ -145,7 +153,11 @@ def receive_unbuffered(tmpfile, chunks, size, bufsize):
     BUFFER + BLOCK + BYTES,
     BLOCK * 2,
     BLOCK + BYTES,
-], ids=testutil.head)
+], ids=["buffer-x2",
+        "buffer-block-x2",
+        "buffer-block-bytes",
+        "block-x2",
+        "block-bytes"])
 def test_receive_no_size(tmpfile, data, offset):
     with open(tmpfile, "wb") as f:
         f.write(b"x" * offset)
