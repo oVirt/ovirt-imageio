@@ -89,6 +89,25 @@ When using multiple writers, each writer should modify a distinct byte
 range. If two writers modify the same byte range concurrently they will
 overwrite each other data.
 
+### transfer_format
+
+The transfer data format. Always available when using the `nbd` and
+`memory` backends, not available when using the `file` backend. When
+using the `http` backend `transfer_format` is available only if the
+remote server reports it.
+
+Since 2.4.6.
+
+### virtual_size
+
+The underlying image virtual size. Available only when the backend is
+using `raw` transfer format. Always available when using the `nbd` and
+`memory` backends, not available when using the `file` backend.  When
+using the `http` backend the `virtual_size` is available only if the
+remote server reports it.
+
+Since 2.4.6.
+
 ### Errors
 
 Specific errors for OPTIONS request:
@@ -117,9 +136,9 @@ Response:
     Content-Length: 122
 
     {"unix_socket": "\u0000/org/ovirt/imageio", "features": ["extents", "zero", "flush"],
-     "max_readers": 8, "max_writers": 8}
+     "max_readers": 8, "max_writers": 8, "transfer_format": "raw", "virtual_size": 53687091200}
 
-Get options for ticket-id with read-write access using nbd backend:
+Get options for ticket-id with read-write access using `nbd` backend:
 
     $ curl -k -X OPTIONS https://server:54322/images/{ticket-id} | jq
     {
@@ -130,11 +149,13 @@ Get options for ticket-id with read-write access using nbd backend:
         "flush"
       ],
       "max_readers": 8,
-      "max_writers": 8
+      "max_writers": 8,
+      "transfer_format": "raw",
+      "virtual_size": 53687091200
     }
 
-The nbd backend is used when specifying the "raw" transfer format when
-creating an image transfer in oVirt API.
+The nbd backend is used when creating an image transfer with
+format="raw" in oVirt API.
 
 Get options for ticket-id with read-only access using file backend:
 
@@ -147,6 +168,9 @@ Get options for ticket-id with read-only access using file backend:
       "max_readers": 8,
       "max_writers": 1
     }
+
+Note that `virtual_size` and `transfer_format` are not reported, and this
+backend does not support multiple writers.
 
 Get all available options for the special `*` ticket:
 
