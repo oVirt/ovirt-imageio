@@ -13,6 +13,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
 * [Images API](images.md)
 
+* [Administration](admin.md)
+
 * [UNIX Socket Support](unix-socket.md)
 
 * [Development](development.md)
