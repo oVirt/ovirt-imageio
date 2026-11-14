@@ -43,8 +43,23 @@ class RangeList:
         """
         Add a single range.
         """
-        bisect.insort_left(self._ranges, r)
-        self._ranges = _merged(self._ranges)
+        i = bisect.bisect_left(self._ranges, r)
+
+        start = r.start
+        end = r.end
+        left = i
+
+        if i > 0 and self._ranges[i - 1].end >= start:
+            left = i - 1
+            start = min(start, self._ranges[i - 1].start)
+            end = max(end, self._ranges[i - 1].end)
+
+        right = i
+        while right < len(self._ranges) and self._ranges[right].start <= end:
+            end = max(end, self._ranges[right].end)
+            right += 1
+
+        self._ranges[left:right] = [Range(start, end)]
 
     def update(self, rs):
         """
