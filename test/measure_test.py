@@ -256,3 +256,24 @@ def test_range_list_copy():
 
     assert r1._ranges == [Range(0, 100), Range(200, 500)]
     assert r2._ranges == [Range(0, 300), Range(400, 500)]
+
+
+def test_range_list_add_bridges_neighbors():
+    rl = RangeList()
+    rl.add(Range(0, 10))
+    rl.add(Range(20, 30))
+    rl.add(Range(10, 20))
+    assert rl._ranges == [Range(0, 30)]
+    assert rl.sum() == 30
+
+
+def test_range_list_add_many_non_contiguous():
+    rl = RangeList()
+
+    for i in range(1000):
+        rl.add(Range(i * 20, i * 20 + 10))
+
+    assert len(rl._ranges) == 1000
+    assert rl.sum() == 10000
+    assert rl._ranges[0] == Range(0, 10)
+    assert rl._ranges[-1] == Range(19980, 19990)
